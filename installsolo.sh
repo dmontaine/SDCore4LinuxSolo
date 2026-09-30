@@ -548,7 +548,10 @@ fi
 printf '%s\n' "$chk" | grep -qE '^[0-9]+ sduser$' || { printf '%s\n' "$chk" | tail -5; fail "a session as sduser did not work"; }
 say "  a session as sduser works"
 rm -f "$HOME_DIR/\$internal"
-gate="$(timeout 60 "$HOME_DIR/bin/sd" -internal WHO 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+# stdin is /dev/null: "timeout" runs its command in a BACKGROUND process group, and an sd
+# that meets the terminal there is stopped by SIGTTIN - which hung this check for ever
+# whenever the installer was run from a real terminal (found by verify-solo-interactive.sh).
+gate="$(timeout 60 "$HOME_DIR/bin/sd" -internal WHO </dev/null 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 if printf '%s\n' "$gate" | grep -qE '^[0-9]+ sdsys$'; then fail "sd -internal was admitted with no marker: the internal door is OPEN"; fi
 printf '%s\n' "$gate" | grep -qx 'Connection terminated' || fail "sd -internal did not end with 'Connection terminated'"
 [ ! -e "$HOME_DIR/\$internal" ] || fail "a marker file was left in $HOME_DIR"
