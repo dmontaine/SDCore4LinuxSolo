@@ -201,7 +201,12 @@ CTL
     else
       leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; DATE on the list" 1 "$(printf '%s\n' "$g" | tail -2 | tr '\n' '|')"
     fi
-    bash "$H2/tools/deletesolo.sh" --yes > /dev/null 2>&1
+    dout2="$(bash "$H2/tools/deletesolo.sh" --delete-data --yes 2>&1 | strip)"
+    if printf '%s\n' "$dout2" | grep -qx "SOLO DELETE COMPLETE $H2" && [ ! -e "$H2" ] && ! systemctl --user is-active sd-solo.service >/dev/null 2>&1; then
+      leg "F5c the control-file install is removed" "'SOLO DELETE COMPLETE', no tree, no service" 0 "removed"
+    else
+      leg "F5c the control-file install is removed" "'SOLO DELETE COMPLETE', no tree, no service" 1 "$(printf '%s\n' "$dout2" | tail -2 | tr '\n' ' ')"
+    fi
   fi
   # the shipped sample, untouched, gives no answers: nothing in it may be taken as one
   o="$(timeout 60 bash "$INSTALL" --home "$W/h9" --skip-packages --yes --control-file "$here/sd-solo-setup.conf.sample" </dev/null 2>&1 | strip)"
