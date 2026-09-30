@@ -249,6 +249,79 @@ else
 fi
 rm -f "$PROG"
 
+# ======================================================================
+# SET.PASSWORD (ruling 39).  sess_as PW LINES... is sess() with a chosen first
+# line (the password the session signs in with).  Every leg that changes a
+# password changes it BACK before it ends, and says so, so a failed leg cannot
+# leave the tree with a password nobody knows: if the restore fails the run
+# stops with exit 2 and names the password that is now in force.
+sess_as() {
+  local first="$1"; shift
+  printf '%s\n' "$first" "$@" OFF | timeout 120 "$SD" 2>&1 \
+    | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core, the'
+}
+NEWPW='New-Pass-3!'
+
+# ---- 17. SET.PASSWORD (account): the current password is asked first; a wrong
+# one changes nothing; the right one changes it, the old stops working, the new
+# works, the kept copy for one-shot commands follows; then it is put back.
+# INTERACTIVE sessions check the password typed; a ONE-SHOT ("sd WHO") tries the
+# kept copy first and never looks at its input when that verifies, so it cannot
+# tell an old password from the new one - it is used only for the kept-copy check.
+o_wrong="$(sess_as "$GOOD" SET.PASSWORD 'not-the-current' "$NEWPW" "$NEWPW")"
+w_old="$(sess_as "$GOOD" WHO | grep -cE '^[0-9]+ sduser$')"
+o_ok="$(sess_as "$GOOD" SET.PASSWORD "$GOOD" "$NEWPW" "$NEWPW")"
+n_old="$(printf '%s\nOFF\n' "$GOOD" | timeout 60 "$SD" 2>&1 | strip | grep -cx 'Wrong password')"
+n_new="$(sess_as "$NEWPW" WHO | grep -cE '^[0-9]+ sduser$')"
+n_kept="$(echo "" | timeout 60 "$SD" WHO 2>&1 | strip | grep -cE '^[0-9]+ sduser$')"
+o_back="$(sess_as "$NEWPW" SET.PASSWORD "$NEWPW" "$GOOD" "$GOOD")"
+b_ok="$(sess_as "$GOOD" WHO | grep -cE '^[0-9]+ sduser$')"
+if [ "$b_ok" -ne 1 ]; then
+  echo "FATAL: the account password could not be put back; the tree's account password is now: $NEWPW" >&2
+  exit 2
+fi
+if printf '%s\n' "$o_wrong" | grep -qx 'Wrong password - the password is unchanged' && [ "$w_old" -eq 1 ] \
+   && printf '%s\n' "$o_ok" | grep -qx 'Password changed' \
+   && [ "$n_old" -eq 1 ] && [ "$n_new" -eq 1 ] && [ "$n_kept" -eq 1 ] \
+   && printf '%s\n' "$o_back" | grep -qx 'Password changed'; then
+  leg "17 SET.PASSWORD changes the account password" "wrong current refused; right one changes it, old stops, new works, one-shot follows; put back" 0 "as expected"
+else
+  leg "17 SET.PASSWORD changes the account password" "wrong current refused; right one changes it, old stops, new works, one-shot follows; put back" 1 "wrong: $(last "$o_wrong") old-still-works=$w_old / ok: $(last "$o_ok") old-refused=$n_old new-works=$n_new kept=$n_kept"
+fi
+
+# ---- 18. SET.PASSWORD ADMIN needs ADMIN; a weak password is refused and the
+# administrator password is unchanged; a good one changes it and is put back.
+o_no="$(sess_as "$GOOD" 'SET.PASSWORD ADMIN')"
+o_weak="$(sess_as "$GOOD" ADMIN "$ADMINPW" 'SET.PASSWORD ADMIN' weak weak)"
+still="$(sess_as "$GOOD" ADMIN "$ADMINPW" | grep -cx 'Administrator commands unlocked for this session')"
+NEWADMIN='Admin-New-4!'
+o_chg="$(sess_as "$GOOD" ADMIN "$ADMINPW" 'SET.PASSWORD ADMIN' "$NEWADMIN" "$NEWADMIN")"
+new_unlocks="$(sess_as "$GOOD" ADMIN "$NEWADMIN" | grep -cx 'Administrator commands unlocked for this session')"
+o_back="$(sess_as "$GOOD" ADMIN "$NEWADMIN" 'SET.PASSWORD ADMIN' "$ADMINPW" "$ADMINPW")"
+back_unlocks="$(sess_as "$GOOD" ADMIN "$ADMINPW" | grep -cx 'Administrator commands unlocked for this session')"
+if [ "$back_unlocks" -ne 1 ]; then
+  echo "FATAL: the administrator password could not be put back; it is now: $NEWADMIN" >&2
+  exit 2
+fi
+if printf '%s\n' "$o_no" | grep -qx "$NEEDS" \
+   && printf '%s\n' "$o_weak" | grep -qx 'A password needs at least 8 characters, with a lower-case letter, an upper-case letter, a digit and a symbol.' \
+   && [ "$still" -eq 1 ] \
+   && printf '%s\n' "$o_chg" | grep -qx 'Password changed' && [ "$new_unlocks" -eq 1 ] \
+   && printf '%s\n' "$o_back" | grep -qx 'Password changed'; then
+  leg "18 SET.PASSWORD ADMIN" "needs ADMIN; weak refused, old still unlocks; good changes it; put back" 0 "as expected"
+else
+  leg "18 SET.PASSWORD ADMIN" "needs ADMIN; weak refused, old still unlocks; good changes it; put back" 1 "no-admin: $(last "$o_no") weak: $(last "$o_weak") still=$still chg: $(last "$o_chg") new-unlocks=$new_unlocks"
+fi
+
+# ---- 19. SET.PASSWORD GLOBAL on a standalone tree says so (no global password).
+out="$(sess_as "$GOOD" 'SET.PASSWORD GLOBAL')"
+if printf '%s\n' "$out" | grep -qx 'This computer is standalone - it has no global password'; then
+  leg "19 SET.PASSWORD GLOBAL is refused when standalone" "'This computer is standalone...'" 0 "refused"
+else
+  leg "19 SET.PASSWORD GLOBAL is refused when standalone" "'This computer is standalone...'" 1 "$(last "$out")"
+fi
+
 echo
 echo "verify-solo: $pass passed, $fail failed, of $legs legs"
 [ "$legs" -gt 0 ] || refuse "no leg ran"
