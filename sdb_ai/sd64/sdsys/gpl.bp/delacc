@@ -1,0 +1,484 @@
+* DELACC
+* DELETE.ACCOUNT verb
+* Copyright (c) 2007 Ladybridge Systems, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+*
+* START-HISTORY:
+* 19 Sep 26 dm  The account directory goes through sd-elevate rmtree-account
+*               when the session is not root, and one left behind is named
+*               (10919) - the fifth cycle's zzrel1 survived, silently.
+* 18 Sep 26 dm TEARDOWN (S.26/S.28).  A kept Linux user loses only sdusers
+*           now: sdadmin and sdapi no longer exist, so nothing strips them.
+* 15 Sep 26 dm  An account whose voc will not open is named (10188) and skipped
+*               instead of aborting the deletion.  PRE_RELEASE 31; the Windows
+*               port found it (its RELEASE_1.1 44) and carries the number.
+* 14 Sep 26 dm  A kept Linux user loses sdapi too (S.16), between sdadmin and
+*               sdusers.
+* 14 Sep 26 dm  The account's $cred record is deleted with it (W.4 SCRAM phase 2).
+*               The Windows port's DELACC does not, and a credential outliving
+*               its account would admit a later account of the same name with
+*               the old password.  To be reported to the port.
+* 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner); a
+*               cross-referencing Q-pointer's account is compared downcased.
+* 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
+* 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
+* 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+* rev 0.9.0 delete-account requires admin priv, are we admin?
+*           on user account, delete os user if configured
+* rev 1.0-1 use userdel not deluser (deluser not on all Linux version)
+* 10 Sep 26 dm  PARITY AUDIT - the port's DELACC (14-30 Aug 2026).  ONE
+*               confirmation, naming what will go (10084/10085), Enter = N,
+*               after a warning that the data goes with it (10158).  The
+*               cross-reference question (6029) is a statement now, and the
+*               separate directory (6031) and OS-user (10027) questions are
+*               gone.  The config('CREATUSR') gate is gone, as it is from
+*               CREATEA.  The Linux user is deleted only when SD created it -
+*               !is_sd_user reads the "SD account" GECOS stamp CREATE_USER
+*               writes - and the ACCOUNTS record is deleted LAST, so a failure
+*               part way leaves the account registered and this verb runnable.
+* 10 Sep 26 dm  REMOVE.HOME (owner): also remove the SD-created Linux user's home
+*               directory, named in the one confirmation (10905); refused in
+*               words when there is no such user (10906); the result is read
+*               off disk (10907/10908).  sd-elevate userdel-home re-checks.
+* 12 Sep 26 dm  PRE_RELEASE 28.  A deleted account no longer leaves its
+*               borrowed Linux user in sdadmin/sdusers.  The user is still
+*               left in place (SD did not make it); the SD group memberships
+*               it added are stripped, so a deleted administrator does not
+*               keep passwordless sd-elevate.  A true deletion, the owner's
+*               ruling 12 Sep 2026.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+* DELETE.ACCOUNT account.name {REMOVE.HOME}
+*
+* Removes the account directory, the sdu_ or sdg_ group, the ACCOUNTS record
+* and - for a USER account whose Linux user SD created - that Linux user.  One
+* confirmation covers all of it.
+*
+* WHAT IT WILL NOT DO IS DELETE A LINUX USER SD DID NOT CREATE.  !is_sd_user
+* reads back the GECOS comment CREATE_USER stamps; any other user - the person
+* who installed SD, or an account made before the stamp existed - is left in
+* place and message 10036 says so, and the confirmation uses the shorter
+* wording, so it never promises what it will not do.
+*
+* THE LINUX USER'S HOME DIRECTORY GOES ONLY WITH REMOVE.HOME (owner, 10 Sep
+* 2026).  The port always removes the Windows profile; on Linux the home holds
+* the person's own files and ssh keys, so it is removed only when asked, only
+* for a user SD created, and only when it is exactly <HOME base>/<user>.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $delete.account
+$catalog $DELACC
+
+$include keys.h
+$include int$keys.h
+$include parser.h
+$include err.h
+* REV 0.9.0
+deffun is_group(group) calling '!is_group'
+deffun valid_os_name(name) calling '!valid_os_name'
+* 10 Sep 26 dm - did SD create the Linux user behind this account?  (the port's)
+deffun is_sd_user(username) calling '!is_sd_user'
+* 12 Sep 26 dm - PRE_RELEASE 28: strip SD's group memberships from a surviving
+*   borrowed Linux user.  Same function MODIFYA and GRANTA use.
+deffun is_grp_member(user,group) calling '!is_grp_member'
+   prompt ''
+
+   parser = "!PARSER"
+
+* rev 0.9.0 delete-account requires admin priv, are we admin?
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+     stop sysmsg(2001)  ;* Command requires administrator privileges
+   end
+
+   @system.return.code = -ER$ARGS            ;* Preset for argument errors
+
+
+   call @parser(parser$reset, 0, @sentence, 0)
+   call @parser(parser$get.token, token.type, token, keyword) ;* Verb
+
+   * Get and process account name
+
+   call @parser(parser$get.token, token.type, acc.name, keyword)
+   if token.type = PARSER$END then
+      display sysmsg(6001) :  ;* Account name:
+      input acc.name
+      acc.name = trim(acc.name)
+      if acc.name = '' then stop
+   end
+
+   * Validate account name
+
+   acc.name = downcase(acc.name)
+
+* 10 Sep 26 dm - REMOVE.HOME, THE OWNER'S OPTION (10 Sep 2026): also remove the
+*   Linux user's home directory.  A PARAMETER RATHER THAN A SECOND PROMPT,
+*   because the port's ruling for this verb is ONE confirmation - the keyword
+*   changes what that confirmation names (10905) instead of adding a question.
+*   Matched on the token text, as CREATEA matches its tier keywords, so the
+*   shared KW$ table is not extended for one verb.  Anything else is refused.
+   remove.home = @false
+   loop
+      call @parser(parser$get.token, token.type, token, keyword)
+   until token.type = PARSER$END
+      if upcase(token) = 'REMOVE.HOME' then
+         remove.home = @true
+      end else
+         stop sysmsg(2018, token) ;* Unexpected token (xx)
+      end
+   repeat
+
+   if acc.name = 'sdsys' then
+      stop sysmsg(6025) ;* Cannot delete SDSYS account
+   end
+
+   if acc.name = @who then
+      stop sysmsg(6026) ;* Cannot delete own account
+   end
+
+   * Check account exists in ACCOUNTS file
+
+   openpath @sdsys:@ds:'accounts' to acc.f else
+      stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
+   end
+
+   readu acc.rec from acc.f, acc.name locked
+      stop sysmsg(6006, status()) ;* ACCOUNTS file record locked by user xx
+   end else
+      @system.return.code = -status()
+      stop sysmsg(6027) ;* Account not registered in ACCOUNTS file
+   end
+* rev 0.9.0
+   group_name = acc.rec<ACC$GROUP>
+
+   pathname = parse.pathname.tokens(acc.rec<ACC$PATH>)
+
+* 10 Sep 26 dm - WORK OUT WHAT WILL GO BEFORE ASKING ABOUT IT (the port's, 21 Aug
+*   2026).  del.user is set only for a USER account whose Linux user exists and
+*   carries SD's stamp, and the confirmation names a Linux user only then.
+   del.user = ''
+   os.user = ''
+   sd.made.it = @false
+   lookup.stat = 0
+
+   findstr 'sdu_' in group_name setting yn then
+      os.user = change(group_name, 'sdu_', '')
+      if valid_os_name(os.user) then
+         sd.made.it = is_sd_user(os.user)
+         lookup.stat = status()
+         if lookup.stat = 0 and sd.made.it then
+            del.user = os.user
+         end
+      end
+   end
+
+* 10 Sep 26 dm - REMOVE.HOME APPLIES ONLY TO A USER SD CREATED, because only that
+*   user is deleted at all.  Said before the confirmation rather than silently
+*   ignored, so nobody answers Y believing a home will go that will not.  The
+*   home is read back from the password database, not assumed, and sd-elevate
+*   checks it again (exactly <HOME base>/<user>) before it runs userdel -r.
+   home.dir = ''
+   if remove.home then
+      if del.user = '' then
+         crt sysmsg(10906, acc.name) ;* REMOVE.HOME given, but no SD-created Linux user
+         remove.home = @false
+      end else
+         gent.out = ''
+         os.execute 'getent passwd ' : del.user capturing gent.out
+         home.dir = field(gent.out<1>, ':', 6)
+      end
+   end
+
+   * Check  account directory exists
+
+   dir.exists = ospath(pathname, OS$EXISTS)
+   if not(dir.exists) then
+      display sysmsg(6028) ;* WARNING: Account directory does not exist
+   end else
+      * Check for cross-references from other accounts
+      * ie Files in this account are referenced from other accounts
+
+      xref.found = @false
+      select acc.f to 11
+      loop
+         readnext xacc from 11 else exit
+         if xacc # acc.name then
+            read xacc.rec from acc.f, xacc then
+               xacc.path = parse.pathname.tokens(xacc.rec<ACC$PATH>)
+               openpath xacc.path:@ds:'voc' to xvoc.f then
+                  select xvoc.f to 12
+                  loop
+                     readnext xid from 12 else exit
+                     read xvoc.rec from xvoc.f, xid then
+                        xvoc.rec = upcase(xvoc.rec)
+                        type = upcase(xvoc.rec[1,1])
+                        begin case
+                           case type = 'F'
+                              num.components = dcount(xvoc.rec<2>, @vm)
+                              for comp = 1 to num.components
+                                 fpath = ospath(xvoc.rec<2,comp>, OS$FULLPATH)
+                                 if field(fpath, @ds, 1, dcount(fpath, @ds) - 1) = pathname then
+                                    gosub report.xref
+                                 end
+                              next comp
+
+                              fpath = ospath(xvoc.rec<3>, OS$FULLPATH)
+                              if field(fpath, @ds, 1, dcount(fpath, @ds) - 1) = pathname then
+                                 gosub report.xref
+                              end
+
+                           case type = 'Q'
+                              if downcase(xvoc.rec<2>) = acc.name or xvoc.rec<2> = pathname then
+                                 gosub report.xref
+                              end
+                        end case
+                     end
+                  repeat
+* 15 Sep 26 dm - PRE_RELEASE 31, THE WINDOWS PORT'S RELEASE_1.1 44: NAME IT AND
+*   CARRY ON.  There was no ELSE here, so one account whose voc would not open
+*   aborted the whole verb with ER_SFNF - and before the confirmation - though
+*   this scan only feeds a WARNING (report.xref).  A check that produces advice
+*   must not kill the thing it advises about.
+*
+*   10188 AND ITS WORDING ARE THE PORT'S, TAKEN VERBATIM so the two ports read
+*   the same: it built first, and the port that builds first carries the number.
+*
+*   WHAT REACHES HERE ON LINUX IS A voc THAT IS GENUINELY MISSING, not one whose
+*   mode refuses us.  MEASURED 15 Sep 2026: as an ADMINISTRATOR-tier person in
+*   sdadmin but not root, DELETE.ACCOUNT is refused 2001 at :101 and LOGTO SDSYS
+*   is refused 10002, so the deleter is always a root session and a mode cannot
+*   hide an account from it.  A removed directory still can.
+               end else
+                  display sysmsg(10188, xacc)
+               end
+            end
+         end
+      repeat
+
+* 10 Sep 26 dm - THE CROSS-REFERENCE QUESTION IS NOW A STATEMENT (the port's;
+*   owner's decision there, 21 Aug 2026: ONE confirmation before deleting).  It
+*   was its own Y/N (6029), which made two prompts on the one path where it
+*   fired.  report.xref has already printed them above, so they are read before
+*   the single question rather than answered twice.  The separate "delete
+*   directory" question (6031) went the same way: the confirmation below names
+*   the directory.
+   end                                  ;* account directory exists
+
+* 10 Sep 26 dm - ONE CONFIRMATION, AND IT NAMES WHAT WILL ACTUALLY GO (the
+*   port's).  10158 first, because deleting takes the account's data with it.
+*   Enter takes the default the prompt shows, N (port PRE_RELEASE_FIXES 79).
+   crt sysmsg(10158, acc.name)
+
+   loop
+      begin case
+         case del.user # '' and remove.home
+            display sysmsg(10905, acc.name, del.user, home.dir) : ;* ... and the home directory
+         case del.user # ''
+            display sysmsg(10084, acc.name, del.user) : ;* account, directory and Linux user
+         case 1
+            display sysmsg(10085, acc.name) :           ;* account and its directory
+      end case
+      input yn
+      yn = upcase(yn)
+      if yn = '' then yn = 'N'
+   until yn = 'Y' or yn = 'N'
+   repeat
+
+   if yn = 'N' then
+      @system.return.code = -ER$STOPPED
+      stop sysmsg(6030) ;* Account deletion abandoned
+   end
+
+* 19 Sep 26 dm - THROUGH THE HELPER WHEN THE SESSION IS NOT ROOT, AND CHECKED.
+*   OS$DELETE runs as the calling session, which is the local sdsys session
+*   since the teardown (S.26), and sdsys cannot remove what the account's own
+*   user made without group write - so zzrel1's directory survived the fifth
+*   cycle's DELETE.ACCOUNT, and nothing said so because the result was never
+*   read.  sd-elevate rmtree-account accepts exactly an account directory.
+*   Either way, a directory still on disk afterwards is named (10919), and the
+*   deletion carries on: the account is going, and the directory is only
+*   files the administrator can see and remove.
+   if dir.exists then
+      if system(27) = 0 then
+         yn = ospath(pathname, OS$DELETE)
+      end else
+         if index(pathname, "'", 1) = 0 then
+            os.execute "sudo /usr/local/sbin/sd-elevate rmtree-account '" : pathname : "'"
+         end
+      end
+      if ospath(pathname, OS$EXISTS) then
+         crt sysmsg(10919, pathname) ;* Account directory %1 was not removed
+      end
+   end
+
+* 10 Sep 26 dm - THE ACCOUNTS RECORD IS DELETED LAST, NOT HERE (the port's, 14
+*   Aug 2026) - see the end of the program.
+
+   * rev 0.9.0 remove group.
+   if is_group(group_name) then
+      * Modified by Composer AI - 2026/06/10.
+      * Use shared !valid_os_name before OS.EXECUTE (phase 2).
+      if not(valid_os_name(group_name)) then
+         crt sysmsg(10026,group_name, 2) ;* Warning unable to delete group: %1 error: %2
+      end else
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   sd-elevate accepts only sdu_* and sdg_* here - SD's own sdusers and sdadmin
+*   are refused by name, because deleting either takes the system apart rather
+*   than an account, and this call only ever passes the account's own group.
+         OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupdel ": group_name
+         stat = OS.ERROR()
+         if stat = 0 then
+            crt sysmsg(10025,group_name) ;* group: %1 Deleted
+         end else
+            crt sysmsg(10026,group_name, stat) ;* Warning unable to delete group: %1 error: %2
+         end
+      end
+   end
+
+* 10 Sep 26 dm - THE LINUX USER, AND THIS BLOCK NO LONGER ASKS, IT ACTS ON WHAT
+*   THE CONFIRMATION NAMED (the port's, owner's decision there 21 Aug 2026).
+*   The config('CREATUSR') gate is gone: CREATEA always creates the user now,
+*   so leaving deletion to a setting nothing else reads would make the two
+*   verbs disagree.  Three cases, as the port's.
+   if os.user # '' then
+      if not(valid_os_name(os.user)) then
+         crt sysmsg(10029, os.user, 2) ;* Warning unable to delete OS User: %1 error: %2
+      end else
+         begin case
+            case lookup.stat # 0
+               * No such Linux user - the SD side outliving the OS side, which
+               * a failed creation also leaves.  Reported, not warned about:
+               * there is nothing wrong and nothing to do.
+               crt sysmsg(10037, os.user) ;* Linux user %1 does not exist
+
+            case sd.made.it
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   sd-elevate refuses root, sdsys and anything below UID_MIN as a target, so
+*   "delete root" has no spelling on this path.
+               if remove.home then
+                  OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel-home " : os.user
+               end else
+                  OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel " : os.user
+               end
+               stat = OS.ERROR()
+* 10 Sep 26 dm - userdel exits 12 when it deleted the user but could not remove
+*   the home, so 12 under REMOVE.HOME is a deletion, not a failure.  WHETHER THE
+*   HOME WENT IS READ OFF DISK, not inferred from the exit code.
+               if stat = 0 or (stat = 12 and remove.home) then
+                  crt sysmsg(10028, os.user) ;* OS User: %1 Deleted
+                  if remove.home and home.dir # '' then
+                     if ospath(home.dir, OS$EXISTS) then
+                        crt sysmsg(10908, home.dir) ;* Home directory %1 was not removed
+                     end else
+                        crt sysmsg(10907, home.dir) ;* Home directory %1 removed
+                     end
+                  end
+               end else
+                  crt sysmsg(10029, os.user, stat) ;* Warning unable to delete OS User: %1 error: %2
+               end
+
+            case 1
+               * It exists and does not carry SD's stamp - the person who
+               * installed SD, or a user made before the stamp existed.  Not
+               * offered, not asked about: said plainly, and the confirmation
+               * above did not promise it either.
+               crt sysmsg(10036, os.user) ;* %1 was not created by SD
+* 12 Sep 26 dm - PRE_RELEASE 28.  The user stays; its SD memberships do not.
+*   Only this branch needs it: a user SD created (sd.made.it above) is
+*   userdel'd whole and its groups go with it, and lookup.stat # 0 has no
+*   user.  sdusers LAST, so an interrupted strip leaves an SD user who can no
+*   longer enter SD accounts at all, which is the safer state.
+* 18 Sep 26 dm - TEARDOWN (S.26).  sdadmin is no longer stripped here: the
+*   group does not exist any more.
+* 20 Sep 26 dm - S.29.  sdssh and sdapi are stripped again, and BEFORE sdusers
+*   for the reason the ordering comment above gives: each membership is a
+*   remote ROUTE, so an interrupted strip must leave the kept Linux user with
+*   fewer ways in, never more.  Left behind, they would hand a later account of
+*   the same name the routes this one had - the shape $cred's removal exists
+*   to prevent.
+               strip.user = os.user
+               strip.group = 'sdssh'   ; gosub strip.membership
+               strip.group = 'sdapi'   ; gosub strip.membership
+               strip.group = 'sdusers' ; gosub strip.membership
+         end case
+      end
+   end
+
+* 14 Sep 26 dm - W.4 SCRAM phase 2.  THE SD PASSWORD GOES WITH THE ACCOUNT.
+*   $cred holds the account's SCRAM keys, and nothing else ever removes them:
+*   left behind, they would let a later account of the same name be entered
+*   over the API with the old password, and MODIFY.PASSWORD would demand that
+*   old password from its new owner.  This verb runs with euid 0 (CPROC
+*   privileged_commands), which $cred's root:root 0700 requires.  BEFORE the
+*   register delete below, which stays last.  The Windows port's DELACC has
+*   the same gap.
+   openpath @sdsys:@ds:'$cred' to cred.f then
+      delete cred.f, acc.name
+      close cred.f
+   end
+
+   * Delete ACCOUNTS entry.  LAST, so that anything failing above leaves the
+   * account registered and this verb able to be run again.
+
+   delete acc.f, acc.name
+
+   @system.return.code = 0
+   return
+
+* ======================================================================
+* strip.membership - remove strip.user from strip.group, if it is a member.
+* PRE_RELEASE 28.  The same shape as MODIFYA's leave.sdadmin (:616) and
+* GRANTA (:307): guard on is_grp_member so a non-member is a no-op rather than
+* an error, go through sd-elevate delgroup, and report on the success wording.
+* sd-elevate refuses anything but SD's own groups and any non-SD-user target,
+* so this cannot reach a group or a user outside SD's control.
+
+strip.membership:
+   if strip.user = '' then return
+   if not(is_grp_member(strip.user, strip.group)) then return
+   if not(valid_os_name(strip.user)) then
+      crt sysmsg(10022, strip.user, strip.group, 2) ;* Unable to remove %1 from %2
+      return
+   end
+   OS.EXECUTE "sudo /usr/local/sbin/sd-elevate delgroup " : strip.user : " " : strip.group
+   stat = OS.ERROR()
+   if stat = 0 then
+      crt sysmsg(10021, strip.user, strip.group)    ;* %1 removed from group %2
+   end else
+      crt sysmsg(10022, strip.user, strip.group, stat)
+   end
+   return
+
+* ======================================================================
+
+report.xref:
+   if not(xref.found) then
+      crt sysmsg(6032) ;* Files in this account are referenced from other accounts
+      crt sysmsg(6033) ;* Account           VOC entry
+      xref.found = @true
+   end
+
+   crt fmt(xacc, '16L') : '  ' : xid
+   return
+end
+
+* END-CODE

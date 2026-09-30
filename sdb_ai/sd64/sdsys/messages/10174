@@ -1,0 +1,5 @@
+SDSYS may be reached through the API only from this machine.
+
+SDSYS can change every account on this system, and the API admits a
+connection on the SD password alone.  Run sd as the sdsys OS user on
+this machine instead.

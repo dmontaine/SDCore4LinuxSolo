@@ -1,0 +1,3641 @@
+LS1.1-1 - not yet released
+--------------
+SD Core for Linux Solo, the single-user edition of SD Core for Linux, is under
+construction.  This entry lists what users of Solo will notice; nothing has been
+built or released yet, and the code still behaves as SD Core for Linux L1.1-1,
+whose changelog follows unchanged.
+
+L1.1-1 - 29 Sep 2026
+-------------
+Changes since L1.1-0.  L1.1-1 pairs with SD Core for Windows W1.1-1.
+
+29 Sep 26  RUN WORKS FROM A DEEP FOLDER, AND TWO OVERRUNS ARE CLOSED.
+
+           RUN refused any program whose full path was longer than 128
+           characters, even though the file was there and readable: a
+           program in a data file a few folders deep could not be run at
+           all.  The limit is now 255 characters, the same as any other
+           file path SD opens.  Beyond that, the file itself cannot be
+           opened, and SD says so instead of running anything.
+
+           Two places could write past the end of a buffer.  The error
+           line "at line N of <program>" was added to a message without
+           checking the room left, so a long message from a program with a
+           long name could overrun it.  And the name recorded inside a
+           loaded program was copied without a limit; it now keeps the
+           last 128 characters of a longer path.  Neither was known to
+           have happened, but both could have.
+
+           The installer also checks its dictionary step properly.  It
+           used to trust sd's exit code, and sd reports success even when
+           the command it was given never ran, so an install could finish
+           "successfully" with no dictionaries.  It now requires the step
+           to finish with its own COMPLETE line and stops the install,
+           saying why, if it does not or if the step reports an error.
+           The step's full output is kept in
+           /var/tmp/sdcore-install-pass3.log.
+
+           WHY: found by SD Core Solo for Windows, which shares this code;
+           the same defects were in SD Core for Windows and in the SD this
+           was built from.
+
+           WHAT THIS DOES NOT DO: it does not change how RUN finds a
+           program, and it changes nothing for a program under 128
+           characters, which is every program in a normal install.
+
+29 Sep 26  SD CORE IS ENGLISH ONLY, AND THE LANGUAGE MACHINERY IS GONE.
+
+           L1.1-0 already took SET.LANGUAGE and LOAD.LANGUAGE out of
+           every account's VOC, but the programs behind them, and the part
+           of SD itself that looked up a message in another language
+           first, were still installed.  Now they are removed: the
+           SETLANG and LOADLANG programs, the messages only they used,
+           and the kernel function that switched the message language.
+           SD reads its messages from the one English message file, and
+           builds its month and day names once when it starts.
+
+           NLS IS BACK.  L1.1-0 also took the NLS command out of the VOC.
+           It is restored: NLS shows the currency symbol, thousands
+           separator and decimal separator, and NLS CURRENCY, THOUSANDS
+           or DECIMAL followed by a value changes one for the session,
+           and NLS DEFAULT puts back "$", "," and ".".  It has nothing to
+           do with languages.  New accounts get it; an
+           existing account gets it from UPDATE.ACCOUNTS.
+
+           WHY: SD Core for Linux, SD Core for Windows and SD Core Solo
+           for Windows are English-only products.  Support for other
+           languages had been carried in from the SD they were built
+           from without ever being decided on, and a feature nobody is
+           meant to use is still something that can go wrong.
+
+           WHAT THIS DOES NOT DO: it does not remove the currency,
+           thousands-separator and decimal-point settings.  A BASIC
+           program can still read and change them with GETNLS() and
+           SETNLS(), and the CURRENCY, THOUSANDS and DECIMAL keywords are
+           still there.  It does not change any message, date or number
+           that SD prints: they were English before and are the same now.
+
+27 Sep 26  THE LICENCE TEXT NAMES THE RIGHT LICENCE.
+           It said the install and delete scripts were under the "Black
+           Oak" Model License.  The licence is the Blue Oak Model License
+           1.0.0, as the scripts' own headers say.
+
+
+L1.1-0 - 26 Sep 2026
+-------------
+The L is for Linux, and parallels the W of SD Core for Windows.  The number is
+1.1 to match SD Core for Windows W1.1-0, the release this one is built to conform
+with: SD Core for Linux tracks SD Core for Windows, and sharing the version
+number makes it plain which pair of builds a screenshot or a support question
+belongs to.
+
+There was no shipped L1.0 - this is the FIRST release of SD Core for Linux,
+numbered to line up with Windows rather than incremented from a Linux
+predecessor.  1.0-1 and 1.0-2 were releases of the SD this work was built from,
+not releases of this system.  So everything below is what L1.1-0 contains, not
+what changed since some earlier Linux release.
+
+Entries are newest first, by date.  This section is written for someone using
+SD: what changed, why it mattered, and what it does not do.
+
+
+22 Sep 26  A BASIC PROGRAM CAN NOW CREATE A PYTHON LIST, NOT JUST USE ONE.
+           Embedded Python already let a BASIC program append an item to a
+           list (PY_LISTAPPD), read one back (PY_LISTGETS) and empty one
+           out (PY_LISTCLR) - but there was no way to create the list in
+           the first place.  PY_LISTCRTE(listname) is now built and
+           cataloged, so a program can make a new, empty list before it
+           puts anything in it.
+
+           WHY: the function was reserved and wired through to Python when
+           embedded Python was written, but nothing in BASIC ever called
+           it.  Found by SD Core for Windows, which hit the identical gap
+           in its own verb-surface check and fixed it the same day.
+
+           WHAT THIS DOES NOT DO: it does not change PY_LISTAPPD,
+           PY_LISTGETS or PY_LISTCLR, which already worked - it only adds
+           the missing fourth verb.
+
+
+20 Sep 26  A COMMAND RUN FROM THE COMMAND LINE NOW NEEDS TO BE ON A LIST.
+           SD can be run as "sd 'SOME COMMAND'" - a single command, typed
+           on the command line or run from a scheduled job, rather than a
+           full sign-on session.  Until now that ran anything at all, for
+           any account, the moment the account itself was reachable.
+
+           IT NOW HAS TO BE ON THAT ACCOUNT'S OWN LIST, or the session is
+           refused.  An administrator adds a command by name to the
+           account's record in the SD system file "batch.jobs" - one
+           command per line, nothing after it, and it has to be a
+           paragraph or a sentence in that account, not an arbitrary
+           program. Signing in as an administrator, at this machine, is
+           unaffected - the list only limits a bare, unattended command
+           line.
+
+           WHY: an interactive sign-on has somebody present who can use
+           judgement about what they type. A command run this way does
+           not - it is meant for an unattended job, like one launched on a
+           schedule - so it gets a list an administrator sets up in
+           advance instead.
+
+           WHAT THIS DOES NOT DO: it does not change what an interactive
+           session may do once signed on, and it does not apply to an
+           administrator's own session, at this machine or otherwise. A
+           new account's list starts empty, so nothing can be run this way
+           until an administrator adds to it.
+
+
+20 Sep 26  THE SDSYS ADMINISTRATOR ACCOUNT NOW APPEARS ON YOUR LOGIN
+           SCREEN.
+           SD has one administrator, SDSYS, and the way to use it is to log
+           in to this computer as the Linux user "sdsys" and run sd from
+           that session.  That is what SD tells you when it turns an
+           administrator command away.
+
+           It was not possible to follow that advice.  The installer created
+           sdsys as a "system" account - the kind Linux uses for background
+           services - and a login screen deliberately hides those, so the
+           account SD kept pointing you at was never in the list.  It had a
+           password, a home directory and a working shell; you simply could
+           not get to it the ordinary way.
+
+           It is now created as a normal account, so it appears in the login
+           screen and the user switcher alongside everyone else, which is
+           how SD Core for Windows has always behaved.
+
+           NOTHING ELSE ABOUT IT CHANGES.  sdsys is still not an ordinary
+           user account to work in, it is still not in the sudo group, it
+           still cannot be reached over ssh or from another machine, and SD
+           still refuses to administer unless the session really is a local
+           sdsys login.  The only thing that changed is that you can find it.
+
+           WHAT THIS DOES NOT DO: it does not alter an sdsys account that
+           already exists.  Reinstalling and keeping your accounts leaves the
+           old hidden one as it was, because changing a live account's
+           identity number would break the ownership of every file SD has
+           installed.  The installer now says so when it sees one, and points
+           you at a text console (Ctrl+Alt+F3), which reaches the hidden
+           account perfectly well.  A delete-and-install that removes accounts
+           creates it afresh, visible.
+
+
+20 Sep 26  YOU CAN NOW TURN AN ACCOUNT'S ssh AND API ACCESS OFF, AND ON
+           AGAIN.
+           Every account can be reached two ways from elsewhere: by ssh,
+           which lands the person straight in SD, and by the API, which is
+           how a program connects.  Both are ON for a new account, which is
+           almost always what you want - but not always, and until now
+           there was no way to say so.
+
+           Two verbs now take a route word: SSH, API, BOTH or NONE.
+
+             MODIFY.ACCOUNT sales NONE     no remote access at all
+             MODIFY.ACCOUNT sales API      programs may connect, people may not
+             MODIFY.ACCOUNT sales SSH      the other way round
+             MODIFY.ACCOUNT sales BOTH     back to the default
+
+           CREATE.ACCOUNT takes the same word, and leaving it out means
+           BOTH, so nothing you already type needs to change:
+
+             CREATE.ACCOUNT USER sales          both routes, as before
+             CREATE.ACCOUNT USER sales NONE     a local-only account
+
+           IT GOES BOTH WAYS, WHICH IS THE POINT.  A setting you can only
+           tighten is a trap: you would have to delete the account and make
+           it again to undo a mistake.  Whatever you take away you can give
+           back, in either direction, as often as you like.  SD tells you
+           what the account ended up with each time, and says plainly when
+           you have asked for the access it already had.
+
+           WHAT HAPPENS TO SOMEONE WHO IS TURNED AWAY.  An ssh connection
+           is refused as it arrives, with "<name> is not permitted to reach
+           SD over ssh", and no tunnel can be opened through it either.  A
+           program connecting to the API is told "<name> is not permitted
+           to use the API".  Both refusals come after the password has been
+           checked, so neither tells a stranger anything about whether an
+           account exists.
+
+           The two routes are independent: turning off ssh leaves the API
+           working, and the other way round.
+
+           WHAT THIS DOES NOT DO.  It does not affect signing in at the
+           machine itself - an account with NONE is still a normal SD
+           account to anyone sitting at this computer, and that is the way
+           back in if you shut yourself out of a remote one.  It is not a
+           Linux login setting: it governs reaching SD, not what the
+           account's Linux user may do.  It does not apply to SDSYS, which
+           has never been reachable by ssh and reaches the API only from a
+           session already signed in as sdsys on this machine.  And
+           REMOTE.SSH and REMOTE.API, which say whether this computer can
+           be reached from elsewhere at all, are unchanged and still have
+           the last word: what you grant one account here cannot get past
+           them.
+
+
+20 Sep 26  THE INSTALLER NOW SAYS WHOSE PASSWORD IT IS ASKING FOR.
+           Near the end of an install you are asked for three passwords,
+           and it was not clear which account each one belonged to - two of
+           them are sdsys's, and the third is your own, with your account's
+           password asked for in between sdsys's two.
+
+           Before the first of them the installer now lists all three, in
+           the order they come:
+             1. your own SD password  - for reaching SD over the API;
+             2. sdsys's LINUX password - for signing in as SD's
+                administrator at this machine;
+             3. sdsys's SD password   - for reaching SD as the
+                administrator over the API.
+           Each prompt is headed "1 of 3", "2 of 3" or "3 of 3" and names
+           the account and which of its two passwords it wants.  Where SD
+           itself asks ("New password:"), the line above it names the
+           account, because SD asks in the same words for either one.
+
+           A REINSTALL NO LONGER REPLACES SDSYS'S LINUX PASSWORD BEHIND
+           YOUR BACK.  If you reinstall and keep your accounts, the sdsys
+           user is still there with the password you set.  The installer
+           used to ask again and replace it, with no way to enter the one
+           already in use.  It now keeps it, says so, and tells you that
+           "sudo passwd sdsys" is how to change it on purpose.  The two SD
+           passwords already behaved this way.
+
+           The steps are quieter, too.  Each one is introduced by its own
+           ruled block, rather than the only ruled block on screen being
+           SD's "administration granted" notice arriving mid-step, where it
+           read as a result.  When the installer runs SD to set a password
+           it now runs it silently: no start and shutdown lines, no notice,
+           and a successful entry answers "Password accepted".  A refusal
+           still says everything - that is the case you have to act on.
+
+           What this does NOT do: it does not change which passwords are
+           asked for, and your own SD password is still required.  The
+           password asked for at the very start of an install is your own
+           Linux password, for sudo, and is not one of the three.
+
+19 Sep 26  A REMOTE SDSYS SESSION IS NOW TURNED AWAY AT THE DOOR.
+           Running sd as sdsys over ssh was already stopped - SD would not
+           let the session into the SDSYS account - but it stopped it one
+           step late, after the session had started.  SD now refuses such a
+           session as it opens, and says why: SD administration needs a
+           local session.  Log in as sdsys at the machine itself.
+
+           This is a tightening of something that already worked, not the
+           closing of a way in.  sdsys still cannot log in over ssh at all;
+           that is set in the machine's ssh configuration, and this is SD's
+           own half of the same door.
+
+           What this does NOT do: it does not affect any other account, and
+           it does not change how sdsys is administered locally.
+
+19 Sep 26  SDSYS CAN USE THE API AGAIN, AND NOW HAS TWO PASSWORDS.
+           The install now asks for a second password for sdsys: one is the
+           Linux password that signs sdsys in at this machine, the other is
+           an SD password that lets a program reach SD as the administrator
+           through the API.  They are different passwords for different
+           doors, and the install says so as it asks.
+
+           It is optional.  Press Enter and sdsys simply has no API access,
+           which is how every earlier release was delivered - until now SD
+           refused to set an SDSYS password at all, so nothing could reach
+           the administrator account through the API even on this machine.
+
+           WHAT GUARDS IT.  SD admits sdsys over the API only when the
+           operating system itself says the connection was opened by a
+           process running as sdsys on this machine.  SD used to accept any
+           connection that arrived from a local address, and that is not the
+           same test: an ssh tunnel ends on this machine, so a connection
+           forwarded from somewhere else looks local.  Anyone with a login
+           here could have forwarded a port and offered sdsys's password.
+           SD now asks the kernel who opened the socket, which a tunnel
+           cannot disguise - it reports whoever owns the tunnel.
+
+           What this does NOT do: it does not give sdsys API access from
+           another computer, and it does not work over 127.0.0.1 either.
+           Only SD's own local socket carries the proof SD needs, so a
+           program wanting to connect as sdsys must use that socket and must
+           be running as sdsys.  Every other account is unaffected and
+           reaches the API exactly as before.  LOGTO SDSYS remains refused
+           for everybody: the administrator account is entered by logging in
+           as sdsys, or through the API as described here.
+
+19 Sep 26  SD NOW REQUIRES A STRONG PASSWORD.
+           Every password SD sets must be at least 8 characters long and
+           contain a lower-case letter, an upper-case letter, a digit and a
+           symbol (any other printable character, space included).  It
+           applies to:
+             - the SD password (MODIFY.PASSWORD, and the one the installer
+               asks for);
+             - the Linux password CREATE.ACCOUNT sets for a new account;
+             - the sdsys password the installer asks for.
+           Until now SD accepted whatever the machine's own rules allowed,
+           and on many machines that is anything at all.  A password that
+           gives access to the database should not be weaker than this,
+           whatever the operating system is set to allow.  SD Core for
+           Windows applies the same rule, word for word.
+
+           A password that does not meet the rule is refused before you are
+           asked to type it again, and counts as one of the three attempts.
+           Both prompts now say which attempt you are on - MODIFY.PASSWORD
+           and the one CREATE.ACCOUNT asks when it sets the account's Linux
+           password.  The second of those had three attempts and no way to
+           tell how many were left.
+
+           What this does NOT do: it does not change passwords you already
+           have, and it cannot govern a Linux password you change yourself
+           outside SD (with passwd) - there the machine's own rules apply.
+           The machine's rules still apply on top of SD's where they are
+           stricter.  Only printable ASCII characters are accepted.
+
+19 Sep 26  DELETE.ACCOUNT REMOVES THE ACCOUNT'S DIRECTORY, OR SAYS IT DID NOT.
+           Deleting an account promised to remove its directory, and usually
+           did - but anything the account's own user had made without group
+           write permission (a folder made at the Linux prompt, for example)
+           could not be removed by the administrator, and the rest of the
+           directory was left behind without a word.  The directory is now
+           removed through SD's privileged helper, which accepts exactly one
+           account directory and nothing else.  If one is ever still there
+           afterwards, SD says so (message 10919) and names it.
+
+           The warning before a deletion also said a suspended account
+           "can be given a tier again later" - tiers are gone.  It now says
+           how to let a suspended account back in:
+           modify.account <name> unsuspended.
+
+19 Sep 26  UNSUSPEND IS NOW UNSUSPENDED.
+           The word that lifts a suspension is  MODIFY.ACCOUNT <account>
+           UNSUSPENDED, the same word SD Core for Windows uses, so the pair
+           reads SUSPENDED / UNSUSPENDED on both systems.  The old spelling
+           UNSUSPEND is no longer accepted; it is refused with the list of
+           words that are.
+
+19 Sep 26  MODIFY.PASSWORD CHECKS YOUR CURRENT PASSWORD FIRST.
+           When you changed your own SD password, a wrong current password
+           was only noticed after you had typed the new one twice; nothing
+           was changed, but the new password was asked for as though the
+           old one had been accepted.  It is now checked straight away, and
+           a wrong one ends the command with "Password not changed."  The
+           administrator setting somebody else's password is not asked for
+           the old one, as before.
+
+19 Sep 26  YOU CAN CHANGE YOUR OWN SD PASSWORD.
+           Type  MODIFY.PASSWORD  in your own account.  SD asks for your
+           current SD password, then the new one twice, all hidden.  Until
+           now only the administrator could set SD passwords, even your own,
+           and ordinary accounts did not have the command at all.
+
+           The rule is the same as in SD Core for Windows: you can change
+           only your own password; the administrator (logged in as sdsys)
+           can change anyone's, and is not asked for the old one when
+           setting somebody else's.  Both of you type the same command and
+           see the same prompts.
+
+           How it is done on Linux: the password store stays readable and
+           writable by the administrator only.  When you change your own
+           password, SD hands the new (already scrambled) password to a
+           small helper that every SD user may run through sudo for exactly
+           this and nothing else; the helper checks who you are from sudo,
+           checks your current password, and changes only your record.  No
+           password, old or new, ever appears on a command line.
+
+           What this does NOT do: it does not change your Linux password,
+           and it does not let you change anyone else's SD password.  A
+           suspended account cannot change its password.
+
+19 Sep 26  THE INSTALLER ASKS FOR YOUR SD PASSWORD AGAIN - AND IT IS REQUIRED.
+           This reverses the 18 Sep entry below, the same night, for a
+           reason that entry missed.  Logging in to Linux does reach your SD
+           account at the machine - but every account except sdsys can also
+           be reached remotely through the SD API, and that needs an SD
+           password.  The installer's own account was the one account an
+           install made without one, so the remote route it opened could not
+           be used.
+
+           The installer now asks for it near the end, hidden, twice.  It is
+           NOT your Linux password and does not replace it: at the machine
+           and over ssh you still sign in with your Linux password.  This one
+           is only for programs that reach SD through its API, from this
+           computer or another.
+
+           If you leave the prompt without setting one, the installer asks
+           again, up to three times, then says in red how to set it later
+           (log in as sdsys and type  MODIFY.PASSWORD  with your user name).
+           It cannot force you, and it says so rather than pretend.  A
+           reinstall that keeps your accounts keeps your password and does
+           not ask.  SD Core for Windows made the same change the same night.
+
+           Also: two MODIFY.PASSWORD refusals still told you to use
+           "su - sdsys", which SD now refuses; they now say to log in as
+           sdsys at the machine.
+
+19 Sep 26  YOUR SD ACCOUNT IS NAMED IN LOWER CASE EVEN IF YOUR LINUX LOGIN IS
+           NOT.  The installer makes an SD account for the person who
+           installs SD, on top of the Linux login they already have.  If
+           that login had capital letters in it - "Don" rather than "don" -
+           the account's register entry was lower case but its directory
+           and its sdu_ group kept the capitals, so the three did not
+           match.  Now all three are lower case; the files still belong to
+           your Linux login, spelled as it is.
+
+           The installer's internal step for this is now called ATTACH, the
+           same name and the same command line SD Core for Windows uses.
+           ATTACH cannot be typed at an SD prompt: it works only inside the
+           installer, once, for the one person installing.
+
+           What this does NOT do: it does not rename an account made by an
+           earlier install.
+
+18 Sep 26  THE INSTALLER NO LONGER ASKS FOR AN SD PASSWORD FOR YOUR ACCOUNT.
+           This reverses the 15 Sep entry below.  The account the installer
+           makes for you is reached by logging in to Linux and running sd -
+           you have already given a password to get that far, so a second
+           one bought nothing.  SD Core for Windows made the same change the
+           same day, so the two installers now behave alike.
+
+           The SD password still exists, and is still what programs using
+           the SD API log in with.  If you need one, the administrator sets
+           it: log in as sdsys and type  MODIFY.PASSWORD  with your user
+           name.  A reinstall that keeps your accounts keeps any password
+           already set.
+
+           What this does NOT change: the installer still asks for the
+           Linux password of the sdsys account, because logging in as sdsys
+           is how SD is administered.
+
+18 Sep 26  THE ACCOUNT MODEL IS NOW ONE ADMINISTRATOR AND ONE LEVEL.
+           The tiered account structure - STANDARD, PROGRAMMER and
+           ADMINISTRATOR, each with its own set of verbs - is gone.  Every
+           account gets the same VOC: the full NEWVOC, which now also
+           includes SH (the operating-system shell command) and !.  SH and
+           OS.EXECUTE run at your own Linux permissions, with no SD gate
+           behind them.
+
+           There is ONE administrator, SDSYS.  It is not a rank that people
+           are promoted into: it is the sdsys operating-system user, and SD
+           gives it administration only when someone LOGS IN as sdsys, with
+           its own password, at the machine itself (its keyboard, or a
+           desktop-sharing view of it) and runs sd - not over ssh, not over
+           the API from another machine, not by sudo or su from another
+           user, and NOT by running sd as root, which is refused outright.  Every account except SDSYS can reach SD
+           over ssh (ssh just starts SD) and through the API.
+
+           The account verbs that moved people between levels (GRANT,
+           REVOKE, LIST.GRANTS) are gone; giving a person access to an
+           account is now the Linux group: usermod -aG sdu_<account> <user>.
+           Suspending an account is unchanged in effect - MODIFY.ACCOUNT
+           <account> SUSPENDED, and UNSUSPENDED brings it back - but it is
+           now a flag on the account rather than a level change.
+
+           What this does NOT do: it does not remove the ssh boundary (SD
+           accounts still get SD instead of a shell over ssh, and the sdsys
+           account cannot log in over the network at all), and it does not
+           change who can read or write an account's files - those limits
+           are Linux's own.
+
+18 Sep 26  A BOUND IS PUT ON TWO NAME COPIES IN THE CLEANUP PROGRAM.
+           clopts (the "sd -cleanup" bookkeeping) copied a user name from
+           the shared system segment into a small buffer without a bound;
+           both copies now copy at most the buffer's length and always end
+           with a terminator.  Reported by the Windows port; could have
+           crashed the cleanup in a damaged shared segment.
+
+15 Sep 26  ONE ENVIRONMENT VARIABLE NOW NAMES THE CONFIGURATION FILE, FOR
+           SD ITSELF AND FOR PROGRAMS THAT USE THE CLIENT LIBRARY.
+
+           SD keeps its settings in /etc/sd.conf.  If you need it somewhere
+           else - a test system beside a live one, say - you point SD at it
+           with an environment variable, and that variable is SD_CONFIG.
+
+           It used to be two variables that nobody could have guessed apart.
+           SD itself read SCARLET_CONFIG, while the client library programs
+           link against read SD_CONFIG, so setting either one moved half of
+           your system to the new file and left the other half reading
+           /etc/sd.conf - with no error to tell you.  SCARLET_CONFIG is no
+           longer read at all; it was named after a project SD is not part
+           of.
+
+           WHAT TO DO: if you set SCARLET_CONFIG anywhere - a shell profile,
+           a service file, a script - change it to SD_CONFIG.  If you have
+           never set either, nothing changes: the default is still
+           /etc/sd.conf, and it is used exactly as before.
+
+           WHAT IT DOES NOT DO: it does not let SD find a configuration file
+           on its own, and it does not change where the installer puts one.
+
+
+15 Sep 26  REINSTALLING AND KEEPING YOUR ACCOUNTS NOW KEEPS THE SERVER'S
+           NETWORK IDENTITY TOO.
+
+           When a program connects to SD over the network, the connection is
+           encrypted using an identity the server makes for itself the first
+           time one arrives.  Until now, reinstalling threw that identity away
+           even when you chose to keep your accounts, so the machine came back
+           with all your accounts and passwords but a brand new identity.
+
+           It is now kept whenever your accounts are kept, and removed only
+           when you delete everything.  The delete script says which it did.
+
+           WHY IT MATTERS EVEN THOUGH NOTHING COMPLAINS TODAY: no client
+           program currently checks the server's identity, so nothing notices
+           it changing.  When one does, a routine upgrade would otherwise look
+           exactly like someone impersonating your server - and a warning that
+           appears after every upgrade is one people learn to ignore.
+
+
+15 Sep 26  DELETING AN ACCOUNT NO LONGER STOPS BECAUSE SOME OTHER ACCOUNT
+           COULD NOT BE CHECKED.
+
+           Before deleting an account, SD looks through every other account for
+           references to the one going, and tells you about any it finds.  If
+           one of those other accounts could not be opened - its directory had
+           been removed, say - the whole command stopped with an error, before
+           it had even asked you to confirm.  A check that only produces a
+           warning was stopping the thing you had asked for.
+
+           SD now names the account it could not look inside, says it was
+           skipped, and gets on with the deletion.
+
+           SD Core for Windows found this one and has the same change.
+
+
+15 Sep 26  THE INSTALLER ENDS BY ASKING FOR YOUR SD PASSWORD.
+
+           Programs that connect to SD through its API log in with an SD
+           password.  It is separate from your Linux login password and is set
+           with MODIFY.PASSWORD.  A new install used to finish with no SD
+           password set for anyone, so nothing could use the API until an
+           administrator set one by hand.
+
+           The installer now asks for it at the end, for the account it makes
+           for you.  It asks twice, to catch a typing slip.  Press Enter on an
+           empty line to skip it; you can set one later by running  sudo sd
+           and typing  MODIFY.PASSWORD  with your user name.  The install's
+           closing summary says whether it was set, and how to set it if it
+           was not.
+
+           WHAT IT DOES NOT DO: it does not ask again when you reinstall and
+           keep your accounts - the password you already set is kept.  And it
+           does not ask for a password for SDSYS, which SD Core for Windows
+           does: on Linux nothing would use one, because signing in never asks
+           for an SD password and SDSYS cannot use the API.
+
+
+15 Sep 26  REMOTE.API LOCAL AND OFF REMOVE THE FIREWALL RULE EVEN WHILE THE
+           FIREWALL IS SWITCHED OFF.
+
+           REMOTE.API LOCAL and REMOTE.API OFF are meant to take away the
+           firewall rule that lets other computers reach port 4243.  On a
+           machine where the ufw firewall was installed but not switched on,
+           they left that rule in place and reported that there was none: SD
+           asked ufw which rules were in force, and a switched-off ufw answers
+           "none".  Nothing was exposed while ufw stayed off, but switching it
+           on later would have opened port 4243 while SD said it was closed.
+
+           SD now asks ufw which rules are configured, whether or not the
+           firewall is running.  LOCAL and OFF remove the rule, ON finds it,
+           and REMOTE.API and REMOTE.SSH report the rules that are really
+           there.  REMOTE.SSH's warning about other rules that allow ssh reads
+           the same list.
+
+           WHAT IT DOES NOT DO: it does not switch the firewall on.  While ufw
+           is off, the listener alone decides who can reach the API, and
+           REMOTE.API reports the firewall as inactive.
+
+
+15 Sep 26  THE API IS ENCRYPTED: EVERY CONNECTION IS TLS 1.3.
+
+           Until now only the API login was protected.  The password never
+           crossed the network, but everything after it did - every command,
+           every record read or written, every result - as plain text that
+           anyone able to see the traffic could read.  That was the weakness
+           of the old QM-style API, and this closes it.
+
+           Every connection to the SD API, over the network port (4243) and
+           over the local socket alike, is now encrypted with TLS 1.3 before
+           SD sends a single byte.  The login is also bound to that encrypted
+           connection.  A machine placed between a program and the server
+           cannot log in on the program's behalf or read what passes, even
+           by pretending to be the server: the program's proof of its password
+           is only good on the connection the program itself set up, and the
+           program will not go on unless the server proves that it knows the
+           account too.
+
+           THE CLIENT LIBRARY (sdclilib, libsdcli) AND THE BASIC !sdclient
+           CLASS do all of this automatically.  A program built against an
+           older copy of the library cannot connect: the server waits for
+           encryption to begin and closes the connection after ten seconds.
+           Rebuild or relink it against the current library.
+
+           The server's key is made on the first API connection, in
+           /etc/sd-tls, and only root can read it.  The part of SD that
+           handles the encrypted connection gives up root before it reads
+           anything from the network and runs as the user nobody, so a flaw
+           in it does not hand anyone root.
+
+           WHAT IT DOES NOT DO: programs do not yet check the server's
+           certificate.  The bound login is what stops a machine in the middle
+           from getting in or reading data, but such a machine could still
+           collect a login attempt and try to guess the password offline.
+           Use SD passwords that are long and not used anywhere else.
+
+           Installing SD now needs the libssl-dev package, which the installer
+           installs.
+
+
+14 Sep 26  REMOTE.API AND REMOTE.SSH: CHANGE REMOTE ACCESS WITHOUT REINSTALLING.
+
+           The installer asks whether other computers may reach this one over
+           ssh and over the API, and until now the only way to change your
+           answer was to install again.  Two administrator commands now do
+           it, as they do in SD Core for Windows:
+
+               remote.api on | local | off
+               remote.ssh on | off
+
+           REMOTE.API ON lets other computers connect to the SD API, LOCAL
+           lets only this computer connect, and OFF turns the API off
+           altogether.  REMOTE.SSH ON and OFF open and close port 22 in the
+           firewall.  Either command with no word reports what the machine is
+           doing now - read from the machine, not remembered.
+
+           Unlike SD Core for Windows, changing the API setting does not
+           restart SD or end anybody's session.
+
+           WHAT IT DOES NOT DO: REMOTE.SSH never starts or stops the ssh
+           server itself, and on a machine whose firewall does not decide who
+           reaches ssh (ufw not installed, not active, or letting everything
+           in) it refuses and says so, because changing a rule there would
+           change nothing.  Accounts still need an SD password, and for the
+           API a grant (modify.account <account> api), whatever these say.
+
+
+14 Sep 26  A FAILED OPENSEQ NO LONGER LEAVES ITS RECORD LOCKED.
+
+           When OPENSEQ could not open a file the way it was asked - for
+           example OPENSEQ ... OVERWRITE on a file you may only read, which SD
+           now rightly reports as an error instead of pretending to empty it -
+           the lock SD had taken on that file was never released.  It stayed
+           after the program ended and after the session logged off, and
+           nothing but restarting SD removed it; the next program to open the
+           same file waited for a lock nobody held.
+
+           The lock is now released whenever OPENSEQ fails.
+
+           WHAT DOES NOT CHANGE: a successful OPENSEQ keeps its lock until
+           CLOSESEQ, exactly as before.
+
+
+14 Sep 26  THE API IS GRANTED PER ACCOUNT.
+
+           Until now any SD user could log in through the API once they had
+           an SD password.  The API now admits only accounts that have been
+           given it.  An administrator always has it.  Anyone else gets it
+           with
+
+               modify.account <account> api
+
+           and loses it with
+
+               modify.account <account> none
+
+           A refused login is told "<user> is not permitted to use the API"
+           and the refusal is written to the audit trail.  SD Core for
+           Windows works the same way.
+
+           CREATE.ACCOUNT now asks for the decision up front: a new account
+           that is not an administrator must say API or NONE, and nothing is
+           created until it does.  Taking an administrator down to a lower
+           tier must also say which it keeps, for example
+
+               modify.account <account> programmer api
+
+           Your own administrator account keeps the API: the installer adds
+           every administrator to the new sdapi group.
+
+           WHAT DOES NOT CHANGE: logging in at a terminal or over ssh.  ssh
+           still follows the account's tier, so SSH and BOTH - the other two
+           words SD Core for Windows accepts - are refused here with an
+           explanation rather than quietly treated as API.
+
+
+14 Sep 26  AN ADMINISTRATOR CANNOT USE THE API FROM ANOTHER MACHINE.
+
+           The API now refuses an administrator's login unless the
+           connection comes from this machine - 127.0.0.1 or the local
+           socket.  An administrator's Linux user can reach root through SD's
+           own tools, and the API admits a connection on the SD password
+           alone, so an administrator login from the network was one password
+           away from the whole machine.  SD Core for Windows has the same
+           rule.  The refusal says what happened and what to do instead, and
+           is written to the audit trail with the address it came from.
+
+           "Administrator" means an account at the ADMINISTRATOR tier, or a
+           Linux user in the sdadmin group, whichever is true.
+
+           WHAT STILL WORKS: an administrator on this machine, including a
+           local program connecting as one; standard and programmer accounts
+           from anywhere the API is reachable; and an administrator from
+           elsewhere through an ssh tunnel (ssh -L), which needs the account's
+           Linux login before it gets as far as SD.
+
+           ALSO: SD now records the address a TCP API connection came FROM.
+           It used to record the server's own address - the one the client
+           connected to - which says nothing about who connected.
+
+
+14 Sep 26  THE APILOGIN SETTING IS RETIRED, WITH THE OLD API LOGIN IT CONTROLLED.
+
+           APILOGIN in sd.conf chose how the old cleartext API login checked
+           a connection: against the Linux password (1), or not at all for a
+           local-socket caller, who was simply run as whichever Linux user had
+           connected (0).  That login is gone - the API accepts only SCRAM,
+           described below - so the setting has nothing left to choose, and
+           the code behind both choices is removed from SD.
+
+           CONFIG no longer lists APILOGIN, and a fresh sd.conf no longer
+           contains it.  An sd.conf that still has the line keeps working: SD
+           reads it and ignores it, so a kept configuration does not stop SD
+           starting.
+
+           SD no longer needs the libbsd library to build, and no longer links
+           the system password-hashing library (libcrypt): the only thing that
+           used either was the removed login.
+
+           WHAT DOES NOT CHANGE: the API's local socket (/tmp/sdsys/
+           sdclient.socket) still works, including through an ssh tunnel, but
+           a program connecting over it now logs in with SCRAM and the SD
+           password exactly as over the network - it is no longer let in on
+           the strength of which Linux user opened it.
+
+14 Sep 26  THE API NO LONGER ACCEPTS A PASSWORD SENT IN CLEAR.
+
+           Programs that connect to SD through its API used to send the
+           account's password across the network as it was typed.  The API
+           now accepts only a SCRAM-SHA-256 login, which proves the password
+           without sending it, and in which the server must prove itself to
+           the program as well - so a program cannot be fooled into logging
+           in to something pretending to be SD.  This is the login SD Core for
+           Windows uses.
+
+           The client library shipped with SD (sdclilib), and the BASIC
+           !sdclient class, already speak it.  A program built against an
+           older copy of the library is refused with the message "Cleartext
+           login is no longer supported", and needs the current library.
+
+           THE PASSWORD IS THE SD PASSWORD, SET WITH MODIFY.PASSWORD (under
+           sudo sd), not the Linux login password.
+
+           SDConnectUDS, which connected over a local socket without a
+           password, is removed from the client library: it depended on the
+           old login.  Connect to 127.0.0.1 with SDConnect instead.
+
+           WHAT DOES NOT CHANGE: logging in at a terminal or over ssh, which
+           still uses the Linux password; and SDConnectLocal, which starts a
+           session of your own and sends no password.
+
+14 Sep 26  THE SD CLIENT LIBRARY NO LONGER SENDS YOUR PASSWORD.
+
+           A program that connects to SD through the client library used to
+           send the user's password across the network in plain text.  It now
+           logs in with SCRAM-SHA-256, as SD Core for Windows does: it proves
+           it knows the password without ever sending it, and it also checks
+           that the server it reached really holds the account's credential,
+           so a program pretending to be SD cannot collect passwords.
+
+           THE PASSWORD IT USES IS THE SD PASSWORD, set with MODIFY.PASSWORD
+           under sudo sd, not the Linux password.  An account with no SD
+           password cannot be reached through the client library until one is
+           set.  The library gains no dependency: it is still one file.
+
+           WHAT DOES NOT CHANGE: the library's functions and their arguments,
+           so existing programs need no change - only the password they are
+           given.  The old plain-text login is still accepted by the server
+           for now; it will be removed in a later update.
+
+14 Sep 26  DELETE.ACCOUNT NOW REMOVES THE ACCOUNT'S SD PASSWORD, AND
+           MODIFY.PASSWORD SAYS STRAIGHT AWAY WHEN IT CANNOT RUN.
+
+           Deleting an account left its SD password behind.  An account
+           created later under the same name would have inherited it - the
+           old password would have let someone into the new account through
+           the API.  The password is now removed with the account.
+
+           MODIFY.PASSWORD run without sudo sd asked for a new password twice
+           before failing, because the password store is readable only by
+           root.  It now says at once that it needs sudo sd, and asks for
+           nothing.
+
+           WHAT DOES NOT CHANGE: who may set a password, and how it is done
+           under sudo sd.
+
+14 Sep 26  MODIFY.PASSWORD NOW SETS SD'S OWN PASSWORD, AS ON WINDOWS.
+
+           MODIFY.PASSWORD used to change the account's Linux password.  It
+           now sets the password SD keeps for the account itself, the one the
+           SD API is moving over to, as SD Core for Windows already does.  SD
+           stores it only as keys derived from it, never as the password.
+           Changing your own asks for the current one; changing another
+           account's needs an administrator, and both need sudo sd, because
+           the store is readable only by root.  A reinstall that keeps your
+           accounts keeps these passwords too.
+
+           WHAT DOES NOT CHANGE YET: logging in through the API still checks
+           the Linux password, until the next stage of this work.  The Linux
+           password is set as before, by CREATE.ACCOUNT or with passwd.
+
+14 Sep 26  A LONG PASSWORD NOW WORKS THROUGH THE API.
+
+           A program connecting through the API could not use a password
+           longer than 32 characters: the client library refused it as
+           "Invalid password", and the server would have cut it short anyway.
+           Linux puts no such limit on passwords, and neither does SD Core
+           for Windows, so anyone with a long password was shut out of the
+           API.  Both limits are gone.  An empty user name or password is now
+           refused by the client straight away, as it is on Windows.
+
+           WHAT DOES NOT CHANGE: user names are still limited to 32
+           characters, and the password is still checked against Linux's own.
+
+14 Sep 26  A PROGRAM CONNECTED THROUGH THE API NOW HAS THE SAME ACCESS AS ITS
+           USER AT A TERMINAL.
+
+           Linux decides what a person may read and write partly by the groups
+           they belong to, and SD gives each account a group of its own.  A
+           session started through the API took on the person's identity but
+           none of their groups, so in an account they had been granted it
+           could read but not change anything, where the same person at a
+           terminal could.  The API now gives the session the person's groups
+           when it logs them in.
+
+           WHAT DOES NOT CHANGE: who may log in through the API and which
+           accounts they may enter.  The session gets the groups the person
+           already has in Linux and nothing more.
+
+14 Sep 26  THE API NOW KEEPS THE SAME TIER RULE AS LOGTO.
+
+           A grant may go down or sideways, never up.  LOGTO has enforced that
+           since GRANT arrived, but a program connecting through the API
+           reaches its account by a different road, and that road did not
+           check.  So someone granted into an account that was later promoted
+           above their own tier could still enter it through the API, with
+           the higher tier's whole vocabulary.  The API now refuses them, as
+           LOGTO does.
+
+           The API also names the account in lower case, as it is everywhere
+           else - WHO over the API used to print it in capitals.
+
+           WHAT DOES NOT CHANGE: logging in through the API, and entering any
+           account the person may enter with LOGTO.  The API still gives the
+           same short refusal for every reason an account cannot be entered,
+           so a caller cannot use it to learn which accounts exist.
+
+14 Sep 26  GRANT'S WARNING NOW SAYS WHAT HAPPENS TO A SESSION ALREADY OPEN.
+
+           GRANT tells you the person must log out of Linux and back in.  It
+           went on to say that until they did, they could be let into the
+           account and then refused by the filesystem.  A session that was
+           already open is not refused: it is let in, but cannot change
+           anything in the account, because Linux still sees it with the
+           groups it had when it started.  The message now says so.
+
+           WHAT DOES NOT CHANGE: GRANT and REVOKE themselves, and the advice
+           to log out and back in, which is still what gives full access.
+
+14 Sep 26  ONE CRASHED SESSION CAN NO LONGER FREEZE ALL OF SD.
+
+           SD's processes share a small set of locks.  If a session died while
+           holding one - killed, or crashing - the lock was never given back,
+           and every other SD session then waited for it for ever; the only
+           way out was a reboot.  Now the operating system gives the lock back
+           when the process that held it ends, however it ended, and a session
+           that crashes gives back its locks itself before doing anything else.
+
+           WHAT DOES NOT CHANGE: normal locking.  The one cost is the reason
+           this was a decision: after such a crash the next session may find
+           the shared information that lock protected half-updated, where
+           before it would have found SD frozen.
+
+
+14 Sep 26  TWO MORE QUESTIONS NO LONGER WAIT FOR EVER WHEN NOBODY ANSWERS.
+
+           "Use active select list?", asked by DELETE, COPY, CD, CT, ED and
+           DELETE.FILE when a select list is active, now reads (y/<n>) and
+           takes Enter as N in all six commands, which stops without changing
+           anything.  Before, only DELETE.FILE did; the other five asked
+           again for ever, beeping, when run from a script.
+
+           DELETE.FILE on a multifile asked "Delete all data components?",
+           and neither answer left the file alone: N still deleted its
+           dictionary.  It now offers a third answer, C to cancel, which
+           deletes nothing, and Enter means C.  Y and N do what they did.
+           This matches SD Core for Windows.
+
+           WHAT DOES NOT CHANGE: answering Y does exactly what it did.
+
+
+14 Sep 26  BACKSPACE WORKS AT THE COMMAND LINE WHICHEVER BYTE YOUR TERMINAL
+           SENDS.
+
+           A terminal's backspace key sends either Ctrl-H or DEL.  SD only
+           accepted the one its terminal type said to expect, so after TERM
+           VT100 (which expects Ctrl-H) the backspace key of a normal Linux
+           terminal, which sends DEL, did nothing at the command line.  Both
+           are now accepted as backspace unless the terminal type gives one of
+           them another meaning.
+
+           WHAT DOES NOT CHANGE: the full-screen editors handle keys
+           themselves and are not affected.
+
+
+14 Sep 26  RUN FINDS A PROGRAM WHATEVER CASE ITS NAME IS TYPED IN.
+
+           BASIC stores a compiled program under a lower-case name, so
+           "BASIC BP REPORT" compiles to bp.out/report.  RUN did not do the
+           same, so "RUN BP REPORT" then answered "Program BP.OUT REPORT not
+           found" and only "RUN BP report" worked.  RUN now looks for the name
+           as typed, then in lower case, then in upper case, the same order SD
+           uses for file and command names.
+
+           WHAT DOES NOT CHANGE: a program is still run from the file you
+           name, and a name that matches nothing still gets the same message.
+
+
+14 Sep 26  PROCESS DUMPS HAVE THEIR OWN DIRECTORY, AND ONLY THEIR OWNER CAN READ
+           ONE.
+
+           PDUMP writes a file holding a session's variables, call stack and
+           open files.  It used to be aimed at the system directory: an
+           ordinary user's dump could not be written there at all ("Cannot
+           open dump file"), and an administrator's landed where every user
+           could read it.  Dumps now go to /usr/local/sdsys/dumps.  Any SD user
+           can create one there, nobody but an administrator can list the
+           directory, and each dump is readable only by the user whose session
+           it is (and by root).  If a dump cannot be written, the message now
+           says where and why.
+
+           WHAT DOES NOT CHANGE: who may PDUMP which process.  The DUMPDIR
+           setting in /etc/sd.conf still chooses the directory; an install
+           that kept its old configuration has DUMPDIR added for it.
+
+
+14 Sep 26  SIGNING ON AFTER A RELEASE CHANGE NO LONGER HANGS A SCRIPT.
+
+           When an account's VOC was at an older release, sign-on asked
+           "Update VOC to new release?" and accepted only Y or N.  Pressing
+           Enter asked again, and a script or pipe driving sd - which has no
+           answer to give - made it ask for ever, beeping each time.  The
+           prompt now reads "Update VOC to new release (y/<n>)?", and Enter,
+           or the end of input, means N.
+
+           WHAT DOES NOT CHANGE: answering Y still updates the VOC.  N leaves
+           it as it was, and you are asked again at the next sign-on.
+
+
+14 Sep 26  AN ADMINISTRATOR CAN LOGTO AN ACCOUNT CREATED IN THE SAME SESSION.
+
+           In a sudo sd session, LOGTO to an account whose Linux group did not
+           exist when the session started failed with "Error 3001 opening
+           file at line 2952 of $CPROC" and left you where you were - for
+           example, CREATE.ACCOUNT followed by LOGTO to the new account.  A
+           running program keeps the group memberships it started
+           with, and SD never looked again.  SD now refreshes them when the
+           session starts and after each CREATE.ACCOUNT, DELETE.ACCOUNT and
+           MODIFY.ACCOUNT.
+
+           WHAT DOES NOT CHANGE: who may enter which account, and who owns the
+           files SD writes.  A group change made outside SD while a session is
+           open is still only seen after one of those commands, or in a new
+           session.
+
+
+14 Sep 26  RUN SAYS WHEN A PROGRAM'S PATH IS TOO LONG, AND WHAT THE LIMIT IS.
+
+           When the full path to a compiled program was longer than 128
+           characters - an account kept deep in the directory tree, say - RUN
+           failed with "Invalid runfile pathname", which read as though the
+           name had been typed wrongly.  It now says "Runfile pathname is
+           longer than 128 characters".
+
+           WHAT DOES NOT CHANGE: the limit itself is still 128; a path that
+           long still cannot be run this way.  Catalogued programs are not
+           affected.
+
+
+14 Sep 26  THE INSTALLER NO LONGER WARNS THAT SD MAY NEED TWO REBOOTS TO START.
+
+           Its closing message used to say that in rare cases SD would not
+           start at boot until the computer had been restarted twice, or SD
+           was started by hand.  That was the service fault fixed on 13 Sep
+           (see "SD now stays running when the computer starts it" below), and
+           SD has started and stayed running on every boot since, so the
+           warning is gone.
+
+           WHAT DOES NOT CHANGE: if SD is ever found stopped, starting it by
+           hand still works - sudo /usr/local/sdsys/bin/sd -start.
+
+
+13 Sep 26  THE TIER POLICY LISTS MOVED TO THEIR OWN FILE.
+
+           The two lists that decide which verbs each account tier gets - the
+           verbs a STANDARD account is denied, and the ones an ADMINISTRATOR
+           gains on top - used to live in SDSYS newvoc as the records
+           TIER.OMIT.STANDARD and TIER.ADD.ADMINISTRATOR.  They are not
+           vocabulary entries, so they did not belong in a VOC file - it was
+           also the last thing in newvoc whose name was not lower case.
+
+           They now live in a dedicated file, SDSYS tier.policy, as the records
+           omit.standard and add.administrator.  IF YOU CUSTOMISE what a tier
+           starts with, edit them there.  Nothing else changes: each tier gets
+           exactly the verbs it did before.
+
+
+13 Sep 26  SD'S OWN PROGRAM SOURCES AND INCLUDE RECORDS HAVE LOWER-CASE NAMES:
+           gpl.bp/cproc, gpl.bp/login, syscom/keys.h, syscom/err.h and the rest.
+
+           Every record in the system's program file gpl.bp and include file
+           syscom now has a lower-case name, so SD's own names follow the same
+           rule as everything else on disk.  With this, every name SD ships -
+           directories, VOC entries, programs and include records - is lower
+           case, apart from two tier lists that are due to move out of the VOC.
+
+           WHAT YOU TYPE DOES NOT CHANGE: $INCLUDE SYSCOM KEYS.H, $INCLUDE
+           KEYS.H and BASIC GPL.BP CPROC all still work, because the compiler
+           finds an include or source record in either case.  Catalogued
+           names - the ones CALL uses, such as !PARSER - are untouched.
+
+           ONE THING TO KNOW: RUN takes a program's name exactly, so a program
+           in gpl.bp is now run as RUN gpl.bp write_install_dicts, not in
+           capitals.  A script that reads these files by their path -
+           /usr/local/sdsys/syscom/KEYS.H - needs the lower-case name.
+
+
+13 Sep 26  WHAT YOU TYPE IS NO LONGER CASE-FLIPPED IN AN ACCOUNT WITHOUT ITS
+           LOGIN PARAGRAPH.
+
+           SD started every session with "case inversion" on - typing list
+           gave LIST and typing LIST gave list - and relied on each account's
+           login paragraph (PTERM CASE NOINVERT) to turn it off again.  An
+           account whose login paragraph had been removed or replaced typed
+           with every letter flipped, which quietly breaks anything that takes
+           a name exactly, such as COPY FROM VOC or a record id.
+
+           Case inversion now starts off.  Nothing changes in an ordinary
+           account, where it was already being turned off.
+
+           TO USE CASE INVERSION deliberately, PTERM CASE INVERT still turns it
+           on, for a session or in a login paragraph.
+
+
+13 Sep 26  ACCOUNT NAMES ARE LOWER CASE, THE SYSTEM ACCOUNT INCLUDED: don, sdsys.
+
+           An account's name is now stored in lower case, so it matches the
+           Linux user it belongs to.  The system account is sdsys, the same as
+           its Linux user.  @WHO, WHO and WHO.AM.I show the lower-case name.
+
+           WHAT YOU TYPE DOES NOT CHANGE: LOGTO SDSYS, LOGTO DON,
+           MODIFY.ACCOUNT DON ..., DELETE.ACCOUNT, GRANT, SET.FILE and
+           MODIFY.PASSWORD all accept the name in any case, as does a
+           Q-pointer that names an account.
+
+           ONE THING TO KNOW: a program that compares @WHO with a name in
+           capitals - IF @WHO = 'SDSYS' - needs the lower-case name now.  And
+           an account register from an earlier release has upper-case names
+           and will not work with this one; there are none outside
+           development, so delete and re-create any test installation.
+
+           WHAT DOES NOT CHANGE: account directories were already lower case,
+           and the names of Linux users and groups are untouched.
+
+
+13 Sep 26  S AT A REPORT'S PAGE PROMPT NOW SCROLLS THE REST OF THE REPORT.
+
+           Answering S ("Suppress pagination") at the "Action (...)" prompt of
+           LIST, SORT and the other report commands looked as though it ended
+           the report.  It did not: every remaining record was sent, but SD
+           still cleared the screen and redrew the heading at every page, so
+           on a real terminal the pages flashed past and only the last one was
+           left on screen with the record count beneath it.
+
+           S now behaves exactly as if the report had been given NO.PAGE from
+           that point: the rest of the report scrolls up the terminal without
+           clearing the screen or repeating the heading.
+
+           WHAT DOES NOT CHANGE: RETURN or N still shows the next page, Q still
+           quits and A still aborts, and a report sent to a printer or to a
+           hold file was never affected.
+
+
+13 Sep 26  THE LAST UPPER-CASE VOC ENTRIES SD SHIPS ARE LOWER CASE: $acc, $map,
+           $release, and $command.stack in every new account.
+
+           $release records the release your VOC is at, $acc points at the
+           account's own directory, $map is where MAP.CAT writes, and
+           $command.stack is the marker that tells SD to keep your command
+           history between sessions.  With these, every VOC entry SD ships or
+           creates is lower case.
+
+           WHAT YOU TYPE DOES NOT CHANGE: COUNT $ACC, LIST $MAP and
+           MAP.CAT FILE $MAP work as before.
+
+           ONE THING TO KNOW: SD looks for $release and $command.stack by their
+           exact names when you sign in and sign off.  An account made before
+           this release has them in upper case and would be refused at sign-in
+           with "$release VOC record not found" - there are no such accounts
+           outside development, so delete and re-create any test account.
+
+
+13 Sep 26  THE SDSYS REGISTER RECORD IS INSTALLED WITH THE PERMISSIONS INTENDED.
+
+           The installer meant the system account's register record to be
+           readable but not writable by anyone but root, and set that - and
+           then two later steps undid it, so it was installed with execute
+           permission as well.  It is now set last, to read/write for root and
+           read for everyone else, like every other account's record, and the
+           installer prints what it set.
+
+
+13 Sep 26  CREATE.FILE NOW NAMES A NEW FILE IN LOWER CASE, WHATEVER CASE YOU TYPE.
+
+           CREATE.FILE ORDERS makes a file called orders: the VOC entry is
+           orders, the directory on disk is orders and its dictionary is
+           orders.dic.  Before this, the VOC entry kept the case you typed and
+           the directory was always made in upper case, so on Linux, where a
+           name's case is part of the name, CREATE.FILE ORDERS and
+           CREATE.FILE orders could leave two different files.  A file now has
+           one name.
+
+           If a file of that name already exists in any case, CREATE.FILE
+           finds it rather than making a second one.  DELETE.FILE ORDERS now
+           finds orders without asking, and so does SET.FILE when it looks in
+           another account.
+
+           WHAT YOU TYPE DOES NOT CHANGE: LIST ORDERS, COUNT ORDERS and
+           OPEN "ORDERS" in a program all find orders, as they already found
+           names in either case.  The compiled-program file BASIC makes is
+           now bp.out on disk as well.
+
+           TO USE THE NAME EXACTLY AS TYPED instead, set the option whose
+           description is "Keep operating system file name case in
+           CREATE.FILE" - it is listed by OPTION under the historical name
+           CREATE.FILE.UPCASE, which is misleading: it keeps case, it does not
+           upper-case.  With it set, CREATE.FILE uses the name you typed for
+           the VOC entry and on disk.
+
+           WHAT DOES NOT CHANGE: files that already exist keep their names, and
+           the records inside a file keep theirs - SUE and sue are still two
+           records.
+
+
+13 Sep 26  EVERY ACCOUNT'S OWN FILES ARE NOW LOWER CASE ON DISK: voc, $hold,
+           $hold.dic, $svlists and bp.
+
+           CREATE.ACCOUNT now makes these names, and the system account's own
+           voc and $hold follow them, so the directory SD makes for your VOC
+           is voc and your BASIC programs go in bp.  The VOC entry for your
+           program file is bp too.  These are the names SD Core for Windows
+           uses.  Printing to the hold file writes into $hold.
+
+           WHAT YOU TYPE DOES NOT CHANGE: BASIC BP MYPROG, RUN BP MYPROG,
+           SP.VIEW and GET.LIST all work as before, because names are found
+           through the VOC in either case.
+
+           FIXED ON THE WAY - "Data pathname 'BP.OUT' already exists".  If the
+           first program you compiled in an account was typed with the file
+           name in lower case (BASIC bp MYPROG), SD made its compiled-program
+           file under a mixed-case name, bp.OUT, that it could never find
+           again; every later BASIC BP stopped with that message until the
+           file was deleted by hand.  The compiled-program file is now named
+           from the file's VOC entry, so typing bp gives bp.out, and BASIC BP
+           afterwards finds it.
+
+           WHAT IS NOT CHANGED YET: CREATE.FILE still makes a new file's
+           directory in upper case, so the compiled-program directory on disk
+           is still BP.OUT behind the bp.out VOC entry.  That is the next
+           change.  An account made before this one keeps its old names and
+           will not work with this release - there are no such accounts
+           outside development, so delete and re-create any test account.
+
+
+13 Sep 26  THE SYSTEM'S PROGRAM DIRECTORIES ARE NOW LOWER CASE TOO: gpl.bp,
+           gpl.bp.out, bp, bp.out and pcode.out.
+
+           The second half of the move that renamed the data directories
+           earlier today.  gpl.bp holds SD's own BASIC source and gpl.bp.out
+           its compiled programs; bp and bp.out are the system account's own
+           program files.  The system account's VOC entries now name them in
+           lower case, which is also how SD Core for Windows names them.
+
+           WHAT YOU TYPE DOES NOT CHANGE: BASIC GPL.BP CPROC and
+           $INCLUDE GPL.BP HEADER.H still work, because the file is found
+           through the VOC in either case.  The programs inside keep their
+           names - CPROC is still CPROC.
+
+           WHAT IS NOT RENAMED YET: the BP file in YOUR account, which
+           CREATE.ACCOUNT still makes as BP, and every account's own VOC and
+           $HOLD.  Those move together, separately.
+
+           ONE THING TO KNOW: a script that reaches SD's source by its path -
+           /usr/local/sdsys/GPL.BP/CPROC, say - needs the lower-case name.
+
+
+13 Sep 26  SD NOW STAYS RUNNING WHEN THE COMPUTER STARTS IT.
+
+           Some of the time SD would start at boot and then be shut down again
+           a second later, so the first person to type sd was told "SD has not
+           been started".  The system service manager was watching the wrong
+           process: when SD's background process set itself up, the service
+           manager saw a short-lived helper finish, decided SD had stopped, and
+           stopped it.  The service now counts SD as running once
+           "sd -start" says it has started, and leaves it running until it is
+           asked to stop.
+
+           WHAT DOES NOT CHANGE: how SD is started and stopped by hand
+           (sudo /usr/local/sdsys/bin/sd -start and -stop), and what it does
+           once running.  systemctl status sd now shows "active (exited)"
+           while SD is up; that is expected, and means the service is
+           running, not that it has ended.
+
+
+13 Sep 26  THE SYSTEM'S DATA DIRECTORIES ARE NOW LOWER CASE ON DISK.
+
+           Under /usr/local/sdsys, the directories that hold SD's own data now
+           have lower-case names: accounts, newvoc, voc_template, messages,
+           syscom and sd.voclib, and the files the install creates - $ipc,
+           $map, $map.dic, voc.dic, accounts.dic, dict.dic and dir_dict.  The
+           VOC entries that point at them name the new paths, so
+           CT VOC syscom now shows "2: @SDSYS/syscom".  These are the names SD
+           Core for Windows uses.
+
+           Why it matters: on Linux a file name's case is part of the name, so
+           SYSCOM and syscom could otherwise both exist.  Giving each system
+           directory one spelling, and the same spelling as the VOC entry, is
+           a step towards SD having no name in two casings.
+
+           WHAT YOU TYPE DOES NOT CHANGE: COUNT SYSCOM and $INCLUDE SYSCOM
+           KEYS.H work as before, because the VOC entry is found in either
+           case.
+
+           WHAT IS NOT RENAMED YET: GPL.BP, BP and PCODE.OUT, and the system
+           account's own VOC and $HOLD, move separately.  The records inside
+           these directories keep their names: the register still holds
+           SDSYS, and syscom still holds KEYS.H.
+
+           ONE THING TO KNOW: a script or program of your own that reaches one
+           of these directories by its path - /usr/local/sdsys/ACCOUNTS, say -
+           needs the lower-case name.  Anything that goes through the VOC is
+           unaffected.
+
+
+12 Sep 26  THE SYSTEM FILE POINTERS ARE NOW LOWER CASE IN THE VOC: voc, syscom,
+           newvoc, dict.dict, md, sd.accounts, sd.voclib, and in the system
+           account accounts, messages and qfile.
+
+           As with the commands, what you type does not change: LIST VOC,
+           COUNT SYSCOM and $INCLUDE SYSCOM KEYS.H all work as before, and
+           CT VOC SYSCOM now answers with the heading "VOC syscom".
+
+           WHAT DOES NOT CHANGE: the files themselves.  These are only the VOC
+           entries' names; the directories on disk (SYSCOM, NEWVOC and the
+           rest) keep their current names for now.
+
+           THE SAME CAUTION AS BEFORE: a command that takes a record id exactly
+           - COPY FROM VOC SYSCOM,MYPTR, or QSELECT VOC SYSCOM - now needs the
+           lower-case id.  Names you open or type are found in either case.
+
+
+12 Sep 26  SD'S COMMANDS ARE NOW LOWER CASE IN THE VOC: list, create.file,
+           count, and the other 380 or so.
+
+           Every verb, keyword, paragraph, phrase and sentence SD ships is now
+           stored under a lower-case name.  WHAT YOU TYPE DOES NOT CHANGE:
+           LIST, list and List all run the same command, as they already did.
+           What you will notice is what SD prints back - CT VOC LIST now
+           answers with a heading of "VOC list".
+
+           WHAT IS NOT RENAMED YET: file pointers (VOC, BP, QFILE, SYSCOM and
+           the rest), and the $ records ($ACC, $MAP, $RELEASE).  Those move
+           separately.
+
+           ONE THING TO KNOW: a command that reads a VOC record by its exact
+           name - COPY FROM VOC LIST,MYLIST, for example - now needs the
+           lower-case name (COPY FROM VOC list,MYLIST).  Commands you TYPE are
+           found in any case; a record id handed to COPY is taken as given.
+
+
+12 Sep 26  THE HOLD FILE IS NOW CALLED $hold.
+
+           The second system name to move to lower case.  The VOC entry for the
+           file that holds deferred prints - where SETPTR mode 3 sends output,
+           and what SP.VIEW reads - is now $hold, and SD prints that spelling:
+           SETPTR 5 now shows "Hold file: $hold P5" rather than "$HOLD P5".
+
+           WHAT DOES NOT CHANGE: your held prints.  Only the VOC entry's name
+           moved; the directory on disk that holds them is still $HOLD.
+
+
+12 Sep 26  THE SAVED-LIST FILE IS NOW CALLED $savedlists, THE FIRST SYSTEM NAME
+           TO MOVE TO LOWER CASE.
+
+           SD's system names are moving to lower case, one group at a time.
+           This is the first: the VOC entry for the file that SAVE.LIST,
+           GET.LIST, DELETE.LIST, COPY.LIST, EDIT.LIST and SAVE.STACK use is
+           now $savedlists.  A new account gets it under that name.
+
+           You can still type $SAVEDLISTS: names are found in either case.
+
+           WHAT DOES NOT CHANGE: your saved lists.  Only the name of the VOC
+           entry moved; the directory that holds the lists is where it was,
+           with everything in it.
+
+
+12 Sep 26  A NAME NOW FINDS ITS VOC ENTRY WHETHER YOU TYPE IT IN UPPER OR
+           LOWER CASE.
+
+           SD has always forgiven a command typed in lower case: type "who" and
+           it tries WHO.  It never forgave the other direction.  A VOC entry
+           whose name is lower case could only be reached by typing it in lower
+           case, so:
+
+               CREATE.FILE orders
+               COUNT orders       0 record(s) counted
+               COUNT ORDERS       File not found
+
+           CREATE.FILE had just made that entry, and the name it printed back
+           was the one COUNT then could not find.  The same was true of a verb
+           you saved under a lower-case name, and of a program that opens a
+           file by name.
+
+           Every place SD looks a name up now tries it exactly as typed, then
+           in lower case, then in upper case - the commands you type, the
+           query language (LIST, COUNT, SELECT and their keywords), BASIC's
+           OPEN and OPENSEQ, a Q-pointer's target, RUN, the stacked-command
+           editor, and the compiler's $INCLUDE.  An entry spelled exactly as
+           you typed it still wins, so nothing that works today changes.
+
+           This is the groundwork for SD's system names becoming lower case,
+           which is still to come; it has to be in place first, or that change
+           would stop every upper-case command from working.
+
+           WHAT IT DOES NOT DO: it does not make the query language's RECORD
+           ids case-insensitive.  LIST CUSTOMERS "SUE" still does not find a
+           record called "sue" - on Linux those can be two different records,
+           and SD will not guess between them.  (CT and ED already fell back to
+           the upper-case id when the one you typed was not there; they now
+           try lower case too, as they do for names.)
+
+
+12 Sep 26  DELETE.ACCOUNT NOW FULLY REMOVES AN ADMINISTRATOR IT DELETES, EVEN
+           WHEN THE LINUX USER STAYS.
+
+           Most SD accounts own the Linux user behind them - SD created it, and
+           DELETE.ACCOUNT removes it along with everything else.  But an account
+           that was ADOPTED onto a Linux user SD did not create (the person who
+           installed SD is the usual one) leaves that Linux user in place when
+           the account is deleted, because the login and its files are not SD's
+           to destroy.
+
+           Until now, deleting such an account left that Linux user in SD's
+           administrator group.  On Linux that group grants real power - a
+           member can run SD's privileged helper without a password - so an
+           administrator whose account you had deleted could still act as one,
+           and from there reach the root account.  "I deleted that
+           administrator" did not fully mean it.
+
+           DELETE.ACCOUNT now strips the SD groups it granted - administrator
+           first, then the general SD-user group - from a surviving Linux user,
+           so a deleted account confers nothing afterwards.  The Linux user and
+           its home are still left untouched; only the memberships SD itself
+           added are removed.  Deleting an account whose Linux user SD created
+           is unchanged: that user, and everything with it, still goes.
+
+
+12 Sep 26  DELETE.FILE: PRESSING ENTER AT "USE ACTIVE SELECT LIST?" NOW MEANS
+           NO.
+
+           If you have a select list active and type DELETE.FILE with no file
+           name, it offers to use the list:
+
+               Use active select list (First item 'PAYROLL')?
+
+           Pressing Enter used to do nothing at all - the question simply came
+           back, for ever, until you typed Y or N.  In a script or a piped
+           session there is nothing to type, so it never stopped: the same
+           question scrolled past until something killed it.
+
+           Enter now means N, which clears the list and deletes nothing.  That
+           is the safe answer, and it matches the rest of this verb - every
+           other question DELETE.FILE asks already takes N when you press
+           Enter.
+
+           THE QUESTION ITSELF STILL DOES NOT SAY SO, and that is deliberate
+           rather than an oversight: the same wording is used by DELETE, CD,
+           COPY, CT and ED, none of which takes a default yet, so adding
+           "(y/<n>)" to it would be wrong in five places to be right in one.
+           Those verbs are unchanged - in them, Enter still re-asks.
+
+
+12 Sep 26  DELETE.FILE NO.QUERY NO LONGER ASKS A QUESTION AFTER PROMISING NOT
+           TO.
+
+           Deleting a file whose data lives in the system account - a VOC entry
+           pointing at @SDSYS/something - does the safe thing under NO.QUERY:
+           the VOC reference goes and the shared file is left alone, and it
+           tells you so.  That part was right.  What followed it was not.  The
+           verb then went on to ask
+
+               OK to delete DATA portion '' (y/<n>)?
+
+           three times, about a file with no name, after NO.QUERY had already
+           been honoured.  Typed at a terminal it was a puzzling question you
+           could answer with Enter.  In a script or a piped session it was
+           worse: the prompt swallowed the next lines of input as its answers,
+           so the commands after DELETE.FILE never ran and nothing said why.
+
+           The right thing still happened underneath - the VOC entry went, the
+           shared file stayed - which is exactly why this went unnoticed.  Only
+           the route was wrong.
+
+           IT DOES NOT CHANGE WHAT GETS DELETED.  NO.QUERY still declines to
+           remove a file out of the system account, and still tells you the
+           file is still there; delete it without NO.QUERY to be asked about
+           the file itself.
+
+
+12 Sep 26  MODIFY.PASSWORD SETS AN ACCOUNT'S PASSWORD FROM INSIDE SD.
+
+               modify.password           - your own
+               modify.password bob       - somebody else's (administrators)
+
+           An SD account is a Linux user here, so its password is that user's
+           Linux password: there is no second password to get out of step with
+           the real one.
+
+           SD NEVER SEES THE PASSWORD.  It does not prompt for one, hold one,
+           or pass one to anything - it hands over to passwd, which does its
+           own prompting.  And a password is never accepted on the command
+           line: "modify.password bob hunter2" is refused rather than quietly
+           ignoring the second word, because by the time you saw a prompt the
+           password would already be in SD's command stack.
+
+           Setting your own asks for your current one - Linux asks, not SD, so
+           it follows whatever password rules this machine already has.
+           Setting somebody else's needs administrator rights and does not ask
+           for the old one, because an administrator resetting a forgotten
+           password does not know it.
+
+           ONLY ADMINISTRATOR ACCOUNTS HAVE THIS VERB, and that is a starting
+           position rather than a rule about who deserves it.  SD ships its
+           security tight and leaves you to loosen it deliberately: if you want
+           one particular person to set their own password, copy the
+           MODIFY.PASSWORD entry from VOC_TEMPLATE into that account's VOC.
+
+           They can then change their own password and nothing else - asking
+           for somebody else's is still refused, because that needs
+           administrator rights and copying a verb does not confer any.  Remove
+           the entry again and they are back where they were.
+
+           Worth knowing if you do: an upgrade will not take the entry away
+           again, but changing that account's tier will, because a tier change
+           rebuilds the account's administrative verbs from scratch.
+
+           What it does not do:
+
+           It will not set a password for a group account, which has no Linux
+           user of its own and so has nothing to set.
+
+           It never touches the root account.  The user is always named
+           explicitly, so the verb cannot be pointed at whoever happens to be
+           running it.
+
+
+11 Sep 26  UPGRADING NOW BRINGS YOUR ACCOUNTS' VOCs WITH IT.
+
+           Installing a new release replaces the master lists SD builds new
+           accounts from, but it never touched the accounts you already had.
+           So every verb added since an account was created was simply not
+           typeable in it, and there was no way to find out except by typing
+           one and being told it was not in your VOC.
+
+           An upgrade - a reinstall that keeps your accounts - now walks every
+           registered account and brings its VOC up to the new release.
+
+           ADMINISTRATOR ACCOUNTS GET THE ADMINISTRATOR VERBS THEY WERE
+           MISSING, which is the half that had never worked at all.  Those
+           verbs come from a different list, and nothing except creating the
+           account or changing its tier had ever copied them.  On this very
+           system the only registered administrator was missing eight of the
+           eighteen - including create.account, delete.account, modify.account
+           and update.accounts.
+
+           It had gone unnoticed because administration is normally done with
+           "sudo sd", which puts you in SDSYS, and SDSYS has every verb.  Sign
+           on as yourself and the gaps appear.
+
+           You can run the walk yourself at any time, from SDSYS:
+
+               update.accounts all
+
+           What it does not do:
+
+           It never removes anything.  A VOC gains what the new release added
+           and keeps everything it had, including records you have edited.
+           Only accounts whose tier is ADMINISTRATOR receive administrator
+           verbs; programmer and standard accounts are untouched by that part.
+
+           It may ask, once per account, about a record whose type has changed
+           between releases.  That question is unavoidable - SD will not
+           silently replace a record of one kind with another - so an upgrade
+           is worth watching rather than walking away from.
+
+
+11 Sep 26  CREATE.ACCOUNT NO LONGER TAKES OVER AN EXISTING LINUX USER.
+
+           SD accounts create their own Linux user.  That has been the model
+           for a while, but the verb did not enforce it: if you typed
+
+               create.account user bob
+
+           and a Linux user called bob already existed, SD quietly attached an
+           SD account to that person's existing login - no password set, no
+           account created, nothing said.  It now refuses:
+
+               Linux user bob already exists.  SD accounts create their own
+               Linux user
+
+           Pick a name SD will create, and SD will make the Linux user, set its
+           password and build the account together.
+
+           THE ONE EXCEPTION IS THE PERSON WHO INSTALLS SD, whose Linux login
+           obviously already exists.  The installer adopts it, and that is the
+           only adoption the system performs.
+
+           AND A REFUSAL THAT NAMED THE WRONG THING IS FIXED.  Asking for
+           no.query when the Linux user does not exist used to answer "Invalid
+           user name", which sent you off to check a name that was perfectly
+           good.  The real reason is that creating a Linux user means setting
+           its password, and that needs a prompt, so no.query cannot work.  It
+           now says so.
+
+           What it does not do:
+
+           There is no way to give an existing Linux user an SD account.  That
+           is deliberate, not an oversight - it is what "SD accounts create
+           their own Linux user" means.  The installer's adoption is gated on
+           being run from inside the installer and cannot be reached from a
+           command line, so typing ADOPT yourself answers "Unexpected token".
+
+           Existing accounts are untouched.  This changes what CREATE.ACCOUNT
+           will do next time, not anything already created.
+
+
+11 Sep 26  GIVING SOMEBODY ELSE ONE OF YOUR ACCOUNTS: GRANT AND REVOKE.
+
+           An administrator can let a second person into an account, take that
+           access away again, and see who has it:
+
+               grant payroll to bob
+               revoke payroll from bob
+               list.grants payroll
+
+           Entry to an account has always been membership of the Linux group
+           CREATE.ACCOUNT makes for it - sdu_payroll for account payroll - so
+           these verbs edit that group and change nothing in the account's
+           record.  Until now there was no verb for it at all: you added and
+           removed members with MODIFY.ACCOUNT, and there was no way to ask who
+           was in the group without leaving SD.
+
+           A GRANT MAY GO DOWN OR SIDEWAYS, AND NEVER UP.  A programmer can be
+           given a standard account; a standard user cannot be given a
+           programmer account.  Your own tier has to be at least the tier of
+           the account you are being let into.  Somebody with no SD account of
+           their own has no tier to compare, so they cannot be granted one.
+
+           NOBODY IS EVER GRANTED SDSYS.  It belongs to administrators, who
+           reach it by logging in or with LOGTO.  It is not something a tier
+           can be raised to obtain, and the refusal says so.
+
+           MODIFY.ACCOUNT ADD OBEYS THE SAME RULE, because it makes the same
+           group change and would otherwise be the way round it.  DELETE does
+           not: taking access away is always allowed.
+
+           AND A PROMOTION NOW SAYS WHAT IT BROKE.  Raising an account's tier
+           can turn people who were legitimately granted it into people SD will
+           now refuse - the membership still looks perfectly normal from the
+           outside.  MODIFY.ACCOUNT compares who could get in before and after
+           the change and lists anybody the change stopped, with what to do
+           about it.  Lowering a tier cannot break a grant, so it prints
+           nothing.  If the group cannot be read at all it says THAT, rather
+           than leaving a silence that looks like good news.
+
+           What it does not do:
+
+           The person must log out of Linux and back in before they can write
+           in the account.  SD sees the grant at once and will let them in; the
+           account's directory belongs to the group, and Linux gives a session
+           the groups it had when it started.  Until they log in again they can
+           be let in and then refused by the filesystem.  Revoking has the same
+           delay in reverse - SD stops admitting them immediately, but their
+           access to the files lasts until their next login.
+
+           It does not stop an administrator making the same group change with
+           usermod outside SD, and no rule here can.  SD applies the tier rule
+           again at LOGTO, which is what actually holds.
+
+           LIST.GRANTS reports the members of the group, which includes the
+           account's own user and root.  Neither is a grant somebody made -
+           CREATE.ACCOUNT puts them there - but hiding them would make the
+           listing disagree with the group it is describing.
+
+           The three verbs are new, so an administrator account created before
+           this release does not have them, and neither UPDATE.ACCOUNTS nor
+           re-typing the tier it already has will add them: a tier change only
+           rewrites the VOC when the tier actually moves.  An administrator
+           account created after this release has them from the start.  For an
+           older one, move the tier down and back up:
+
+               modify.account bob programmer
+               modify.account bob administrator
+
+           Do that to the account you are signed in as only if another
+           administrator is registered, because the first command takes your
+           own administrator rights away.
+
+
+11 Sep 26  SD NOW KEEPS AN AUDIT TRAIL.
+
+           The file "audit" in /usr/local/sdsys records every sign-on, every
+           sign-on that was refused and why, every LOGTO and every refused
+           LOGTO, the administrator rights sudo sd gives or refuses, refused
+           API logins, and account changes made with MODIFY.ACCOUNT: members
+           added and removed, tier changes (suspensions included) and SH /
+           OS.EXECUTE grants.  Each line has the date, the time, the Linux
+           user, the SD user number and the process:
+
+              2026-09-11 14:02:07 user=don uid=3 pid=8624 LOGTO account=TSTD
+
+           Under sudo sd the process belongs to root, so the line also names
+           who ran sudo: "user=root sudo=don".
+
+           The refusals are the interesting half - somebody who is not an
+           administrator asking for SDSYS, or for an account they are not a
+           member of.
+
+           THIS IS NOT THE ERROR LOG.  The error log throws away its oldest
+           half when it fills; the audit file is renamed with the date and time
+           when SD starts and finds it over 1MB, and a new one begun, so nothing
+           is discarded.  Removing old ones is your decision.
+
+           SD USERS CAN ADD TO IT AND DO NOTHING ELSE.  They cannot read it,
+           change or empty it, or rename or delete it - Linux itself refuses,
+           because the file gives them write without read and is append-only
+           (chattr +a).  Administrators read it with sudo.  To remove an old
+           one: sudo chattr -a <file>, then delete it.  If the installer says
+           it could not make the file append-only, your filesystem does not
+           support it, and SD users could empty the file.
+
+           Uninstalling with your accounts kept keeps the audit trail too, and
+           reinstalling puts it back.
+
+           What it does not do: Linux keeps its own record of logins and sudo
+           use (the journal, or /var/log/auth.log), separate from this one and
+           more complete; read the two together.
+
+
+11 Sep 26  AN ACCOUNT CAN BE SUSPENDED.
+
+           MODIFY.ACCOUNT takes a fourth tier:
+
+               modify.account bob suspended
+
+           A suspended account loses all access to SD: the console, ssh, LOGTO
+           from another account and the API all refuse it.  It is for an
+           account that should stop working for a while - somebody on leave,
+           a login being investigated - without deleting anything.  If you
+           only want to stop somebody using SD, suspend the account rather
+           than deleting it; DELETE.ACCOUNT now says so before it deletes.
+
+           NOTHING IN LINUX CHANGES.  The Linux user, its password and its
+           groups - sdadmin included - are left exactly as they are, and so is
+           the account's VOC.  SD keeps the tier the account had, LIST
+           SD.ACCOUNTS shows it, and suspending says all of this at the time.
+
+           THERE IS NO "RESUME" KEYWORD.  Coming back names the tier:
+
+               modify.account bob programmer
+
+           and the VOC is brought from the tier it had to the one named.  An
+           account can go from any tier to any other directly.
+
+           What it does not do: an administrator can still LOGTO a suspended
+           account, to look at it.  You cannot suspend the account you logged
+           in to or the one you are standing in.  A session already inside the
+           account when it is suspended carries on until it ends.
+
+
+11 Sep 26  A PROGRAM CAN CREATE A SEQUENTIAL FILE AGAIN.
+
+           The normal way for a program to create a file is OPENSEQ, which
+           takes its ELSE branch because the file does not exist yet, then
+           WRITESEQ, then CLOSESEQ.  Since a code clean-up earlier this year,
+           that did not work: OPENSEQ threw away the file variable the moment
+           it handed it to the program, so every WRITESEQ was refused with
+           "not a sequential file", nothing was written, and the file was
+           never created.  Worse, the lock OPENSEQ had taken on the file's
+           name was kept, even through CLOSESEQ and logging out, with no
+           session to own it: the next OPENSEQ of the same file waited for
+           ever, only restarting SD cleared it, and listing the locks at that
+           point could stop SD for every user.  OPENSEQ now keeps the file
+           variable, as SD always did before the clean-up and as SD Core for
+           Windows does, so the file is written and the lock is released when
+           it is closed or the program ends.
+
+           What it does not do: a lock already stranded this way is not
+           cleared by installing this version; restart SD once.
+
+
+11 Sep 26  SD ENDS A SESSION WHEN ITS INPUT RUNS OUT, INSTEAD OF SPINNING.
+
+           When SD reads its commands from a pipe or a file - for example
+           printf 'LISTU\n' | sd, or sd < commands - and the input ran out
+           without an OFF, the command prompt did not stop.  It asked for the
+           next command again and again, as fast as the machine could go,
+           sending a bell character each time, until something killed the
+           process.  It now logs the session out, exactly as OFF would.
+
+           What it does not do: a session at a real terminal is unchanged -
+           SD still waits for you to type.  A program that uses INPUT still
+           receives an empty answer at the end of its input and decides for
+           itself what that means.
+
+
+11 Sep 26  A SESSION THAT DIED NO LONGER LOCKS A FILE FOR EVER.
+
+           When a command needs a file to itself - BUILD.INDEX, DELETE.INDEX,
+           CNAME, CONFIGURE.FILE, SET.TRIGGER - and cannot get it, it now names
+           the file and the session holding it ("Holding it: 12 (don)"), and
+           says what to do.  If nothing else has it open, it says the file is
+           still referenced inside your own session instead.  LOGOUT n on a
+           session whose process has already gone - a dropped ssh connection, a
+           closed window - now reclaims its slot and releases every lock it
+           held, and says so, instead of leaving it "(logout pending)" for ever.
+
+           LIST.READU no longer crashes on a lock whose session has gone; it
+           shows the owner as "(gone)".  The crash left SD's internal locks
+           held, which stopped every other session.
+
+           What it does not do: LOGOUT n on a session that is still running
+           asks it to log out, as before; you can log out only your own
+           sessions unless you are an administrator.
+
+
+11 Sep 26  PROTECTING A VOC RECORD YOU HAVE CHANGED.
+
+           If you have customised a record in your account's VOC - a sentence,
+           a paragraph, a keyword, a file pointer - you can now keep it through
+           a VOC update by putting [locked] in its first field, after the type
+           code (for example "PA [locked] my nightly run").  The update leaves
+           it as it is and then lists every record it left alone, so you know
+           which corrections you have not received.
+
+           What it does not do: it does not protect a verb.  A verb is what SD
+           runs, and holding one back would leave your account calling a
+           program this release has changed; a verb marked [locked] is updated
+           anyway and listed separately.  To change what a command does, add
+           your own verb under a name SD does not ship - updates never touch
+           those.
+
+           Also: when CREATE.ACCOUNT cannot set a new user's password it now
+           says why - the two entries did not match or the system's password
+           rules refused it, the name is one SD may not set, or the system's
+           own status number - and it no longer offers a retry that cannot
+           succeed.
+
+
+11 Sep 26  LISTF SAYS WHAT THE SYSTEM FILES ARE.
+
+           Ten of the file entries in the system account's VOC - ACCOUNTS, BP,
+           BP.OUT, GPL.BP, GPL.BP.OUT, MESSAGES, NEWVOC, QFILE, $HOLD and the
+           NEWVOC entry given to every account - now carry a description, so
+           LISTF reads "File - Account register" or "File - BASIC program
+           source" instead of a bare F.
+
+           What it does not do: nothing about how these files are found or
+           opened changes; SD reads only the first letter of that field as the
+           type, as before.
+
+
+11 Sep 26  CSV FILES FROM WINDOWS READ CORRECTLY.
+
+           READSEQ now treats a CR LF pair as the end of a line, as it already
+           treated LF alone.  A file written on Windows, or any CSV file that
+           follows the CSV standard (which uses CR LF even on Linux), used to
+           come back with a stray carriage return on the end of every line - and
+           READCSV, which reads through READSEQ, put it on the last field of
+           every row, so "B1" compared unequal to "B1".  A carriage return that
+           is not followed by a line feed is still returned as data.
+
+           What it does not do: files with ordinary Linux line endings read
+           exactly as before, and WRITESEQ still writes LF alone.
+
+           ED's return code for a command error is now negative, as every other
+           command's is, so a program or paragraph that tests for a failed ED
+           command sees one.
+
+
+11 Sep 26  SIGNING ON FROM A MODERN TERMINAL.
+
+           Most graphical terminals and ssh clients set TERM to a type such as
+           xterm-256color, which SD does not ship a definition for.  Until now
+           that left the sign-on sequence with no terminal capabilities at all:
+           the screen was not cleared, and backspace at a prompt during sign-on
+           erased nothing.  It looked fine once you reached the colon prompt,
+           because your account's LOGIN paragraph sets the type again - but that
+           runs too late for sign-on itself.  A type SD has no definition for now
+           falls back to linux, the same type the LOGIN paragraph uses.
+
+           What it does not do: it does not add definitions for more terminal
+           types, and a TERM that SD does know is used exactly as before.
+
+
+11 Sep 26  F1 SAYS SOMETHING.
+
+           Pressing F1 at an empty command prompt used to do nothing at all,
+           which looks like a broken keyboard.  It now says that SD has no
+           built-in help system, that LIST VOC shows the commands your account
+           has, and where this changelog is.
+
+           What it does not do: it is not a help system, and HELP is still not a
+           command; the message names only things that are on the machine.
+
+
+11 Sep 26  .D AND AN UNFINISHED TRANSACTION.
+
+           .D name, which deletes a saved sentence or paragraph from the VOC,
+           now says "not found in VOC" when there is no such record.  It used to
+           say nothing and act on whatever record had last been read, so .D with
+           a mistyped name could offer to delete a different record.  It also no
+           longer leaves a lock behind when the name is not found.
+
+           A BASIC program with a BEGIN TRANSACTION that is never closed now
+           fails to compile with "Unterminated transaction construct" instead
+           of making the compiler run for ever.
+
+           What it does not do: neither changes a program or paragraph that was
+           already correct.
+
+
+11 Sep 26  DELETE.FILE CAN RUN UNATTENDED.
+
+           DELETE.FILE ... NO.QUERY no longer stops to ask a question.  When
+           part of the file is in the system account it now deletes the VOC
+           reference, leaves the file itself where it is, and says so (message
+           10117) - it no longer assumes you meant yes to a question about other
+           accounts' data.  Deleting a file whose name you typed in lower case
+           no longer asks "OK to delete DATA portion" and then the same about
+           the dictionary: those questions were caused only by the difference in
+           case.  When the question is asked, it now shows that Enter means No,
+           and it no longer asks again for ever when there is nobody to answer
+           it - run from a script it used to print the question millions of
+           times.  The same holds for "Use file" in DELETE.FILE, for the three
+           "Program is also in ... catalogue. Remove?" questions in CATALOG, and
+           for .D's "Delete VOC record?": each shows (y/<n>), and Enter means No.  An index held in a separate directory is now reported if it
+           cannot be deleted (message 2636) instead of being left behind
+           without a word.  And DELETE.FILE refuses to delete VOC itself however
+           you type the name.
+
+           What it does not do: NO.QUERY still does not delete a file whose data
+           is somewhere other than its usual place without asking; FORCE is the
+           way to say yes to that.
+
+
+11 Sep 26  TWO MORE FIXES TAKEN FROM SD CORE FOR WINDOWS.
+
+           QSELECT now names the select list it filled.  A successful QSELECT
+           ended its message with a dangling "...to select list " and no number,
+           although QSELECT takes TO n and the result can be in any list from 0
+           to 10, so the one thing you need next was missing.  It now reads
+           "14 record(s) selected to select list 3", as SELECT and NSELECT
+           already did.
+
+           DELETE.INDEX now accepts an index name typed in any case.  Index
+           names are held in upper case, and LIST.INDEX folds case before it
+           looks, but DELETE.INDEX did not: "delete.index zzak f1" answered
+           "Unrecognised index name (f1)" for an index that LIST.INDEX showed as
+           F1.  The two commands now agree.  A name that still matches nothing is
+           reported exactly as you typed it.
+
+           What it does not do: neither changes anything else about how the two
+           commands select or delete; each was a wrong or missing answer.
+
+
+10 Sep 26  SMALLER FIXES TAKEN FROM SD CORE FOR WINDOWS.
+
+           CONFIG() given a name longer than eight characters returns an empty
+           string with status 1004, as for any unknown name, instead of stopping
+           the program.  A file in a directory file whose name holds a % that is
+           not one of SD's own escapes is listed under its real name ("draft%1"
+           rather than "draft"), and a name ending in % no longer makes SELECT
+           read past the end of its buffer.  A WRITE inside a transaction with no
+           lock held now says so (message 10151) instead of suggesting the disk
+           may be full.  WRITESEQ to a port ends a line with CR and LF, not CR
+           alone.  sdtic reports every terminal definition that fails to compile
+           and exits with an error, and a bad definition no longer spoils the
+           ones after it.  sd -start says so when it cannot start its daemon.
+
+           What it does not do: none of this changes how SD is used or
+           configured; each was a fault that either stopped a program or gave a
+           wrong answer.
+
+10 Sep 26  NANO JOINS MICRO, AND BOTH FULL-SCREEN EDITORS WORK THE SAME WAY.
+
+           NANO <file> <record> edits a record in nano, as MICRO does in micro,
+           and both highlight SD BASIC in a BP file.  They are now one program,
+           taken from SD Core for Windows, and it brings three things MICRO did
+           not have.  Value, subvalue and text marks show in the editor as ~~,
+           ~` and ~! and turn back into marks when the record is saved, so a
+           record holding marks is safe to edit.  The working copy in $HOLD is
+           removed however the editor is left.  And a missing editor, a session
+           with no terminal, or an account without OS-ON is told so before
+           anything is written.  EDIT is still the line editor ED.
+
+           What it does not do: nano's highlighting is installed for everyone
+           only where /usr/share/nano exists; micro's is copied into each user's
+           own configuration the first time they use MICRO.  A STANDARD account
+           has neither verb.  A record whose name contains a single quote has to
+           be edited with ED.
+
+
+10 Sep 26  DELETE.ACCOUNT CAN REMOVE THE USER'S HOME DIRECTORY.
+
+           DELETE.ACCOUNT <account> REMOVE.HOME also removes the home directory
+           of the account's Linux user.  The one confirmation names the home
+           directory, and afterwards SD says whether it really is gone.  Without
+           REMOVE.HOME the home directory is left alone, as before.
+
+           What it does not do: it removes a home directory only for a Linux user
+           that SD itself created, and only when that home is the ordinary
+           /home/<user>.  For any other user REMOVE.HOME is refused before the
+           question is asked, and nothing of the user is removed.
+
+
+10 Sep 26  A ROUND OF CHANGES TO MATCH SD CORE FOR WINDOWS.
+
+           SD Core for Linux follows SD Core for Windows wherever the two do the
+           same job.  An audit found places where they had drifted apart, and
+           these are the ones a user will notice.
+
+           Administration verbs are for administrators only.  SH, "!", CONFIG,
+           LISTU, LIST.READU, LIST.LOCKS, CLEAR.LOCKS, LOCK, SET.DATE and
+           CLEAN.ACCOUNT are no longer given to STANDARD or PROGRAMMER accounts;
+           an ADMINISTRATOR account gets them.  An administrator who wants one
+           person to have one of these can copy that verb into the person's VOC.
+
+           UPDATE.ACCOUNT is now UPDATE.ACCOUNTS, the name SD Core for Windows
+           uses.  UPDATE.ACCOUNTS ALL, typed in SDSYS by an administrator, updates
+           every registered account without asking first and says how many it
+           updated.  Any other word after the verb is refused.
+
+           NLS, SET.LANGUAGE and LOAD.LANGUAGE are gone: SD is English only.
+
+           Every yes/no question now shows which answer pressing Enter gives -
+           "(y/<n>)" - and Enter gives it.  Several questions used to ask again
+           for ever on an empty answer.  The default is always the answer that
+           changes nothing.
+
+           Accounts created from now on keep the descriptions on their VOC
+           records ("File - Account register" rather than a bare "F"), and a VOC
+           update no longer strips them.
+
+           DELETE.ACCOUNT asks one question instead of up to three, and the
+           question names what will be deleted.  It deletes the account's Linux
+           user too, but only a user SD itself created: CREATE.ACCOUNT now marks
+           the users it makes, and any other user - including the person who
+           installed SD - is left in place, with a message saying so.
+
+           CREATE.ACCOUNT takes SH-ON and OS-ON, so a new account can be given
+           the shell or OS.EXECUTE when it is made.  MODIFY.ACCOUNT's SH-ON and
+           OS-ON now report where both settings stand, and refuse a group
+           account, which has no person of its own to grant them to.
+
+           DELETE.CATALOG checks every name before deleting any, so a list that
+           mixes your own entries with global ones deletes nothing instead of
+           stopping half way.
+
+           Several messages have new numbers, so that a message number means the
+           same thing in SD Core for Linux as in SD Core for Windows.
+
+           What it does not do: existing accounts keep the verbs and VOC records
+           they already have - an update adds and replaces but never removes, and
+           changing an account's tier is what brings its verbs into line.  Linux
+           users created before this change carry no mark, so DELETE.ACCOUNT
+           leaves them in place; remove one with userdel if it should go.
+           DELETE.ACCOUNT does not remove the Linux user's home directory.
+
+
+10 Sep 26  MICRO WORKS AGAIN, AND ADMINISTRATORS REACH THE SYSTEM WITHOUT SUDO.
+
+           MICRO started the editor through SD's shell command, which is closed
+           to anyone who has not been given shell access.  In an ordinary
+           session it printed "not permitted to use the operating system shell"
+           and then "Record was not saved" without ever opening the editor.  It
+           now starts the editor itself, and says plainly when it cannot: the
+           session has no terminal, the account may not run programs outside SD
+           (MODIFY.ACCOUNT <account> OS-ON grants that), or micro is not
+           installed.  It also finds the file however its name is typed, so
+           "micro bp test" edits BP.
+
+           An administrator working in their own account without sudo now has
+           the shell (SH and "!"), OS.EXECUTE and MICRO.  The rules already said
+           an administrator's operating-system access comes with the tier and
+           cannot be switched off, but in practice it was only there under
+           "sudo sd".
+
+           What it does not do: this access belongs to the administrator's own
+           account.  After LOGTO into an account that is not an administrator's,
+           the shell and MICRO follow that account's own settings.  A STANDARD
+           account still has no MICRO verb.  MICRO will not edit a record whose
+           name contains a single quote; use ED for that.
+
+
+10 Sep 26  CHANGING AN ACCOUNT'S TIER NOW CHANGES ITS VERBS AT ONCE.
+
+           MODIFY.ACCOUNT <account> STANDARD, PROGRAMMER or ADMINISTRATOR now
+           brings the account's verbs into line with the new tier straight away.
+           Before, the tier changed but the account kept exactly the verbs it
+           had, so a STANDARD account raised to PROGRAMMER still could not
+           compile, and a PROGRAMMER lowered to STANDARD still could.  Raising a
+           tier copies in the verbs it adds; lowering one removes them.  The
+           command reports how many VOC records it added, removed and left
+           alone.
+
+           What it does not do: when lowering a tier it removes a verb only if
+           the account's record is still exactly as SD wrote it.  A record
+           someone has edited or replaced under that name is left in place and
+           counted as "left alone" - it is never silently destroyed, but it does
+           stay usable.  File pointers and anything else the account has added
+           are not touched.  If the account's VOC cannot be opened, the tier is
+           not changed.
+
+
+10 Sep 26  A VOC UPDATE NO LONGER UNDOES AN ACCOUNT'S TIER.
+
+           After an upgrade, logging in to an account whose VOC is at an older
+           release asks "Update VOC to new release?", and UPDATE.ACCOUNTS does the
+           same thing on request.  Both copied the whole of the shipped VOC into
+           the account, so a STANDARD account that answered Y got back every verb
+           it had been created without - BASIC, CATALOG, RUN, the editors - and no
+           privilege was needed to do it.  The update now applies the account's
+           tier exactly as CREATE.ACCOUNT does.
+
+           It also fixes an old fault in the same update: a verb whose record was
+           identical to the one before it (CATALOGUE after CATALOG, for example)
+           could be skipped, leaving the account without it.
+
+           What it does not do: an update adds and replaces, it never removes, so
+           an account already holding verbs its tier would not give it keeps them.
+           An account created before tiers existed is updated with the full set.
+
+
+10 Sep 26  ACCOUNTS NOW GET A VERB SET THAT MATCHES THEIR TIER.
+
+           The verbs a new account receives now depend on its tier.  A STANDARD
+           account gets the everyday verbs but not the ones for building or
+           administering a system - no BASIC, CATALOG, RUN, the file and index
+           commands, the editors, and so on: it can run an application, not build
+           one.  A PROGRAMMER account gets the full set, and an ADMINISTRATOR
+           account gets that plus the account-management verbs (CREATE.ACCOUNT,
+           DELETE.ACCOUNT, MODIFY.ACCOUNT, UPDATE.ACCOUNTS, UNLOCK, and the other
+           administration verbs listed in the entry above).
+
+           What it does not do: an account created before this change keeps the
+           verbs it was created with.  Changing its tier with MODIFY.ACCOUNT
+           brings them into line (see the entries above).
+
+
+10 Sep 26  CREATE.ACCOUNT NOW CREATES THE OPERATING-SYSTEM USER TOO.
+
+           In SD a user account and its operating-system login are the same
+           thing, so CREATE.ACCOUNT now creates the OS user as part of creating
+           the account.  The OS user no longer has to exist first, and there is
+           no longer a setting (CREATUSR) to turn this on - it just happens.  You
+           are prompted for the new user's password.
+
+           What it does not do: CREATE.ACCOUNT with NO.QUERY still will not create
+           an OS user, because creating one needs the password prompt that
+           NO.QUERY suppresses.  For an unattended CREATE.ACCOUNT ... NO.QUERY,
+           pre-create the OS user; otherwise leave NO.QUERY off.
+
+
+10 Sep 26  THE LINUX CLIENT LIBRARY HAS BEEN HARDENED.
+
+           The library that programs use to reach SD over the network
+           (sdclilib.so) has been replaced with a hardened version.  It now
+           checks the length of what the server sends before trusting it,
+           prevents a class of buffer overflows, copes with network reads that
+           arrive in pieces or are interrupted, drops a connection cleanly if it
+           loses sync instead of carrying on, enforces the server's maximum
+           record size, and tells a server-side failure apart from a client-side
+           one.  The default connection port is 4243.
+
+           What it does not do: it does not change how you call the library -
+           existing programs keep working unchanged.  It is the same library
+           with sturdier handling of bad or partial input.
+
+
+10 Sep 26  THE INSTALLER CAN NOW OPEN SSH AND THE NETWORK API TO OTHER COMPUTERS.
+
+           The installer asks two questions.  "Allow ssh access from other
+           computers?" - yes turns the ssh service on at every boot and opens
+           port 22 in the firewall.  "Allow API access from other computers?" -
+           yes opens the SD network API (the interface SD client programs use)
+           on TCP port 4243 to the network.  Both default to no.
+
+           Left at the defaults, ssh is untouched and the API listens only on
+           this machine (127.0.0.1 port 4243): programs on the same computer can
+           use it, nothing on the network can.  A remote program can still reach
+           it by tunnelling over ssh.
+
+           A connection to the API always has to log in with an SD user name and
+           password, whether it arrives locally or over the network.
+
+           What it does not do: it does not switch your firewall on.  If ufw is
+           not running the "allow" rules are simply recorded for when it is.  It
+           exposes nothing by default - you have to answer yes.
+
+
+10 Sep 26  OVER SSH, NON-ADMINISTRATOR ACCOUNTS ARE NOW HELD INSIDE SD.
+
+           SD can decide that a STANDARD or PROGRAMMER account may not reach the
+           operating-system shell.  Until now that decision stopped at the door
+           of SD: the same account could connect over ssh and land at an
+           ordinary shell prompt, never entering SD, so the restriction did not
+           hold at the edge of the machine.  The installer now adds a block to
+           the ssh configuration that sends every non-administrator SD account
+           straight into SD on an ssh login.  An administrator keeps a normal
+           shell.  Someone SD has granted shell access (MODIFY.ACCOUNT SH-ON)
+           still reaches one, through SD, as themselves.
+
+           What it does not do: it does not change who may connect or log in -
+           only what a non-administrator gets once connected.  It leaves local
+           console logins alone.  Because the ssh session is handed straight to
+           SD, file-copy tools that run over ssh (scp, sftp) no longer work for
+           non-administrator accounts; that follows from the decision rather
+           than being a separate setting.  If you have already customised your
+           ssh configuration, the installer will NOT edit it - it tells you so
+           and leaves it to you, rather than changing a file you are managing.
+           Your original ssh configuration is kept as
+           /etc/ssh/sshd_config.before-sd, and uninstalling removes the block.
+
+
+10 Sep 26  A NEW INSTALL REGISTERS THE INSTALLING USER AS AN SD ADMINISTRATOR.
+
+           Installing SD used to leave the person who ran the installer with an
+           ordinary STANDARD account and no administrator registered at all.
+           SD coped by granting administrator rights for the first session and
+           saying that no administrator was registered.  That fallback still
+           exists, but it is now a fallback: an install registers the
+           installing user as an ADMINISTRATOR, which is both the account tier
+           and membership of the sdadmin group.  An upgrade that keeps its
+           existing accounts does not change any of them, so reinstalling does
+           not promote anybody - and the sdadmin group survives that upgrade,
+           so existing administrators do not have to be promoted again.
+
+           The installer also now says plainly, at the start, if the person
+           running it cannot use sudo, instead of failing part-way through with
+           a system error.
+
+           A fresh install no longer stops part-way through when /home/sd
+           already exists - which it does when an uninstall kept your SD
+           configuration.  The installer now makes the account directories
+           whatever state /home/sd is in, instead of only when /home/sd is
+           missing.
+
+09 Sep 26  OPERATING-SYSTEM ACCESS IS NOW A PER-ACCOUNT PRIVILEGE.
+
+           OS.EXECUTE - the SD BASIC statement that runs an operating-system
+           command - and the SH verb and "!" at the command prompt are now off
+           for everyone except administrators and SD's own system programs.
+           Before this, any program could run OS.EXECUTE, so the boundary the
+           account tiers are meant to draw did not hold: a standard or programmer
+           account could reach a shell from a program it wrote, whatever its tier
+           allowed inside SD.  A program that is neither an administrator's nor
+           part of SD is now refused with "not permitted to use OS.EXECUTE", and
+           a non-administrator using SH at the prompt is told they are "not
+           permitted to use the operating system shell".
+
+           An administrator can give either privilege to a named account:
+
+               MODIFY.ACCOUNT <account> OS-ON      allow OS.EXECUTE
+               MODIFY.ACCOUNT <account> OS-OFF     take it away
+               MODIFY.ACCOUNT <account> SH-ON      allow SH and "!"
+               MODIFY.ACCOUNT <account> SH-OFF     take it away
+
+           The two are independent, so SH-OFF says nothing about OS.EXECUTE.
+           Administrators always have both, so the four forms refuse an
+           administrator account and say so.  A grant takes effect the next time
+           the account is entered, not for a session already running in it.
+
+09 Sep 26  SD BASIC IS SYNTAX HIGHLIGHTED IN THE EDITOR.
+
+           MICRO now colours SD BASIC: keywords, strings, numbers and comments.
+           The colours come from a file generated out of the compiler's own
+           tables, so what is highlighted is what the compiler actually
+           accepts, rather than a list somebody typed and then let drift.
+
+           It only applies to records edited from a BP file - a program - which
+           is how SD knows the record is BASIC.  A VOC or data record gets no
+           colouring, which is the honest answer for something that is not a
+           program.
+
+           You do not have to do anything.  The first time you edit a program
+           with MICRO, SD copies the colour file into your own micro
+           configuration.  It is per-user because that is the only place micro
+           reads them from, and it is copied rather than forced, so if you
+           later edit that file yourself your version is kept until SD's own
+           genuinely changes.
+
+09 Sep 26  ACCOUNT MAINTENANCE NO LONGER CALLS sudo DIRECTLY, AND TWO THINGS
+           THAT ONLY WORKED ON DEBIAN NOW WORK EVERYWHERE.
+
+           CREATE.ACCOUNT, MODIFY.ACCOUNT and DELETE.ACCOUNT used to run eight
+           different privileged commands through sudo - useradd, userdel,
+           passwd, groupadd, groupdel, usermod, deluser and chmod.  None of
+           those is restricted by its arguments, so a system that let SD run
+           them let SD run them on anything: "sudo passwd root" is the whole
+           machine.
+
+           They now go through one command that SD owns and that checks what it
+           is being asked to do.  It refuses root, SD's own sdsys account and
+           every system account as a target; it will only touch groups that
+           belong to SD, and never SD's own sdusers and sdadmin groups; and it
+           resolves a path before setting the group bit on it, so a symlink
+           cannot point it somewhere else.  If you administer SD you will see
+           it name the command it resolved before it runs.
+
+           TWO REAL BUGS GO WITH IT.  Removing a user from a group used the
+           deluser command, which exists on Debian and Ubuntu and not on Arch,
+           Fedora or RHEL - so MODIFY.ACCOUNT's DELETE, and demoting an
+           administrator, simply failed there.  And creating an account group
+           used "groupadd -U", which needs a recent shadow-utils.  Both now use
+           gpasswd, which is present everywhere.
+
+09 Sep 26  SETTING A PASSWORD AND CREATING AN OPERATING SYSTEM USER NOW REQUIRE
+           ADMINISTRATOR RIGHTS IN THEIR OWN RIGHT.
+
+           Two of SD's internal functions - the ones behind CREATE.ACCOUNT that
+           add a Linux user and set its password - are in the global catalogue,
+           which means any account can call them from a BASIC program.  Neither
+           checked who was calling.  The only thing protecting them was that
+           CREATE.ACCOUNT, the verb, checks - so the check was on the door and
+           not on the room.
+
+           A program written in an ordinary account could therefore make SD run
+           "sudo passwd someone" or "sudo useradd".  On a machine where the
+           caller can use sudo that succeeded; where they cannot, sudo stopped
+           and asked for a password inside an SD session, which is not a place
+           that can answer one.
+
+           Both now refuse unless the caller is an SD administrator, and they
+           report it the way they report every other failure - by returning
+           false and setting STATUS().
+
+09 Sep 26  THIS IS SD CORE, VERSION L1.0-0.
+
+           The sign-on line now reads
+
+               SD Core, the Essential Multivalue String Database, version L1.0-0
+
+           and "sd --version" answers L1.0-0 to match.  It used to say 1.0-2,
+           which is not this project's number at all - it is the release of the
+           SD this work was built from.  The binary was telling you the version
+           of something else.
+
+           THE L IS DELIBERATE AND IT IS NOT GOING TO CATCH UP.  Our numbering
+           is a separate sequence from upstream's, which is what the letter
+           marks - exactly as SD Core for Windows uses W.  So upstream reaching
+           1.0-3, or any later number, is not a version this system is behind.
+
+           The "(AI modified)" that used to follow the version is gone.  It
+           distinguished this from stock SD; the L does that now.
+
+           If you have accounts created before this update, the first time you
+           log in to one SD will tell you the account is at release level 1.0-2
+           and ask whether to update it.  Answer Y.  That is the normal way an
+           existing account takes on new VOC entries, and it is not a sign that
+           anything is wrong.
+
+09 Sep 26  sd -internal NOW REQUIRES root, AND SO DOES EVERY OTHER PRIVILEGED
+           sd OPTION ON EVERY SYSTEM.
+
+           -internal puts SD's compiler into the mode that accepts $INTERNAL
+           programs, which are the ones allowed to call KERNEL.  It had no
+           privilege check, so any user could compile a short program that
+           granted itself SD administrator rights - which made the check
+           described in the entry below, and every other check of those
+           rights, something a user could simply step around.  It now asks the
+           same question -i has always asked.
+
+           If you compile SD's own internals - the programs in GPL.BP - you
+           now need sudo to do it.  Installing SD is unaffected: the installer
+           already ran these steps as root.  Nothing about compiling your own
+           programs changes; ordinary BASIC never used this option.
+
+           If you build SD from source and want that check out of your way
+           while you work, build with
+
+               make EXTRA_C_FLAGS=-DSD_DEV_BUILD
+
+           A binary built that way says so - "sd --version" reports DEVELOPER
+           BUILD and every use of -internal prints a line saying the check was
+           skipped.  Do not install one, and if you are reporting a bug please
+           include the "sd --version" output so we can see which you are on.
+           A plain "make" is unaffected, and the installer always builds from
+           a fresh checkout, so what you install is never a developer build.
+
+           IN THE SAME CHANGE, "administrator" for these options means root and
+           only root.  SD used to also accept membership of a group called
+           admin.  SD does not create or manage a group of that name, and on
+           some Linux distributions admin is an old name for the sudo group -
+           so on those systems the option checks above were weaker than on
+           others, with nothing to tell you which kind of system you were on.
+           SD's own group, sdadmin, is deliberately not used here: these are
+           operating system operations - start, stop, kill a user, restart,
+           bootstrap install - rather than SD ones.
+
+09 Sep 26  WHO COUNTS AS AN ADMINISTRATOR HAS CHANGED.  STARTING SD WITH sudo
+           IS NO LONGER ENOUGH ON ITS OWN.
+
+           Until now, any session that reached SD as root was an administrator.
+           That is no longer the test.  An administrator is a person who is
+           BOTH a member of the sdadmin group - the group SD's own sudoers rule
+           names - AND recorded in SD's account register as an ADMINISTRATOR.
+           Root is still necessary; it is no longer sufficient.  This is how SD
+           Core for Windows has always worked: you can hold the operating
+           system's administrator rights and still have no rights inside SD.
+
+           You register an account as an administrator either when you create
+           it or afterwards:
+
+               CREATE.ACCOUNT USER <name> ADMINISTRATOR
+               MODIFY.ACCOUNT <account> ADMINISTRATOR
+
+           Either records the tier in the register and adds that person to the
+           sdadmin group.  MODIFY.ACCOUNT also takes PROGRAMMER and STANDARD,
+           and an account can move between the three in one command with no
+           intermediate step.  Going down from ADMINISTRATOR removes the person
+           from sdadmin again.
+
+           MODIFY.ACCOUNT is the one that matters on a system you already have,
+           because CREATE.ACCOUNT refuses a name that is already in the account
+           register - it will tell you the account exists.  You do not have to
+           delete an account to change what it is.
+
+           THE FIRST ADMINISTRATOR IS HANDLED FOR YOU, SO NOTHING TO DO BEFORE
+           UPGRADING.  On a system where no account is registered as an
+           administrator yet - which is every system installed before this
+           update - starting SD with sudo still grants the rights, and SD
+           prints a line saying that it has done so and how to register a real
+           administrator.  That arm switches itself off the moment the first
+           ADMINISTRATOR account exists.  You cannot be locked out by it.
+
+           If your session is refused administrator rights, SD says so as it
+           starts rather than leaving you to find out when a command fails -
+           and it says WHICH of the two requirements you did not meet, because
+           being told "you are not a registered administrator" when you are
+           registered and merely missing from the group sends you to look in
+           the wrong place.  There are three things it can tell you: you are
+           not registered as an administrator; you are registered but are not
+           in the sdadmin group; or the account register could not be read at
+           all, which is not the same as it saying no.
+
+           Whichever it is, it appears BELOW the sign-on banner, between two
+           rule lines and with a blank line either side.  It used to print
+           above the banner, where it read as one more line of the boilerplate
+           everybody skips.
+
+           Three checks now read the new test instead of asking whether the
+           process is root, which was never the same question: CATALOG and
+           DELETE.CATALOG on the global catalogue, and LOGTO SDSYS.
+
+           WHAT THIS DOES NOT DO.  It does not change what is in an account's
+           VOC - every account still gets the same verbs whatever its tier -
+           and it does not yet refuse a session to somebody who is not a
+           registered SD user.  Accounts created before this update carry no
+           tier, which is exactly the case the first-administrator arm above
+           covers.
+
+           SUSPENDED is not here yet.  SD Core for Windows has a fourth level
+           that denies access while leaving the account intact, and this
+           version does not: it would need the doors it is meant to close, and
+           on Linux one of those is ssh, which is still being worked out.  A
+           SUSPENDED that recorded a level and shut no door would be worse than
+           not having it.
+
+09 Sep 26  PROC, SED, UPDATE.RECORD AND MODIFY HAVE BEEN REMOVED.
+
+           SED was the full-screen editor, and UPDATE.RECORD and MODIFY were
+           full-screen record editors - MODIFY the one inherited from OpenQM.
+           All three are gone, along with the PROC language.  LISTPQ, the
+           sentence that listed the PROCs in a VOC, goes with PROC.
+
+           A VOC item of type PQ now says that PROC is not supported instead of
+           running.  Your PQ records are left alone: it is the interpreter that
+           has gone, not the records, and SD says so by name rather than
+           complaining that the record is invalid.
+
+           ED, the line editor, is not affected and is now the way to edit a
+           record.
+
+           Four names are close enough to invite confusion and NONE of them is
+           affected:
+
+           * MODIFY.ACCOUNT and MODIFY.PASSWORD are different verbs with
+             different programs behind them, and both remain.
+           * LIST, COUNT, SELECT and SORT are the query processor, which is a
+             different thing from PROC despite the similar name.
+           * PROCREAD and PROCWRITE, the two BASIC statements, still compile.
+             With the interpreter gone PROCREAD simply reports that it is not
+             running inside a PROC, which is what it already did anywhere else.
+             Nothing you have compiled stops loading.
+           * The PHANTOM debugger is untouched.
+
+           An account created before this update keeps whatever was in its VOC
+           at the time - SD only ever adds records at an update, never removes
+           them.
+
+09 Sep 26  SD NO LONGER CLAIMS TO SUPPORT VIRTUAL FILE SYSTEMS.
+
+           SD advertised a "virtual file system": you could write a VOC file
+           pointer whose pathname began VFS:, and LISTF would report its type as
+           VFS.  Nothing behind that was ever built.  No part of SD has ever
+           looked at a pathname to see whether it begins with VFS:, no handler
+           was ever loaded, and the three error codes reserved for VFS problems
+           could not be raised by anything.  So the first thing you saw said the
+           pointer was a valid virtual file system, and then OPEN refused it
+           with an unrelated path error.
+
+           The claim is now gone rather than the feature, because there was no
+           feature.  FTYPE no longer returns VFS, the FL$TYPE.VFS file type is
+           withdrawn, and a VFS: pathname is turned into an absolute path like
+           any other - which is what SD always actually required.  The template
+           class module for writing a VFS handler is no longer shipped.
+
+           What this does not do: nothing that worked stops working.  A VFS:
+           pointer failed to open before this change and still fails, only now
+           it is described honestly from the start.  The three error numbers
+           (3038, 3039, 3040) are retired rather than handed to something else,
+           so a program that compares a status against one of those numbers
+           still never matches - which is what it already did.  The names
+           ER$VFS.NAME, ER$VFS.CLASS, ER$VFS.NGLBL and FL$TYPE.VFS are gone from
+           the include files, so a program that spells one out will no longer
+           compile cleanly; nothing shipped with SD used them.
+
+09 Sep 26  SDNET - REMOTE FILE ACCESS OVER THE NETWORK - HAS BEEN REMOVED.
+
+           SD could open a file held on another SD server by naming it
+           server;file in a VOC pointer, over a private protocol on port 4245.
+           That whole facility is gone, along with the verbs that configured it:
+           SET.SERVER, DELETE.SERVER and LIST.SERVERS.  A VOC pointer written in
+           the server;file form now fails to open like any other bad path.
+
+           Why: it was an unmaintained network path, its per-server passwords
+           were stored in sd.conf with a simple letter substitution that is not
+           encryption, and it could not be turned off - the NETFILES setting was
+           read at startup and then never consulted.  Removing it serves the
+           smaller-system goal and closes a weak spot at the same time.
+
+           The NETFILES line in sd.conf is still accepted and ignored, so an
+           existing configuration file still loads.  If you used SDNet, remote
+           access is no longer available; copy the data across instead.
+
+09 Sep 26  THE TAPE AND RESTORE SUBSYSTEM HAS BEEN REMOVED.
+
+           SD no longer ships the tape verbs - ACCOUNT.SAVE, ACCOUNT.RESTORE,
+           FILE.SAVE, RESTORE.ACCOUNTS, SET.DEVICE, the T.* family (T.ATT,
+           T.REW, T.DUMP and the rest) - or the programs behind them.  They were
+           an optional part of the install: you were asked "Install TAPE and
+           RESTORE subsystem?" and most installs said no.  The question is gone
+           and so are the programs.
+
+           This is part of making SD a smaller system.  Tape was a way of moving
+           whole accounts to and from magnetic tape devices, which is not how
+           anyone backs up or transfers data now; ordinary file copies and the
+           account directory serve that purpose.  If you had installed it and
+           relied on a T.* verb, it is no longer present.
+
+09 Sep 26  ENCRYPTION, SDEXT AND EMBEDDED-PYTHON ERRORS NOW SHOW THEIR MESSAGE
+           TEXT INSTEAD OF A BARE NUMBER.
+
+           The error codes added for the encryption, SDEXT and embedded-Python
+           features had no message text, so an error from any of them printed
+           just a number - and the number carried the wrong sign, positive where
+           every other SD error code is negative.  A program catching one by
+           value would not have matched it.
+
+           Both are fixed.  Those codes now read back the way the rest do: the
+           right (negative) number and a sentence of text.  Nothing that already
+           worked changes - these are the codes that showed nothing useful
+           before.
+
+           Behind this: the BASIC copies of the error, revision and opcode
+           tables (SYSCOM/ERR.H, GPL.BP/ERRTEXT.H, GPL.BP/REVSTAMP.H,
+           GPL.BP/OPCODES.H) are generated from the C sources rather than kept in
+           step by hand, which is how they had drifted.  A build now checks they
+           match and stops if they do not, so this cannot silently come back.
+
+09 Sep 26  A TRANSACTION THAT FAILS PART WAY NOW PUTS BACK WHAT IT HAD
+           ALREADY WRITTEN.
+
+           A transaction is meant to be all or nothing.  Until now, if a COMMIT
+           got part way through and then could not apply one of its actions - a
+           record locked by something else, a read-only file, a disk problem -
+           it stopped there and left everything it had already applied on disk.
+           The records before the failure were written; the ones after it were
+           not.  There was no way to undo it and nothing told you which was
+           which.
+
+           SD now records what each record held immediately before the commit
+           overwrote it, and puts them back if the commit fails.  A record that
+           existed is restored to its previous contents.  A record the
+           transaction was creating is removed again, since it never existed.
+
+           WHAT IS WRITTEN TO THE ERROR LOG.  Whether or not everything could be
+           put back, SD writes a line to sdsys/errlog saying so:
+
+               Transaction commit failed part way: 3 record(s) restored,
+               1 removed, 0 could not be undone
+
+           If a particular record could not be put back - because whatever
+           stopped the commit is also stopping the repair - it is named
+           individually, with its file, so you know exactly what to look at.  SD
+           undoes everything else it can rather than stopping at the first
+           problem.
+
+           One thing worth knowing: the record the commit actually failed on is
+           also restored, and so may appear in that count.  A write that fails
+           half way can leave a record in a state nothing can describe, so SD
+           puts it back rather than assuming it was untouched.
+
+           AND A FAILED COMMIT NO LONGER HOLDS ITS RECORD LOCKS.  The locks a
+           transaction took used to stay held for the life of the session after
+           a commit failed, so the records nobody could finish committing were
+           also records nobody could reach to repair.  They are now released as
+           part of the same rollback.
+
+08 Sep 26  A COMMIT INSIDE ANOTHER TRANSACTION NO LONGER THROWS AWAY THE
+           OUTER TRANSACTION'S WRITES.
+
+           If you began a transaction, wrote a record, began a second
+           transaction inside it, and committed that inner one, the outer
+           transaction was quietly abandoned at that point.  Its writes were
+           then lost when you committed it - no error, no warning, nothing in
+           the log.  The inner records landed and the outer ones did not.
+
+           That is the one thing a transaction exists to prevent, so if you
+           have avoided nesting transactions because results looked
+           inconsistent, this is why.
+
+           A commit now ends only its own transaction and puts you back in the
+           one that contained it, which is what a rollback has always done.
+
+           system(1008), the transaction nesting level, is also correct again.
+           It only ever counted upwards before - raised when a transaction
+           began and never lowered when one was committed - so after your first
+           commit it could not be used to ask whether you were inside a
+           transaction.  system(1007) was unaffected and stays the reliable
+           test on older releases.
+
+08 Sep 26  RECORDS WRITTEN OR DELETED INSIDE A TRANSACTION, IN A DIRECTORY
+           FILE, WITH CERTAIN CHARACTERS IN THE RECORD ID.
+
+           This affects directory files only, and only record ids containing
+           one of these characters:
+
+               *  ,  =  >  <  %  /  +  :  ;  ?  \  "
+
+           or an id starting with a dot or a tilde.  In a directory file each
+           record is a separate file on disk, and because those characters are
+           awkward or illegal in a filename, SD stores them encoded - the id "="
+           is held in a file called "%E", and SD converts back and forth for you
+           so you never see it.
+
+           That conversion was not being done for a write or a delete made
+           inside a transaction.
+
+           A WRITE inside a transaction stored the record under the raw id
+           instead of the encoded one.  The write reported success, but a later
+           read of the same id looked in the encoded place, found nothing, and
+           reported the record as missing.
+
+           A DELETE inside a transaction tried to remove the raw name, which was
+           not there.  SD treats "already gone" as success, so the delete
+           reported success and the record was still there afterwards.
+
+           Both are fixed.  Neither needed anything to go wrong to happen - the
+           transactions committed normally - and neither produced an error, a
+           status or a log entry, so a site that hit this would have seen only a
+           record that would not read back, or one that would not stay deleted.
+
+           The same statements OUTSIDE a transaction were always correct, and
+           records already on disk are unaffected.
+
+08 Sep 26  A DELETE THAT FAILS INSIDE A TRANSACTION IS NO LONGER REPORTED AS
+           DONE.
+
+           Deleting a record from a directory file inside a transaction did not
+           check whether the delete actually happened.  If the file was
+           read-only, protected, or otherwise could not be removed, the commit
+           reported success and the record stayed on disk - so a later read,
+           select or list returned a record you had been told was gone.
+
+           It now reports the error, the same way a delete outside a transaction
+           always has.
+
+08 Sep 26  A FAILURE WHILE EXTENDING AN INDEX NO LONGER DAMAGES THE INDEX.
+
+           When SD needed a new block for an alternate key index and could not
+           get one - a disk error, a full disk, a file held open by something
+           else - it carried on and used block zero.  Block zero is the index
+           header.  The write went over it, and the index was then permanently
+           damaged: every select, list or query on that key read from a header
+           that had a data block written on top of it.
+
+           The error was always reported, but only after the damage was done,
+           so the message named a temporary problem and left a permanent one.
+
+           SD now stops the operation and reports the error before writing
+           anything.  The index is left as it was.
+
+           THERE WAS A SECOND WAY IN, AND IT IS THE REASON THIS IS MORE THAN A
+           MISSING TEST.  One of the three ways the allocator can fail handed
+           back a real node number rather than zero - the head of the free
+           chain, which it had not removed from that chain.  Checking the
+           answer at each of the seven places that ask for a node could not
+           have caught that, because the answer looked valid.  The allocator
+           now reports failure the same way on all three paths.
+
+           A healthy disk never reached any of this, and nothing about normal
+           indexing changes.  If you have an index that has been behaving oddly
+           after a disk problem, rebuild it.
+
+08 Sep 26  WEOFSEQ AND OPENSEQ ... OVERWRITE NO LONGER REPORT SUCCESS WHEN THEY
+           FAILED TO SHORTEN THE FILE.
+
+           Both of these do their work by truncating a file, and neither looked
+           at whether the truncate had worked.
+
+           WEOFSEQ put 0 - success - on the stack whatever happened, so a
+           program had no way to find out.  What this costs is a stale tail:
+           the old content past the new end survives, so a file written by a
+           later and shorter run can still carry rows from an earlier, longer
+           one.  A file produced that way is the answer somebody takes away,
+           which is why this was worth fixing even though nobody has reported
+           it.
+
+           OPENSEQ ... OVERWRITE promises the previous content is gone.  If the
+           truncate failed the old file stayed as it was, and later writes
+           replaced only the front of it.
+
+           Both now report the failure the way the rest of these statements
+           already do: STATUS() gives the I/O error, an ON ERROR clause runs,
+           and a statement written without one stops rather than carrying on.
+           Nothing that used to work behaves differently - the change is only
+           visible when the truncate actually fails, which needs a read-only
+           file, a mandatory lock or a full disk.
+
+08 Sep 26  ERROR MESSAGES ARE NO LONGER CUT OFF AFTER THE FIRST LINE.
+
+           Anything SD reported as a program error was truncated at about 84
+           characters, so a message written as three lines lost the last two -
+           usually the part saying what to do about it.
+
+           The room was always there: the buffer holds 241 characters and the
+           limit had been set to 84 by a typing slip, a + where a * was meant.
+           Long messages now print in full.
+
+08 Sep 26  "sd -stop" NO LONGER RISKS KILLING THE PROGRAM THAT RAN IT.
+
+           Stopping SD signals every session in its user table.  It did that
+           without checking that the recorded process id was real, and a stale
+           entry can carry a process id of 0 - which on Linux does not mean
+           "nobody", it means EVERY PROCESS IN MY PROCESS GROUP.
+
+           So "sd -stop" run from a script or a terminal could terminate the
+           script, the shell, or anything else running alongside it, and say
+           nothing about having done so.  SD now signals only a real process id.
+
+           WHETHER YOU EVER HIT THIS depends on whether a session ever died in a
+           way that left its entry behind with no process id.  Nothing about a
+           normal stop changes.
+
+08 Sep 26  "sd -cleanup" NOW RELEASES A DEAD SESSION'S TASK LOCKS.
+
+           It already gave back the file, record and group locks a lost session
+           was holding, but never its task locks - so a LOCK taken by a program
+           that was then killed stayed taken, and no recovery an administrator
+           had would shift it.  A nightly job guarded by LOCK 3 would not run
+           again until SD was restarted.
+
+           IF YOU HAVE BEEN RESTARTING SD TO CLEAR A STUCK TASK LOCK, you should
+           not need to any more.  It was comparing the lock against the wrong
+           session's number - the one running the cleanup rather than the one
+           being cleaned up.
+
+08 Sep 26  GLOBAL CATALOGUING NOW REQUIRES ADMINISTRATOR RIGHTS WHICHEVER WAY
+           YOU ASK FOR IT, AND DELETE.CATALOG REQUIRES THEM AT ALL.
+
+           CATALOG already required them for the spelled-out form,
+           "CATALOG BP MYPROG GLOBAL".  It did NOT require them when the same
+           thing was asked for by putting a *, !, _ or $ in front of the name -
+           "CATALOG BP $MYPROG" - which is the form most people use.
+
+           DELETE.CATALOG required nothing at all, by either route.
+
+           THIS MATTERS BECAUSE THE GLOBAL CATALOGUE HOLDS THE PROGRAMS SD RUNS
+           FOR EVERYBODY, $LOGIN among them.  Replacing one ran your code in
+           every session on the machine, administrators included; deleting one
+           stopped everybody signing in.
+
+           NOTHING CHANGES FOR LOCAL AND PRIVATE CATALOGUING, which is what
+           programmers use day to day:
+
+               CATALOG BP MYPROG          private catalogue, this account
+               CATALOG BP MYPROG LOCAL    this account's VOC
+
+           Both still work, in any account you are allowed to enter.  The only
+           thing you can no longer do as an ordinary user is catalogue or delete
+           a program whose name starts with *, !, _ or $, because those
+           characters mean "system-wide".  Name it without one.
+
+08 Sep 26  "term default" NOW RESTORES 120 x 36, NOT 20 x 24.
+
+           It was setting the page to the smallest size SD allows rather than
+           the default, which wrapped every standard report.  It now sets the
+           documented width and depth - the same size a session starts with when
+           nothing else tells it otherwise.
+
+08 Sep 26  SET.SOCKET.MODE CAN NOW TURN KEEP-ALIVE OFF.
+
+           SET.SOCKET.MODE(skt, SKT$INFO.KEEP.ALIVE, 0) returned 1, for success,
+           and switched keep-alive ON.  The value you passed was read and then
+           discarded.  SOCKET.INFO(skt, SKT$INFO.KEEP.ALIVE) reads the socket
+           itself and had been telling the truth all along, so the two disagreed.
+
+           The setting is now whatever you asked for.  If you have code that
+           worked around this by not calling it, the workaround is no longer
+           needed.
+
+08 Sep 26  ENCRYPT.FIELD HAS BEEN REMOVED.  IT COULD NEVER WORK.
+
+           The verb was in the account template and pointed at a program called
+           $CRYPTO which is not part of this distribution, so typing it answered
+
+               Unable to load '$CRYPTO' object code at line 1550 of $CPROC
+
+           which names neither the verb you typed nor anything you could act on.
+           "Verb not found" is the honest answer, and that is what you get now.
+
+           Nothing in the documentation referred to the verb and field encryption
+           was not available through it before.  THE ENCRYPT KEYWORD IS A
+           DIFFERENT THING and is untouched.
+
+
+Version 1.0-2
+-------------
+(mab)  Add back LISTPQ - sentence to list procs (SD.VOCLIB, VOC_TEMPLATE, NEWVOC)
+       Add ACCOUNT.SAVE, FILE.SAVE, T-DUMP (ACCSVE program) to TAPE install
+       Add back the ability to set "PICK" compatibility options via the OPTION program:
+       PICK.BREAKPOINT    : Pick syntax for BREAK.ON and BREAK.SUP
+       PICK.BREAKPOINT.U  : Handle U breakpoint option in Pick manner
+       PICK.EXPLODE       : Pick style processing of single value item in BY.EXP
+       PICK.GRAND.TOTAL   : GRAND.TOTAL text on same line as values
+       PICK.IMPLIED.EQ    : Implied EQ between field and literal in query
+       PICK.NULL          : Return null for null data in ML, MR and FMT()
+       PICK.WILDCARD      : Allow use of Pick style wildcards in queries
+       QUALIFIED.DISPLAY  : Allow Pick style qualified display clauses
+
+
+Version 1.0-1
+-------------
+(mab)  Add back basic statements PROCREAD and PROCWRITE. Changes to BCOMP, op_misc.c opcodes.h (both versions)
+       CREATE-ACCOUNT GROUP now creates linux group name lower case with "sdg_" prefix to group name (like user group names)
+	     Warn user if case inversion is on prior to creating new user 
+	   DELETE-ACCOUNT (gpl.bp/DELACC) replace deluser with userdel when deleting linux user at account deletion, not available on all Linux distros
+       Add PTERM CASE NOINVERT to the LOGIN paragraph in SDSYS,VOC_TEMPLATE (VOC) and SDSYS,NEWVOC
+
+Version 1.0
+-------------	   
+(mab) Add PROG-INFO to GPL.BP
+      Remove install and delete scripts from repo (now in their own github repo)	   
+	   
+
+Version 0.9-3
+-------------
+
+(mab) Move VOC back to dynamic file. This file is constantly being accessed by SD.  Having it as a Directory file results constant file opens.
+      With having it as a Dynamic file the hope is most of the file is already buffered.
+      Note: Existing Accounts with VOC defined as a Directory file type will still work, just have more overhead.
+      * Add program VOC_TO_DYN to move VOC from Directory to Dynamic file type to sdsys/BP -to be added
+      
+      Mods to directory file name mapping (%char)  Now consistent with other versions of this code base?
+      
+      On SELECT of directory type files, if file name mapping results in empty name, don't add to list (op_dio4.c / dir_select)
+      
+      Update #define _XOPEN_SOURCE  to #define _XOPEN_SOURCE 700 in sddefs.h (mult define errors when compiling)
+ 
+      Add correction to handle SIGPIPE Error in op_writeskt() (WRITE.SOCKET)  issue #89 / ScarletDME 
+  
+      sdnet.h:
+	    replace termio.h (is obsolete) with termios.h  sys/ioctl.h
+
+      installsd.sh - always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesd.sh script)
+
+      Add subroutine PROG_INFO to GPL.BP, global catalog as !PROG_INFO, pulls date and time program was compiled from object header.	  
+
+Version 0.9-2
+
+-------------
+(mab) Mods to embedded python:
+      Add python functions:
+        
+      PY_LENGTH(objectname)
+       return python object’s length (size)
+
+      PY_TYPE(objectname)
+       return python object’s type 
+
+      PY_CREATEDICT(dictname)
+       create python dictionary object
+
+      PY_CLEARDICT(dictname) 
+       clear python dictionary object via api call PyDict_Clear().
+
+      PY_DICTVALGETS(dictname,key)
+       get dictionary value for item key, returned as string
+
+      PY_DICTVALSETS(dictname,key,value)
+       set (update) or create dictionary value for key.
+
+      PY_DICTIDEL(dictname,key)
+       delete dictionary key / value 
+
+      PY_DICTGETKEYS(dictname)
+       return list of dictionary keys / value 
+
+      PY_DICTGETVALUES(dictname)
+       return list of dictionary values 
+
+      PY_STRSET(strname,value)
+       set (update) or create string object strname with string value.
+
+      PY_STRGET(strname)
+       get string value of string strname
+
+      PY_LISTGETS(listname)
+       return list of list items
+
+      PY_LISTAPPEND(listname,objectname)
+       append objectname to list listname  
+       
+      Add sample programs to BP:
+      
+      PY_TERM - simple python interpreter terminal 
+      
+      PY_JSON - sample json file parser using python's json module and BASIC functions to access python objects.
+       
+         
+
+Version 0.9-1
+
+-------------
+(mab) Add PROC back to GPL.BP. Users have requested it and CPROC will abort if it finds a 
+        paragraph of type "PQ"
+        
+      Add TAPE and ACCOUNT.RESTORE subsystem as optionally installed software.
+
+      Rework revision methodology.  Original release introduced two revision tracks,
+       one for the VM another for the SD mods to commands, ideas on user / accounts etc.
+       The thought was that very few changes would be made to the VM and we would maintain
+       compatibility with QM/ScarletDME at revision 2.6-6.  With some of the recent changes
+       (addition of Sodium, Embedded Python and more importantly the dynamic file prefix change from ~ to %),
+       SD is no longer completely compatible with 2.6-6 version systems.
+       Roll back to single revision track and start at rev 0.9-1 .
+       *** As a result you MUST shutdown and restart the OS on delete and install of SD  ***
+       If you have user / group accounts saved from previous installs, a prompt for upgrading the accounts
+       will occur at login.
+       
+      Correct handling of embedded newlines in MESSAGES, Display of SYSMSG(msg_nbr) should now inlcude the 
+        necessary new line and return characters.
+        
+      Correct the "HELP" command in ED(itor), now displays all of HELP if no additional command text given.
+        Remove call to kernel(K$HELP,'') not avail on SD.
+		
+      Makefile - prep for gcc-15, need to add -std=gnu17 to compile flags see  https://gcc.gnu.org/gcc-15/porting_to.html
+	  
+      Create generic install script - installsd.sh. This should work for all debian / fedora based distros
+
+
+
+Version 0.9.0
+
+-------------
+
+(d-chou) Change to sdsem.c - LockSemaphore() add IPC_NOWAIT and RelinquishTimeslice
+
+      Semaphores can be used to create exclusive locks, preventing multiple processes
+
+      from accessing a  shared resource at the same time.  However, if the IPC_NOWAIT
+
+      constant is not specified, a process trying to acquire the lock will block and
+
+      wait if the semaphore is already held by another process.This can lead to unintended
+
+      synchronization between processes. To avoid this, IPC_NOWAIT should be specified
+
+      which will cause the process to return immediately with an error if the lock cannot
+
+      be acquired.
+
+
+(mab) Convert sd dynamic file blobs prefix from '~' to '%'
+
+     
+
+      Turn function "process_file" back on in sdfix. For some reason it was commented out
+
+      (sdfix did nothing).
+
+
+      Fix directory file name mapping of '~' and '%t'
+
+ 
+
+      The BASIC command SSELECT is processed by pcode routine _SSELCT, when it attempts to
+
+      sort the NULL id, the wheels come off (seg fault).
+
+      Correct op_sort.c  / op_sortdata() to test for a NULL id before processing (prevent
+
+      segfault on strlen() function.
+
+ 
+
+      Add SYS$ keys in KEYS.H (see op_sys.c) for BASIC function system() (preparation for
+
+      qmExplorer)
+
+   
+
+      Add subroutines EUID_SET and EUID_RESTORE to set and restore the euid and egid of
+
+      the process running sd. If a process is started with sudo sd, the process will be
+
+      dropped to runing as sdsys and only run as root (euid = 0)when necessary.  This
+
+      switch is all performed in CPROC with the dynamic array privileged_commands defining
+
+      the commands that require root privileges.
+
+     
+
+      Special note: At install time we cannot reduce running privialges to sdsys, none of
+
+      the groups are effective casuing all sorts of access issues.  To get around this
+
+      CPROC must be complied with IS_INSTALL defined.  This define statement is found
+
+      in the GPL.BP file "define_install.h". The install script overwrites this file with
+
+      IS_INSTALL commented out, and CPROC will be recomplied.
+
+       
+
+      Modify how group accounts are setup / handled (CREATE.ACCOUNT). Group accounts now
+
+      have their parent directory ownership starting as sdsys : group.  To access a group
+
+      account, a user must belong to the linux group of the same name (LOGIN / LOGTO)
+
+
+      CREATE.ACCOUNT will create the linux group (if it does not exist) and add "sdsys" 
+
+      and "root" to members.
+
+      CREATE.ACCOUNT sets the setgid bit on the account's parent directory.   This allows
+
+      the directories / files to be modified by all the users who are part of the group of
+
+      the parent directory.
+
+      CREATE,ACCOUNT saves group name in fld 3 of ACCOUNTS record (for both CREATE.ACCOUNT
+
+      USER and GROUP)
+
+      LOGIN and LOGTO(CPROC) now checks to confirm user is a member of sdusers group and
+
+      ACCOUNT group modification to function is_grp_member(user,group) to return true if
+
+      group found or if group = user
+
+
+      Add command MODIFY.ACCOUNT to add users as members to the SD account.
+
+ 
+
+      Add command WHO.AM.I to display information on the current user and process.
+
+
+      Tighten up sdsys file permissions (only allow group to have write access on
+
+      necessary directories / files).
+
+      Install script sets  /usr/local/sdsys owner : group  sdsys : sduser with
+
+      permissions 755 except:
+
+      775 /usr/local/sdsys/errlog
+
+      654 /usr/local/sdsys/ACCOUNTS/SDSYS
+
+
+      Remove the ability to set "PICK" compatibility options via the OPTION program:
+
+      PICK.BREAKPOINT    : Off   Pick syntax for BREAK.ON and BREAK.SUP
+
+      PICK.BREAKPOINT.U  : Off   Handle U breakpoint option in Pick manner
+
+      PICK.EXPLODE       : Off   Pick style processing of single value item in BY.EXP
+
+      PICK.GRAND.TOTAL   : Off   GRAND.TOTAL text on same line as values
+
+      PICK.IMPLIED.EQ    : Off   Implied EQ between field and literal in query
+
+      PICK.NULL          : Off   Return null for null data in ML, MR and FMT()
+
+      PICK.WILDCARD      : Off   Allow use of Pick style wildcards in queries
+
+      QUALIFIED.DISPLAY  : Off   Allow Pick style qualified display clauses
+
+
+      Note: at this time the source still contains the code to implement these options,
+
+      but the intent is to not continue supporting "PICK" compatibility.
+
+
+     Modify the GPL.BP/CATALOG program to:
+
+        require admin priviliges for global catalog  
+
+        set owner : group to sdsys : sdusers on write to gcat
+
+
+     Install script:
+
+        - If make fails, exit script
+
+        - If modify script to use whatever version of python is installed.
+
+        - add root to sdsys group.
+
+        - update install ACCOUNTS/SDSYS record to include group name sdsys
+
+     Delete Script:
+
+        - Remove group sdsys on sd delete
+
+
+     MakeFile:
+
+        - Builds embedded python
+
+        - Move "Embedded Python" code from examples to gplsrc and GPL.BP
+
+        - BCOMP - allow @FILE.NAME on left side of assignment.
+
+        - VOC / NEWVOC add SD.ACCOUNTS q pointer to SDSYS/ACCOUNTS
+
+
+(dsm) The Fedora install script was removed because of lack of a long term support
+
+      version of Fedora. Time required to test installer every six months is too
+
+      much for small development team.
+
+
+      Replace LibreOffice documents with PDFs as github complains that the LibreOffice
+
+      documents are binary files.
+
+
+Version 0.8.2
+
+-------------
+
+(dsm) This minor point release includes some changes to the system C and Basic code to
+
+      better support the SD default terminal size of 120x36.  Also some changes were
+
+      made to the install and uninstall scripts. 
+
+
+Version 0.8.1
+
+-------------
+
+(mab) Correct c function op_dtx / BASIC function DTX(), using wrong format code.
+
+(mab) Add GPL.BP subs !SD_GET_SALT and !SD_KEY_FROM_PW. Routines use SDEXT to create SALT
+
+      and Key from Password (Phrase) via Libsodium. 
+      See SD Encryption chapter in the SD Documentation file.
+
+(mab) Add embedded python build to examples folder (../examples/python/embedded_python).
+
+      See SD Embedded Python in the SD Documentation file.   
+
+
+Version 0.7.1
+
+-------------
+
+(mab) Add BASIC Functions / Statements:
+
+      SDENCRYPT / SDDECRYPT
+
+SDEXT – Generic function for extending SD / BASIC to interface with C Functions.
+
+      Remove unsupported BASIC Functions / Statements:
+
+         ABORTE, ABORTM
+
+         CONNECT.PORT, ERRMSG, TTYGET, TTYSET, STOPE, STOPM
+
+         ENCRYPT, DECRYPT - replace with SDENCRYTP, SDDECRYPT
+
+         ENTER.PACKAGE, EXIT.PACKAGE, PACKAGE, PROCREAD, PROCWRITE,
+
+   TRACE, PICK.ERRMSG compiler mode
+
+      Remove associated references from gplsrc/opcodes.h
+
+      Remove code from gplsrc as necessary
+
+
+      Introduce max string error checking in SD.
+
+      History: The original QM code that SD is based on was (is?) a 32 bit virtual
+
+      machine. As such strings are limited in size to just under 2 GB.  The issue is
+
+      there is no size checking and a user could attempt to create or load a string at or
+
+      above this limit, causing SD to crash (segfault).
+
+Changes to date:
+
+    sdclilib client will not allow user to write a record > MAX_STRING_SIZE
+
+    Directory read of a file (record) > MAX_STRING_SIZE not allowed.
+
+          Functions: append (':='), CHANGE(), concatenate (':'), INSERT(), REPLACE(),
+
+          STR() will not allow a string > MAX_STRING_SIZE to be created.
+
+
+(dsm) Removed compiled code in fld 16 of I type dictionary items that are copied from
+
+      FILES_DICTS. Create a Record in VOC, THIRD.COMPILE that recompiles them after they
+
+      are copied.  Updated install scripts to call THIRD.COMPILE.
+
+
+      Added SED and UPDATE.RECORD back after modifying them to not call tty routines as
+
+      the tty functionality has been removed.
+
+     
+
+      Documentation:
+
+         Added a LibreOffice spreadsheet showing the VOC items that have
+
+         been retained and removed compared to ScarletDME
+
+         Added a LibreOffice document regarding installation.
+
+    
+
+      Removed Depreciated folder and contents
+
+ 
+
+      Started modifying @ dictionary records and related dictionary items so that
+
+      default LIST reports are formatted for 120x36 terminal size.
+
+ 
+
+
+(dsm) Change max string size to 1 GB
+
+
+
+Version 0.7.0
+
+-------------
+
+(mab) Created a BASIC compiler (written in Python) for SD, we now have a version of SD
+
+      that has no binary elements required for installation.  Everything is source and
+
+      auditable. 
+
+
+      During installation the Python basic compiler compiles the necessary source code in
+
+      GPL.BP that in the past prevented the system from being binary element free.
+
+      Also, any required dynamic dictionaries are created during installation.
+
+
+Version 0.6.4
+
+-------------
+
+(mab) sd command as privileged user (sudo sd) will start out in account SDSYS 
+
+     
+
+      Only allow non privileged user to LOGIN or LOGTO:
+
+         Their own account.
+
+         Group account which they have access to.
+
+         A list of allowed users is found in ACCOUNTS record, field <ACC$USERS>
+
+CREATE-ACCOUNT USER adds user to their own account list.
+
+Use the MODIFY command ie) "MODIFY ACCOUNTS <account name>" to edit user list
+
+      Change install script template of ACCOUNTS / SDSYS file to ownership from 
+
+        -rwxrwxr-x 1 sdsys sdusers To -rw-rw-r-- 1 root  root
+
+      (LIST-USERS now reports for user: Last Login Account, Time and Date       
+
+(dsm) Removed MED from GPL.BP, GPL.BP.OUT, gcat, NEWVOC & VOC
+
+      Moved GPL.BP/MED source code to Depreciated
+
+      Removed SED from GPL.BP, GPL.BP.OUT, gcat, NEWVOC & VOC
+
+      Moved GPL.BP/SED source code to Depreciated
+
+      Removed SCRB from GPL.BP, GPL.BP.OUT, gcat, NEWVOC & VOC
+
+      Moved GPL.BP/SCRB source code to Depreciated
+
+      Removed SCREEN$STOP.SCR from GPL.BP
+
+      Removed SCREEN from GPL.BP and BPL.BP.OUT
+
+      Moved GPL.BP/SCREEN source code to Depreciated
+
+      Removed ADMUSER/ADMIN.USER from GPL.BP, GPL.BP.OUT, gcat, NEWVOC & VOC
+
+      Moved GPL.BP/ADMUSER source code to Depreciated
+
+      Removed GPL.BP/$ADMUSER.SCR
+
+      Removed files $FORMS, $SCREENS, $SCREENS.DIC, ERRMSG, ERRMSG.DIC
+
+      Remove ERRMSG in VOC and NEWVOC
+
+      Remove SP.ASSIGN & SET.QUEUE progrrams from GPL.BP, GPL.BP.OUT, gcat, NEWVOC and VOC
+
+      Move GPL.BP/SP.ASSIGN and SET.QUEUE to Depreceiated
+
+      Delete all records in MESSAGES starting with PL (Polish)
+
+      Removed system verbs ADMSRVR CREATE-USER, DELETE-USER, LIST-USERS, RECOVER-USERS and
+
+      related files if VOC, NEWVOC, GPL.BP, GPL.BP.OUT and gcat
+
+
+
+Version 0.6.3
+
+-------------
+
+(mab) mods date tagged in source as 20240219 and 20240225 mab
+
+      Remove the ability to run the system in "insecure mode".
+
+      Remove SECURITY program from GPL.BP and $secure from  gcat
+
+      Do not allow kernel(K$SECURE, >=0) to reset security flag.
+
+   
+
+      VM - Add CHOWN function to OSPATH.
+
+           Example:   CALL ospath(chown_parm,OS$CHOWN)
+
+           where chown_parm is a VM separated string <owner_name> VM <group_name> VM
+
+           <file_path>
+
+      Note in version 2.6.6 OSPATH is an internal function (requires -internal at login
+
+      to compile). Also for most OS$CHOWN operations to work, user will need to be root.
+
+
+    GPL.BP/LOGIN
+
+        No longer allow NETWORK or SERIAL connections.
+
+        Always run in secure mode.
+
+        Do not auto create missing user account.
+
+        System admin will need to add user to sdusers group and create user default
+
+        account ("create-account USER <username>" , see below) prior user login.
+
+   
+
+      Change login behavior to:
+
+         on command:
+
+            sd -a<account> - if account exists, login otherwise terminate connection.
+
+                        
+
+            sd - if /home/sd/user_accounts/<username> exists, log to user account
+
+            else display "Account <user> not in register" and terminate connection
+
+
+         User must be member of sdusers group, if not terminate connection.     
+
+
+         Note -  This changes the current behavior of logging into the account found at
+
+         the current directory.
+
+    
+
+      Remove option to create account.
+
+               
+
+    Mod CREATE-ACCOUNT
+
+      Rem was
+
+         CREATE.ACCOUNT acc.name pathname {NO.QUERY}
+
+      Now
+
+         CREATE.ACCOUNT USER <username>  {NO.QUERY} - account created in 
+
+         /home/sd/user_accounts/<username>, 
+
+         owner:group set to <username>:<username>
+
+         <username> must be found in sdusers group!
+
+         CREATE.ACCOUNT GROUP acc.name  {NO.QUERY} - account created in
+
+         /home/sd/group_accounts/<acc.name>, owner:group set to root:sdusers
+
+         CREATE.ACCOUNT OTHER acc.name pathname {NO.QUERY} - account created in pathname,
+
+         owner:group set to root:sdusers
+
+       
+
+         User must be privileged (root) to use CREATE-ACCOUNT verb. 
+
+  
+
+    DELETE-ACCOUNT  User must be privileged (root) to use DELETE-ACCOUNT verb.
+
+     
+
+    Add to install script:
+
+      Create  directories /home/sd/user_accounts and  /home/sd/group_accounts
+
+      Add command to create user account in  /home/sd/user_accounts/<$tuser>  
+
+ 
+
+    Implementing AF_UNIX sockets (and removing AF_INET). All remote connections will
+
+     only be allowed via a tunnel (ssh tunnel).
+
+
+      API changes:  
+
+          Rebrand the GPL.BP/VBSRVR to APISRVR and associated notation.
+
+ 
+
+          SDConnectlocal(Account) - No Change. This connection method only works on the
+
+          local system. It creates a forked process of sd and communicates via pipes,
+
+          no network involved.
+
+
+          SDConnectUDS(Account) - New connection method mostly for testing. This is still
+
+          a local system connection only, but connects via the Unix Domain Socket
+
+          /tmp/sdsys/sdclient.socket. Connection method connects as initiating local
+
+          (the peer).
+
+
+          SDConnect(Host,Port,UserName,Password,Account) - Connect from remote via ssh
+
+          tunnel.
+
+
+          If configuration file has APILOGIN=1 or not found:  User and Password are
+
+          validated, API server process runs with usr_id and grp_id as UserName
+
+          (remember all server connections start out as root).
+
+
+          If APILOGIN=0:  UserName and Password are NOT validated, API server process runs
+
+          with usr_id and grp_id as the User creating the ssh tunnel (peer.
+
+          User still must be a valid linux user.
+
+
+          Regardless of connection method, User MUST be member of sdusers group!
+
+   
+
+         Update MESSAGES file, change references from SCARLETDME  to String Database (sd)
+
+
+         Remove hold over users in $LOGINS
+
+   
+
+         NOTE!! In order for this rev to build, libbsd-dev must be installed (sudo apt-get
+
+         install libbsd-dev) - Added to install script
+
+   
+
+         Create separate revision numbers for both the Virtual Machine and SD (defined in
+
+         gplsrc/revstamp.h). Add to SYSLOG sd command line.
+
+
+(dsm) Created Depreciated directory for features that have been removed or modified from
+
+      original function.
+
+      GPL.BP.zip contains code fore removed features. 
+
+      SD.VOCLIB.zip contains LISTxx code for 80x24 screen size.
+
+
+Version 0.6.2 1/21/2024
+
+-----------------------
+
+(mab) Corrected issues with C code that were generating errors during make
+
+      Replaced hard coded hex valuss in GPL.BP with @VM and other hex alternatives
+
+      Fixed possible endless loop in DELETE-FILE
+
+(dsm) Updated GPL.BP CONFIG to use 'less' to display the licence file
+
+      Updated all sentences in SD.VOCLIB for larger terminal display
+
+      Added a globally cataloged shell for the micro console based editor
+
+
+Version 0.6.1 1/19/2024
+
+-----------------------
+
+- Removed COPYP and PROC functionality
+
+- Removed reference to the openqm website which no longer exists
+
+  in all code.
+
+- Removed history entries from parent databases
+
+- Changed the install scripts to
+
+  - wait until after installation to /usr/local/sdsys to recompile c code
+
+  - avoid starting SD during installation or compile Basic code
+
+- Modified SD.VOCLIB to be a directory file
+
+- Set up a pcloud directory to hold zip file of each release
+
+
+Prior to 1/19/2024
+
+------------------
+
+SD, the String Database is based on code originally released under the
+
+GPL license in 2007 as a GPL release of the OpenQM database. Later
+
+on, that code was forked and modified. The result became the ScarletDME
+
+database.  It was a 32 bit only database until 2022 when the first
+
+iteration of the 64 bit version was released.
+
+
+SD is based on the 64 bit code in the geneb/ScarletDME github repository
+
+as of the end of 2023.
+
+
+2024-01-15 In creating SD the following changes have been made:
+
+
+Some features have been removed. These include :
+
+1 the Big Letter capability for large print titles on printed reports
+
+  and terminal displays.
+
+2 The package capability that allowed for installation of third party
+
+  packages in the original commercial product.
+
+3 TAPE related packages that included the account and file save and
+
+  restore features.
+
+4  PROC capability
+
+5 COPYP functionality (COPY using Pick syntax).
+
+
+The SD_SHM_KEY and SD_SEM_KEY offsets have been changed so that SD
+
+can be run in parallel with commercial and open source databases that
+
+use the same underlying architecture.
+
+
+The sockets used for the API and telnet access have been changed:
+
+The telnet socket from 4242 to 4244
+
+The API socket from 4243 to 4245
+
+
+The original database was called OpenQM and is still available as a
+
+commercial product from Rocket Software.  For SD, the original QM
+
+branding has been entirely removed.  Even internal variables and program
+
+and file names have been changed to reflect the SD branding.
+
+
+Some references to ScarletDME and Ladybridge Software have been
+
+removed.  Copyright statements have been retained.
+
+
+The default location of the database has been changed to
+
+/usr/local/sdsys.
+
+
+The default terminal type is Linux and the default terminal size is 120x36.
+
+
+The C and Basic object code is included in the download.  To install without
+
+recompiling everything, comment out the Make -B command and the two
+
+lines  containing FIRST.COMPILE and SECOND.COMPILE respectively.
+
+
+This database is in development. So far everything I have tested seems to
+
+work as expected. However, I'm sure there are things that need to
+
+be found and corrected. Other testers are appreciated.
+

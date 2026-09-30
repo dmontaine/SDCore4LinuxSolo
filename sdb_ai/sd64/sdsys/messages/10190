@@ -1,0 +1,3 @@
+This is a root session, and root is not SD's administrator.
+Log in as sdsys at the machine's keyboard (or a desktop-sharing view of
+it) and run sd from that session, or log in as yourself.

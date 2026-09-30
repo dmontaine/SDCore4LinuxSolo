@@ -1,0 +1,459 @@
+* MODIFYA
+* MODIFY.ACCOUNT verb
+* Add / Delete user from group account
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+* 
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+* 
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+* 
+*
+* START-HISTORY:
+* 20 Sep 26 dm RENUMBERED: the three suspension messages moved from
+*           10178/10179/10180 to 10192/10193/10194.  SD Core for Windows had
+*           independently allocated the same block for its case-insensitivity
+*           conversion; neither side was upstream, so the two agents settled it
+*           under the owner's delegation and this port moved.  See CPROC's note
+*           of the same date for the reasoning.  Numbers only - no text changed.
+* 19 Sep 26 dm UNSUSPEND is now UNSUSPENDED, the Windows port's keyword
+*           (its modifya:355) - a user-facing word the two ports must share.
+* 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier machinery is
+*           out: the STANDARD/PROGRAMMER/ADMINISTRATOR keywords, the OS-access
+*           keywords (SH-ON/SH-OFF/OS-ON/OS-OFF), the API route (API/NONE) and
+*           voc.delta are all gone with the tier model.  SUSPENDED now sets the
+*           suspension flag (W.7: field 5, its own flag, same doors) and
+*           UNSUSPEND clears it; field 6 is retired and cleared.  The sdadmin
+*           join/leave and the upward-grant gate on ADD went with them: ADD and
+*           DELETE now work the same for every account.
+* 14 Sep 26 S.16, the port's per-account API route: API / NONE put the account's
+*           person in or out of sdapi (10077/10079/10080/10081), refused for a
+*           group account (10087) or an administrator (10083); SSH and BOTH are
+*           not settable here (10919).  Leaving ADMINISTRATOR must say API or
+*           NONE (10111, the port's ruling of 27 Aug 2026); becoming one joins
+*           sdapi.
+* 13 Sep 26 Tier layer lists read from sdsys/tier.policy, not NEWVOC (plan M /
+*           port a47526f): a missing tier.policy hard-fails like a missing
+*           NEWVOC, keeping 10114 "tier unchanged" the true answer.
+* 13 Sep 26 Account names are lower case, SDSYS included (plan M, owner).
+* 13 Sep 26 An account's VOC file is voc on disk (plan M3 D3).
+* 13 Sep 26 Opens sdsys accounts, newvoc and voc_template by their lower-case
+*           names on disk (plan M3 D1).
+* 12 Sep 26 The case migration added to voc.delta earlier today is removed:
+*           no install holds an upper-case id to migrate (owner).
+* 11 Sep 26 The ADD arm refuses a grant that goes upward (10126/10127), because
+*           it makes the same group change GRANT does and would otherwise be
+*           the way round the rule; DELETE is deliberately not guarded.  And a
+*           tier change now reports the grants it voided (10128) or says the
+*           group could not be read (10129), measured across the register write
+*           rather than predicted.  PORT_ADOPTION 14, the port's of 29 Aug 2026.
+* 11 Sep 26 K$AUDIT records: ADD and DELETE (the port's PRE_RELEASE 27) and, as
+*           Linux additions offered to the port, tier changes and SH / OS grants
+*           (PORT_ADOPTION 13).
+* 11 Sep 26 SUSPENDED, the fourth tier (PORT_ADOPTION 12, the port's tier.set of
+*           27 Aug 2026): ACC$PRIOR.TIER is written on the way in, the VOC is
+*           left as it is while suspended, nothing changes in Linux; 10108,
+*           10110, 10112 and 10159 as the port's.
+* 10 Sep 26 SL1. A tier change re-derives the account's VOC at once, before the
+*           register write - the port's voc.delta (27 Aug 2026). Up copies the
+*           tier's layer in; down removes only records still exactly as a tier
+*           build wrote them. Messages 10113, 10114, 10157.
+* 10 Sep 26 PARITY AUDIT. Messages renumbered to the port's ids - this tree
+*           had reused 10030-10045, which the port assigns to other meanings:
+*           10030/10031 -> 10033/10032, 10035 -> 10109, 10036 -> 10105,
+*           10039 -> 10106, 10040 -> 10080, 10041/10042 -> 10102 (os.set now
+*           reports both fields, as the port's does). tier.build.rec copies
+*           records whole (port PRE_RELEASE_FIXES 136).
+* 09 Sep 26 PRE_RELEASE 23 commit 2. SH-ON/SH-OFF/OS-ON/OS-OFF set the
+*           per-account OS-access grants (ACC$SH, ACC$OS.EXEC) - the owner's
+*           model: os.execute and shell off for anyone but administrators
+*           unless given specifically. An administrator is refused (10039); the
+*           grant takes effect at the account's next entry. See os.set.
+* 09 Sep 26 PRE_RELEASE 18. The tier is settable - ADMINISTRATOR, PROGRAMMER,
+*           STANDARD - which is the only way an EXISTING account can become an
+*           administrator. CREATE.ACCOUNT refuses a name already in the
+*           register (CREATEA:255, sysmsg 6002), so before this the advice
+*           "register one with CREATE.ACCOUNT" was unreachable for anybody who
+*           already had an account, and CPROC's bootstrap arm could never
+*           close. SUSPENDED is deliberately NOT here yet - see below.
+* rev 0.9.0 Jan 25 mab initial release
+* END-HISTORY
+*
+* START-DESCRIPTION:
+* MODIFY.ACCOUNT account ADD <username>
+* MODIFY.ACCOUNT account DELETE <username>
+* MODIFY.ACCOUNT account SUSPENDED
+* MODIFY.ACCOUNT account UNSUSPENDED
+*
+* 18 Sep 26 dm - TEARDOWN.  One administrator (SDSYS) and one VOC layer means
+*   this verb no longer changes ranks, OS grants or API routes - those went
+*   with the tier model (S.25/S.27/S.28).  What remains is the grant mechanic
+*   and the suspension:
+*
+*   ADD/DELETE edit the account's Linux group through sd-elevate, exactly as
+*   before - that is what a grant IS (W.8: usermod -aG is the grant; this verb
+*   is the same change with SD's own audit line).  DELETE stays deliberately
+*   unguarded: taking access away is always allowed.
+*
+*   SUSPENDED sets the suspension flag - field 5, W.7: a suspension is a
+*   denial, not a rank, and it hangs on its own flag now.  The doors are the
+*   same as before: LOGIN, CPROC's account entry, ssh (via the ordinary
+*   sign-on) and the API all refuse it.  Nothing changes in Linux, which is
+*   what makes lifting it free.  UNSUSPENDED clears the flag and the retired
+*   field 6.  Nobody suspends the account they logged in to or stand in
+*   (10112): the session would work until it ended and could not be
+*   re-established.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $modify.account
+$catalog $MODIFYA
+
+$include keys.h
+$include int$keys.h
+$include parser.h
+$include err.h
+* 
+deffun is_grp_member(user,group) calling '!is_grp_member'
+deffun is_group(group) calling '!is_group'
+deffun valid_os_name(name) calling '!valid_os_name'
+
+   prompt ''
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001)  ;* Command requires administrator privileges
+   end     
+
+   parser = "!PARSER"
+
+   @system.return.code = -ER$ARGS     ;* Preset for argument errors
+   
+   openpath @sdsys:@ds:'accounts' to acc.f else
+      @system.return.code = -status()
+      stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
+   end
+
+   call @parser(PARSER$RESET, 0, @sentence, 0)
+   
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb modify.Account
+
+   * Get next token, account name
+   call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
+   if token.type = PARSER$END then
+      crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username>'
+      crt '                 MODIFY.ACCOUNT <account> SSH | API | BOTH | NONE'
+      crt '                 MODIFY.ACCOUNT <account> SUSPENDED | UNSUSPENDED'
+      stop
+   end
+   *
+   acc.name = downcase(acc.name)   ;* account names are always lower case (13 Sep 26)
+   if acc.name = 'sdsys' then
+      stop sysmsg(2202) ;* Account name is invalid
+   end   
+   *
+   read acc.rec from acc.f, acc.name else      
+      stop sysmsg(6003) ;* Account name is invalid
+   end
+   
+   group.name = acc.rec<ACC$GROUP>   ;* get associated group
+
+* 09 Sep 26 dm - PRE_RELEASE 18.  THE TOKEN IS READ HERE NOW, NOT INSIDE THE
+*   is_group BRANCH BELOW, because a tier change must not depend on the
+*   account's Linux group being resolvable - a tier is a fact about the
+*   register.  The ADD/DELETE arm is unchanged apart from losing its own
+*   GET.TOKEN call; it still sees the same token in the same variable.
+* 18 Sep 26 dm - TEARDOWN.  The tier changed to a flag and the register is the
+*   fact about the suspension, so the same placement serves it.
+   call @parser(PARSER$GET.TOKEN, token.type, action, keyword)
+   action = upcase(action)
+
+* 20 Sep 26 dm - S.29, THE ROUTE WORDS.  Each NAMES THE STATE WANTED, as the
+*   Windows port's do (its modifya:284-296), so the same four words mean the
+*   same thing here and at CREATE.ACCOUNT, and the door opens both ways: SSH
+*   after NONE re-widens exactly as NONE after BOTH narrows.  A one-way build
+*   passes every obvious test - this teardown already paid for that once, when
+*   deleting the tier keywords left no way to lift a suspension (UNSUSPENDED
+*   exists because of it) - so set.route is driven in both directions.
+   begin case
+      case action = 'SUSPENDED'
+         gosub set.suspended
+         stop
+      case action = 'UNSUSPENDED'
+         gosub set.unsuspended
+         stop
+      case action = 'SSH'
+         want.ssh = @true  ; want.api = @false ; gosub set.route
+         stop
+      case action = 'API'
+         want.ssh = @false ; want.api = @true  ; gosub set.route
+         stop
+      case action = 'BOTH'
+         want.ssh = @true  ; want.api = @true  ; gosub set.route
+         stop
+      case action = 'NONE'
+         want.ssh = @false ; want.api = @false ; gosub set.route
+         stop
+   end case
+
+   if is_group(group.name) then
+      if (upcase(action) = 'ADD') or (upcase(action) = 'DELETE') then
+      *  valid action
+      *   Get next token, user name
+         call @parser(PARSER$GET.TOKEN, token.type, user.name, keyword) 
+         if token.type = PARSER$END then
+            stop sysmsg(10016)  ;* Missing User Name
+         end
+         
+         if (upcase(action) = 'ADD') then
+
+* 18 Sep 26 dm - TEARDOWN (S.25).  The upward-grant gate is gone with the tier
+*   model: there is no rank to climb any more.  ADD below makes the identical
+*   "sd-elevate addgroup" call that GRANT made, and usermod -aG is the grant
+*   (W.8); the group test at CPROC's LOGTO is the whole of the wall.
+            * Add user to group
+            * does user belong to sdusers?
+            if is_grp_member(user.name,'sdusers') then
+            * this user looks legit, add to group
+            * first check to see if user is already a member of the group
+               if is_grp_member(user.name,group.name) THEN
+                  crt sysmsg(10017,user.name,group.name)  ;* %1 is already a member of group %2
+               end else
+                  * Modified by Composer AI - 2026/06/10.
+                  * Use shared !valid_os_name before os.execute (phase 2).
+                  * if convert(os.name.chars, '', user.name) # '' ...
+                  if not(valid_os_name(user.name)) or not(valid_os_name(group.name)) then
+                     crt sysmsg(10019,user.name,group.name,2) ;* Unable to add user %1 to group %s status: %2
+                  end else
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   NOTE THE ARGUMENT ORDER REVERSES: raw usermod is "-aG <group> <user>",
+*   sd-elevate is "addgroup <user> <group>".
+                  os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":user.name:" ":group.name
+                  * --------------------
+                  stat = OS.ERROR()
+                  if stat = 0 then
+                     void kernel(K$AUDIT, 'MODIFY.ACCOUNT ADD account=' : acc.name : ' to=' : user.name)
+                     crt sysmsg(10018,user.name,group.name)  ;* %1 added to group %2
+                  end else
+                     crt sysmsg(10019,user.name,group.name,stat) ;* Unable to add user %1 to group %s status: %2
+                  end
+                  end
+               end 
+            end else
+               crt user.name
+               crt sysmsg(10020,user.name) ;* %1 is not a member of sdusers, not allowed
+            end 
+         
+         end else
+            * already tested action, must be delete
+            if is_grp_member(user.name,group.name) THEN
+               * Modified by Composer AI - 2026/06/10.
+               * Use shared !valid_os_name before os.execute (phase 2).
+               if not(valid_os_name(user.name)) or not(valid_os_name(group.name)) then
+                  crt sysmsg(10022,user.name,group.name,2) ;* Unable to remove user %1 from group %s status: %2
+               end else
+* 09 Sep 26 dm - PRE_RELEASE 14, AND THIS ONE IS A BUG FIX AS WELL AS A
+*   HARDENING.  It was "sudo deluser <user> <group>", and ***deluser IS
+*   DEBIAN-ONLY*** - this installer serves Arch and RHEL too, where the command
+*   does not exist and removing a user from a group simply failed.  sd-elevate
+*   uses gpasswd -d, which is in shadow-utils everywhere.
+               os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":user.name:" ":group.name
+               * --------------------
+               stat = OS.ERROR()
+                  if stat = 0 then
+                     void kernel(K$AUDIT, 'MODIFY.ACCOUNT DELETE account=' : acc.name : ' from=' : user.name)
+                     crt sysmsg(10021,user.name,group.name) ;*  %1 removed from group %2
+                  end else
+                     crt sysmsg(10022,user.name,group.name,stat) ;* Unable to remove user %1 from group %s status: %2
+                  end
+               end
+            end else
+               crt sysmsg(10023,user.name,group.name) ;* %1 is not a member of  %2
+            end 
+         
+         end
+         
+         
+      end else
+         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, Ssh, Api, Both, None,'
+         crt '   Suspended or Unsuspended'
+      end
+
+   end else
+     crt sysmsg(10024,group.name) ;* %1 is not a valid Linux Group
+   end
+   stop
+
+*****************************************************************************
+* SET.SUSPENDED  -  MODIFY.ACCOUNT <account> SUSPENDED
+*
+* 18 Sep 26 dm - TEARDOWN (W.7).  The suspension is its own flag now: field 5,
+*   blank means in service and SUSPENDED means suspended.  Same doors as
+*   before - LOGIN, CPROC's account entry, ssh (the ordinary sign-on) and the
+*   API all refuse the flag - and NOTHING CHANGES IN LINUX, which is what
+*   makes lifting it free.  There is no prior tier to remember, so field 6
+*   (the retired ACC$PRIOR.TIER) is cleared rather than written.
+*
+*   NOBODY SUSPENDS THE ACCOUNT THEY LOGGED IN TO OR STAND IN (10112): the
+*   session would work until it ended and could not be re-established.
+
+set.suspended:
+   if upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED' then
+      crt sysmsg(10110, acc.name, 'SUSPENDED')  ;* %1 is already %2; nothing changed
+      return
+   end
+   if (acc.name = downcase(@logname)) or (acc.name = downcase(@who)) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10112)  ;* You cannot suspend your own account or the one you are standing in
+      return
+   end
+
+   acc.rec<ACC$SUSPENDED> = 'SUSPENDED'
+   acc.rec<ACC$PRIOR.TIER> = ''
+   write acc.rec to acc.f, acc.name
+
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT SUSPEND account=' : acc.name)
+   crt sysmsg(10193, acc.name)  ;* Account %1 is now suspended
+   return
+
+*****************************************************************************
+* SET.UNSUSPENDED  -  MODIFY.ACCOUNT <account> UNSUSPENDED
+*
+* 18 Sep 26 dm - TEARDOWN (W.7).  The way back is a keyword now, because there
+*   is no tier to name.  Clears the flag and the retired field 6.
+
+set.unsuspended:
+   if upcase(trim(acc.rec<ACC$SUSPENDED>)) # 'SUSPENDED' then
+      crt sysmsg(10194, acc.name)  ;* %1 is not suspended; nothing changed
+      return
+   end
+
+   acc.rec<ACC$SUSPENDED> = ''
+   acc.rec<ACC$PRIOR.TIER> = ''
+   write acc.rec to acc.f, acc.name
+
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPENDED account=' : acc.name)
+   crt sysmsg(10192, acc.name)  ;* Account %1 is no longer suspended
+   return
+
+*****************************************************************************
+* SET.ROUTE  -  MODIFY.ACCOUNT <account> SSH | API | BOTH | NONE
+*
+* 20 Sep 26 dm - S.29 (owner, 18/19 Sep 2026, through the port).  want.ssh and
+* want.api are set by the caller; membership of sdssh and sdapi IS the route,
+* so this is the whole mechanism - nothing is written to the register.
+*
+* ***THE LOOKUP IS THREE-VALUED AND THAT IS WHY THIS READS status().***
+* !is_grp_member answers @false BOTH for "not a member" and for "could not
+* tell" (empty argument, /etc unreadable, /etc/group unreadable - is_grp_member
+* :48, :87, :91), distinguishing them only by status 1.  Acting on a
+* could-not-tell would write a state derived from a guess: NONE would look
+* like a change that already happened, and BOTH would re-add memberships that
+* may be there.  So an unreadable register changes NOTHING and says so (10081
+* with the status), which is the fail-closed half the port paid seven runs for.
+*
+* THE LINUX USER IS THE ACCOUNT NAME, lower case, which is true of every
+* account CREATE.ACCOUNT makes (createa folds it).  An ATTACHed account whose
+* Linux user is spelt otherwise is refused rather than guessed at: its
+* sdusers membership will not be found under the folded name, and a silent
+* miss would report success while changing a route nobody has.
+*
+* THE API HALF RUNS ONLY IF THE ssh HALF SUCCEEDED (the port's ordering): a
+* failure part way leaves a state neither the caller nor a summary describes,
+* so it is reported with its status rather than called a change.
+
+set.route:
+   route.user = acc.name
+
+   if not(valid_os_name(route.user)) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, 2)  ;* Unable to change remote access for %1, status: %2
+      return
+   end
+
+   in.sdusers = is_grp_member(route.user, 'sdusers')
+   route.stat = status()
+   if route.stat # 0 or not(in.sdusers) then
+      @system.return.code = -ER$FAILED
+      if route.stat = 0 then route.stat = 2
+      crt sysmsg(10081, acc.name, route.stat)
+      return
+   end
+
+   has.ssh = is_grp_member(route.user, 'sdssh')
+   route.stat = status()
+   if route.stat = 0 then
+      has.api = is_grp_member(route.user, 'sdapi')
+      route.stat = status()
+   end
+   if route.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, route.stat)
+      return
+   end
+
+   if (has.ssh = want.ssh) and (has.api = want.api) then
+      @system.return.code = 0
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   if has.ssh # want.ssh then
+      if want.ssh then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup " : route.user : " sdssh"
+      end else
+         os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : route.user : " sdssh"
+      end
+      route.stat = OS.ERROR()
+   end
+
+   if route.stat = 0 and (has.api # want.api) then
+      if want.api then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup " : route.user : " sdapi"
+      end else
+         os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : route.user : " sdapi"
+      end
+      route.stat = OS.ERROR()
+   end
+
+   if route.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, route.stat)
+      return
+   end
+
+   @system.return.code = 0
+   route.said = 'NONE'
+   if want.ssh and want.api then route.said = 'BOTH'
+   if want.ssh and not(want.api) then route.said = 'SSH'
+   if want.api and not(want.ssh) then route.said = 'API'
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT ROUTE ' : route.said : ' account=' : acc.name)
+
+   begin case
+      case want.ssh and want.api
+         crt sysmsg(10078, acc.name)  ;* SD routes for %1: ssh and the API.
+      case want.ssh
+         crt sysmsg(10076, acc.name)  ;* SD routes for %1: ssh only, not the API.
+      case want.api
+         crt sysmsg(10077, acc.name)  ;* SD routes for %1: the API only, not ssh.
+      case 1
+         crt sysmsg(10079, acc.name)  ;* %1 has no remote access: not ssh, not the API
+   end case
+   return
+
+end
+
+* END-CODE

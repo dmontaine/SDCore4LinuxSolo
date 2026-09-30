@@ -1,0 +1,2237 @@
+#!/usr/bin/env bash
+#
+# witness-release-run.sh - three witnesses that need a throwaway account, in
+#                          one owner-run pass on one install:
+#     S.9   LOGIN's $release prompt (5026) takes N on Enter and at end of input
+#     Q.28  RUN of a runfile path over 128 characters runs (S.48; 10918 is for 255)
+#     S.2   the administrator (sdsys) LOGTOs an account whose group is newer
+#           than the session (2)
+#     Q.22  logtoaccess: the administrator keeps its access across LOGTOs (2b)
+#     S.10  RUN folds the program name (3b)
+#     W.2   Enter at 2050 means N; W.3  6133 cancels on Enter or C (5b)
+#     S.4   struck (OS.EXECUTE runs at the account's own Linux permissions)
+#     S.3   struck (one VOC layer: NEWVOC as shipped for every account)
+#     Q.13  MODIFY.ACCOUNT ADD/DELETE and ELEVATION REFUSED reach the audit
+#           trail (8); a second throwaway, zzrel2, is made and removed
+#     S.12  struck (the GRANT verb is gone; a grant is Linux group membership)
+#     S.6   struck (SH runs at the account's own Linux permissions)
+#     S.5   the 10 Sep parity audit's witness list (12, 15); a third throwaway,
+#           zzrel3, carries SD's "SD account" stamp and is deleted by SD
+#     Q.17  MODIFY.PASSWORD's administrator arm, checked in /etc/shadow (13)
+#     W.4   the API door over TCP 4243 (13b): login, the session's groups, a
+#           wrong password and its audit record; the SCRAM login, requests
+#           47/48, against $cred (13c)
+#     Q.12  ssh AND the API into a SUSPENDED account are refused, after a
+#           control (14); a throwaway ssh key is installed for zzrel1 only
+#     S.29  the ssh half, on the same real ssh login: the route withdrawn
+#           (the API kept), refused 10074, given back, admitted (14, X7-X9b)
+#     S.17  SDSYS is refused over the API from a non-loopback address and
+#           admitted locally (13e)
+#     S.29  the per-account API route, narrowed and re-widened over a real
+#           SCRAM login: admitted, NONE, refused 10073, BOTH, admitted (13f)
+#     S.13  REMOTE.API LOCAL / OFF / ON and REMOTE.SSH OFF / ON, a session
+#           surviving the socket restart; the machine's prior listener and
+#           firewall state is saved and put back (13h)
+#     Q.22  sdsyswrite: from a sdsys session that started in zzrel1 and
+#           LOGTOed SDSYS, the register and $cred writes land on disk; a
+#           plain session is refused and changes nothing (13g)
+#     S.19  every API connection is TLS 1.3 with the login bound to it: TCP and
+#           the Unix socket, no plaintext ACK, 'n,,' refused, the identity
+#           root 0600, the relay runs as nobody, and a recording proxy sees no
+#           marker and no user name on the wire (13i)
+#     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
+#           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
+#           APILOGIN, a restored sd.conf still carrying it starts (16)
+#     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
+#     updates every account's VOC as each install does.
+#
+#   18 Sep 26, THE TEARDOWN: every privileged step now runs as SDSYS - a local
+#   session running as the sdsys OS user, the one administrator.  A root
+#   session is refused outright and is measured as such (section 8's T4,
+#   13b's A4.0).  witness-absence.sh carries the absence half of the model.
+#
+#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh
+#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
+#
+# ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
+# Exit 0 every check passed, 1 a check failed (or was not reached), 2 it could
+# not run.  The log goes to /var/tmp, which survives a reboot (the 14 Sep
+# witness-tierchange log in /tmp did not).
+#
+# ===========================================================================
+# THE THROWAWAY, AND WHY NOT don
+# ===========================================================================
+# don is the owner's login and never a fixture.  This makes Linux user zzrel1,
+# CREATEd the way SD creates every account (CREATE.ACCOUNT as sdsys, no
+# password
+# prompt), and removes both at the end, whatever happened.
+#
+# ===========================================================================
+# WHAT EACH PART MEASURES
+# ===========================================================================
+# S.2  This script's own process started BEFORE sdu_zzrel1 existed, so its
+#      supplementary groups lack it - exactly the stale case.  Every root sd it
+#      starts inherits that list, and the S.2 fix (sdext_eguid.c, initgroups
+#      before the euid drop) must refresh it.  The script PRINTS its own group
+#      list and the new group's gid, and if the group is somehow already in the
+#      list the S.2 rows are NOT REACHED rather than passed.
+#
+# S.9  As zzrel1: BASIC compiles two tiny programs from bp (a directory file, so
+#      the source is written straight to disk).  ZZREL sets $release field 2 to
+#      L0.9-9; ZZSHOW prints it.  Then three sign-ons:
+#        (a) a blank first line - that line is the prompt's answer.  Enter must
+#            mean N: the session goes on to WHO, and "Please answer Y or N"
+#            (5027) never appears.  Before the fix a blank re-asked, and the next
+#            line (TERM) re-asked again.
+#        (b) </dev/null - end of input at the prompt.  Must finish, not spin.
+#        (c) RUN BP ZZSHOW - field 2 must STILL be L0.9-9, so N changed nothing.
+#      Success wording: the NEW prompt text "(y/<n>)?", so a run against an
+#      install without the message change fails rather than passing on 5025.
+#
+# Q.28 As zzrel1: ZZSHOW's object copied into a DEEP directory, reached through
+#      a VOC F-pointer zzdeep.out written by a third program (ZZVOC), so that
+#      the run path exceeds 128 characters with a short record name, then RUN
+#      ZZDEEP zzshow.  ***29 Sep 26, S.48: THE LIMIT IS NOW 255, SO THE RUN
+#      MUST SUCCEED*** - Q1 wants zzshow's own output and no 10918.  Before
+#      that it had to print 10918's words; "Invalid runfile pathname"
+#      (1135, the old message), "Message not found" (10918 not installed) or
+#      "not found" (the lookup never reached the length check) fail it.
+#      ***NOT A LONG RECORD NAME, AND THE 13:07 RUN SHOWED WHY:*** MAXIDLEN
+#      defaults to 63 (config.c:139) and valid_id (op_dio3.c) rejects a longer
+#      id, so a 100-character name answered "Program ... not found" before RUN
+#      ever measured the path.  With a 63-character id, a 32-character account
+#      name and /home/sd/user_accounts, a bp.out path tops out at 126 - so the
+#      limit is only reachable through a deeper data file, as here.
+#
+# THE PIPED-SESSION RULES ARE THE PROJECT'S: a blank first line, TERM 200,9999,
+# every session ends in OFF, every sd has a timeout.
+#
+set -u
+
+SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
+
+SD=/usr/local/sdsys/bin/sd
+SDSYS=/usr/local/sdsys
+REGISTER="$SDSYS/accounts"
+ACCOUNTS_ROOT=/home/sd/user_accounts
+
+ACC=zzrel1
+COMMIT=0
+LOG=""
+FAKE_REL="L0.9-9"
+
+PASS=0
+FAIL=0
+NOT_REACHED=0
+MADE_USER=0
+MADE_ACCOUNT=0
+GROUND_CLEAR=0
+# Section 8 (Q.13) needs a SECOND account to grant to - don is never a fixture.
+ACC2=zzrel2
+MADE_USER2=0
+MADE_ACCOUNT2=0
+# Section 15 (P.31) moves $ACC2's voc aside for one DELETE.ACCOUNT and puts it
+# straight back.  The path lives here so cleanup() can put it back too if the
+# run dies in between - a half-made account is worse than no measurement.
+VOC_ASIDE=""
+VOC_MADE=0
+# Section 12 (S.5) needs an account whose Linux user carries SD's "SD account"
+# stamp, to reach DELETE.ACCOUNT's SD-created branch and REMOVE.HOME.
+ACC3=zzrel3
+MADE_USER3=0
+MADE_ACCOUNT3=0
+SSHDIR=""
+# Section 13's password, kept for the API sections (13b, 14) only when W3 saw
+# the shadow entry change.  Never printed; api-probe.py takes it from its
+# environment, not its command line.
+PROBE_PW=""
+# Section 13's SD password ($cred), kept for 13c's SCRAM login.  Never printed.
+SCRAM_PW=""
+
+usage() { sed -n '2,16p' "$0"; exit 2; }
+
+for arg in "$@"; do
+    case "$arg" in
+        --commit) COMMIT=1 ;;
+        --log=*)  LOG="${arg#--log=}" ;;
+        -h|--help) usage ;;
+        *) echo "witness-release-run: unknown argument '$arg'" >&2; exit 2 ;;
+    esac
+done
+
+MARKER="$SDSYS/\$attach.$ACC"
+ADIR="$ACCOUNTS_ROOT/$ACC"
+[ -n "$LOG" ] || LOG="/var/tmp/witness-release-run.$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG") 2>&1
+
+say()   { printf '%s\n' "$*"; }
+head2() { say ""; say "=== $* ============================================"; }
+
+ck() {
+    local name="$1" want="$2" got="$3"
+    if [ "$want" = "$got" ]; then
+        PASS=$((PASS + 1)); say "  [PASS] $name: expected '$want', got '$got'"
+    else
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: expected '$want', got '$got'"
+    fi
+}
+ck_says() {
+    local name="$1" needle="$2" text="$3"
+    if printf '%s' "$text" | grep -qF -- "$needle"; then
+        PASS=$((PASS + 1)); say "  [PASS] $name: found \"$needle\""
+    else
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: did NOT find \"$needle\""
+    fi
+}
+ck_absent() {
+    local name="$1" needle="$2" text="$3"
+    if printf '%s' "$text" | grep -qF -- "$needle"; then
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: FOUND \"$needle\""
+    else
+        PASS=$((PASS + 1)); say "  [PASS] $name: absent \"$needle\""
+    fi
+}
+not_reached() {
+    FAIL=$((FAIL + 1)); NOT_REACHED=$((NOT_REACHED + 1))
+    say "  [NOT REACHED] $1 - a precondition failed above, so it measured nothing"
+}
+
+yesno_user()  { id -u "$1" >/dev/null 2>&1 && echo yes || echo no; }
+yesno_group() { getent group "$1" >/dev/null && echo yes || echo no; }
+yesno_dir()   { [ -d "$1" ] && echo yes || echo no; }
+yesno_file()  { [ -e "$1" ] && echo yes || echo no; }
+
+strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
+
+# A piped session.  $1 who ("root" or the account), $2 title, then commands.
+# Narration to fd 2; sd's own output on fd 1; SD_RC holds the exit (124 = timeout).
+SD_RC=0
+# FIRST_LINE is the session's first stdin line - blank by the project's rule,
+# which is also what answers a sign-on prompt.  Set it to Y for one call to
+# answer a prompt yes (section 7), and it is reset to blank after every call.
+FIRST_LINE=""
+PW_OS=""          # a _PW_ line in run_sd's command list is this throwaway password
+run_sd() {
+    local who="$1" title="$2"; shift 2
+    say "  --- sd session as $who: $title ---" >&2
+    [ -n "$FIRST_LINE" ] && say "      (first line: '$FIRST_LINE')" >&2
+    local line
+    for line in "$@"; do say "      > $line" >&2; done
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; SD_RC=0; FIRST_LINE=""; return 0; fi
+    local body out
+    body="$FIRST_LINE"$'\n''TERM 200,9999'
+    FIRST_LINE=""
+    for line in "$@"; do
+        if [ "$line" = "_PW_" ]; then
+            body="$body"$'\n'"$PW_OS"
+        else
+            body="$body"$'\n'"$line"
+        fi
+    done
+    body="$body"$'\n''OFF'$'\n'
+    if [ "$who" = root ]; then
+        # 18 Sep 26 (S.26): a root session is now REFUSED by CPROC; the rows
+        # that used to run as root measure that refusal.
+        out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+    elif [ "$who" = sdsys ]; then
+        # 18 Sep 26, NIGHT (S.26 corrected): the administrator is a real sdsys
+        # LOGIN, so the session runs through the root-only loginuid bridge -
+        # without it "sudo -u sdsys sd" is refused (10195), which is the
+        # product doing exactly what the owner ruled.
+        out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+    elif [ "${who#root:}" != "$who" ]; then
+        # root:<person> - a root session whose SUDO_USER names <person>; the
+        # teardown refuses the session outright whatever the person is, and the
+        # rows that used this arm measure that.
+        out=$(cd "$SDSYS" && printf '%s' "$body" | SUDO_USER="${who#root:}" timeout 60 "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+    else
+        out=$(cd "$ADIR" && printf '%s' "$body" | timeout 60 runuser -u "$who" -- "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+    fi
+    SD_RC=$(printf '%s' "$out" | tail -1 | sed -n 's/^rc=//p')
+    out=$(printf '%s' "$out" | sed '$d' | strip)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    say "      (exit $SD_RC)" >&2
+    printf '%s' "$out"
+}
+
+# A sign-on as the account with stdin at END OF INPUT from the start.
+run_sd_eof() {
+    say "  --- sd session as $ACC: stdin </dev/null (end of input at once) ---" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; SD_RC=0; return 0; fi
+    local out
+    out=$(cd "$ADIR" && timeout 30 runuser -u "$ACC" -- "$SD" </dev/null 2>&1; echo "rc=$?")
+    SD_RC=$(printf '%s' "$out" | tail -1 | sed -n 's/^rc=//p')
+    out=$(printf '%s' "$out" | sed '$d' | strip)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    say "      (exit $SD_RC)" >&2
+    printf '%s' "$out"
+}
+
+run_oneshot() {   # the installer's ADOPT form
+    say "  --- sd one-shot, cwd $SDSYS, </dev/null, timeout 25 s ---" >&2
+    say "      > $SD $*" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(cd "$SDSYS" && timeout 25 "$SD" "$@" </dev/null 2>&1 | strip)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+
+# userdel refuses (exit 8) while the user owns a process, and an ssh login
+# (section 14) leaves a systemd --user manager behind for some seconds after
+# the session ends.  The 14:38 run printed only "FAILED" with the exit code
+# and message thrown away, and zzrel1 was left.  So wait, then say why.
+del_user() {   # $1 user, $2 suffix for the report line
+    local u="$1" tag="${2:-}" n=0 err urc
+    while pgrep -u "$u" >/dev/null 2>&1 && [ "$n" -lt 20 ]; do sleep 1; n=$((n + 1)); done
+    pgrep -u "$u" >/dev/null 2>&1 && say "  $u still owns processes after ${n}s: $(pgrep -a -u "$u" | tr '\n' ';')"
+    err=$(userdel -r "$u" 2>&1); urc=$?
+    if [ "$urc" -eq 0 ]; then
+        say "  userdel -r $u: done$tag (waited ${n}s)${err:+ - $err}"
+    else
+        say "  userdel -r $u: FAILED$tag, exit $urc (8 = still owns a process) - ${err:-no message} - remove it by hand"
+    fi
+}
+
+# S.13 - put the API listener and firewall back exactly as section 13h found
+# them.  Runs once: RA_SAVED is cleared after.  Printed step by step.
+RA_SAVED=""
+restore_remote() {
+    [ "$COMMIT" -eq 1 ] && [ "$RA_SAVED" = yes ] || return 0
+    say "  --- restore the API listener and firewall ($1) ---"
+    if [ "$RA_DROPIN_BEFORE" = yes ]; then
+        cp "$RA_DROPIN_COPY" "$DROPIN" && say "      put back the saved drop-in"
+    else
+        rm -f "$DROPIN" && say "      removed the drop-in (there was none before)"
+        rmdir /etc/systemd/system/sdclient.socket.d 2>/dev/null
+    fi
+    systemctl daemon-reload
+    if [ "$RA_ENABLED_BEFORE" = enabled ]; then systemctl enable sdclient.socket 2>/dev/null; else systemctl disable sdclient.socket 2>/dev/null; fi
+    if [ "$RA_ACTIVE_BEFORE" = active ]; then systemctl restart sdclient.socket; else systemctl stop sdclient.socket; fi
+    if command -v ufw >/dev/null 2>&1; then
+        if [ "$RA_4243_BEFORE" = yes ]; then ufw allow 4243/tcp >/dev/null; elif ufw_rule_present 4243/tcp; then ufw delete allow 4243/tcp >/dev/null; fi
+        if [ "$RA_22_BEFORE" = yes ]; then ufw allow 22/tcp >/dev/null; elif ufw_rule_present 22/tcp; then ufw delete allow 22/tcp >/dev/null; fi
+    fi
+    say "      socket $(systemctl is-enabled sdclient.socket 2>/dev/null)/$(systemctl is-active sdclient.socket 2>/dev/null); listening on: $(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ')"
+    say "      ufw 4243 rule: $(ufw_rule_present 4243/tcp && echo yes || echo no); 22 rule: $(ufw_rule_present 22/tcp && echo yes || echo no)"
+    [ -n "${RA_DROPIN_COPY:-}" ] && rm -f "$RA_DROPIN_COPY"
+    RA_SAVED=""
+}
+
+# 19 Sep 26 - THE CLEANUP'S sd SESSIONS GO THROUGH THE LOGINUID BRIDGE.  They
+# ran sd as root, which CPROC now refuses (10190), so every DELETE.ACCOUNT here
+# did nothing and the fifth cycle left zzrel2 whole behind it.
+sd_admin_quiet() {
+    (cd "$SDSYS" && timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD") >/dev/null 2>&1
+}
+
+cleanup() {
+    local rc=$?
+    [ "$COMMIT" -eq 1 ] || exit $rc
+    head2 "CLEANUP - removing whatever this run made"
+    if [ -n "$VOC_ASIDE" ] && [ -d "$VOC_ASIDE" ]; then
+        mv "$VOC_ASIDE" "$ACCOUNTS_ROOT/$ACC2/voc" \
+            && say "  put $ACC2's voc back (section 15 died with it moved aside)"
+    fi
+    [ -e "$MARKER" ] && { rm -f "$MARKER"; say "  removed a leftover ATTACH marker"; }
+    [ -e "$SDSYS/\$attach.$ACC2" ] && { rm -f "$SDSYS/\$attach.$ACC2"; say "  removed a leftover ATTACH marker for $ACC2"; }
+    if [ "$MADE_ACCOUNT2" -eq 1 ] && [ -e "$REGISTER/$ACC2" ]; then
+        say "  deleting the SD account $ACC2 through SD"
+        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC2"$'\n''Y'$'\n''OFF'$'\n' \
+            | sd_admin_quiet
+    fi
+    if [ "$MADE_USER2" -eq 1 ] && id -u "$ACC2" >/dev/null 2>&1; then
+        del_user "$ACC2"
+    fi
+    say "  left behind ($ACC2): register=$(yesno_file "$REGISTER/$ACC2")" \
+        "dir=$(yesno_dir "$ACCOUNTS_ROOT/$ACC2") user=$(yesno_user "$ACC2")" \
+        "group=$(yesno_group "sdu_$ACC2")"
+    if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
+        say "  deleting the SD account through SD"
+        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''Y'$'\n''OFF'$'\n' \
+            | sd_admin_quiet
+    fi
+    if [ "$MADE_USER" -eq 1 ] && id -u "$ACC" >/dev/null 2>&1; then
+        del_user "$ACC"
+    fi
+    say "  left behind: register=$(yesno_file "$REGISTER/$ACC")" \
+        "dir=$(yesno_dir "$ADIR") user=$(yesno_user "$ACC")" \
+        "group=$(yesno_group "sdu_$ACC") marker=$(yesno_file "$MARKER")"
+    # Section 12's zzrel3 is normally deleted by the section itself (that is
+    # the thing measured); this is the fallback if it stopped part-way.
+    [ -e "$SDSYS/\$attach.$ACC3" ] && rm -f "$SDSYS/\$attach.$ACC3"
+    if [ "$MADE_ACCOUNT3" -eq 1 ] && [ -e "$REGISTER/$ACC3" ]; then
+        say "  deleting the SD account $ACC3 through SD (fallback)"
+        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC3"$'\n''Y'$'\n''OFF'$'\n' \
+            | sd_admin_quiet
+    fi
+    if [ "$MADE_USER3" -eq 1 ] && id -u "$ACC3" >/dev/null 2>&1; then
+        del_user "$ACC3" " (fallback)"
+    fi
+    if [ "$MADE_USER3" -eq 1 ]; then
+        say "  left behind ($ACC3): register=$(yesno_file "$REGISTER/$ACC3")" \
+            "dir=$(yesno_dir "$ACCOUNTS_ROOT/$ACC3") user=$(yesno_user "$ACC3")" \
+            "group=$(yesno_group "sdu_$ACC3") home=$(yesno_dir "/home/$ACC3")"
+    fi
+    # 19 Sep 26 - THE HOMES THIS RUN MADE.  DELETE.ACCOUNT keeps a home by
+    #   design, so each run left /home/zzrel1 and /home/zzrel2.  Only after
+    #   the ground was found clear (this trap also runs on a refusal) and only
+    #   once the user is gone - witness-absence's rule.
+    if [ "$GROUND_CLEAR" -eq 1 ]; then
+        for n in "$ACC" "$ACC2" "$ACC3"; do
+            if ! id "$n" >/dev/null 2>&1 && [ -d "/home/$n" ]; then
+                rm -rf -- "/home/$n" && say "  removed /home/$n (DELETE.ACCOUNT keeps a home; this run made it)"
+            fi
+        done
+    fi
+    say "  homes left: $ACC=$(yesno_dir "/home/$ACC") $ACC2=$(yesno_dir "/home/$ACC2") $ACC3=$(yesno_dir "/home/$ACC3")"
+    [ -n "$SSHDIR" ] && [ -d "$SSHDIR" ] && { rm -rf "$SSHDIR"; say "  removed the witness ssh key ($SSHDIR)"; }
+    # S.13 (13h) changes the machine's API listener and firewall; if it stopped
+    # part-way they are put back exactly as section 13h found them.
+    restore_remote "cleanup"
+    say "  log: $LOG"
+    exit $rc
+}
+trap cleanup EXIT
+
+# ==========================================================================
+say "witness-release-run: $( [ "$COMMIT" -eq 1 ] && echo 'COMMIT - it will change this system' || echo 'DRY RUN - it changes nothing' )"
+say "  date       : $(date -Is)"
+say "  uid        : $(id -u) ($(id -un))"
+say "  sd         : $SD"
+say "  install    : $(sed -n 's/^commit=//p' "$SDSYS/.sdcore-install" 2>/dev/null) $(sed -n 's/^installed=//p' "$SDSYS/.sdcore-install" 2>/dev/null)"
+say "  account    : $ACC  ($ADIR)"
+say "  log        : $LOG"
+
+head2 "0. preconditions and the ground being clear"
+for p in "$SD" "$SDSYS" "$REGISTER" "$ACCOUNTS_ROOT"; do
+    [ -e "$p" ] || { say "witness-release-run: CANNOT RUN - $p does not exist."; exit 2; }
+done
+command -v runuser >/dev/null || { say "witness-release-run: CANNOT RUN - runuser not found."; exit 2; }
+if [ "$COMMIT" -eq 1 ] && [ "$(id -u)" -ne 0 ]; then
+    say "witness-release-run: CANNOT RUN - --commit needs root."
+    say "  re-run as: sudo bash $SELF --commit"
+    exit 2
+fi
+DIRTY=0
+[ "$(yesno_user "$ACC")" = yes ]  && { say "  DIRTY: Linux user $ACC exists"; DIRTY=1; }
+[ "$(yesno_group "sdu_$ACC")" = yes ] && { say "  DIRTY: group sdu_$ACC exists"; DIRTY=1; }
+[ "$(yesno_dir "$ADIR")" = yes ] && { say "  DIRTY: $ADIR exists"; DIRTY=1; }
+[ "$(yesno_file "$REGISTER/$ACC")" = yes ] && { say "  DIRTY: register record $ACC exists"; DIRTY=1; }
+[ "$(yesno_file "$MARKER")" = yes ] && { say "  DIRTY: an ATTACH marker for $ACC exists"; DIRTY=1; }
+[ "$(yesno_user "$ACC2")" = yes ]  && { say "  DIRTY: Linux user $ACC2 exists"; DIRTY=1; }
+[ "$(yesno_group "sdu_$ACC2")" = yes ] && { say "  DIRTY: group sdu_$ACC2 exists"; DIRTY=1; }
+[ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC2")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC2 exists"; DIRTY=1; }
+[ "$(yesno_file "$REGISTER/$ACC2")" = yes ] && { say "  DIRTY: register record $ACC2 exists"; DIRTY=1; }
+[ "$(yesno_user "$ACC3")" = yes ]  && { say "  DIRTY: Linux user $ACC3 exists"; DIRTY=1; }
+[ "$(yesno_group "sdu_$ACC3")" = yes ] && { say "  DIRTY: group sdu_$ACC3 exists"; DIRTY=1; }
+[ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC3")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC3 exists"; DIRTY=1; }
+[ "$(yesno_file "$REGISTER/$ACC3")" = yes ] && { say "  DIRTY: register record $ACC3 exists"; DIRTY=1; }
+[ "$(yesno_dir "/home/$ACC3")" = yes ] && { say "  DIRTY: /home/$ACC3 exists"; DIRTY=1; }
+# 19 Sep 26 - AND THE OTHER TWO HOMES.  A plain DELETE.ACCOUNT keeps the home,
+#   so the fifth and sixth cycles left /home/zzrel1 and /home/zzrel2; a later
+#   useradd would adopt a home another uid owns.
+[ "$(yesno_dir "/home/$ACC")" = yes ] && { say "  DIRTY: /home/$ACC exists"; DIRTY=1; }
+[ "$(yesno_dir "/home/$ACC2")" = yes ] && { say "  DIRTY: /home/$ACC2 exists"; DIRTY=1; }
+# 14 Sep 26 dm - THE SD PASSWORD REGISTER TOO.  The 19:36 run on 74c60d4 left
+# $cred/zzrel1 behind (DELETE.ACCOUNT did not remove it then), and section 13's
+# C0 asserts "has no password set" - a leftover record would fail it for a
+# reason that is not the product's.  Readable only as root, as --commit is.
+for a in "$ACC" "$ACC2" "$ACC3"; do
+    [ "$(yesno_file "$SDSYS/\$cred/$a")" = yes ] && { say "  DIRTY: credential record \$cred/$a exists"; DIRTY=1; }
+done
+if [ "$DIRTY" -eq 1 ]; then
+    say "witness-release-run: CANNOT RUN - the ground is not clear (above)."
+    say "  This script will not touch state it did not create."
+    exit 2
+fi
+GROUND_CLEAR=1
+say "  ground clear: $ACC exists as no user, group, directory, home, record or marker."
+STAMP=$(sed -n '2p' "$SDSYS/voc_template/\$release" 2>/dev/null)
+say "  voc_template \$release field 2 (what a new account gets): '$STAMP'"
+[ "$STAMP" != "$FAKE_REL" ] || { say "witness-release-run: CANNOT RUN - the install is already at $FAKE_REL, so nothing would differ."; exit 2; }
+# THE SCRIPT'S OWN GROUPS - the S.2 input.  Printed before the group exists.
+say "  this process's groups (before): $(id -G)"
+
+# ==========================================================================
+head2 "1. create $ACC - SD's whole flow, as sdsys"
+# A throwaway Linux password, generated per run and printed nowhere: CREATEA
+# asks for one because it is creating the Linux user, and the account dies in
+# section 15.  passwd(1) gets it through the piped session's stdin (the _PW_
+# placeholders below), exactly as MODIFY.PASSWORD answers travel.
+PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC (answering the Linux password)" \
+             "CREATE.ACCOUNT USER $ACC" "_PW_" "_PW_")
+PW_OS=""
+
+ADOPTED=0
+if [ "$COMMIT" -eq 1 ]; then
+    ck "A1 the register record exists (the gate for the rest)" yes "$(yesno_file "$REGISTER/$ACC")"
+    ck "A2 the account directory exists" yes "$(yesno_dir "$ADIR")"
+    ck "A3 its bp directory exists" yes "$(yesno_dir "$ADIR/bp")"
+    ck_says "A4 SD reported the sdusers membership (10013)" "added to sdusers" "$OUT"
+    # 19 Sep 26: a missing record reads blank too - refuse that null case.
+    if [ -f "$REGISTER/$ACC" ]; then
+        ck "A5 field 5 (the suspension flag) is blank - no tier" "" "$(sed -n '5p' "$REGISTER/$ACC")"
+    else
+        not_reached "A5 field 5 (the suspension flag) is blank - no tier"
+    fi
+    if [ -e "$REGISTER/$ACC" ] && [ -d "$ADIR/bp" ]; then ADOPTED=1; MADE_ACCOUNT=1; fi
+    [ -e "$REGISTER/$ACC" ] && MADE_ACCOUNT=1
+fi
+
+# ==========================================================================
+head2 "2. S.2 - the administrator's LOGTO picks up a group created after the session started"
+GID_NEW=$(getent group "sdu_$ACC" | cut -d: -f3)
+GID_SDU=$(getent group sdusers | cut -d: -f3)
+say "  sdu_$ACC gid: '${GID_NEW:-none}'; this process's groups: $(id -G)"
+if [ "$COMMIT" -eq 1 ]; then
+    if [ "$ADOPTED" -ne 1 ] || [ -z "$GID_NEW" ]; then
+        not_reached "S2.a LOGTO $ACC entered it"; not_reached "S2.b no Error 3001"
+    else
+        say "  this process PREDATES sdu_$ACC, so its group list is the stale one;"
+        say "  sd runs as sdsys (the administrator) carrying THIS process's groups"
+        say "  via setpriv, and CPROC's logto refresh must add sdu_$ACC itself."
+        # 19 Sep 26 - THROUGH THE LOGINUID BRIDGE, as every sdsys session here.
+        #   The fifth cycle ran setpriv bare and CPROC refused it 10195 (a sdsys
+        #   session without a sdsys login) - right, and it measured nothing.
+        #   The bridge sets only the loginuid; the stale group list, which is
+        #   what this row is about, still comes from setpriv.
+        # 20 Sep 26 - ***--reuid WAS HARD-CODED TO 999 AND S.38 MADE THAT
+        #   FALSE.***  sdsys was a --system account (always 999) until S.38
+        #   gave it an ordinary uid so the greeter would list it; this row went
+        #   on assuming the old number and, on the very next cycle, set the
+        #   real uid to an account that is no longer sdsys - CPROC then refused
+        #   the session outright ("not registered for String Database (sd)
+        #   use") instead of measuring the group refresh at all.  THE SAME TRAP
+        #   AS M9d/M9b/M7b: a number the product no longer promises, baked into
+        #   an instrument.  Read from the machine instead.
+        SDSYS_UID=$(id -u sdsys)
+        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nOFF\n' "$ACC" \
+              | timeout 60 sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec "$@"' sd-run \
+                setpriv --reuid "$SDSYS_UID" --regid "$GID_SDU" --groups "$(id -G | tr ' ' ',')" -- "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "S2.a WHO reports the session in $ACC" yes yes
+        else
+            ck "S2.a WHO reports the session in $ACC" yes no
+        fi
+        ck_absent "S2.b no Error 3001" "Error 3001" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+# THE PORT'S verify-logtoaccess (its PRE_RELEASE 91), AS IT TRANSFERS.  The port
+# lost K$ADMINISTRATOR on the first LOGTO, so the SECOND was refused; ***ONE
+# SUCCESSFUL LOGTO DOES NOT TELL THE FIX FROM THE DEFECT*** - hence arrivals
+# are COUNTED.  Here USR_ADMIN is set once (CPROC's local-sdsys grant) and
+# nothing clears it, so this is expected to hold - measured, not assumed.  The
+# port's other half (an administrator signed in as themselves enters any
+# account) does not transfer: a plain session lacks the account's sdu_ group,
+# so the filesystem would refuse the VOC even if SD admitted it.
+head2 "2b. logtoaccess - the administrator keeps its access across LOGTOs"
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "L1 two arrivals in $ACC" "L2 one arrival in sdsys" "L3 no refusal" "LC.1 control refused" "LC.2 control stayed"; do
+        not_reached "$r"; done
+else
+    # 18 Sep 26 dm - LOGTO SDSYS IS REFUSED FOR EVERYBODY NOW (S.26), so the
+    #   middle arrival cannot happen.  What the rows measure: both LOGTOs INTO
+    #   $ACC arrive, the SDSYS arrival does NOT, and the refusal names the one
+    #   route in.  The administrator's own access is unchanged - it is the sdsys
+    #   session these commands run from.
+    OUT=$(run_sd sdsys "LOGTO $ACC, LOGTO sdsys (refused), LOGTO $ACC" \
+          "LOGTO $ACC" "WHO" "LOGTO sdsys" "WHO" "LOGTO $ACC" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        # 19 Sep 26 - THREE, NOT TWO: the refused LOGTO sdsys leaves the session
+        #   where it was, so the WHO after it names $ACC too (fifth cycle: 3).
+        #   That also means the count can no longer tell a failed second LOGTO
+        #   from a successful one (the session would still be in $ACC), so the
+        #   refusals are what decide it: L3a (10003) and L3c (any SD error).
+        ck "L1 WHO reported $ACC three times (two arrivals; the refused LOGTO sdsys stayed)" 3 \
+           "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)")"
+        ck "L2 and never sdsys - LOGTO sdsys is refused (S.26)" 0 \
+           "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+sdsys([[:space:]]|$)")"
+        ck_absent "L3a no 10003" "User not allowed in requested account" "$OUT"
+        ck_absent "L3c no SD error on either LOGTO into $ACC" "Error " "$OUT"
+        ck_says "L3b and the refusal names the one route in" \
+                "entered only by running SD as the sdsys OS user" "$OUT"
+    fi
+    # THE CONTROL: without it L1-L3 cannot tell "the administrator keeps its
+    # access" from "the gate is open to everybody".
+    OUT=$(run_sd "$ACC" "control: LOGTO sdsys as $ACC in plain sd" "LOGTO sdsys" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "LC.1 control: plain $ACC is refused SDSYS" "entered only by running SD as the sdsys OS user" "$OUT"
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "LC.2 control: and stayed in $ACC" yes yes
+        else
+            ck "LC.2 control: and stayed in $ACC" yes no
+        fi
+    fi
+fi
+
+# ==========================================================================
+head2 "3. setup as $ACC - compile ZZREL (sets \$release field 2) and ZZSHOW (prints it)"
+SRC_REL='open "voc" to f else stop "ZZREL: cannot open voc"
+read r from f, "$release" else stop "ZZREL: no $release record"
+r<2> = "'"$FAKE_REL"'"
+write r to f, "$release"
+crt "ZZREL wrote field 2 = ":r<2>
+end'
+SRC_SHOW='open "voc" to f else stop "ZZSHOW: cannot open voc"
+read r from f, "$release" else stop "ZZSHOW: no $release record"
+crt "ZZSHOW field 2 = ":r<2>
+end'
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -eq 1 ]; then
+    printf '%s\n' "$SRC_REL"  > "$ADIR/bp/zzrel"
+    printf '%s\n' "$SRC_SHOW" > "$ADIR/bp/zzshow"
+    chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzrel" "$ADIR/bp/zzshow"
+    say "  wrote $ADIR/bp/zzrel and zzshow"
+fi
+# ***THE SETUP RUNS THE PROGRAMS BY THEIR EXACT, LOWER-CASE NAMES.***  The
+# 14 Sep 12:55 run typed RUN BP ZZREL and RUN answered "Program BP.OUT ZZREL
+# not found" - BASIC had folded the name to zzrel and RUN did not fold it back.
+# That was a real defect (fixed in cproc int.run the same day), but it left
+# every S.9 and Q.28 row NOT REACHED.  So the fold is now its own row, F1, and
+# nothing else depends on it.
+SETUP_OK=0
+if [ "$COMMIT" -eq 0 ] || [ "$ADOPTED" -eq 1 ]; then
+    OUT=$(run_sd "$ACC" "compile both, set field 2, show it" \
+          "BASIC BP ZZREL" "BASIC BP ZZSHOW" "RUN BP zzrel" "RUN BP zzshow")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "B1 ZZREL wrote the fake release" "ZZREL wrote field 2 = $FAKE_REL" "$OUT"
+        ck_says "B2 ZZSHOW reads it back" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
+        printf '%s' "$OUT" | grep -qF "ZZSHOW field 2 = $FAKE_REL" && SETUP_OK=1
+    fi
+else
+    not_reached "B1 ZZREL wrote the fake release"; not_reached "B2 ZZSHOW reads it back"
+fi
+
+head2 "3b. the RUN fold - RUN BP ZZSHOW, typed in upper case, finds bp.out/zzshow"
+if [ "$COMMIT" -eq 1 ] && [ "$SETUP_OK" -ne 1 ]; then
+    not_reached "F1 RUN BP ZZSHOW ran the program"; not_reached "F2 no 5073"
+else
+    OUT=$(run_sd "$ACC" "RUN BP ZZSHOW (upper case)" "RUN BP ZZSHOW")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "F1 RUN BP ZZSHOW ran the program" "ZZSHOW field 2 = " "$OUT"
+        ck_absent "F2 no 'Program ... not found' (5073)" "not found" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+head2 "4. S.9 - sign-on with \$release at $FAKE_REL"
+if [ "$COMMIT" -eq 1 ] && [ "$SETUP_OK" -ne 1 ]; then
+    for r in "S9a.1 new prompt text" "S9a.2 no 5027" "S9a.3 went on to WHO" "S9a.4 finished" \
+             "S9b.1 prompt shown once" "S9b.2 finished at EOF" "S9c.1 field 2 unchanged"; do
+        not_reached "$r"; done
+else
+    say "  (a) a blank first line answers the prompt"
+    OUT=$(run_sd "$ACC" "blank line at the prompt, then WHO" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "S9a.1 the prompt says its default" "Update VOC to new release (y/<n>)?" "$OUT"
+        ck_absent "S9a.2 Enter was not refused (no 5027)" "Please answer Y or N" "$OUT"
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "S9a.3 the session went on to WHO" yes yes
+        else
+            ck "S9a.3 the session went on to WHO" yes no
+        fi
+        ck "S9a.4 it finished (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+    fi
+    say "  (b) end of input at the prompt"
+    OUT=$(run_sd_eof)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "S9b.1 the prompt was shown exactly once" 1 "$(printf '%s' "$OUT" | grep -oF 'Update VOC to new release' | wc -l)"
+        ck "S9b.2 it finished at end of input (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+    fi
+    say "  (c) N changed nothing"
+    OUT=$(run_sd "$ACC" "RUN BP zzshow" "RUN BP zzshow")
+    [ "$COMMIT" -eq 1 ] && ck_says "S9c.1 field 2 is still $FAKE_REL" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
+fi
+
+# ==========================================================================
+head2 "5. Q.28/S.48 - RUN of a runfile path over 128 characters now runs"
+DEEPDIR="$ADIR/zzdeep/$(printf 'd%.0s' $(seq 1 60))/$(printf 'e%.0s' $(seq 1 60))"
+LPATH="$DEEPDIR/zzshow"
+say "  data file   : VOC zzdeep.out -> $DEEPDIR"
+say "  record name : zzshow (6 characters, under MAXIDLEN)"
+say "  run path    : ${#LPATH} characters (limit 255 since S.48; was 128)"
+SRC_VOC='open "voc" to f else stop "ZZVOC: cannot open voc"
+r = "F" : @fm : "'"$DEEPDIR"'"
+write r to f, "zzdeep.out"
+crt "ZZVOC wrote zzdeep.out"
+end'
+if [ "$COMMIT" -eq 1 ] && { [ "$SETUP_OK" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzshow" ]; }; then
+    for r in "Q0 the pointer was written" "Q1 the program ran" "Q1b not 10918" "Q2 not 1135" "Q3 10918 is installed" "Q4 the lookup reached the length check"; do
+        not_reached "$r"; done
+else
+    if [ "$COMMIT" -eq 1 ]; then
+        mkdir -p "$DEEPDIR" && cp "$ADIR/bp.out/zzshow" "$LPATH"
+        chown -R "$ACC:$(id -gn "$ACC")" "$ADIR/zzdeep"
+        printf '%s\n' "$SRC_VOC" > "$ADIR/bp/zzvoc"
+        chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzvoc"
+        say "  object at that path: $(yesno_file "$LPATH")"
+    fi
+    OUT=$(run_sd "$ACC" "write the pointer, then RUN ZZDEEP zzshow" \
+          "BASIC BP ZZVOC" "RUN BP zzvoc" "RUN ZZDEEP zzshow")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "Q0 the VOC pointer was written" "ZZVOC wrote zzdeep.out" "$OUT"
+        # 29 Sep 26 - S.48: the limit is 255 now, so this 165-character path
+        #   RUNS.  Anchored on the program's own output, never on the echo.
+        ck_says  "Q1 RUN from a 165-character path reaches the program" "ZZSHOW field 2 =" "$OUT"
+        ck_absent "Q1b and 10918 did not refuse it" "Runfile pathname is longer than" "$OUT"
+        ck_absent "Q2 not the old 1135 message" "Invalid runfile pathname" "$OUT"
+        ck_absent "Q3 10918 is installed" "Message not found" "$OUT"
+        ck_absent "Q4 the lookup reached the length check (no 'not found')" "not found" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+
+# ==========================================================================
+# W.2 and W.3 - the port's rulings of 13 Sep 26 (its RELEASE_1.1_FIXES 33),
+# adopted 14 Sep; the port's verify-promptenter legs 7 and 8, re-expressed.
+# BEFORE THE TIER MOVES: STANDARD's omit list takes CREATE.FILE and
+# DELETE.FILE, so this runs while zzrel1 is still ADMINISTRATOR.
+#   2050 via SSELECT VOC SAMPLE 1 + CT VOC (CT only displays): Enter must
+#        display nothing and let WHO run; the Y control must display it.
+#   6133 via a two-component multifile: Enter and C must delete nothing and
+#        leave both components and the dictionary on disk; the N control
+#        must still delete the dictionary only (N then Y, in case 6140 asks).
+head2 "5b. W.2 / W.3 - Enter at 2050 means N; 6133 cancels on Enter or C"
+MF=zzpromptm
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "P1 2050 prompt" "P2 Enter showed nothing" "P3 WHO ran" "P4 Y control" "M0 multifile built" "M1 Enter cancels" "M2 C cancels" "M3 N control"; do not_reached "$r"; done
+else
+    OUT=$(run_sd "$ACC" "2050 answered with ENTER, then WHO" "SSELECT VOC SAMPLE 1" "CT VOC" "" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        ID7=$(printf '%s' "$OUT" | grep -o "First item '[^']*'" | head -1 | sed "s/First item '//; s/'$//")
+        say "  first item of the list: '${ID7:-none}'"
+        ck_says "P1 2050 was reached, showing (y/<n>)" "Use active select list (First item '$ID7') (y/<n>)?" "$OUT"
+        if [ -n "$ID7" ] && printf '%s' "$OUT" | grep -qE "^VOC $ID7[[:space:]]*$"; then
+            ck "P2 Enter displayed nothing (no 'VOC $ID7' record)" no yes
+        else
+            ck "P2 Enter displayed nothing (no 'VOC $ID7' record)" no no
+        fi
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "P3 the session went on to WHO" yes yes
+        else
+            ck "P3 the session went on to WHO" yes no
+        fi
+    fi
+    OUT=$(run_sd "$ACC" "control: 2050 answered Y" "SSELECT VOC SAMPLE 1" "CT VOC" "Y")
+    if [ "$COMMIT" -eq 1 ]; then
+        if [ -n "$ID7" ] && printf '%s' "$OUT" | grep -qE "^VOC $ID7[[:space:]]*$"; then
+            ck "P4 control: Y displays 'VOC $ID7'" yes yes
+        else
+            ck "P4 control: Y displays 'VOC $ID7'" yes no
+        fi
+    fi
+
+    OUT=$(run_sd "$ACC" "make the multifile $MF (components c1, c2)" \
+          "CREATE.FILE $MF,c1" "CREATE.FILE $MF,c2" "CT VOC $MF")
+    MF_OK=0
+    if [ "$COMMIT" -eq 1 ]; then
+        say "  on disk: $(ls -d "$ADIR/$MF"/* "$ADIR/$MF.dic" 2>&1 | tr '\n' ' ')"
+        [ -d "$ADIR/$MF/c1" ] && [ -d "$ADIR/$MF/c2" ] && [ -e "$ADIR/$MF.dic" ] && MF_OK=1
+        ck "M0 $MF has components c1, c2 and a dictionary on disk" 1 "$MF_OK"
+    fi
+    for ANS in "" "C"; do
+        LABEL=$([ -z "$ANS" ] && echo ENTER || echo C)
+        if [ "$COMMIT" -eq 1 ] && [ "$MF_OK" -ne 1 ]; then
+            not_reached "M $LABEL cancels"; continue
+        fi
+        OUT=$(run_sd "$ACC" "DELETE.FILE $MF answered with $LABEL, then WHO" "DELETE.FILE $MF" "$ANS" "WHO")
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says  "M.$LABEL.1 6133 reached, showing (y/n/<c>)" "C cancel (y/n/<c>)?" "$OUT"
+            ck_absent "M.$LABEL.2 no DATA portion deleted" "DATA portion '" "$OUT"
+            ck_absent "M.$LABEL.3 no DICT portion deleted" "DICT portion '" "$OUT"
+            ck "M.$LABEL.4 c1, c2 and the dictionary survive on disk" 1 \
+               "$( [ -d "$ADIR/$MF/c1" ] && [ -d "$ADIR/$MF/c2" ] && [ -e "$ADIR/$MF.dic" ] && echo 1 || echo 0)"
+            if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+                ck "M.$LABEL.5 the session went on to WHO" yes yes
+            else
+                ck "M.$LABEL.5 the session went on to WHO" yes no
+            fi
+        fi
+    done
+    if [ "$COMMIT" -eq 1 ] && [ "$MF_OK" -ne 1 ]; then
+        not_reached "M3 N control"
+    else
+        OUT=$(run_sd "$ACC" "control: DELETE.FILE $MF answered N (then Y, if 6140 asks)" "DELETE.FILE $MF" "N" "Y")
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "M3.a control: N deleted the dictionary" "DICT portion '" "$OUT"
+            ck "M3.b control: the dictionary is gone and c1 remains" 1 \
+               "$( [ ! -e "$ADIR/$MF.dic" ] && [ -d "$ADIR/$MF/c1" ] && echo 1 || echo 0)"
+        fi
+    fi
+fi
+
+# ==========================================================================
+# 18 Sep 26 dm - TEARDOWN (S.25/S.27): THE TIER LEGS OF SECTIONS 6 AND 7 ARE
+# STRUCK.  The OS.EXECUTE gate (S.4/PRE_RELEASE 23) and the STANDARD omit
+# filter (S.3) were tier machinery, and the tier model is gone.  SH and
+# OS.EXECUTE run at every account's own Linux permissions now, and every
+# account's VOC is NEWVOC as shipped.  witness-absence.sh proves the absence
+# (no TIERGATE, no tier field, no tier keyword); this script no longer tries
+# to measure ranks that do not exist.
+
+# ==========================================================================
+# Q.13 - THREE AUDIT RECORD TYPES THE TRAIL HAD NEVER HELD.  Measured 14 Sep:
+# the trail on 984be50 (back to the 13 Sep 19:11 full install) held only
+# ELEVATION GRANTED, LOGIN, LOGTO, LOGTO REFUSED and MODIFY.ACCOUNT TIER.
+# The writers exist (modifya ADD/DELETE; cproc ELEVATION REFUSED), so each is
+# driven once and the NEW lines of the trail are read - by line count, before
+# and after, so an old record cannot pass.  Under the teardown the refused
+# elevation is a root session refused outright (10190), and the granted one
+# is the local sdsys session itself.
+head2 "8. Q.13 - ADD, DELETE, ELEVATION REFUSED and ELEVATION GRANTED reach the audit trail"
+AUD="$SDSYS/audit"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ ! -f "$AUD" ]; }; then
+    for r in "T1 zzrel2 adopted" "T2 ADD said" "T3 DELETE said" "T4 elevation refused" "T5 ADD record" "T6 DELETE record" "T7 REFUSED record"; do not_reached "$r"; done
+else
+    N0=0
+    [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+    say "  audit trail before: $N0 lines ($AUD)"
+    say "  CREATE.ACCOUNT USER $ACC2 (SD's whole flow, as sdsys)"
+    if [ "$COMMIT" -eq 1 ]; then
+        PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+    fi
+    OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC2 (answering the Linux password)" \
+          "CREATE.ACCOUNT USER $ACC2" "_PW_" "_PW_")
+    PW_OS=""
+    [ "$COMMIT" -eq 1 ] && [ -e "$REGISTER/$ACC2" ] && MADE_ACCOUNT2=1
+    [ "$COMMIT" -eq 1 ] && ck "T1 $ACC2 created (register record)" yes "$(yesno_file "$REGISTER/$ACC2")"
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC ADD $ACC2, then DELETE" \
+          "MODIFY.ACCOUNT $ACC ADD $ACC2" "MODIFY.ACCOUNT $ACC DELETE $ACC2")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T2 ADD said so (10018)" "$ACC2 added to group sdu_$ACC" "$OUT"
+        ck_says "T3 DELETE said so (10021)" "$ACC2 removed from group sdu_$ACC" "$OUT"
+    fi
+    OUT=$(run_sd root "a root session - refused outright under the teardown" "WHO")
+    [ "$COMMIT" -eq 1 ] && ck_says "T4 elevation refused: a root session (10190)" "root is not SD's administrator" "$OUT"
+    if [ "$COMMIT" -eq 1 ]; then
+        NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+        say "  audit trail after: $(wc -l < "$AUD") lines; the new records:"
+        printf '%s\n' "$NEW" | sed -e 's/^/      | /'
+        ck_says "T5 the ADD record is new in the trail" "MODIFY.ACCOUNT ADD account=$ACC to=$ACC2" "$NEW"
+        ck_says "T6 the DELETE record is new in the trail" "MODIFY.ACCOUNT DELETE account=$ACC from=$ACC2" "$NEW"
+        ck_says "T7 the ELEVATION REFUSED record is new" "ELEVATION REFUSED reason=root is not SD administrator" "$NEW"
+        ck_says "T8 the ELEVATION GRANTED record is new (this sdsys session's own)" "ELEVATION GRANTED reason=sdsys login" "$NEW"
+    fi
+fi
+
+# ==========================================================================
+# Sections 10-15 - the remaining owner witnesses, folded in 14 Sep 2026.
+# who_in <account> <text>: WHO printed "<n> <account>" (with or without "from").
+who_in() { printf '%s' "$2" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$1([[:space:]]|$)"; }
+ck_who() { if who_in "$2" "$3"; then ck "$1" yes yes; else ck "$1" yes no; fi; }
+ck_line() { if printf '%s' "$3" | grep -qxF -- "$2"; then ck "$1" yes yes; else ck "$1" yes no; fi; }
+ck_noline() { if printf '%s' "$3" | grep -qxF -- "$2"; then ck "$1" no yes; else ck "$1" no no; fi; }
+ctx() { say "  [CONTEXT] $*"; }
+GID1=$(getent group "sdu_$ACC" | cut -d: -f3)
+A2DIR="$ACCOUNTS_ROOT/$ACC2"
+
+# ==========================================================================
+# 18 Sep 26 dm - TEARDOWN: SECTIONS 10 AND 11 ARE STRUCK.  Section 10 drove
+# GRANT, and section 11 drove the tier-based OS.EXECUTE grants; both verbs and
+# both machines are gone (W.8, S.27).  A grant is now Linux group membership
+# (usermod -aG), and a session open at grant time keeps the Linux groups it
+# started with, so the read-only-open-session property that section 10
+# measured is dh_open's and unchanged - but there is no SD grant verb left to
+# drive it through.  SH and OS.EXECUTE run at every account's own Linux
+# permissions, so section 11's refusals are gone with the gates.
+#
+# ==========================================================================
+# S.5 - THE 10 Sep PARITY AUDIT'S WITNESS LIST, REWRITTEN FOR THE TEARDOWN.
+# A plain account must lack the admin verbs, which exist only in SDSYS's VOC
+# (built from the whole of VOC_TEMPLATE at install); UPDATE.ACCOUNTS refuses a
+# stray word and ALL updates every account without asking (THIS TOUCHES REAL
+# ACCOUNTS' VOCs, exactly as every install does); a new account's LISTF has
+# descriptions; DELETE.ACCOUNT of the SD-created user asks ONE question naming
+# the user and home, then removes both.  zzrel3 is created by SD (its useradd
+# stamps GECOS "SD account"), exactly the branch the old run could only reach
+# by hand.
+head2 "12. S.5 - the parity audit's witness list"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
+    for r in "V1-3 a plain account lacks" "V4-6 sdsys has" "V7 listf" "V8 10173" "V9 10170" "V10 10171" "D1 SD created" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
+else
+    OUT=$(run_sd "$ACC" "plain account: CT VOC sh, create.account, config; LISTF" "CT VOC sh" "CT VOC create.account" "CT VOC config" "LISTF")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_line "V1a a plain account HAS sh (S.27: SH for every account)" "VOC sh" "$OUT"
+        for v in create.account config; do ck_says "V1 a plain account lacks $v" "Record '$v' not found" "$OUT"; done
+        ck_says "V7 a new account's LISTF shows descriptions" "File for BASIC programs" "$OUT"
+    fi
+    OUT=$(run_sd sdsys "sdsys: CT VOC sh, create.account, config" "CT VOC sh" "CT VOC create.account" "CT VOC config")
+    if [ "$COMMIT" -eq 1 ]; then
+        for v in sh create.account config; do ck_line "V4 sdsys has $v" "VOC $v" "$OUT"; done
+    fi
+    OUT=$(run_sd sdsys "UPDATE.ACCOUNTS FOO, then UPDATE.ACCOUNTS ALL" "UPDATE.ACCOUNTS FOO" "UPDATE.ACCOUNTS ALL")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "V8 UPDATE.ACCOUNTS FOO refused (10173)" "does not take" "$OUT"
+        ck_says "V9 ALL says what it will do (10170)" "Every registered account will have its VOC updated" "$OUT"
+        ck_says "V10 and reports a count (10171)" "account(s) had their VOC updated" "$OUT"
+        ck "V10b it finished (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+    fi
+
+    say "  CREATE.ACCOUNT USER $ACC3 (SD creates the Linux user, stamped \"SD account\")"
+    if [ "$COMMIT" -eq 1 ]; then
+        PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+    fi
+    OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC3 (answering the Linux password)" \
+          "CREATE.ACCOUNT USER $ACC3" "_PW_" "_PW_")
+    PW_OS=""
+    if [ "$COMMIT" -eq 1 ]; then
+        [ -e "$REGISTER/$ACC3" ] && MADE_ACCOUNT3=1
+        ck "D1 SD created the Linux user (its own stamp)" yes "$(yesno_user "$ACC3")"
+        say "  before delete: user=$(yesno_user "$ACC3") home=$(yesno_dir "/home/$ACC3") register=$(yesno_file "$REGISTER/$ACC3") gecos='$(getent passwd "$ACC3" | cut -d: -f5)'"
+    fi
+    OUT=$(run_sd sdsys "DELETE.ACCOUNT $ACC3 REMOVE.HOME, answered y" "DELETE.ACCOUNT $ACC3 REMOVE.HOME" "y")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "D2 exactly ONE confirmation was asked" 1 "$(printf '%s' "$OUT" | grep -o '(y/<n>)?' | wc -l)"
+        ck_says "D3 it named the Linux user and the home (10905)" "its Linux user $ACC3 and the home directory /home/$ACC3" "$OUT"
+        ck_says "D3b and reported the home removed (10907)" "Home directory /home/$ACC3 removed" "$OUT"
+        ck "D4 the Linux user is gone" no "$(yesno_user "$ACC3")"
+        ck "D5 the home directory is gone" no "$(yesno_dir "/home/$ACC3")"
+        ck "D6 the register record is gone" no "$(yesno_file "$REGISTER/$ACC3")"
+        [ "$(yesno_user "$ACC3")" = no ] && MADE_USER3=0
+        [ "$(yesno_file "$REGISTER/$ACC3")" = no ] && MADE_ACCOUNT3=0
+    fi
+fi
+
+# ==========================================================================
+# W.4 SCRAM phase 2 - MODIFY.PASSWORD WRITES SD'S OWN CREDENTIAL, THE PORT'S.
+# Until 14 Sep this section was Q.17's: MODIFY.PASSWORD set the Linux password
+# through passwd(1).  It now sets $cred through !CRED_SET, as the Windows port's
+# does, and the Linux password is set here by chpasswd - which the API login
+# (13b) still checks until SCRAM phase 3.  Both passwords are random and NEVER
+# PRINTED.  THE INSTRUMENTS ARE ON DISK, not SD's messages alone: the shadow
+# hash prefix before and after (W3), and the $cred record's own fields read by
+# this root script (C2-C6), plus the register's mode (C7).
+head2 "13. W.4 phase 2 - the Linux password (chpasswd); MODIFY.PASSWORD writes \$cred"
+CREDDIR="$SDSYS/\$cred"
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "W3 shadow changed" "C0 first password" "C1 set" "C2 record exists" "C3 version 2" "C4 mechanism" "C5 iterations" "C6 keys" "C7 register 700 root"; do not_reached "$r"; done
+else
+    PW="Zq7-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)x9"
+    SH_BEFORE=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
+    say "  shadow hash prefix before: '$(printf '%s' "$SH_BEFORE" | cut -c1-3)'"
+    say "  chpasswd: set $ACC's Linux password (not shown)"
+    if [ "$COMMIT" -eq 1 ]; then
+        printf '%s:%s\n' "$ACC" "$PW" | chpasswd
+        SH_AFTER=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
+        say "  shadow hash prefix after : '$(printf '%s' "$SH_AFTER" | cut -c1-3)'"
+        if [ -n "$SH_AFTER" ] && [ "$SH_AFTER" != "$SH_BEFORE" ] && [ "${SH_AFTER:0:1}" = '$' ]; then
+            ck "W3 the shadow entry changed to a real hash" yes yes
+            PROBE_PW="$PW"
+        else
+            ck "W3 the shadow entry changed to a real hash" yes no
+        fi
+    fi
+    PW=""
+
+    CPW="Cr9-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)q4"
+    say "  --- sd session as sdsys: MODIFY.PASSWORD $ACC, then an SD password twice (not shown) ---"
+    say "  \$cred/$ACC before: $(yesno_file "$CREDDIR/$ACC")"
+    if [ "$COMMIT" -eq 1 ]; then
+        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$CPW" "$CPW" \
+              | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$CPW/********/g" -e 's/^/      | /'
+        ck_says "C0 it saw no credential and said so" "has no password set.  Setting the first one." "$OUT"
+        ck_says "C1 MODIFY.PASSWORD reported the credential set" "Password set for account $ACC" "$OUT"
+        ck_absent "C1b and not a failure" "Unable to set password" "$OUT"
+        ck "C2 the record is on disk" yes "$(yesno_file "$CREDDIR/$ACC")"
+        CREC=$(cat "$CREDDIR/$ACC" 2>/dev/null)
+        say "  \$cred/$ACC fields: 1='$(printf '%s\n' "$CREC" | sed -n 1p)' 2='$(printf '%s\n' "$CREC" | sed -n 2p)' 4='$(printf '%s\n' "$CREC" | sed -n 4p)' salt/stored/server lengths=$(printf '%s\n' "$CREC" | sed -n 3p | tr -d '\n' | wc -c)/$(printf '%s\n' "$CREC" | sed -n 5p | tr -d '\n' | wc -c)/$(printf '%s\n' "$CREC" | sed -n 6p | tr -d '\n' | wc -c)"
+        ck "C3 field 1 is version 2" 2 "$(printf '%s\n' "$CREC" | sed -n 1p)"
+        ck "C4 field 2 is the mechanism" "SCRAM-SHA-256" "$(printf '%s\n' "$CREC" | sed -n 2p)"
+        ck "C5 field 4 is the port's cost" 600000 "$(printf '%s\n' "$CREC" | sed -n 4p)"
+        ck "C6 StoredKey and ServerKey are 44-character base64" "44 44" "$(printf '%s\n' "$CREC" | sed -n 5p | tr -d '\n' | wc -c) $(printf '%s\n' "$CREC" | sed -n 6p | tr -d '\n' | wc -c)"
+        ck "C7 the register is sdsys:sdusers 700" "sdsys:sdusers 700" "$(stat -c '%U:%G %a' "$CREDDIR" 2>/dev/null)"
+        # Kept for section 13c's SCRAM login only when C1 saw it set.  Never printed.
+        printf '%s' "$OUT" | grep -qF "Password set for account $ACC" && SCRAM_PW="$CPW"
+    fi
+    CPW=""
+fi
+# 14 Sep 26 dm - W.4 SCRAM PHASE 4: THE CLIENT LIBRARY SPEAKS SCRAM, so
+# api-probe (SDConnect) now logs in with the SD password, not the Linux one.
+# LINUX_PW keeps the Linux password for the rows that need it: 13b's A0 (the
+# client library no longer sends it) and 13c's S4/S5c.  Never printed.
+LINUX_PW="$PROBE_PW"
+PROBE_PW="$SCRAM_PW"
+
+# ==========================================================================
+# W.4 - THE API DOOR, over TCP 127.0.0.1:4243 through the installed client
+# library (gplbld/api-probe.py), as zzrel1 with the password section 13 set.
+#   A1 CONTROL: the right password into its own account connects, and WHO
+#      names zzrel1 in LOWER case (APISRVR upcased it before 14 Sep).
+#   A2 the connected server process's own Uid/Gid/Groups, read from /proc while
+#      the probe holds the connection.  It must not carry root's group 0, and
+#      it must hold sdusers and sdu_zzrel1 as a terminal session does (A2c,
+#      A2d).  ON 3ff8027 IT HELD NONE - "Groups:" empty, 17:18 run - because
+#      login_user set no supplementary groups; S.15 adds initgroups.
+#   A0 (SCRAM phase 4) THE ROW: through the installed client library the LINUX
+#      password is refused and A1's SD password connects - SDConnect sends
+#      SCRAM against $cred, no longer the cleartext request 24.
+#   A3 a wrong password is refused in 5017's words, and the trail gains
+#      "API REFUSED user=zzrel1 reason=wrong password" (SCRAM's wording since
+#      phase 4; request 24 wrote "authentication failed").
+#   A4 STRUCK (18 Sep 26, the teardown, S.25): the tier gate is gone - a grant
+#      is Linux group membership and nothing else, so there is no rank for a
+#      sideways grant to climb over.  witness-absence.sh carries the absence.
+head2 "13b. W.4 - the API door: login, the session's groups, a wrong password"
+PROBE="$(dirname "$SELF")/api-probe.py"
+AUD="$SDSYS/audit"
+probe() {   # $1 title, then api-probe arguments; the password from PROBE_PW
+    say "  --- api-probe: $1 ---" >&2
+    say "      > api-probe.py ${*:2}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$PROBE" "${@:2}" 2>&1)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+probe_lines() { printf '%s' "$1" | sed -n 's/^| //p'; }
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$PROBE" ]; }; then
+    say "  needs zzrel1 adopted, zzrel2 made, section 13's SD password (C1) and $PROBE"
+    for r in "A0 Linux password refused" "A0b not connected" "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC" "A3 5017" "A3b not connected" "A3c API REFUSED record"; do not_reached "$r"; done
+else
+    GOOD_PW="$PROBE_PW"; PROBE_PW="$LINUX_PW"
+    OUT=$(probe "A0 THE ROW (phase 4): the client library with the LINUX password" --user "$ACC" --account "$ACC" WHO)
+    PROBE_PW="$GOOD_PW"; GOOD_PW=""
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A0 refused: SDConnect no longer sends the Linux password" "SDError: Invalid username or password" "$OUT"
+        ck_absent "A0b and did not connect" "SDConnect returned 1" "$OUT"
+    fi
+
+    OUT=$(probe "A1 control: the right password, its own account" --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A1 control: SDConnect succeeded" "SDConnect returned 1" "$OUT"
+        ck_who "A1b WHO names $ACC in lower case" "$ACC" "$(probe_lines "$OUT")"
+    fi
+
+    say "  --- api-probe, held 6 s: the server process's /proc while connected ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        PF=$(mktemp)
+        SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$PROBE" --user "$ACC" --account "$ACC" --hold 6 WHO >"$PF" 2>&1 &
+        PBG=$!
+        sleep 3
+        APID=$(pgrep -u "$ACC" -x sd | head -1)
+        AST=$(grep -E '^(Uid|Gid|Groups):' "/proc/${APID:-none}/status" 2>/dev/null)
+        say "  the API server process: pid ${APID:-none}"
+        printf '%s\n' "$AST" | sed -e 's/^/      | /'
+        wait "$PBG"
+        sed -e 's/^/      | /' "$PF"; rm -f "$PF"
+        if [ -n "$APID" ] && [ -n "$AST" ]; then
+            ck "A2 the held session's /proc was read" yes yes
+            AGRP=$(printf '%s' "$AST" | sed -n 's/^Groups:[[:space:]]*//p' | tr ' \t' '\n\n')
+            if printf '%s\n' "$AGRP" | grep -qx 0; then ck "A2b it does not carry root's group 0" no yes
+            else ck "A2b it does not carry root's group 0" no no; fi
+            GSDU=$(getent group sdusers | cut -d: -f3)
+            ck "A2c THE ROW (S.15): it holds sdusers (gid $GSDU)" yes "$(printf '%s\n' "$AGRP" | grep -qx "$GSDU" && echo yes || echo no)"
+            ck "A2d THE ROW (S.15): it holds sdu_$ACC (gid $GID1)" yes "$(printf '%s\n' "$AGRP" | grep -qx "$GID1" && echo yes || echo no)"
+        else
+            ck "A2 the held session's /proc was read" yes no
+            for r in "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC"; do not_reached "$r"; done
+        fi
+    fi
+
+    N0=0
+    [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+    GOOD_PW="$PROBE_PW"; PROBE_PW="${GOOD_PW}wrong"
+    OUT=$(probe "A3 a wrong password" --user "$ACC" --account "$ACC" WHO)
+    PROBE_PW="$GOOD_PW"; GOOD_PW=""
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A3 refused in 5017's words" "Invalid username or password" "$OUT"
+        ck_absent "A3b and did not connect" "SDConnect returned 1" "$OUT"
+        NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+        ck_says "A3c the trail gained an API REFUSED record" "API REFUSED user=$ACC reason=wrong password" "$NEW"
+    fi
+
+    OUT=$(run_sd root "fixture: A ROOT SESSION IS REFUSED OUTRIGHT (teardown control)" "WHO")
+    [ "$COMMIT" -eq 1 ] && ck_says "A4.0 control: root is refused (10190)" "root is not SD's administrator" "$OUT"
+
+    # A5 - S.14, CONFORMING TO THE PORT: a password is not held to the user
+    # name's 32 characters.  Since phase 4 the client sends SCRAM, so the long
+    # password is the SD one: MODIFY.PASSWORD sets a 62-character password
+    # (never printed; the current one is not asked when an administrator sets
+    # another account's) and SDConnect must log in with it.  13c and X6 then
+    # use it.  18 Sep 26: the session is sdsys, the administrator.
+    LONG_PW="Lq7-$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 56)x9"
+    say "  --- sd session as sdsys: MODIFY.PASSWORD $ACC to a ${#LONG_PW}-character SD password (not shown) ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$LONG_PW" "$LONG_PW" \
+              | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$LONG_PW/********/g" -e 's/^/      | /'
+        ck_says "A5.0 the long SD password was set" "Password set for account $ACC" "$OUT"
+    fi
+    GOOD_PW="$PROBE_PW"; PROBE_PW="$LONG_PW"
+    OUT=$(probe "A5 THE ROW (S.14): the ${#LONG_PW}-character password logs in" --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A5.1 it connected" "SDConnect returned 1" "$OUT"
+        ck_absent "A5.2 and the client did not refuse its length" "Invalid password" "$OUT"
+        # $cred now holds the long password, so 13c's SCRAM rows use it too.
+        printf '%s' "$OUT" | grep -qF "SDConnect returned 1" && SCRAM_PW="$LONG_PW"
+    fi
+    GOOD_PW=""; LONG_PW=""
+fi
+
+# ==========================================================================
+# W.4 SCRAM phase 3 - REQUESTS 47 AND 48, THE PORT'S SCRAM LOGIN, through
+# gplbld/scram-probe.py (the exchange in Python's standard library, no SD code
+# on the client side).  zzrel1 now has TWO passwords that differ: the SD one
+# in $cred (SCRAM_PW, long since 13b's A5) and the Linux one set by chpasswd
+# in section 13 (LINUX_PW).  That difference is the instrument:
+#   S1 CONTROL: SCRAM with the SD password logs in, the server's signature
+#      verifies, the account is entered and WHO names zzrel1.
+#   S2 the SCRAM session's own /proc: the uid is zzrel1's and it holds sdusers
+#      and sdu_zzrel1, none of them root's (K$ASSUME.USER, op_kernel.c).
+#   S3 a wrong password is refused at 48 in 5017's words, audited "wrong password".
+#   S4 THE ROW: SCRAM with the LINUX password is refused - it checks $cred, not
+#      /etc/shadow ...
+#   S5 ... and the old request 24 with the SD password is refused - it still
+#      checks /etc/shadow until phase 5 - while S5c, request 24 with the Linux
+#      password, is ACCEPTED.  Since phase 4 the client library cannot send 24,
+#      so both go through scram-probe --legacy.  S1 with S4, S5 and S5c is what
+#      shows each door reads its own credential.
+#   S6 request 48 with no 47 is a sequence error (5273), audited.
+#   S7 an unknown user is refused at 47 in 5017's words, audited "no credential".
+#   S8 S.18: S1 again over the UNIX SOCKET (scram-probe --unix), whose server
+#      side lost its getpeereid() peer capture, and S8d request 24 over it is
+#      refused in 5275's words - that socket is where APILOGIN=0 once let a
+#      peer in with no password.  The path is read from the installed unit.
+head2 "13c. W.4 SCRAM phase 3 - requests 47/48: the SD password, not the Linux one"
+SPROBE="$(dirname "$SELF")/scram-probe.py"
+sprobe() {   # $1 title, $2 password, then scram-probe arguments
+    say "  --- scram-probe: $1 ---" >&2
+    say "      > scram-probe.py ${*:3}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(SD_SCRAM_PASSWORD="$2" timeout 90 python3 "$SPROBE" "${@:3}" 2>&1)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+# 19 Sep 26 dm - THE SAME PROBE, RUN AS SOMEBODY ELSE (S.33).  SDSYS's API door
+#   now asks the KERNEL which user opened the socket, so the witness has to be
+#   able to open it as somebody other than root - that is the whole measurement.
+#   --preserve-env rather than "env VAR=..." so the password never appears in a
+#   command line: this runs on the owner's machine and ps is world-readable.
+#   $PROBE_PUB, not $SPROBE: the repository lives under a home directory the
+#   target users cannot read.
+PROBE_PUB=/var/tmp/sd-witness-scram-probe.py
+sprobe_as() {   # $1 run-as user, $2 title, $3 password, then scram-probe arguments
+    say "  --- scram-probe as $1: $2 ---" >&2
+    say "      > sudo -u $1 python3 $PROBE_PUB ${*:4}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(SD_SCRAM_PASSWORD="$3" timeout 90 sudo -u "$1" --preserve-env=SD_SCRAM_PASSWORD \
+              python3 "$PROBE_PUB" "${@:4}" 2>&1)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LINUX_PW" ] || [ ! -f "$SPROBE" ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5), the Linux password (13) and $SPROBE"
+    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 5275" "S5c 5275 for the Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit" "S9 name gate 5017" "S9b audit: name rejected" "S8 unix socket transport" "S8a verified" "S8b entered" "S8c WHO" "S8d 5275 over the unix socket" "S8e not logged in"; do not_reached "$r"; done
+else
+    N0=0
+    [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+
+    OUT=$(sprobe "S1 control: the SD password, account $ACC, WHO" "$SCRAM_PW" --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S1 SCRAM login, server signature verified" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "S1b account entered" "account $ACC: entered" "$OUT"
+        ck_who "S1c WHO names $ACC" "$ACC" "$(printf '%s' "$OUT" | sed -n 's/^| //p')"
+    fi
+
+    say "  --- scram-probe, held 6 s: the SCRAM session's /proc while connected ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        PF=$(mktemp)
+        SD_SCRAM_PASSWORD="$SCRAM_PW" timeout 90 python3 "$SPROBE" --user "$ACC" --account "$ACC" --hold 6 WHO >"$PF" 2>&1 &
+        PBG=$!
+        sleep 4
+        SPID=$(pgrep -u "$ACC" -x sd | head -1)
+        SST=$(grep -E '^(Uid|Gid|Groups):' "/proc/${SPID:-none}/status" 2>/dev/null)
+        say "  the SCRAM server process: pid ${SPID:-none}"
+        printf '%s\n' "$SST" | sed -e 's/^/      | /'
+        wait "$PBG"
+        sed -e 's/^/      | /' "$PF"; rm -f "$PF"
+        if [ -n "$SPID" ] && [ -n "$SST" ]; then
+            ck "S2 the held SCRAM session's /proc was read" yes yes
+            SUID=$(printf '%s' "$SST" | sed -n 's/^Uid:[[:space:]]*\([0-9]*\).*/\1/p')
+            ck "S2b its real uid is $ACC's" "$(id -u "$ACC")" "$SUID"
+            SGR=$(printf '%s' "$SST" | sed -n 's/^Groups:[[:space:]]*//p' | tr ' \t' '\n\n')
+            ck "S2c it carries no root group 0" no "$(printf '%s\n' "$SGR" | grep -qx 0 && echo yes || echo no)"
+            ck "S2d it holds sdusers" yes "$(printf '%s\n' "$SGR" | grep -qx "$(getent group sdusers | cut -d: -f3)" && echo yes || echo no)"
+            ck "S2e it holds sdu_$ACC" yes "$(printf '%s\n' "$SGR" | grep -qx "$GID1" && echo yes || echo no)"
+        else
+            ck "S2 the held SCRAM session's /proc was read" yes no
+            for r in "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1"; do not_reached "$r"; done
+        fi
+    fi
+
+    OUT=$(sprobe "S3 a wrong SD password" "${SCRAM_PW}wrong" --user "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "S3 refused at 48 in 5017's words" "SCRAM: login REFUSED at request 48: Invalid username or password" "$OUT"
+
+    OUT=$(sprobe "S4 THE ROW: SCRAM with the LINUX password" "$LINUX_PW" --user "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S4 SCRAM refuses the Linux password (it reads \$cred)" "SCRAM: login REFUSED at request 48: Invalid username or password" "$OUT"
+        ck_absent "S4b and did not log in" "server signature VERIFIED" "$OUT"
+    fi
+
+    # 14 Sep 26 dm - SCRAM PHASE 5: REQUEST 24 IS RETIRED.  Both passwords must
+    # now be refused in 5275's words, and no longer with 5017 - a 5017 would
+    # mean the old handler still ran and merely disliked the password.  S5c is
+    # the Linux password, which request 24 ACCEPTED on 85fbbec: that success
+    # before, this refusal now, is what shows the door is shut.
+    OUT=$(sprobe "S5 request 24 with the SD password (retired)" "$SCRAM_PW" --user "$ACC" --legacy)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S5 request 24 refused in 5275's words" "LEGACY: login REFUSED at request 24: Cleartext login is no longer supported" "$OUT"
+        ck_absent "S5b and did not log in" "LEGACY: login ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "S5c THE ROW (phase 5): request 24 with the LINUX password, accepted on 85fbbec" "$LINUX_PW" --user "$ACC" --account "$ACC" --legacy)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S5c refused in 5275's words" "LEGACY: login REFUSED at request 24: Cleartext login is no longer supported" "$OUT"
+        ck_absent "S5d and not the old handler's 5017" "Invalid username or password" "$OUT"
+        ck_absent "S5e and did not log in" "LEGACY: login ACCEPTED" "$OUT"
+    fi
+
+    OUT=$(sprobe "S6 request 48 with no 47" "$SCRAM_PW" --user "$ACC" --final-only)
+    [ "$COMMIT" -eq 1 ] && ck_says "S6 refused as a sequence error (5273)" "SCRAM: login REFUSED at request 48: Authentication sequence error" "$OUT"
+
+    OUT=$(sprobe "S7 a user with no SD credential" "$SCRAM_PW" --user zzrel9)
+    [ "$COMMIT" -eq 1 ] && ck_says "S7 refused at 47 in 5017's words" "SCRAM: login REFUSED at request 47: Invalid username or password" "$OUT"
+
+    # 15 Sep 26 dm - Q.22's apiname: THE NAME GATE AT THE API DOOR, WHICH
+    # NOTHING EXERCISED UNTIL NOW.  APISRVR applies !valid_os_name to the SCRAM
+    # user name BEFORE it reads $cred (apisrvr:1100); the port built a whole
+    # verifier for the same question (its verify-apiname.ps1, "does it refuse a
+    # name a real client could legitimately present?").  valid_os_name allows
+    # letters, digits, dot, underscore and hyphen only, so a TRAILING '$' -
+    # legal in a Linux user name, and what a Samba machine account carries - is
+    # refused at the door.
+    #
+    # ***THE REFUSAL IS DELIBERATELY WORDED AS S7's, SO S9 ALONE CANNOT SAY
+    # WHICH CHECK FIRED*** (apisrvr:1245, the distinct refusal leaks nothing).
+    # S9b reads the reason out of the audit trail, and S7b - a legal-charset
+    # name with no credential, audited 'no credential' - is the control that
+    # stops S9b passing on a catch-all.
+    OUT=$(sprobe "S9 Q.22 apiname: a name valid_os_name refuses (trailing \$)" "$SCRAM_PW" --user "${ACC}\$")
+    [ "$COMMIT" -eq 1 ] && ck_says "S9 the name gate refuses at 47 in 5017's words" "SCRAM: login REFUSED at request 47: Invalid username or password" "$OUT"
+
+    # S.18 - the Unix socket.  The path comes from the installed unit, printed,
+    # so a moved socket is a visible NOT REACHED rather than a probe of nothing.
+    USOCK=$(sed -n 's#^ListenStream=\(/.*\)#\1#p' /usr/lib/systemd/system/sdclient.socket 2>/dev/null | head -1)
+    say "  the Unix socket, from /usr/lib/systemd/system/sdclient.socket: '${USOCK:-none}'"
+    if [ "$COMMIT" -eq 1 ] && [ ! -S "$USOCK" ]; then
+        say "  it is not a socket on this machine: $(ls -la "$USOCK" 2>&1)"
+        for r in "S8 unix socket transport" "S8a verified" "S8b entered" "S8c WHO" "S8d 5275 over the unix socket" "S8e not logged in"; do not_reached "$r"; done
+    else
+        OUT=$(sprobe "S8 S.18: S1 over the Unix socket" "$SCRAM_PW" --unix "$USOCK" --user "$ACC" --account "$ACC" WHO)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "S8 the probe connected over the Unix socket" "transport: unix socket $USOCK" "$OUT"
+            ck_says "S8a SCRAM login, server signature verified" "SCRAM: server signature VERIFIED" "$OUT"
+            ck_says "S8b account entered" "account $ACC: entered" "$OUT"
+            ck_who "S8c WHO names $ACC" "$ACC" "$(printf '%s' "$OUT" | sed -n 's/^| //p')"
+        fi
+        OUT=$(sprobe "S8d S.18: request 24 over the Unix socket (APILOGIN=0's door)" "$SCRAM_PW" --unix "$USOCK" --user "$ACC" --account "$ACC" --legacy)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "S8d request 24 refused in 5275's words" "LEGACY: login REFUSED at request 24: Cleartext login is no longer supported" "$OUT"
+            ck_absent "S8e and did not log in" "LEGACY: login ACCEPTED" "$OUT"
+        fi
+    fi
+
+    if [ "$COMMIT" -eq 1 ]; then
+        NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+        say "  the new API REFUSED records:"
+        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+        ck_says "S3b audited: wrong password" "API REFUSED user=$ACC reason=wrong password" "$NEW"
+        ck_says "S6b audited: sequence error" "reason=sequence error - no client-first" "$NEW"
+        ck_says "S7b audited: no credential" "API REFUSED user=zzrel9 reason=no credential" "$NEW"
+        ck_says "S9b audited: the name gate fired, not the credential read" "reason=name rejected by valid_os_name" "$NEW"
+    fi
+fi
+
+# ==========================================================================
+# W.4 SCRAM phase 5 - !sdclient, THE BASIC-CALLABLE API CLIENT, SPEAKS SCRAM.
+# The port's TESTSDCLI (its gplbld/testsdcli.bp), as zzzsdcli in zzrel1's bp.
+# Until phase 5 the class sent request 24, which APISRVR now refuses, so a
+# class that had not been changed would fail B2 with 5275.  zzrel1 is
+# PROGRAMMER here (BASIC, RUN) and the program is deliberately NOT $internal:
+# the class carries that flag itself.
+#   B1 the right SD password connects and B2 COUNT VOC runs over it;
+#   B3 CONTROL: the same connect with one character added is refused.
+# THE PASSWORD IS FED ON THE SESSION'S STDIN AFTER ECHO OFF and is never
+# printed: this block masks it in the transcript as section 13 does, and never
+# puts it on a command line.
+head2 "13d. W.4 SCRAM phase 5 - !sdclient connects with SCRAM (the port's TESTSDCLI)"
+SRC_SDCLI='crt "account: ":
+input acc
+echo off
+crt "password: ":
+input pw
+echo on
+crt
+checks = 0
+bad = 0
+obj = object("!sdclient")
+checks += 1
+if obj->connect("127.0.0.1", 4243, acc, pw, acc) then
+   crt "PASS  connect"
+end else
+   bad += 1
+   crt "FAIL  connect: ":obj->error
+end
+if bad = 0 then
+   checks += 1
+   reply = obj->execute("COUNT VOC", err)
+   if index(reply, "record", 1) then
+      crt "PASS  execute:  ":trim(reply)
+   end else
+      bad += 1
+      crt "FAIL  execute:  err ":err:", reply ":trim(reply)
+   end
+   obj->disconnect
+end
+obj2 = object("!sdclient")
+checks += 1
+if obj2->connect("127.0.0.1", 4243, acc, pw:"x", acc) then
+   bad += 1
+   crt "FAIL  a wrong password was ACCEPTED"
+   obj2->disconnect
+end else
+   crt "PASS  wrong password refused: ":obj2->error
+end
+crt
+crt checks - bad:" / ":checks:" checks passed"
+if bad then crt "ZZZSDCLI FAILED" else crt "ZZZSDCLI PASSED"
+end'
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ]; }; then
+    say "  needs zzrel1 adopted and the SD password (13, 13b A5)"
+    for r in "B0 compiled" "B1 connect" "B2 execute" "B3 wrong password refused" "B4 3 of 3"; do not_reached "$r"; done
+else
+    say "  --- sd session as $ACC: BASIC BP ZZZSDCLI, RUN BP zzzsdcli, then account and SD password (not shown) ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        printf '%s\n' "$SRC_SDCLI" > "$ADIR/bp/zzzsdcli"
+        chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzzsdcli"
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nBASIC BP ZZZSDCLI\nRUN BP zzzsdcli\n%s\n%s\nOFF\n' "$ACC" "$SCRAM_PW" \
+              | timeout 120 runuser -u "$ACC" -- "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
+        ck_says "B0 the test program compiled" "Compiled 1 program(s) with no errors" "$OUT"
+        ck_says "B1 !sdclient connected with the SD password" "PASS  connect" "$OUT"
+        ck_says "B2 and a command ran over it" "PASS  execute:" "$OUT"
+        ck_says "B3 CONTROL: a wrong password was refused" "PASS  wrong password refused:" "$OUT"
+        ck_says "B4 the program's own verdict, 3 of 3" "3 / 3 checks passed" "$OUT"
+        ck_absent "B4b and no 5275 anywhere (the class does not send request 24)" "Cleartext login is no longer supported" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+# S.17 - THE REMOTE-ADMINISTRATOR GATE (the port's PRE_RELEASE_FIXES 170, its
+# verify-apiremote legs, on one machine).  The only variable is the address:
+# this host's own LAN address is NOT loopback, so a self-connection to it is
+# what !peer_local calls remote - the port's b126 witness rests on exactly that.
+#   E1 CONTROL, SCORED FIRST AND GATING THE REST: zzrel1 as PROGRAMMER over the
+#      LAN address logs in and enters.  Without it a machine whose listener is
+#      127.0.0.1 only would refuse E4 for the wrong reason.
+#   E2 zzrel1 made ADMINISTRATOR (joins sdadmin) - E3 over 127.0.0.1 and E3c
+#      over the Unix socket are ADMITTED (the local case must keep working),
+#   E4 over the LAN address is REFUSED in 10174's words, E5 audited with the
+#      peer's address (getpeername - the linuxio.c half of the change).
+#   E6 LINUX: back to PROGRAMMER, then put in sdadmin by hand (the drift the
+#      tier-or-group test is for): over the LAN address, REFUSED; then removed.
+head2 "13e. S.17 - SDSYS is refused over the API from another address (10174)"
+LANIP=$(ip -4 -o addr show scope global 2>/dev/null | awk 'NR==1 { split($4, a, "/"); print a[1] }')
+LISTEN=$(ss -ltnH 'sport = :4243' 2>/dev/null | awk '{print $4}' | tr '\n' ' ')
+say "  this host's first global IPv4 address: '${LANIP:-none}'"
+say "  TCP listeners on 4243: '${LISTEN:-none}'"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LANIP" ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5) and a global IPv4 address"
+    for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
+else
+    OUT=$(sprobe "E1 CONTROL: $ACC over the LAN address" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
+    E1OK=no
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "E1 control: $ACC logs in over $LANIP" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "E1b and enters the account" "account $ACC: entered" "$OUT"
+        printf '%s' "$OUT" | grep -qF "account $ACC: entered" && E1OK=yes
+    fi
+    if [ "$COMMIT" -eq 1 ] && [ "$E1OK" != yes ]; then
+        say "  the control failed, so the route over $LANIP does not work here (listeners: ${LISTEN:-none}) - the gate cannot be measured"
+        for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
+    else
+        # THE TEARDOWN'S DOOR (S.17 became S.28): only SDSYS is refused over
+        # the API unless the connection is from this machine.  A throwaway
+        # credential is set for sdsys, measured against, and the machine put
+        # back as the install made it.
+        #
+        # 20 Sep 26 - ***THE PREMISE THIS SECTION WAS BUILT ON IS GONE, AND THE
+        #   20 SEP CYCLE IS WHERE IT SHOWED: SIX ROWS FAILED AND THE PRODUCT WAS
+        #   RIGHT EVERY TIME.***  It used to say "sdsys carries no credential by
+        #   ruling (the installer does not set one)".  S.33 and S.37 reversed
+        #   that - the installer now ASKS for sdsys's SD password (the third of
+        #   three) and sets it, because the API door was previously held shut by
+        #   nothing but a credential never being issued.  So `MODIFY.PASSWORD
+        #   sdsys` in a sdsys session is `own and has.cred`
+        #   (set_acc_password:235) and asks "Current password:" first.  The
+        #   witness answered it with the NEW password, got "Password not
+        #   changed.", and E3/E3c/E3d/E3e/E4/E5 then measured a machine with no
+        #   matching credential - the trail reads `API REFUSED user=sdsys
+        #   reason=wrong password` for every one of them.
+        #
+        # ***AND THE OLD E6 DELETED THE OWNER'S OWN sdsys CREDENTIAL.***  It
+        #   `rm -f`'d the record and called the absence "the install's state",
+        #   which stopped being true the day the installer started setting one.
+        #   A witness may not quietly take away something the install put there.
+        #
+        # SO THE RECORD IS STASHED, NOT OVERWRITTEN.  The witness is root: it
+        # moves the real record aside, which makes `has.cred` false so the verb
+        # takes its "setting the first one" path with no current-password
+        # prompt, and E6 puts the original back byte for byte.  If the stash
+        # cannot be made, every row here is NOT REACHED - measuring the door
+        # with the administrator's real credential in place is not a thing to
+        # do by accident.
+        SDSYS_CRED="$SDSYS/\$cred/sdsys"
+        SDSYS_CRED_SAVED=""
+        SDSYS_CRED_SUM=""
+        if [ "$COMMIT" -eq 1 ] && [ -f "$SDSYS_CRED" ]; then
+            SDSYS_CRED_SAVED=$(mktemp) || SDSYS_CRED_SAVED=""
+            if [ -n "$SDSYS_CRED_SAVED" ] && cp -p "$SDSYS_CRED" "$SDSYS_CRED_SAVED"; then
+                SDSYS_CRED_SUM=$(sha256sum < "$SDSYS_CRED" | cut -d' ' -f1)
+                say "  the install's sdsys credential is stashed (sha256 ${SDSYS_CRED_SUM:0:16}…); E6 puts it back"
+                rm -f "$SDSYS_CRED"
+            else
+                SDSYS_CRED_SAVED=""
+            fi
+        fi
+        say "  sdsys credential present before MODIFY.PASSWORD: $(yesno_file "$SDSYS_CRED")   (must be no, or the verb asks for the current one)"
+        if [ "$COMMIT" -eq 1 ] && [ -f "$SDSYS_CRED" ]; then
+            say "  REFUSING this section: the sdsys credential could not be stashed, and overwriting the administrator's own is not something to do by accident"
+            for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
+            SDSYS_PW=""
+        else
+        SDSYS_PW="Zy-$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)q2"
+        PW_OS="$SDSYS_PW"
+        OUT=$(run_sd sdsys "MODIFY.PASSWORD sdsys (a throwaway credential for this section)" \
+              "MODIFY.PASSWORD sdsys" "_PW_" "_PW_")
+        PW_OS=""
+        [ "$COMMIT" -eq 1 ] && ck_says "E0 a throwaway sdsys credential was set" "Password set for account sdsys" "$OUT"
+        # ANCHOR ON THE FAILURE WORDING TOO: "Password not changed." is what a
+        # refused current-password entry prints, and it is the exact way this
+        # section broke on 20 Sep.  A row that only looks for success would let
+        # the next such change through as six cascading refusals again.
+        [ "$COMMIT" -eq 1 ] && ck_absent "E0b and it was not stopped at a current-password prompt" "Password not changed." "$OUT"
+        N0=0
+        [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+        # 19 Sep 26 dm - E3 REVERSES (owner, 19 Sep 2026).  Loopback TCP used to
+        #   admit sdsys; it no longer does, because TCP carries no peer
+        #   credential and an address cannot tell a local process from an ssh
+        #   tunnel that ends here.  SDSYS over the API is Unix-socket only now,
+        #   and the socket's peer must BE sdsys (system(43), SO_PEERCRED).
+        #   UNRUN WHEN WRITTEN: E3/E3c/E3d are owed the next cycle.
+        OUT=$(sprobe "E3 LEG A: sdsys over 127.0.0.1 (now refused - TCP has no credential)" "$SDSYS_PW" --host 127.0.0.1 --user sdsys --account sdsys)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "E3 sdsys over loopback TCP is refused in 10922's words" "SDSYS may use the API only from a process running as the sdsys user on this machine" "$OUT"
+            ck_absent "E3b and did not log in" "server signature VERIFIED" "$OUT"
+        fi
+        # THE CONTROL, AND THE SECTION IS WORTHLESS WITHOUT IT: every other row
+        # here is a refusal, so one route must still WORK or a server that
+        # refused everything would pass them all.  sdsys over the socket, from a
+        # process actually running as sdsys.
+        USOCK13E=$(sed -n 's#^ListenStream=\(/.*\)#\1#p' /usr/lib/systemd/system/sdclient.socket 2>/dev/null | head -1)
+        say "  the Unix socket, from the installed unit: '${USOCK13E:-none}'"
+        # The probe is copied somewhere every user can read: it lives under the
+        # repository owner's home, which sdsys and $ACC cannot reach.
+        PROBE_PUB=/var/tmp/sd-witness-scram-probe.py
+        if [ "$COMMIT" -eq 1 ] && [ -n "$USOCK13E" ]; then
+            cp -f "$SPROBE" "$PROBE_PUB" && chmod 644 "$PROBE_PUB"
+        fi
+        if [ "$COMMIT" -eq 1 ] && [ -z "$USOCK13E" ]; then
+            for r in "E3c socket as sdsys admitted" "E3d socket as $ACC refused" "E3e audited with the opener"; do not_reached "$r"; done
+        else
+            OUT=$(sprobe_as sdsys "E3c CONTROL: sdsys over the socket, as sdsys" "$SDSYS_PW" --unix "$USOCK13E" --user sdsys --account sdsys)
+            if [ "$COMMIT" -eq 1 ]; then
+                ck_says "E3c sdsys over the socket AS sdsys is admitted" "SCRAM: server signature VERIFIED" "$OUT"
+                ck_says "E3c2 and enters its own account" "account sdsys: entered" "$OUT"
+            fi
+            # THE ROW THE CHANGE EXISTS FOR.  $ACC is an ordinary local SD user
+            # with a Linux account - exactly what sits at the far end of an
+            # "ssh -L" tunnel.  It holds sdsys's SD password here, which is the
+            # worst case: the secret is not what is being tested, the OPENER is.
+            N1=0
+            [ "$COMMIT" -eq 1 ] && N1=$(wc -l < "$AUD")
+            OUT=$(sprobe_as "$ACC" "E3d sdsys's password over the socket, opened by $ACC" "$SDSYS_PW" --unix "$USOCK13E" --user sdsys --account sdsys)
+            if [ "$COMMIT" -eq 1 ]; then
+                ck_says "E3d refused in 10922's words though the password was right" "SDSYS may use the API only from a process running as the sdsys user on this machine" "$OUT"
+                ck_absent "E3d2 and did not log in" "server signature VERIFIED" "$OUT"
+                NEW=$(tail -n +"$((N1 + 1))" "$AUD")
+                printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+                ck_says "E3e audited, naming who opened the socket" "API REFUSED user=sdsys reason=sdsys API session opened by $ACC" "$NEW"
+            fi
+            rm -f "$PROBE_PUB"
+        fi
+        OUT=$(sprobe "E4 LEG B: the same account and password over $LANIP" "$SDSYS_PW" --host "$LANIP" --user sdsys --account sdsys)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "E4 refused at 48 in 10174's words" "SCRAM: login REFUSED at request 48: SDSYS may be reached through the API only from this machine" "$OUT"
+            ck_absent "E4b and did not log in" "server signature VERIFIED" "$OUT"
+            NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+            printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+            ck_says "E5 audited with the peer's address" "API REFUSED user=sdsys reason=sdsys on a remote API session from $LANIP" "$NEW"
+        fi
+        PW_OS=""
+        # 18 Sep 26 dm - MODIFY.PASSWORD CANNOT UNSET ONE, BY DESIGN: an empty
+        #   entry means "leave the password unchanged" (set_acc_password:192), and
+        #   the first real run's E6 asked the verb for a "Password REMOVED"
+        #   message the product has never had.  The register is one file per
+        #   account and the witness runs as root, so the file is handled here
+        #   and the row reads the machine back.
+        # 20 Sep 26 - AND THE THROWAWAY IS REPLACED BY THE ORIGINAL, NOT BY
+        #   NOTHING.  The install sets sdsys's SD password (S.33/S.37), so
+        #   "the install's state" is a record that EXISTS with the owner's own
+        #   key in it.  The row compares the sha256 the stash was taken with,
+        #   because a restore that put back the wrong bytes would satisfy a
+        #   mere "does it exist".
+        rm -f "$SDSYS_CRED"
+        if [ -n "$SDSYS_CRED_SAVED" ] && [ -f "$SDSYS_CRED_SAVED" ]; then
+            cp -p "$SDSYS_CRED_SAVED" "$SDSYS_CRED"
+            rm -f "$SDSYS_CRED_SAVED"
+            [ "$COMMIT" -eq 1 ] && ck "E6 the install's own sdsys credential is back, byte for byte" \
+               "$SDSYS_CRED_SUM" "$(sha256sum < "$SDSYS_CRED" 2>/dev/null | cut -d' ' -f1)"
+        else
+            # No stash means the install had no sdsys credential to begin with -
+            # a pre-S.33 install, or one where the owner skipped that password.
+            # Then the absence IS the state to return to, and the row says which
+            # of the two cases it is rather than leaving a reader to guess.
+            say "  (no stash: this install had no sdsys credential, so the absence is what it goes back to)"
+            [ "$COMMIT" -eq 1 ] && ck "E6 the throwaway sdsys credential is gone (this install had none)" no "$(yesno_file "$SDSYS_CRED")"
+        fi
+        fi
+    fi
+fi
+
+# ==========================================================================
+# 20 Sep 26 dm - 13f IS REVERSED BACK, AND IT IS THE ROW THAT MAKES THE WORD
+# MEAN SOMETHING (S.29 part 3).  S.28 disposed of the per-account API route;
+# the owner's ruling of 18/19 Sep restores it: sdapi membership IS
+# the route, MODIFY.ACCOUNT takes it away and gives it back, and apisrvr
+# refuses a non-member with 10073.
+#
+# ***THE DOOR IS DRIVEN BOTH WAYS, ON A REAL SCRAM LOGIN, AND THE MEMBERSHIP IS
+# READ FROM THE MACHINE.***  A narrowing-only build passes every obvious test
+# (the teardown paid for that lesson once - UNSUSPENDED exists because of it),
+# so the order is: admitted with the route, REFUSED without it, admitted again
+# when it is given back.  F2's admission is the control: without it, F4's
+# refusal could be any of the dozen other reasons a login fails.
+#
+# WHY id -nG AND NOT THE VERB'S OWN REPORT: MODIFY.ACCOUNT saying "the API
+# only, not ssh" is the verb's claim about itself.  The group is the fact.
+head2 "13f. S.29 - the per-account API route, narrowed and re-widened (10073)"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ]; }; then
+    say "  needs zzrel1 adopted and the SD password (13, 13b A5)"
+    for r in "F1 the sdapi group exists" "F1b the account has the route" \
+             "F2 login works with it" "F3 NONE takes the route away" \
+             "F4 THE ROW: refused 10073 without it" "F5 BOTH gives it back" \
+             "F6 and the login works again"; do not_reached "$r"; done
+else
+    OUT=$(getent group sdapi 2>/dev/null)
+    [ "$COMMIT" -eq 1 ] && ck "F1 the sdapi group exists" yes "$( [ -z "$OUT" ] && echo no || echo yes )"
+    f_in_sdapi() { id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdapi && echo yes || echo no; }
+    [ "$COMMIT" -eq 1 ] && ck "F1b $ACC has the API route to begin with" yes "$(f_in_sdapi)"
+
+    OUT=$(sprobe "F2 CONTROL: the SCRAM login WITH the sdapi route" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F2 the login works while the route is there" "account $ACC: entered" "$OUT"
+        ck_absent "F2b and it was not refused 10073" "not permitted to use the API" "$OUT"
+    fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC NONE (take both routes away)" "MODIFY.ACCOUNT $ACC NONE")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F3 NONE reports the routes gone (10079)" "has no remote access" "$OUT"
+        ck "F3b and the machine agrees: not in sdapi" no "$(f_in_sdapi)"
+    fi
+
+    OUT=$(sprobe "F4 THE ROW: the same login with the route withdrawn" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F4 refused in 10073's words" "not permitted to use the API" "$OUT"
+        ck_absent "F4b and it never entered the account" "account $ACC: entered" "$OUT"
+    fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC BOTH (give them back)" "MODIFY.ACCOUNT $ACC BOTH")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F5 BOTH restores what NONE took (10078)" "ssh and the API" "$OUT"
+        ck "F5b and the machine agrees: in sdapi again" yes "$(f_in_sdapi)"
+    fi
+
+    OUT=$(sprobe "F6 the door really is two-way: log in again" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "F6 the login works again" "account $ACC: entered" "$OUT"
+fi
+
+# ==========================================================================
+# 18 Sep 26 dm - TEARDOWN (S.25): 13j IS STRUCK.  Q.22 tierapi asked whether a
+# client can reach all three tiers and is stopped from one it should not; with
+# one VOC layer there are no tiers for a client to reach, and the upward-
+# refusal it measured was the tier gate 13b's A4 already struck.  J5's own-voc
+# write question stays answered by source: an API session runs as the
+# account's own user, and its own VOC records are its own files.
+head2 "13j. Q.22 tierapi - struck: there is one layer, and witness-absence.sh proves it"
+
+# ==========================================================================
+# Q.22 sdsyswrite - CAN SDSYS REACHED BY LOGTO WRITE THE ADMINISTRATOR STORES?
+# The port's verify-sdsyswrite (its PRE_RELEASE_FIXES 68/73).  Under the
+# teardown the stores belong to the administrator: the register is sdsys:sdusers
+# 644 and $cred is sdsys:sdusers 700 (installsdai.sh - the GROUP is sdusers:
+# there is no sdsys group on this box, corrected 18 Sep 26 after the first
+# fresh cycle died on it), and the administrator IS a
+# local sdsys session - no euid dance.  The route the port found untested
+# transfers: a session that STARTS IN AN ORDINARY ACCOUNT and reaches SDSYS by
+# LOGTO (section 2b's shape) still writes the stores.
+#   (19 Sep 26: Y1 runs in SDSYS BEFORE the LOGTO - MODIFY.ACCOUNT is not in
+#   an ordinary account's VOC; Y2 is the write made after it.)
+#   Y0 the route: WHO names zzrel1 after the LOGTO.
+#   Y1 MODIFY.ACCOUNT zzrel1 SUSPENDED, in SDSYS: field 5 (the suspension
+#      flag) goes to SUSPENDED ON DISK, read before and after.
+#   Y2 MODIFY.PASSWORD zzrel1 from zzrel1, with the SAME SD password: $cred's
+#      salt (field 3) changes on disk, and Y2c the SCRAM proof still verifies
+#      with it - the write landed and is right, not merely present; Y2d the
+#      account, suspended by Y1, is then refused at the API door.
+#   Y3 CONTROL, THE REFUSAL THAT MAKES Y1 MEAN THE PRIVILEGE: a plain-sd
+#      session has no MODIFY.ACCOUNT ("not in your VOC") and field 5 is still
+#      SUSPENDED.  Then sdsys restores UNSUSPENDED.
+head2 "13g. Q.22 sdsyswrite - store writes land from the administrator after a LOGTO"
+reg_field() { sed -n "${2}p" "$REGISTER/$1" 2>/dev/null; }
+cred_salt() { sed -n '3p' "$SDSYS/\$cred/$1" 2>/dev/null; }
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5) and zzrel2 (section 8)"
+    for r in "Y0 route zzrel1 then sdsys" "Y1 SUSPENDED landed" "Y2 password set" "Y2b salt changed" "Y2c login works" "Y2d suspended refused" "Y3 plain-sd refused 2001" "Y3b field 5 unchanged" "Y4 restored"; do not_reached "$r"; done
+else
+    FLAG_BEFORE=""; SALT_BEFORE=""
+    if [ "$COMMIT" -eq 1 ]; then
+        FLAG_BEFORE=$(reg_field "$ACC" 5); SALT_BEFORE=$(cred_salt "$ACC")
+        say "  before: register $ACC field 5 (ACC\$SUSPENDED) = '${FLAG_BEFORE}'; \$cred/$ACC salt = ${#SALT_BEFORE} characters"
+    fi
+    # 15 Sep 26 - LOGTO $ACC FIRST.  Starting sudo sd in $ADIR was meant to put
+    # the session in $ACC, but it lands in SDSYS - the first WHO read "sdsys"
+    # on dea3736 and 0d58171 - so Y1-Y4 measured writes from a session that
+    # never took the route (Y0).  LOGTO $ACC makes the ordinary account the
+    # starting point on purpose, as section 2b's arrivals already do.  18 Sep:
+    # the session is sdsys (the administrator) throughout.
+    say "  --- sd session as sdsys, STARTED IN $ADIR: MODIFY.ACCOUNT $ACC SUSPENDED; LOGTO $ACC; WHO; MODIFY.PASSWORD $ACC (password not shown) ---"
+    # 18 Sep 26 dm - THE SECOND HALF OF THE ROUTE IS GONE (S.26): LOGTO sdsys is
+    #   refused for everybody, so the session LOGTOs INTO the ordinary account and
+    #   the administrator's stores are written FROM THERE.  That is the stronger
+    #   claim and the one S.2 is about - the administrator keeps its access across
+    #   a LOGTO - and a failure now means the write did not land, not that a route
+    #   was missing.
+    if [ "$COMMIT" -eq 1 ]; then
+        # 19 Sep 26 - MODIFY.ACCOUNT RUNS BEFORE THE LOGTO.  It is in sdsys's
+        #   VOC only (voc_template; NEWVOC has no admin verbs, in either port),
+        #   so after LOGTO $ACC it was "not in your VOC" and Y1 measured a verb
+        #   that could not be reached (fifth cycle).  The write-after-LOGTO
+        #   claim is carried by MODIFY.PASSWORD, which NEWVOC does ship (W.10).
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nMODIFY.ACCOUNT %s SUSPENDED\nLOGTO %s\nWHO\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
+                  "$ACC" "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
+        WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
+        ck "Y0 the route: WHO named $ACC" "$ACC " "$WHOS"
+        ck "Y1 SUSPENDED landed in the register on disk (field 5 '$FLAG_BEFORE' -> SUSPENDED)" SUSPENDED "$(reg_field "$ACC" 5)"
+        ck_says "Y2 MODIFY.PASSWORD reported it" "Password set for account $ACC" "$OUT"
+        SALT_AFTER=$(cred_salt "$ACC")
+        ck "Y2b the \$cred record was rewritten on disk (the salt changed)" yes "$([ -n "$SALT_AFTER" ] && [ "$SALT_AFTER" != "$SALT_BEFORE" ] && echo yes || echo no)"
+    fi
+    OUT=$(sprobe "Y2c the login with the same SD password, after the rewrite" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    # 19 Sep 26 - THE ACCOUNT IS SUSPENDED HERE (Y1 now runs first, and Y4
+    #   lifts it later), so the entry after the login is refused, rightly -
+    #   sixth cycle.  What Y2c is about is the CREDENTIAL, and the probe's
+    #   success-only line for that is the verified server signature (the
+    #   server sends it only when the proof matched).  Y2d is the bonus the
+    #   new order buys: a suspended account is refused at the API door.
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "Y2c the rewritten credential authenticates" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "Y2d and the suspended account is not entered" "account $ACC: REFUSED" "$OUT"
+    fi
+    OUT=$(run_sd "$ACC2" "CONTROL: plain-sd MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
+    if [ "$COMMIT" -eq 1 ]; then
+        # 19 Sep 26 - the refusal is now the verb's absence: a plain account's
+        #   VOC has no MODIFY.ACCOUNT (fifth cycle), so 2001 is never reached.
+        ck_says "Y3 a plain account has no MODIFY.ACCOUNT (not in its VOC)" "MODIFY.ACCOUNT is not in your VOC" "$OUT"
+        ck "Y3b and the register field 5 is still SUSPENDED" SUSPENDED "$(reg_field "$ACC" 5)"
+    fi
+    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
+    [ "$COMMIT" -eq 1 ] && ck "Y4 restored: field 5 is blank" "" "$(reg_field "$ACC" 5)"
+fi
+
+# ==========================================================================
+# S.19 - EVERY API CONNECTION IS TLS 1.3, AND THE LOGIN IS BOUND TO IT.
+# Placed before 13h, which changes the listener and ends by clearing the SD
+# password.  scram-probe drives libssl itself (Python's ssl module cannot
+# export the binding), so every sprobe call in this run already goes over TLS;
+# this section adds the rows that would pass if the transport were NOT secure.
+#   T1 CONTROL: a bound login over TCP runs WHO, and the probe names the TLS
+#      version it negotiated.
+#   T2 the same over the Unix socket (USOCK, read from the unit in 13c).
+#   T3 a client WITHOUT TLS gets no ACK: the server said nothing in plaintext.
+#   T4 the downgrade: the unbound 'n,,' header inside TLS is refused at 47.
+#   T5 the identity: /etc/sd-tls root 700 and api.pem root 600, made by the
+#      first connection at the latest.
+#   T6 the relay is not root: during a held session, the session's sd process
+#      has an sd child owned by nobody.  Null guard: the session is found first.
+#   T7 THE OWNER'S FALSIFIER, without tcpdump: a recording proxy between the
+#      probe and 127.0.0.1:4243 keeps every byte both ways while the session
+#      DISPLAYs a marker.  The marker must reach the probe (control) and must
+#      not be in the recording, nor the user name; under 1 KB measured nothing.
+#   T8 the installed sd links libssl.
+#   T9-T13 (15 Sep 2026, adopted from the Windows port's verify-scramlogin, its
+#      RELEASE_1.1 42): each message is wrong in EXACTLY ONE WAY, so the
+#      refusal names which server check fired.  Refused at 48 in 5272's words:
+#        T9  a captured client-final replayed on a new connection (c= rewritten
+#            to that connection's binding, so only the nonce is stale)
+#        T10 a tampered nonce
+#        T11 c= carrying the binding with one bit flipped - a login relayed by
+#            a man in the middle
+#      Refused at 47 in 5272's words:
+#        T12 the 'y,,' downgrade header
+#        T13 an m= mandatory extension
+#   T14 the wire line: the password is absent from every plaintext byte a
+#      bound login handed to TLS.  T14b/c CONTROL: --legacy's request 24 carries
+#      the password, is refused, and the same search FINDS it.
+head2 "13i. S.19 - the API is TLS 1.3 and the login is bound to it"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -f "$SPROBE" ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5) and $SPROBE"
+    for r in "T1 bound login" "T1b TLS 1.3" "T1c WHO" "T2 unix socket TLS" "T2b entered" "T3 no plaintext ACK" "T3b no plaintext" "T4 n,, refused" "T4b not logged in" "T9 replay refused" "T9b replay not accepted" "T10 tampered nonce refused" "T10b not accepted" "T11 wrong binding refused" "T11b not accepted" "T12 y,, refused" "T12b not accepted" "T13 m= refused" "T13b not accepted" "T14 password absent from the wire line" "T14b legacy refused" "T14c the wire search finds it" "T5 identity dir" "T5b identity file" "T6 session found" "T6b relay is nobody" "T7 marker reached the probe" "T7b recording measured" "T7c marker not on the wire" "T7d user name not on the wire" "T8 libssl"; do not_reached "$r"; done
+else
+    OUT=$(sprobe "T1 control: a bound login over TCP, WHO" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T1 SCRAM bound to TLS, server signature verified" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "T1b the session is TLS 1.3" "tls      : TLSv1.3" "$OUT"
+        ck_who "T1c WHO names $ACC" "$ACC" "$(printf '%s' "$OUT" | sed -n 's/^| //p')"
+    fi
+    OUT=$(sprobe "T2 a bound login over the Unix socket" "$SCRAM_PW" --unix "${USOCK:-/tmp/sdsys/sdclient.socket}" --user "$ACC" --account "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T2 the Unix socket is TLS 1.3 too" "tls      : TLSv1.3" "$OUT"
+        ck_says "T2b and the account is entered" "account $ACC: entered" "$OUT"
+    fi
+    OUT=$(sprobe "T3 a client without TLS" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --no-tls)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T3 no plaintext ACK" "PLAINTEXT: no ACK" "$OUT"
+        ck_absent "T3b the server did not speak plaintext" "PLAINTEXT: ACK RECEIVED" "$OUT"
+    fi
+    OUT=$(sprobe "T4 the downgrade: n,, inside TLS" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC" --no-binding)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T4 the unbound header is refused at 47" "SCRAM: login REFUSED at request 47" "$OUT"
+        ck_absent "T4b and it does not log in" "SCRAM: server signature VERIFIED" "$OUT"
+    fi
+    OUT=$(sprobe "T9 replay a captured client-final on a new connection" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --replay)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T9 the replayed client-final is refused at 48 in 5272's words" "REPLAY: the captured client-final was REFUSED at request 48: Invalid authentication message" "$OUT"
+        ck_absent "T9b and it is never accepted" "REPLAY: the captured client-final was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T10 a client-final answering a nonce the server never issued" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --tamper-nonce)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T10 the tampered nonce is refused at 48 in 5272's words" "SCRAM: login REFUSED at request 48: Invalid authentication message" "$OUT"
+        ck_absent "T10b and it is not accepted" "a deliberately wrong client-final was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T11 c= with one bit of the binding flipped (a relayed login)" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --bad-cbind)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T11 the wrong channel binding is refused at 48 in 5272's words" "SCRAM: login REFUSED at request 48: Invalid authentication message" "$OUT"
+        ck_absent "T11b and it is not accepted" "a deliberately wrong client-final was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T12 the 'y,,' downgrade header" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --gs2 'y,,')
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T12 'y,,' is refused at 47 in 5272's words" "SCRAM: login REFUSED at request 47: Invalid authentication message" "$OUT"
+        ck_absent "T12b and it is not accepted" "was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T13 an m= mandatory extension after the bound header" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --gs2 'p=tls-exporter,,m=whatever,')
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T13 the m= extension is refused at 47 in 5272's words" "SCRAM: login REFUSED at request 47: Invalid authentication message" "$OUT"
+        ck_absent "T13b and it is not accepted" "was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T14 the wire line on a bound login" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "T14 the password is absent from the plaintext the probe handed to TLS" "wire     : password absent from the" "$OUT"
+    OUT=$(sprobe "T14b CONTROL: --legacy puts the password in request 24" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --legacy)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T14b the cleartext login is refused" "LEGACY: login REFUSED at request 24" "$OUT"
+        ck_says "T14c and the same wire search FINDS its password" "wire     : password FOUND IN the" "$OUT"
+    fi
+
+    say "  > stat -c '%n %U %a' /etc/sd-tls /etc/sd-tls/api.pem"
+    if [ "$COMMIT" -eq 1 ]; then
+        say "      | $(stat -c '%n %U %a' /etc/sd-tls /etc/sd-tls/api.pem 2>&1 | tr '\n' ';')"
+        ck "T5 /etc/sd-tls is root 700" "root 700" "$(stat -c '%U %a' /etc/sd-tls 2>&1)"
+        ck "T5b api.pem is root 600" "root 600" "$(stat -c '%U %a' /etc/sd-tls/api.pem 2>&1)"
+    fi
+
+    say "  --- scram-probe held 10 s: who owns the TLS relay ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        HF=$(mktemp)
+        SD_SCRAM_PASSWORD="$SCRAM_PW" timeout 60 python3 "$SPROBE" --host 127.0.0.1 --user "$ACC" --account "$ACC" --hold 10 >"$HF" 2>&1 &
+        HPID=$!
+        sleep 5
+        PS=$(ps -eo pid=,ppid=,user=,comm= 2>&1)
+        SESS=$(printf '%s\n' "$PS" | awk -v u="$ACC" '$3 == u && $4 == "sd" { print $1; exit }')
+        say "      | the held session's sd pid: ${SESS:-none}"
+        if [ -n "$SESS" ]; then
+            ck "T6 the held session's sd process was found" yes yes
+            RELAY=$(printf '%s\n' "$PS" | awk -v p="$SESS" '$2 == p && $4 == "sd" { print $3; exit }')
+            say "      | its sd child runs as: ${RELAY:-none}"
+            ck "T6b the TLS relay (that sd's child) runs as nobody" nobody "$RELAY"
+        else
+            ck "T6 the held session's sd process was found" yes no
+            not_reached "T6b relay is nobody"
+        fi
+        wait "$HPID"
+        sed -e 's/^/      | /' "$HF"
+        rm -f "$HF"
+    fi
+
+    say "  --- T7 a recording proxy between the probe and 127.0.0.1:4243 ---"
+    PXP=45243
+    MARK="zztls$(date +%s%N)"
+    if [ "$COMMIT" -eq 1 ]; then
+        REC=$(mktemp)
+        python3 - "$PXP" "$REC" <<'PYEOF' &
+import socket, sys, threading
+port, rec = int(sys.argv[1]), sys.argv[2]
+ls = socket.socket()
+ls.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+ls.bind(("127.0.0.1", port))
+ls.listen(1)
+ls.settimeout(60)
+c, _ = ls.accept()
+s = socket.create_connection(("127.0.0.1", 4243))
+out = open(rec, "wb")
+lock = threading.Lock()
+def pump(a, b):
+    try:
+        while True:
+            d = a.recv(65536)
+            if not d:
+                break
+            with lock:
+                out.write(d)
+                out.flush()
+            b.sendall(d)
+    except OSError:
+        pass
+    for x in (a, b):
+        try:
+            x.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+t = threading.Thread(target=pump, args=(s, c))
+t.start()
+pump(c, s)
+t.join()
+out.close()
+PYEOF
+        PXPID=$!
+        sleep 1
+    fi
+    OUT=$(sprobe "T7 through the recording proxy: DISPLAY a marker" "$SCRAM_PW" --host 127.0.0.1 --port "$PXP" --user "$ACC" --account "$ACC" "DISPLAY $MARK")
+    if [ "$COMMIT" -eq 1 ]; then
+        wait "$PXPID"
+        RECBYTES=$(stat -c %s "$REC" 2>/dev/null || echo 0)
+        say "      | recorded $RECBYTES bytes; marker $MARK"
+        ck_says "T7 CONTROL: the marker reached the probe" "| $MARK" "$OUT"
+        ck "T7b the recording measured a session (over 1 KB)" yes "$([ "$RECBYTES" -gt 1024 ] && echo yes || echo no)"
+        ck "T7c the marker is NOT in the bytes on the wire" 0 "$(grep -a -c -F -- "$MARK" "$REC")"
+        ck "T7d nor is the user name" 0 "$(grep -a -c -F -- "n=$ACC" "$REC")"
+        rm -f "$REC"
+    fi
+
+    say "  > ldd $SD | grep libssl"
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "T8 the installed sd links libssl" yes "$(ldd "$SD" 2>&1 | grep -q 'libssl' && echo yes || echo no)"
+    fi
+fi
+
+# ==========================================================================
+# S.13 - REMOTE.API ON | LOCAL | OFF AND REMOTE.SSH ON | OFF (the port's verbs,
+# its PRE_RELEASE_FIXES 78).  ***THIS SECTION CHANGES THE MACHINE'S API LISTENER
+# AND FIREWALL***, so the exact prior state is saved first - the drop-in or its
+# absence, the socket's enabled/active state, the ufw 4243 and 22 allow rules -
+# and put back at the end, and again by cleanup if the run stops part-way.
+#   H0 the report forms run through SD and end on the helper's verdict line.
+#   H1 THE DESIGN NOTE'S FALSIFIER: a SCRAM session opened BEFORE "REMOTE.API
+#      LOCAL", paused across the socket restart, must still run WHO afterwards
+#      (Accept=yes: an accepted connection is its own service).  H1b-d LOCAL
+#      binds 127.0.0.1 only, the drop-in says so, no ufw 4243 rule; H2 a new
+#      loopback login works; H3 one to this host's LAN address cannot connect.
+#   H4 OFF: the socket is inactive and a loopback login cannot connect.
+#   H5 ON: 0.0.0.0:4243, a ufw 4243 rule when ufw is installed, LAN login works.
+#   H6 restored: the helper's verdict is the one H0 read.
+#   H7-H9 ssh: where ufw gates ssh, OFF removes the 22/tcp rule and ON adds it;
+#      where it does not, OFF is REFUSED with status 3 and changes nothing.
+#      Reachability from ANOTHER machine is not measured - this host's own
+#      traffic to its LAN address goes over lo, which ufw does not filter.
+head2 "13h. S.13 - REMOTE.API and REMOTE.SSH"
+DROPIN=/etc/systemd/system/sdclient.socket.d/sd-remote-api.conf
+ELEV=/usr/local/sbin/sd-elevate
+RA_SAVED=""
+# 15 Sep 26 - "ufw show added", as sd-elevate's ufw_has_allow now reads: while
+# ufw is inactive "ufw status" lists no rules, so H5c failed and H1d/H7b passed
+# without having looked (dea3736, 0d58171).
+ufw_rule_present() { command -v ufw >/dev/null 2>&1 && ufw show added 2>/dev/null | grep -Eq "^ufw allow (in )?$1( |\$)"; }
+listen_now() { systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' '; }
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -x "$ELEV" ] || [ -z "$LANIP" ]; }; then
+    say "  needs zzrel1 adopted, the SD password, $ELEV and a LAN address"
+    for r in "H0 report" "H1 held session survived" "H1b LOCAL binds loopback" "H1c drop-in" "H1d no 4243 rule" "H2 loopback login" "H3 LAN refused" "H4 OFF" "H4b loopback refused" "H5 ON" "H5b LAN login" "H6 restored" "H7 ssh"; do not_reached "$r"; done
+else
+    if [ "$COMMIT" -eq 1 ]; then
+        RA_DROPIN_BEFORE=no; [ -f "$DROPIN" ] && { RA_DROPIN_BEFORE=yes; RA_DROPIN_COPY=$(mktemp); cp "$DROPIN" "$RA_DROPIN_COPY"; }
+        RA_ENABLED_BEFORE=$(systemctl is-enabled sdclient.socket 2>/dev/null)
+        RA_ACTIVE_BEFORE=$(systemctl is-active sdclient.socket 2>/dev/null)
+        RA_4243_BEFORE=no; ufw_rule_present 4243/tcp && RA_4243_BEFORE=yes
+        RA_22_BEFORE=no; ufw_rule_present 22/tcp && RA_22_BEFORE=yes
+        RA_SAVED=yes
+        API_VERDICT0=$("$ELEV" remote-api show 2>&1 | sed -n 's/^The SD API is \(.*\)\.$/\1/p')
+        SSH_VERDICT0=$("$ELEV" remote-ssh show 2>&1 | sed -n 's/^Remote ssh access is \(.*\)\.$/\1/p')
+        say "  saved: drop-in=$RA_DROPIN_BEFORE socket=$RA_ENABLED_BEFORE/$RA_ACTIVE_BEFORE ufw 4243=$RA_4243_BEFORE 22=$RA_22_BEFORE"
+        say "  saved: API '$API_VERDICT0', ssh '$SSH_VERDICT0'; listening on: $(listen_now)"
+    fi
+    OUT=$(run_sd sdsys "REMOTE.API and REMOTE.SSH, report forms" "REMOTE.API" "REMOTE.SSH")
+    # 18 Sep 26 dm - AS SDSYS, NOT ROOT.  S.28 keeps REMOTE.API and REMOTE.SSH as
+    #   SDSYS's own (sd-elevate behind the sdsys-only sudoers), and the first real
+    #   run drove them as root - where CPROC refuses the session outright (10190),
+    #   so every H row measured the refusal instead of the verb.
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "H0 REMOTE.API reports through SD" "The SD API is $API_VERDICT0." "$OUT"
+        ck_says "H0b REMOTE.SSH reports through SD" "Remote ssh access is $SSH_VERDICT0." "$OUT"
+    fi
+
+    say "  --- scram-probe in the background: $ACC over 127.0.0.1, paused 12 s, then WHO ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        HF=$(mktemp)
+        SD_SCRAM_PASSWORD="$SCRAM_PW" timeout 90 python3 "$SPROBE" --host 127.0.0.1 --user "$ACC" --account "$ACC" --pause 12 WHO >"$HF" 2>&1 &
+        HPID=$!
+        sleep 4
+        say "  held session so far: $(grep -E 'entered|pausing' "$HF" | tr '\n' ' ')"
+    fi
+    OUT=$(run_sd sdsys "REMOTE.API LOCAL (while that session waits)" "REMOTE.API LOCAL")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "H1a REMOTE.API LOCAL reported" "The SD API is now LOCAL." "$OUT"
+        wait "$HPID"
+        sed -e 's/^/      | /' "$HF"
+        ck "H1 THE FALSIFIER: the session opened before the socket restart still ran WHO" yes "$(grep -Eq "^\| [0-9]+ $ACC\$" "$HF" && echo yes || echo no)"
+        rm -f "$HF"
+        L=$(listen_now); say "  listening on: $L"
+        ck "H1b LOCAL listens on 127.0.0.1:4243 and not 0.0.0.0:4243" yes "$([[ $L == *127.0.0.1:4243* && $L != *0.0.0.0:4243* ]] && echo yes || echo no)"
+        ck "H1c the drop-in names 127.0.0.1:4243" yes "$(grep -q '^ListenStream=127.0.0.1:4243$' "$DROPIN" 2>/dev/null && echo yes || echo no)"
+        ck "H1d no ufw allow rule for 4243/tcp" no "$(ufw_rule_present 4243/tcp && echo yes || echo no)"
+    fi
+    OUT=$(sprobe "H2 a new login over 127.0.0.1 while LOCAL" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "H2 LOCAL admits this machine" "account $ACC: entered" "$OUT"
+    OUT=$(sprobe "H3 a new login over $LANIP while LOCAL" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "H3 LOCAL does not listen on the LAN address" "scram-probe: CANNOT RUN - cannot connect" "$OUT"
+
+    OUT=$(run_sd sdsys "REMOTE.API OFF" "REMOTE.API OFF")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "H4 REMOTE.API OFF reported" "The SD API is now OFF." "$OUT"
+        ck "H4a the socket is no longer active" yes "$([ "$(systemctl is-active sdclient.socket 2>/dev/null)" != active ] && echo yes || echo no)"
+    fi
+    OUT=$(sprobe "H4b a login over 127.0.0.1 while OFF" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "H4b OFF admits nobody" "scram-probe: CANNOT RUN - cannot connect" "$OUT"
+
+    OUT=$(run_sd sdsys "REMOTE.API ON" "REMOTE.API ON")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "H5 REMOTE.API ON reported" "The SD API is now ON." "$OUT"
+        L=$(listen_now); say "  listening on: $L"
+        ck "H5a ON listens on 0.0.0.0:4243" yes "$([[ $L == *0.0.0.0:4243* ]] && echo yes || echo no)"
+        if command -v ufw >/dev/null 2>&1; then
+            ck "H5c a ufw allow rule for 4243/tcp exists" yes "$(ufw_rule_present 4243/tcp && echo yes || echo no)"
+        fi
+    fi
+    OUT=$(sprobe "H5b a login over $LANIP while ON" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "H5b ON admits the LAN address" "account $ACC: entered" "$OUT"
+
+    say "  --- REMOTE.SSH: OFF then ON where ufw gates ssh; OFF refused (status 3) where it does not - chosen from the saved verdict ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        if [ "$SSH_VERDICT0" = "NOT GATED BY THIS MACHINE'S FIREWALL" ]; then
+            OUT=$(run_sd sdsys "REMOTE.SSH OFF where ufw does not gate ssh" "REMOTE.SSH OFF")
+            ck_says "H7 REMOTE.SSH OFF is refused where it would gate nothing (status 3)" "Could not set remote ssh access to OFF (status 3)" "$OUT"
+            ck "H7b and the 22/tcp rule is as it was" "$RA_22_BEFORE" "$(ufw_rule_present 22/tcp && echo yes || echo no)"
+        else
+            OUT=$(run_sd sdsys "REMOTE.SSH OFF" "REMOTE.SSH OFF")
+            ck_says "H7 REMOTE.SSH OFF reported" "Remote ssh access is now OFF." "$OUT"
+            ck "H7b no ufw allow rule for 22/tcp" no "$(ufw_rule_present 22/tcp && echo yes || echo no)"
+            OUT=$(run_sd sdsys "REMOTE.SSH ON" "REMOTE.SSH ON")
+            ck_says "H8 REMOTE.SSH ON reported" "Remote ssh access is now ON." "$OUT"
+            ck "H8b a ufw allow rule for 22/tcp exists" yes "$(ufw_rule_present 22/tcp && echo yes || echo no)"
+        fi
+    fi
+    restore_remote "section 13h"
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "H6 restored: the API verdict is the one saved" "$API_VERDICT0" "$("$ELEV" remote-api show 2>&1 | sed -n 's/^The SD API is \(.*\)\.$/\1/p')"
+        ck "H9 restored: the ssh verdict is the one saved" "$SSH_VERDICT0" "$("$ELEV" remote-ssh show 2>&1 | sed -n 's/^Remote ssh access is \(.*\)\.$/\1/p')"
+    fi
+fi
+SCRAM_PW=""
+
+# ==========================================================================
+# Q.12 - THE ssh DOOR TO A SUSPENDED ACCOUNT.  sshd_config's "Match Group
+# sdusers,!sdadmin / ForceCommand sd" sends zzrel1 (PROGRAMMER, not sdadmin)
+# straight into sd.  A throwaway key is installed for zzrel1 only.  CONTROL
+# FIRST: before the suspend, ssh must land in sd and WHO name zzrel1 - without
+# it a refusal after could be ssh failing for any reason.  The API door is not
+# measured here (task table W.4).
+head2 "14. Q.12 - ssh into a SUSPENDED account is refused (10107); S.29 - and into one without the ssh route (10074)"
+ssh_ready() {
+    command -v ssh >/dev/null && command -v ssh-keygen >/dev/null || return 1
+    systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null
+}
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || ! ssh_ready; }; then
+    say "  ssh, ssh-keygen or an active sshd is missing"
+    for r in "X1 control landed in sd" "X2 suspended" "X3 10107" "X4 no WHO" "X6 API refused" \
+             "X7 ssh route withdrawn" "X8 ssh refused 10074" "X9 ssh route given back"; do not_reached "$r"; done
+else
+    SSH_OPTS=(-F /dev/null -o BatchMode=yes -o PasswordAuthentication=no -o IdentitiesOnly=yes
+              -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o LogLevel=ERROR)
+    ssh_sd() {   # $1 title; stdin body is fixed: blank, TERM, WHO, OFF
+        say "  --- ssh $ACC@127.0.0.1 (ForceCommand sd): $1 ---" >&2
+        [ "$COMMIT" -eq 1 ] || { say "      (dry run - not executed)" >&2; return 0; }
+        local out
+        out=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 45 ssh "${SSH_OPTS[@]}" -i "$SSHDIR/key" "$ACC@127.0.0.1" 2>&1 | strip)
+        printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+        printf '%s' "$out"
+    }
+    if [ "$COMMIT" -eq 1 ]; then
+        SSHDIR=$(mktemp -d)
+        ssh-keygen -q -t ed25519 -N '' -C witness-release-run -f "$SSHDIR/key"
+        UHOME=$(getent passwd "$ACC" | cut -d: -f6)
+        install -d -m 700 -o "$ACC" -g "$(id -gn "$ACC")" "$UHOME/.ssh"
+        install -m 600 -o "$ACC" -g "$(id -gn "$ACC")" "$SSHDIR/key.pub" "$UHOME/.ssh/authorized_keys"
+        say "  key installed in $UHOME/.ssh/authorized_keys (removed with the user)"
+    fi
+    OUT=$(ssh_sd "control, before the suspend")
+    [ "$COMMIT" -eq 1 ] && ck_who "X1 control: ssh landed in sd and WHO names $ACC" "$ACC" "$OUT"
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC SUSPENDED")
+    [ "$COMMIT" -eq 1 ] && ck_says "X2 MODIFY.ACCOUNT reported the suspend (10193)" "is now suspended" "$OUT"
+    OUT=$(ssh_sd "after the suspend")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "X3 refused in 10107's words" "Account $ACC is suspended" "$OUT"
+        if who_in "$ACC" "$OUT"; then ck "X4 and never reached a command (no WHO)" no yes; else ck "X4 and never reached a command (no WHO)" no no; fi
+    fi
+    # The API door (Q.12's other half): section 13b's A1 is its control - the
+    # same password into the same account connected before the suspend.
+    if [ "$COMMIT" -eq 1 ] && [ -z "$PROBE_PW" ]; then
+        not_reached "X6 API refused"
+    else
+        OUT=$(probe "X6 the API door, while suspended" --user "$ACC" --account "$ACC" WHO)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "X6 the API connection was refused" "SDConnect returned 0" "$OUT"
+            ck_absent "X6b and not at the login (no 5017; A1's password)" "Invalid username or password" "$OUT"
+        fi
+    fi
+    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
+    [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted (10192)" "is no longer suspended" "$OUT"
+
+    # ======================================================================
+    # 20 Sep 26 - S.29 PART 3, THE ssh HALF, ON A REAL ssh LOGIN.  This is the
+    # only place in the project where one runs, so the ssh route is measured
+    # here and not in a scratch sshd_config.  X1 above is already the control
+    # in the "with the route" direction - the same key, the same account,
+    # landed in sd - so these rows only have to take it away and give it back.
+    #
+    # API, NOT NONE, IS WHAT IS ASKED FOR: it withdraws the ssh route and
+    # LEAVES the API one, so a refusal here cannot be "the account lost
+    # everything" and the two routes are shown to be independent.
+    #
+    # sshd RESOLVES GROUPS AT CONNECT TIME, so no reload is needed between the
+    # verb and the ssh - which is itself part of what these rows measure.
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC API (withdraw ssh, keep the API)" "MODIFY.ACCOUNT $ACC API")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "X7 the verb reports ssh gone, the API kept (10077)" "the API only, not ssh" "$OUT"
+        ck "X7b and the machine agrees: out of sdssh, still in sdapi" "no yes" \
+           "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdssh && echo yes || echo no) $(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdapi && echo yes || echo no)"
+    fi
+    OUT=$(ssh_sd "THE ROW: ssh with the ssh route withdrawn")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "X8 ssh refused in 10074's words" "$ACC is not permitted to reach SD over ssh" "$OUT"
+        if who_in "$ACC" "$OUT"; then ck "X8b and it never reached sd (no WHO)" no yes; else ck "X8b and it never reached sd (no WHO)" no no; fi
+    fi
+    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC BOTH" "MODIFY.ACCOUNT $ACC BOTH")
+    [ "$COMMIT" -eq 1 ] && ck_says "X9 BOTH gives the ssh route back (10078)" "ssh and the API" "$OUT"
+    OUT=$(ssh_sd "the door is two-way: ssh again")
+    [ "$COMMIT" -eq 1 ] && ck_who "X9b ssh lands in sd again and WHO names $ACC" "$ACC" "$OUT"
+fi
+PROBE_PW=""
+LINUX_PW=""
+
+# ==========================================================================
+# S.5, the other half, AS THE TEARDOWN LEFT IT - DELETE.ACCOUNT of the account
+# SD created in section 1 (stamped Linux user, 10084's longer question, the
+# Linux user goes with it).  The borrowed-user branch (10085/10036) no longer
+# exists: ADOPT is install-only, so nothing on a delivered machine carries an
+# SD account over a Linux user SD did not create - witness-absence.sh says so.
+#
+# P.31 RIDES ON THE SAME RUN - K8/K9.  delacc's cross-reference scan opens every
+# OTHER account's voc, and the 15 Sep fix names one it cannot open (10188) and
+# carries on instead of aborting the verb before the confirmation.  The 18:26
+# witness ran the changed verb twice and THE NEW ELSE NEVER FIRED, because every
+# voc was present - so the warning path shipped unexercised.  On Linux the
+# deleter is the administrator, so a mode cannot hide a voc from it and only a
+# GENUINELY MISSING one reaches the ELSE (delacc's own note says so).  The
+# witness therefore makes exactly that condition on its own throwaway account -
+# $ACC2's voc is moved aside and put straight back - and touches nothing else.
+head2 "15. S.5 - DELETE.ACCOUNT of the SD-created user takes the user (10084, 10028); P.31's 10188"
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "K1 one question" "K2 10084" "K3 10028" "K4 register gone" "K5 user gone" "K7 credential gone" "K10 directory gone"; do not_reached "$r"; done
+    for r in "K8 10188 named $ACC2" "K9 the deletion finished anyway"; do not_reached "$r"; done
+else
+    # Make the condition, and SAY WHETHER IT WAS MADE.  If the voc is not
+    # missing when DELETE.ACCOUNT runs, K8 could only pass on nothing, so it
+    # is NOT REACHED rather than passed.
+    VOC_ASIDE=""
+    VOC_MADE=0
+    say "  > mv $A2DIR/voc $A2DIR/voc.witness-aside   (P.31: make $ACC2's voc MISSING)"
+    if [ "$COMMIT" -eq 1 ] && [ -d "$A2DIR/voc" ] && mv "$A2DIR/voc" "$A2DIR/voc.witness-aside"; then
+        VOC_ASIDE="$A2DIR/voc.witness-aside"
+        VOC_MADE=1
+    fi
+    if [ "$COMMIT" -eq 1 ]; then
+        say "      | $A2DIR/voc          : $(yesno_dir "$A2DIR/voc")   (must be no)"
+        say "      | $A2DIR/voc.witness-aside: $(yesno_dir "$A2DIR/voc.witness-aside")   (must be yes)"
+    fi
+    # 18 Sep 26 dm - THE ACCOUNT MUST BE IDLE.  The first real run's K5 failed on
+    #   "userdel: user zzrel1 is currently used by process 14001" - a session an
+    #   earlier section had left - and the product warned and carried on, which is
+    #   right: userdel refuses a uid in use.  Kill this account's sessions and
+    #   wait for its processes to go, so the row measures the DELETION and not a
+    #   session that should have ended.
+    "$SD" -k "$ACC" >/dev/null 2>&1 || true
+    for _ in $(seq 1 15); do
+        pgrep -u "$ACC" >/dev/null 2>&1 || break
+        sleep 1
+    done
+    if pgrep -u "$ACC" >/dev/null 2>&1; then
+        say "      | WARNING: $ACC still has a running process; userdel may refuse"
+    fi
+    ZZDEEP_BEFORE=$(yesno_dir "$ADIR/zzdeep")
+    [ "$COMMIT" -eq 1 ] && say "      | before: $ADIR/zzdeep (the user's own subtree): $ZZDEEP_BEFORE; owner/mode $(stat -c '%U:%G %a' "$ADIR/zzdeep" 2>/dev/null)"
+    OUT=$(run_sd sdsys "DELETE.ACCOUNT $ACC, answered y" "DELETE.ACCOUNT $ACC" "y")
+    # Put it back BEFORE the checks, so a failing check cannot leave $ACC2
+    # crippled for the sections that follow or for the cleanup.
+    if [ -n "$VOC_ASIDE" ] && [ -d "$VOC_ASIDE" ]; then
+        mv "$VOC_ASIDE" "$A2DIR/voc" && VOC_ASIDE=""
+        say "      | restored $A2DIR/voc  : $(yesno_dir "$A2DIR/voc")   (must be yes)"
+    fi
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "K1 exactly ONE confirmation was asked" 1 "$(printf '%s' "$OUT" | grep -o '(y/<n>)?' | wc -l)"
+        ck_says "K2 the longer question (10084)" "its Linux user" "$OUT"
+        ck_says "K3 the Linux user went with it (10028)" "OS User:" "$OUT"
+        ck "K4 the register record is gone" no "$(yesno_file "$REGISTER/$ACC")"
+        ck "K5 the SD-created Linux user is gone" no "$(yesno_user "$ACC")"
+        ck "K7 and its SD password went with it (\$cred/$ACC, written in section 13)" no "$(yesno_file "$SDSYS/\$cred/$ACC")"
+        # 19 Sep 26 - THE DIRECTORY TOO.  The fifth cycle's DELETE.ACCOUNT left
+        #   $ADIR (section 5's zzdeep is the user's own 755 subtree, which the
+        #   sdsys session cannot remove) and nothing checked it; delacc now goes
+        #   through sd-elevate rmtree-account and names a survivor (10919).
+        #   $ADIR held zzdeep when the delete ran, or K10 proves nothing (K10a).
+        ck "K10a the user's own subtree was there to delete" yes "$ZZDEEP_BEFORE"
+        ck "K10 the account directory is gone (zzdeep included)" no "$(yesno_dir "$ADIR")"
+        ck_absent "K10b and 10919 did not fire" "was not removed; remove it by hand" "$OUT"
+        # P.31.  The needle is delacc's own wording on the POSITIVE path - the
+        # 10188 text with the account name in it - so it cannot match a refusal
+        # or an echo of the command.  K9 is the "carries on" half: the abort
+        # this fix removed happened BEFORE the confirmation, so a deletion that
+        # finished is the proof the scan did not kill the verb.
+        if [ "$VOC_MADE" -eq 1 ]; then
+            ck_says "K8 10188 named $ACC2, whose voc was missing" "Account $ACC2 could not be opened" "$OUT"
+            ck "K9 and DELETE.ACCOUNT still finished (register record gone)" no "$(yesno_file "$REGISTER/$ACC")"
+        else
+            say "  $A2DIR/voc could not be moved aside, so the 10188 path was not made"
+            not_reached "K8 10188 named $ACC2"
+            not_reached "K9 the deletion finished anyway"
+        fi
+        [ "$(yesno_file "$REGISTER/$ACC")" = no ] && MADE_ACCOUNT=0
+    fi
+fi
+
+# ==========================================================================
+# S.18 - WHAT THE DEAD LOGIN CODE LEFT BEHIND, read off the install.  No
+# throwaway needed.
+#   R1 the installed sd links no libcrypt and no libbsd (crypt() and
+#      getpeereid() went with login_user); libsodium must be listed, or the
+#      ldd read nothing and the absences mean nothing.
+#   R2 CONFIG reports no APILOGIN line, against CMDSTACK which it must.
+#   R3 THE TRAP: an unrecognised sd.conf key is FATAL (config.c), and a keep
+#      cycle restores an sd.conf written while APILOGIN=1 shipped.  If the
+#      live /etc/sd.conf still carries it, sd.service being active is the
+#      proof it is accepted.  A full cycle ships sd.conf without it, and then
+#      R3 is NOT REACHED - it did not measure the claim, so it does not pass.
+#
+#      ***R3 IS MEASURABLE ONLY ON A KEEP-CONFIGURATION CYCLE, AND THAT IS A
+#      PRECONDITION OF THE ROW, NOT A FAULT IN IT.***  Answer Y to "keep your
+#      existing configuration" and R3 measures the claim; answer N and it
+#      cannot, because a fresh sd.conf has no APILOGIN line to accept.
+#
+#      A CHEAPER ROUTE WAS LOOKED FOR ON 15 Sep 2026 AND DOES NOT EXIST, so
+#      do not spend the session finding that out again.  read_config() is
+#      called from ONE place, sysseg.c:139, and only when the shared segment
+#      is being CREATED - so a session started against a private config named
+#      by SD_CONFIG never parses it at all (measured: the built sd with
+#      SD_CONFIG pointing at an absent file started normally and reached the
+#      : prompt).  Starting a second system to force the parse is not open
+#      either: the segment key is the fixed SD_SHM_KEY (sysseg.c:306), so
+#      `sd -start` finds the live segment and returns before reading any
+#      config.  Forcing the condition therefore means stopping the live
+#      system, which a witness run must not do to the box it is measuring.
+head2 "16. S.18 - no libcrypt/libbsd, no APILOGIN, a restored APILOGIN=1 starts"
+say "  > ldd $SD"
+if [ "$COMMIT" -eq 1 ]; then
+    LDD=$(ldd "$SD" 2>&1)
+    printf '%s\n' "$LDD" | sed -e 's/^/      | /'
+    if printf '%s' "$LDD" | grep -q 'libsodium'; then
+        ck "R1 ldd read the binary (libsodium listed)" yes yes
+        # "libcrypt.so", not "libcrypt": since S.19 sd links libcrypto.so.4,
+        # whose name contains "libcrypt", so the bare needle failed R1b on
+        # 0d58171 with no libcrypt linked (15 Sep).
+        ck_absent "R1b no libcrypt" "libcrypt.so" "$LDD"
+        ck_absent "R1c no libbsd" "libbsd" "$LDD"
+    else
+        ck "R1 ldd read the binary (libsodium listed)" yes no
+        for r in "R1b no libcrypt" "R1c no libbsd"; do not_reached "$r"; done
+    fi
+else
+    say "      (dry run - not executed)"
+fi
+OUT=$(run_sd sdsys "CONFIG" "CONFIG")
+if [ "$COMMIT" -eq 1 ]; then
+    ck_says "R2 CONFIG listed its settings (CMDSTACK)" "CMDSTACK" "$OUT"
+    ck_absent "R2b and no APILOGIN among them" "APILOGIN" "$OUT"
+fi
+say "  > grep -n APILOGIN /etc/sd.conf; systemctl is-active sd.service"
+if [ "$COMMIT" -eq 1 ]; then
+    CONFLINE=$(grep -n 'APILOGIN' /etc/sd.conf 2>&1)
+    SDACTIVE=$(systemctl is-active sd.service 2>&1)
+    say "      | /etc/sd.conf: ${CONFLINE:-(no APILOGIN line)}"
+    say "      | sd.service  : $SDACTIVE"
+    if printf '%s' "$CONFLINE" | grep -q 'APILOGIN='; then
+        ck "R3 sd.service is active with APILOGIN in /etc/sd.conf (the retired key is accepted)" active "$SDACTIVE"
+    else
+        say "  /etc/sd.conf has no APILOGIN line, so this was a cycle that did NOT keep the"
+        say "  configuration.  R3 needs one that did - answer Y to \"keep your existing"
+        say "  configuration\" - and cannot be forced from here (see the note above this"
+        say "  section).  NOT REACHED is the row refusing to pass on nothing."
+        not_reached "R3 a restored APILOGIN=1 is accepted (needs a keep-configuration cycle)"
+    fi
+fi
+
+head2 "17. verdict"
+if [ "$COMMIT" -eq 0 ]; then
+    say "  DRY RUN - nothing was executed and nothing was checked."
+    say "  Re-run with --commit, as root:"
+    say "    sudo bash $SELF --commit"
+    say "  A DRY RUN IS NOT A PASS.  Exit 2."
+    exit 2
+fi
+say "  passed      : $PASS"
+say "  failed      : $FAIL"
+say "  not reached : $NOT_REACHED   (counted in failed)"
+if [ "$((PASS + FAIL))" -eq 0 ]; then
+    say "witness-release-run: FAILED - no check ran, so this proves nothing."
+    exit 1
+fi
+if [ "$FAIL" -gt 0 ]; then
+    say "witness-release-run: FAILED - $FAIL of $((PASS + FAIL)) checks failed."
+    exit 1
+fi
+say "witness-release-run: PASSED - $PASS of $PASS checks passed."
+exit 0

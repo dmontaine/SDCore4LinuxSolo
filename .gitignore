@@ -1,0 +1,50 @@
+# Build output. Everything ignored here is produced by `make` from source that
+# IS tracked, so nothing is lost by leaving it out. See CLAUDE.md, "Project
+# constraints": binaries are not tracked, and the README's claim that the tree
+# contains no binary bits should be true of this fork as well as of upstream.
+#
+# Each rule below names the Makefile line that creates the thing, so a later
+# session can check the claim rather than trusting it.
+
+# The installer's download directory.  It lives at $HOME/.sdb64tmp since
+# 9 Sep 2026 and should never appear here at all - but it USED to be created in
+# whatever directory the installer was run from, and a run that aborted before
+# its cleanup left one behind.  On 9 Sep 2026 that leftover was committed by a
+# `git add -A` that nobody read first: 91 build-output files, ~4 MB, in 4b30ef0.
+# The rules below did not catch it because they are anchored at sdb_ai/sd64/ and
+# the leftover was at .sdb64tmp/sdb_ai/sd64/.  Anchored at the root so an old
+# installer, or one interrupted mid-run, cannot repeat it.
+/.sdb64tmp/
+
+# Compiled objects and linked binaries. Makefile:67 does
+#   $(shell mkdir -p $(GPLOBJ) $(GPLBIN))
+# so both directories are created by the build and need no placeholder here.
+sdb_ai/sd64/gplobj/
+sdb_ai/sd64/bin/*
+!sdb_ai/sd64/bin/README
+
+# Terminal definitions. The `terminfo` target (Makefile:104-108) does
+#   rm -Rf $(TERMINFO) && mkdir -p $(TERMINFO) && sdtic -pterminfo terminfo.src
+# and `sd:` depends on it (Makefile:74), so a plain `make` regenerates the whole
+# directory from the tracked terminfo.src.
+sdb_ai/sd64/terminfo/
+
+# Written by installsdai.sh:388 before the build, pointing at whatever Python
+# headers the machine has. It is machine-specific and must not be shared.
+sdb_ai/sd64/gplsrc/sdext_python_inc.h
+
+# Build log.
+sdb_ai/sd64/pcode_bld.log
+
+# Python bytecode cache, created by `python3 -m py_compile` on gplbld/*.py (the
+# generators, e.g. gen_includes.py). Regenerable and never source; the Makefile
+# runs the generators as scripts, which create none, so a normal build adds
+# nothing here.
+sdb_ai/sd64/gplbld/__pycache__/
+
+# Editors.
+.vscode/
+
+# A redundant archive of AI_Modification_Notes/, which is tracked. Ignored so
+# `git status` stays clean; deleting it outright is probably the right answer.
+AI_Modification_Notes.zip

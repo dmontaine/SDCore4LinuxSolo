@@ -1,0 +1,1001 @@
+/* OP_KERNEL.C
+ * Kernel opcodes.
+ * Copyright (c) 2007 Ladybridge Systems, All Rights Reserved
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3, or (at your option)
+ * any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * 
+ * START-HISTORY:
+ * 31 Dec 23 SD launch - prior history suppressed
+ * 28 Jul 24 mab remove op_cnctport() / CONNECT.PORT not supported
+ * 11 Sep 26 dm  LOGOUT() reaps a slot whose process is gone and returns 2
+ *               (the Windows port's PRE_RELEASE_FIXES 16).
+ * 09 Sep 26 dm  K_ADMINISTRATOR: close the grant hole, matching the Windows
+ *               port (PRE_RELEASE 19).  Only an $internal program may change
+ *               USR_ADMIN now.
+ * 14 Sep 26 dm  K_SET_USERNAME and K_ASSUME_USER (60, 61), the Windows port's
+ *               keys for APISRVR's SCRAM login; on Linux assuming the user is
+ *               initgroups/setgid/setuid (W.4 SCRAM phase 3).
+ * 14 Sep 26 dm  op_login sizes the password from the string, not 32 bytes, so a
+ *               longer password is not cut (S.14, conforming to the port).
+ * 14 Sep 26 dm  S.18: op_login is a fail-closed stub, as the port's is -
+ *               login_user() is removed and request 24 no longer calls login().
+ * 11 Sep 26 dm  K_AUDIT (57, the Windows port's key) appends a record to the
+ *               audit trail; the identity is stamped in k_error.c
+ *               (PORT_ADOPTION 13).
+ * 14 Sep 26 dm  K_INTERNAL: only an $internal program may change internal
+ *               mode, in the shape of K_ADMINISTRATOR (PROJECT_STATUS S.8).
+ * 29 Sep 26 dm  K_SET_LANGUAGE (38) removed: SD is English only.  Key 38 is
+ *               retired, not reused; calling it is an illegal key.
+ * END-HISTORY
+ *
+ * START-DESCRIPTION:
+ *
+ * END-DESCRIPTION
+ *
+ * START-CODE
+ */
+
+#include "sd.h"
+#include "revstamp.h"
+#include "header.h"
+#include "tio.h"
+#include "debug.h"
+#include "keys.h"
+#include "syscom.h"
+#include "config.h"
+#include "options.h"
+#include "dh_int.h"
+#include "locks.h"
+
+#include <sys/wait.h>
+#include <pwd.h>
+#include <grp.h>
+#include <unistd.h>
+
+Public bool case_sensitive;
+
+/* 09 Sep 26 dm - the IsAdmin() declaration went with the function.  See
+   linuxlb.c for why it is gone rather than merely unused.                    */
+bool recover_users(void);
+void set_date(int32_t);
+
+Private bool run_exe(char *exe_name, char *cmd_line);
+
+/* ======================================================================
+   op_kernel()  -  KERNEL()  -  Miscellaneous kernel functions            */
+
+void op_kernel() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |  Qualifier                     |  Result                     |
+     |--------------------------------|-----------------------------|
+     |  Action key                    |                             |
+     |================================|=============================|
+     
+   Keys:
+     K$INTERNAL           Set or clear internal mode
+     K$INTERNAL.QUERY     Query internal mode
+     K$PAGINATE           Test or modify pagination flag
+     K$FLAGS              Test/return program header flags
+     K$DATE.FORMAT        European date format?
+     K$CRTWIDE            Return display width
+     K$CRTHIGH            Return display lines per page
+     K$SET.DATE           Set current date
+     K$IS.PHANTOM         Is this a phantom process
+     K$TERM.TYPE          Terminal type name
+     K$USERNAME           User name
+     K$LOGIN.UID          Loginuid belongs to named user?
+     K$DATE.CONV          Set default date conversion
+     K$PPID               Get parent process id
+     K$USERS              Get user list
+     K$INIPATH            Get ini file pathname
+     K$FORCED.ACCOUNT     Force entry to named account unless set in $LOGINS
+     K$SDNET              Get/set SDNet status flag
+     K$CPROC.LEVEL        Get/set command processor level
+     K$SUPPRESS.COMO      Supress/resume como file output
+     K$ADMINISTRATOR      Get/set administrator rights
+     K$SECURE             Secure system?
+     K$GET.OPTIONS        Get options flags
+     K$SET.OPTIONS        Set options flags
+     K$PRIVATE.CATALOGUE  Set private catalogue pathname
+     K$CLEANUP            Clean up defunct users
+     K$COMMAND.OPTIONS    Get command line option flags
+     K$CASE.SENSITIVE     REMOVE.TOKEN() cases sensitivity
+     K$COLLATION          Set/clear sort collation data
+     K$GET.SDNET.CONNECTIONS  Get details of open SDNet connections
+     K$INVALIDATE.OBJECT  Invalidate object cache
+     K$MESSAGE            Enable/disable message reception
+     K$SET.EXIT.CAUSE     Set k_exit_cause
+     K$COLLATION.NAME     Set primary collation map name
+     K$AK.COLLATION       Select AK collation map
+     K$EXIT.STATUS        Set exit status
+     K$AUTOLOGOUT         Set/retrieve autologout period
+     K$MAP.DIR.IDS        Enable/disable dir file id mapping
+ */
+
+  DESCRIPTOR *descr;
+  int action;
+  DESCRIPTOR result;
+  int32_t n;
+  char s[(MAX_PATHNAME_LEN * 2) + 1];
+  int16_t i;
+  int16_t j;
+  char *p;
+  int32_t *q;
+  USER_ENTRY *uptr;
+  STRING_CHUNK *str;
+
+  InitDescr(&result, INTEGER);
+  result.data.value = 0;
+
+  descr = e_stack - 2;
+  GetInt(descr);
+  action = descr->data.value;
+
+  descr = e_stack - 1;
+  k_get_value(descr);
+
+  switch (action) {
+    case K_INTERNAL:
+      /* 14 Sep 26 dm - S.8.  Setting was unguarded, as in the Windows port.
+         KERNEL compiles only in internal mode, so this was reachable only
+         from $internal code already; the guard makes that the rule rather
+         than a consequence of BCOMP.  No shipped BASIC sets it (every caller
+         passes -1); sd -internal sets it in C (sd.c).  A refused attempt is
+         not an error and changes nothing, as for K_ADMINISTRATOR.            */
+      GetInt(descr);
+      if (descr->data.value < 0)
+        result.data.value = internal_mode;
+      else if (process.program.flags & HDR_INTERNAL)
+        internal_mode = (descr->data.value != 0);
+
+      break;
+
+/* 20240219 mab always run in secure mode */
+    case K_SECURE:
+      GetInt(descr);
+      if (descr->data.value < 0) {
+//        if (is_nt)
+          result.data.value = TRUE;
+//        else
+//          result.data.value = ((sysseg->flags & SSF_SECURE) != 0);
+//      } else {
+//        if (descr->data.value)
+//          sysseg->flags |= SSF_SECURE;
+//        else
+//          sysseg->flags &= ~SSF_SECURE;
+      }
+
+      break;
+
+    case K_LPTRHIGH: /* Same as SYSTEM(3) */
+      if (process.program.flags & PF_PRINTER_ON)
+        result.data.value = tio.lptr_0.lines_per_page;
+      else
+        result.data.value = tio.dsp.lines_per_page;
+
+      break;
+
+    case K_LPTRWIDE: /* Same as SYSTEM(2) */
+      if (process.program.flags & PF_PRINTER_ON)
+        result.data.value = tio.lptr_0.width;
+      else
+        result.data.value = tio.dsp.width;
+
+      break;
+
+    case K_PAGINATE:
+      if ((n = descr->data.value) < 0) { /* Enquiry */
+        result.data.value = (tio.dsp.flags & PU_PAGINATE) != 0;
+      } else { /* Set pagination state */
+        if (n) {
+          tio.dsp.flags |= PU_PAGINATE;
+          tio.dsp.line = 0;
+        } else {
+          tio.dsp.flags &= ~PU_PAGINATE;
+        }
+      }
+      break;
+
+    case K_FLAGS:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n)
+        result.data.value = ((process.program.flags & n) != 0);
+      else
+        result.data.value = process.program.flags;
+      break;
+
+    case K_DATE_FORMAT:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0)
+        european_dates = (n != 0);
+      result.data.value = european_dates;
+      break;
+
+    case K_CRTHIGH:
+      result.data.value = tio.dsp.lines_per_page;
+      break;
+
+    case K_CRTWIDE:
+      result.data.value = tio.dsp.width;
+      break;
+
+    case K_SET_DATE:
+      GetInt(descr);
+      set_date(descr->data.value);
+      break;
+
+    case K_IS_PHANTOM:
+      result.data.value = is_phantom;
+      break;
+
+    case K_TERM_TYPE:
+      k_get_string(descr);
+      if (descr->data.str.saddr != NULL) {
+        k_get_c_string(descr, s, 32);
+        settermtype(s);
+      }
+      k_put_c_string(tio.term_type, &result);
+      break;
+
+    case K_USERNAME:
+      k_put_c_string(process.username, &result);
+      break;
+
+    /* 09 Sep 26 dm - PRE_RELEASE 20.  WHO IS THE REAL PERSON?
+       K_USERNAME above answers "who is this process running as", which after
+       CPROC's drop is sdsys and before it is root.  Neither is a person, and
+       the owner's definition of an administrator - a sudoers member who is
+       ALSO a registered SD administrator - needs a person to look up.
+
+       ON "sudo sd" THE PROCESS GENUINELY IS root.  getuid() is 0 and
+       process.username comes from my_uptr->username (kernel.c:198), the OS
+       identity.  That entry route is now closed at the front door (the
+       teardown, S.26): a root session is refused outright, and the only
+       administrator entry is a local session that already runs as the
+       sdsys OS user, whose name the OS itself provides.  The K_REAL_USER
+       accessor that answered "which person is behind the sudo" therefore
+       has no caller and is gone.                                        */
+
+    /* 14 Sep 26 dm - W.4 SCRAM phase 3.  THE WINDOWS PORT'S K_SET_USERNAME, AS
+       WRITTEN: set the session user name.  process.username and
+       my_uptr->username are what @LOGNAME, K_USERNAME and the audit trail read.
+       $internal ONLY, and the name as it actually stands is returned, so a
+       refused caller is told what it still is rather than getting an error -
+       APISRVR compares the answer with the name it asked for.  An overlength
+       name makes k_get_c_string answer -1 and nothing is set.               */
+    case K_SET_USERNAME:
+      {
+        char uname[MAX_USERNAME_LEN + 1];
+
+        if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
+            (process.program.flags & HDR_INTERNAL)) {
+          strcpy(process.username, uname);
+          strcpy((char *)(my_uptr->username), uname);
+        }
+      }
+      k_put_c_string(process.username, &result);
+      break;
+
+    /* 14 Sep 26 dm - W.4 SCRAM phase 3.  BECOME THE AUTHENTICATED USER - the
+       port's K_ASSUME_USER, whose Windows body is an S4U logon.  HERE THE API
+       SERVER IS A ROOT PROCESS (sdclient@.service, sd -n -q) AND BECOMING THE
+       USER IS WHAT login_user's PASSWORD PATH ALREADY DOES: initgroups, then
+       setgid, then setuid, in that order, while still root (linuxio.c,
+       S.15).  No password is involved - SCRAM never gives the server one.
+
+       IT ANSWERS 1 OR 0 AND 0 MUST BE FATAL TO THE CALLER: a session that
+       carries on believing it is the user while still root is worse than one
+       that never started.  APISRVR refuses the login on 0.
+
+       $internal ONLY, like K_SET_USERNAME, so an ordinary BASIC program cannot
+       ask to become somebody else.  AND NEVER uid 0: no SCRAM login may end
+       as root, whatever the register holds.  The drop is checked by reading
+       the uids back, not assumed from the calls' return codes.  No way back
+       to root is offered.                                                   */
+    case K_ASSUME_USER:
+      {
+        char uname[MAX_USERNAME_LEN + 1];
+        struct passwd *pwd;
+
+        result.data.value = 0;
+        if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
+            (process.program.flags & HDR_INTERNAL) &&
+            (geteuid() == 0) &&
+            ((pwd = getpwnam(uname)) != NULL) &&
+            (pwd->pw_uid != 0) &&
+            (initgroups(pwd->pw_name, pwd->pw_gid) == 0) &&
+            (setgid(pwd->pw_gid) == 0) &&
+            (setuid(pwd->pw_uid) == 0) &&
+            (getuid() == pwd->pw_uid) && (geteuid() == pwd->pw_uid)) {
+          result.data.value = 1;
+        }
+      }
+      break;
+
+    /* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING (evening): THE LOGIN
+       ITSELF MUST BE SDSYS.  "sudo -u sdsys sd" and "su - sdsys" both arrive
+       as the sdsys OS user on a local session, and the grant in CPROC could
+       not tell them from the real thing.  The kernel's audit loginuid can:
+       PAM sets it once at login (pam_loginuid.so is required in login,
+       gdm-password and sshd on this box), every descendant process inherits
+       it, and without root it cannot be written - sudo and su carry the
+       elevating user's loginuid across, always.  This call answers 1 only
+       when the loginuid is SET and belongs to the named user.  An unset
+       loginuid (4294967295 - system services, containers) or an unreadable
+       /proc answers 0, so those refuse rather than grant.  CPROC's
+       administrator gate is the caller; nobody else asks this question.     */
+    case K_LOGIN_UID:
+      {
+        char uname[MAX_USERNAME_LEN + 1];
+        struct passwd *pwd;
+        FILE *f;
+        char buf[16];
+        unsigned long int lu;
+
+        result.data.value = 0;
+        if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
+            ((pwd = getpwnam(uname)) != NULL) &&
+            ((f = fopen("/proc/self/loginuid", "r")) != NULL)) {
+          if (fgets(buf, sizeof(buf), f) != NULL) {
+            lu = strtoul(buf, NULL, 10);
+            if ((lu != 0) && (lu != 4294967295UL) &&
+                (lu == (unsigned long int)(pwd->pw_uid))) {
+              result.data.value = 1;
+            }
+          }
+          fclose(f);
+        }
+      }
+      break;
+
+    case K_DATE_CONV:
+      if ((result.data.value = (k_get_c_string(descr, s, 32))) > 0) {
+        strcpy(default_date_conversion, s);
+      }
+      k_put_c_string(default_date_conversion, &result);
+      break;
+
+    case K_PPID:
+      result.data.value = my_uptr->puid;
+      break;
+
+    case K_USERS:
+      InitDescr(&result, STRING);
+      result.data.str.saddr = NULL;
+      ts_init(&(result.data.str.saddr), 128);
+      GetInt(descr);
+      n = descr->data.value; /* User number or zero for all */
+      for (i = 1; i <= sysseg->max_users; i++) {
+        uptr = UPtr(i);
+        if (((n == 0) && (uptr->uid > 0)) || ((n != 0) && (uptr->uid == n))) {
+          if (result.data.str.saddr != NULL)
+            ts_copy_byte(FIELD_MARK);
+
+          ts_printf("%d%c%d%c%s%c%d%c%d%c%s%c%s%c%d", (int)(uptr->uid), VALUE_MARK, (int)(uptr->pid), VALUE_MARK, 
+                    uptr->ip_addr, VALUE_MARK, (int)(uptr->flags), VALUE_MARK, uptr->puid, VALUE_MARK,
+                    uptr->username, VALUE_MARK, uptr->ttyname, VALUE_MARK, uptr->login_time);
+          if (n)
+            break;
+        }
+      }
+      ts_terminate();
+      break;
+
+    case K_INIPATH:
+      k_put_c_string(config_path, &result);
+      break;
+
+    case K_FORCED_ACCOUNT:
+      k_put_c_string(forced_account, &result);
+      break;
+
+    case K_SDNET:
+      if (descr->data.value < 0)
+        result.data.value = ((my_uptr->flags & USR_SDNET) != 0);
+      else if (descr->data.value)
+        my_uptr->flags |= USR_SDNET;
+      else
+        my_uptr->flags &= ~USR_SDNET;
+      break;
+
+    case K_CPROC_LEVEL:
+      if (descr->data.value > 0)
+        cproc_level = (int16_t)(descr->data.value);
+      result.data.value = cproc_level;
+      break;
+      
+
+    case K_SUPPRESS_COMO:
+      if ((n = descr->data.value) < 0) { /* Enquiry */
+        result.data.value = (tio.suppress_como);
+      } else { /* Set suppression state */
+        tio.suppress_como = (n != 0);
+      }
+      break;
+/* 20240219 mab rebrand VBSRVR to APISRVR */
+    case K_IS_SDAPISRVR:
+      result.data.value = is_sdApiSrvr;
+      break;
+
+    case K_ADMINISTRATOR:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0) { /* Setting / clearing */
+        /* 09 Sep 26 dm - PRE_RELEASE 19, matching the Windows port.  This had
+           a hole at each end.  Any positive argument granted the flag, so a
+           $internal program could make itself an administrator and every test
+           of it was decorative; and the "|| IsAdmin()" meant an argument of
+           zero re-granted rather than cleared whenever the caller ran as root,
+           so an administrator could not be dropped - CPROC clears USR_ADMIN on
+           a LOGTO and that clear did nothing for a root OS user.
+
+           Only a program compiled $internal may change it now - which is LOGIN
+           and CPROC, the two that own entry to an account.  Ordinary BASIC
+           cannot reach KERNEL at all (BCOMP resolves it only in internal mode,
+           BCOMP:3758), and measured 09 Sep 26 a non-internal program calling
+           kernel(26,1) fails to compile with "Unrecognised statement".  A
+           refused attempt is not an error: the result below reports the flag
+           as it actually stands, so a caller that tried to grant itself rights
+           is simply told it has none. */
+
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->flags |= USR_ADMIN;
+          else
+            my_uptr->flags &= ~USR_ADMIN;
+        }
+      }
+      result.data.value = (my_uptr->flags & USR_ADMIN) != 0;
+      break;
+
+    case K_FILESTATS:
+      GetInt(descr);
+      if (descr->data.value) { /* Reset counters */
+        memset((char *)&(sysseg->global_stats), 0, sizeof(struct FILESTATS));
+        sysseg->global_stats.reset = sdtime();
+      } else {
+        InitDescr(&result, STRING);
+        result.data.str.saddr = NULL;
+        ts_init(&(result.data.str.saddr), 5 * FILESTATS_COUNTERS);
+        for (i = 0, q = (int32_t *)&(sysseg->global_stats.reset); i < FILESTATS_COUNTERS; i++, q++) {
+          ts_printf("%d\xfe", *q);
+        }
+        (void)ts_terminate();
+      }
+      break;
+
+    case K_TTY:
+      k_put_c_string((char *)(my_uptr->ttyname), &result);
+      break;
+
+    case K_GET_OPTIONS:
+      for (i = 0; i < NumOptions; i++)
+        s[i] = option_flags[i] + '0';
+
+      s[NumOptions] = '\0';
+      k_put_c_string(s, &result);
+      break;
+
+    case K_SET_OPTIONS:
+      j = k_get_c_string(descr, s, 200);
+      for (i = 0; (i < j) && (i < NumOptions); i++)
+        SetOption(i, s[i] == '1');
+
+      break;
+
+    case K_PRIVATE_CATALOGUE:
+      j = k_get_c_string(descr, private_catalogue, MAX_PATHNAME_LEN);
+      break;
+
+    case K_CLEANUP:
+      result.data.value = recover_users();
+      break;
+
+    case K_OBJKEY:
+      result.data.value = object_key;
+      break;
+
+    case K_COMMAND_OPTIONS:
+      result.data.value = command_options;
+      break;
+
+    case K_CASE_SENSITIVE:
+      GetInt(descr);
+      if (descr->data.value < 0)
+        result.data.value = case_sensitive;
+      else
+        case_sensitive = (descr->data.value != 0);
+      break;
+
+    case K_HSM:
+      GetInt(descr);
+      switch (descr->data.value) {
+        case 0: /* Disable */
+          hsm = FALSE;
+          break;
+        case 1: /* Enable */
+          hsm_on();
+          break;
+        case 2: /* Return data */
+          InitDescr(&result, STRING);
+          result.data.str.saddr = hsm_dump();
+          break;
+      }
+      break;
+
+    case K_COLLATION:
+      k_get_string(descr);
+      if (descr->data.str.saddr == NULL) {
+        primary_collation = NULL;
+        collation = NULL;
+      } else {
+        str = s_make_contiguous(descr->data.str.saddr, NULL);
+        descr->data.str.saddr = str;
+        memcpy(primary_collation_map, str->data, 256);
+        primary_collation = primary_collation_map;
+        collation = primary_collation_map;
+      }
+      break;
+
+    case K_GET_SDNET_CONNECTIONS:
+      /* SDNet removed (plan G4). The key is kept accepted so a program asking
+         does not fail, but there are never any connections now. */
+      InitDescr(&result, STRING);
+      result.data.str.saddr = NULL;
+      break;
+
+    case K_INVALIDATE_OBJECT:
+      invalidate_object();
+      break;
+
+    case K_MESSAGE:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n == 0)
+        my_uptr->flags |= USR_MSG_OFF;
+      else if (n > 0)
+        my_uptr->flags &= ~USR_MSG_OFF;
+      result.data.value = (my_uptr->flags & USR_MSG_OFF) == 0;
+      break;
+
+    case K_SET_EXIT_CAUSE:
+      GetInt(descr);
+      k_exit_cause = descr->data.value;
+      break;
+
+    case K_COLLATION_NAME:
+      setsdstring(&collation_map_name, descr);
+      break;
+
+    case K_AK_COLLATION:
+      if (descr->type == STRING) {
+        str = descr->data.str.saddr;
+        collation = (str == NULL) ? NULL : str->data;
+      } else
+        collation = primary_collation;
+      break;
+
+    case K_EXIT_STATUS:
+      GetInt(descr);
+      exit_status = descr->data.value;
+      break;
+
+    case K_CASE_MAP:
+      GetString(descr);
+      if ((str = descr->data.str.saddr) == NULL)
+        set_default_character_maps();
+      else {
+        uc_chars[(u_char)(str->data[1])] = str->data[0];
+        lc_chars[(u_char)(str->data[0])] = str->data[1];
+        char_types[(u_char)(str->data[0])] |= CT_ALPHA | CT_GRAPH;
+        char_types[(u_char)(str->data[1])] |= CT_ALPHA | CT_GRAPH;
+      }
+      break;
+
+    case K_AUTOLOGOUT:
+      GetInt(descr);
+      if (descr->data.value >= 0)
+        autologout = descr->data.value;
+      result.data.value = autologout;
+      break;
+
+    case K_MAP_DIR_IDS:
+      GetInt(descr);
+      if (descr->data.value >= 0)
+        map_dir_ids = (descr->data.value != 0);
+      result.data.value = map_dir_ids;
+      break;
+
+    case K_IN_GROUP:
+      k_get_c_string(descr, s, 64);
+      result.data.value = in_group(s);
+      break;
+
+    case K_BREAK_HANDLER:
+      k_get_c_string(descr, s, 64);
+      setstring(&process.program.break_handler, s);
+      break;
+
+    case K_RUNEXE:
+      k_get_c_string(descr, s, sizeof(s) - 1);
+      p = strchr(s, ' ');
+      if (p != NULL) {
+        *(p++) = '\0';
+      }
+      result.data.value = run_exe(s, p);
+      break;
+
+    /* 11 Sep 26 dm - PORT_ADOPTION 13, the Windows port's K_AUDIT.  The caller
+       passes what happened and NOT who did it: audit_message() stamps the
+       identity itself, from my_uptr and (under sudo) SUDO_USER, which no BASIC
+       program can supply.  Returns 0 always - there is no failure a caller
+       could act on, and the login path must not be stopped by an unwritable
+       audit file.                                                          */
+    case K_AUDIT:
+      k_get_c_string(descr, s, sizeof(s) - 1);
+      audit_message(s);
+      break;
+
+    default:
+      k_error("Illegal KERNEL() action key (%d)", action);
+  }
+
+  k_dismiss();
+  *(e_stack - 1) = result;
+}
+
+/* ======================================================================
+   op_lgnport()  -  Login a serial port process                           */
+
+void op_lgnport() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top | Account name                   |  Successful? (true/false)   |
+     |--------------------------------|-----------------------------|
+     | Port name{:params}             |                             |
+     |================================|=============================|
+ */
+
+  bool status = FALSE;
+
+  process.status = ER_UNSUPPORTED;
+
+  k_dismiss();
+  k_dismiss();
+
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = status;
+}
+
+/* ======================================================================
+   op_option()  -  OPTION() function                                      */
+
+void op_option() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |  Option number                 |  Option state               |
+     |================================|=============================|
+ */
+
+  DESCRIPTOR *descr;
+  int opt;
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  opt = descr->data.value;
+  if ((opt >= 0) && (opt < NumOptions))
+    descr->data.value = Option(opt);
+  else
+    descr->data.value = 0;
+}
+
+/* ======================================================================
+   op_phantom()  -  PHANTOM  -  Start new process                         */
+
+void op_phantom() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |                                |  SD user id, zero if fails  |
+     |================================|=============================|
+ */
+
+  int16_t i;
+  USER_ENTRY *uptr;
+  int16_t phantom_user_index;
+  int16_t phantom_uid = 0;
+  char path[MAX_PATHNAME_LEN + 1];
+  char option[15 + 1];
+  int cpid;
+
+  /* Reserve a user table entry for the phantom process */
+
+  StartExclusive(SHORT_CODE, 38);
+  phantom_user_index = 0;
+  for (i = 1; i <= sysseg->max_users; i++) {
+    uptr = UPtr(i);
+    if (uptr->uid == 0) /* Spare cell */
+    {
+      phantom_uid = assign_user_no(i);
+      uptr->uid = phantom_uid;
+      uptr->puid = process.user_no;
+      strcpy((char *)(uptr->username), (char *)(my_uptr->username));
+      phantom_user_index = i;
+      break;
+    }
+  }
+  EndExclusive(SHORT_CODE);
+
+  if (phantom_user_index == 0)
+    goto exit_op_phantom;
+
+  /* Construct command for CreateProcess */
+
+  cpid = fork();
+  if (cpid == 0) { /* Child process */
+    //0387   close(0);
+    //0387   close(1);
+    //0387   close(2);
+    for (i = 3; i < 1024; i++)
+      close(i); /* 0401 */
+
+    daemon(1, 1);
+    /* converted to snprintf() -gwb 22Feb20 */
+    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
+      /* TODO: this should also be logged with more detail */
+      k_error("Overflowed path/filename length in op_phantom()!");
+      goto exit_op_phantom;
+    }
+    sprintf(option, "-p%d", phantom_user_index);
+    execl(path, path, option, NULL);
+  } else if (cpid == -1) { /* Error */
+    *(UMap(uptr->uid)) = 0;
+    uptr->uid = 0; /* Release reserved user cell */
+    uptr->puid = 0;
+    phantom_uid = 0;
+  } else { /* Parent process */
+    waitpid(cpid, NULL, WNOHANG);
+  }
+
+exit_op_phantom:
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = phantom_uid;
+}
+
+/* ======================================================================
+   op_chgphant()  -  Make process a "chargeable" phantom                  */
+
+void op_chgphant() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |                                |  1 = ok, 0 = error          |
+     |================================|=============================|
+ */
+
+  bool status = TRUE;
+
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = status;
+}
+
+
+/* ======================================================================
+   op_login()  -  LOGIN()  -  Perform login for socket based process      */
+
+void op_login() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |  Password                      |  1 = ok, 0 = error          |
+     |--------------------------------|-----------------------------|
+     |  User name                     |                             |
+     |================================|=============================|
+ */
+
+/* 14 Sep 26 dm - S.18.  FAILS CLOSED, as the Windows port's has since 17 Aug
+   26.  The opcode is kept only because opcodes.h is positional, and BCOMP's
+   int.intrinsics and bbcmp.py's intrinsic table are matched to it - removing
+   the intrinsic is a multi-sided edit for no gain.
+
+   login_user() is gone (linuxio.c says why), and APISRVR's request 24, its
+   one caller, answers 5275 without calling login().  Anything still calling
+   login() is using a route that no longer exists, so FALSE is the honest
+   answer.  The arguments are discarded unread: the password is never copied
+   into a buffer, so there is nothing to wipe.                              */
+
+  k_dismiss();   /* Password */
+  k_dismiss();   /* User name */
+
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = FALSE;
+}
+
+/* ======================================================================
+   op_logout()  -  LOGOUT()  -  Logout phantom process                    */
+
+void op_logout() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |  Immediate flag                |  1 = ok, 2 = reaped,        |
+     |                                |  0 = error                  |
+     |--------------------------------|-----------------------------|
+     |  User number                   |                             |
+     |================================|=============================|
+
+ 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.  2 IS A DIFFERENT OUTCOME, NOT
+ A WARMER 1.  Raising EVT_TERMINATE at a process that no longer exists sets
+ USR_LOGOUT and nothing ever clears it, so LISTU reads "(logout pending)" for
+ ever and the file the dead session held stays locked.  When the process is
+ gone the slot is REAPED instead, and the caller must be able to tell the two
+ apart: "asked it to go" against "it was already gone and has been cleared".
+ 2 IS TRUTHY, WHICH IS WHY IT IS SAFE: every existing caller writes
+ "if not(logout(...))" or takes the value as a flag.
+ */
+
+  DESCRIPTOR *descr;
+  int user;
+  int status = 0;
+  bool immediate;
+
+  /* Get immediate flag */
+
+  descr = e_stack - 1;
+  GetBool(descr);
+  immediate = (descr->data.value != 0);
+  k_pop(1);
+
+  /* Get user number */
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  user = descr->data.value;
+
+  if (user == 0) {
+    k_exit_cause = (immediate) ? K_LOGOUT : K_TERMINATE;
+    status = 1;
+  } else if (reap_lost_user((int16_t)user)) {
+    /* THE PROCESS WAS ALREADY GONE.  Its slot, and every file, record, group
+       and task lock it still held, have been released.  Tried BEFORE
+       raise_event() deliberately: raising an event at a process that cannot
+       receive it is what sets USR_LOGOUT, so asking in the other order would
+       still leave "(logout pending)" behind on the way past. */
+    status = 2;
+  } else {
+    log_printf(sysmsg(1027), user); /* Force logout initiated for user %d */
+    status = raise_event((immediate) ? EVT_LOGOUT : EVT_TERMINATE, user);
+  }
+
+  descr->data.value = status;
+  return;
+}
+
+/* ======================================================================
+   op_events()  -  EVENTS()                                               */
+
+void op_events() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |  Event flag values, 0 = query  | Event flag values           |
+     |  -ve = unset event             |                             |
+     |--------------------------------|-----------------------------|
+     |  User number (-ve = all)       |                             |
+     |================================|=============================|
+
+ Negative user number is not meaningful for query.
+ STATUS() = 0 if user found, non-zero if user not found
+ */
+
+  DESCRIPTOR *descr;
+  int32_t flags;
+  int user;
+  USER_ENTRY *uptr;
+  int16_t i;
+
+  /* Get flag values */
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  flags = descr->data.value;
+
+  /* Get user number */
+
+  descr = e_stack - 2;
+  GetInt(descr);
+  user = descr->data.value;
+  k_pop(1);
+
+  process.status = 1;
+
+  StartExclusive(SHORT_CODE, 46);
+  for (i = 1; i <= sysseg->max_users; i++) {
+    uptr = UPtr(i);
+    if ((uptr->uid == user) || (user < 0)) {
+      if (flags > 0)
+        uptr->events |= flags;
+      else if (flags < 0)
+        uptr->events &= ~-flags;
+      descr->data.value = uptr->events;
+      process.status = 0;
+      if (user > 0)
+        break;
+    }
+  }
+  EndExclusive(SHORT_CODE);
+}
+
+/* ======================================================================
+   op_setflags()  -  SETFLAGS opcode  - Set opcode_flags                  */
+
+void op_setflags() {
+  register u_int16_t flags;
+
+  flags = *(pc++);
+  flags |= *(pc++) << 8;
+
+  process.op_flags |= flags;
+}
+
+/* ======================================================================
+   op_userno()  -  USERNO  -  Get user number                             */
+
+void op_userno() {
+  /* Stack:
+
+     |================================|=============================|
+     |            BEFORE              |           AFTER             |
+     |================================|=============================|
+ top |                                |  User no                    |
+     |================================|=============================|
+ */
+
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = process.user_no;
+}
+
+/* ======================================================================
+   run_exe()  -  Run executable from SD session                           */
+
+Private bool run_exe(char *exe_name, char *cmd_line) {
+  //* NIX implementation to follow
+  process.status = ER_FAILED;
+  return FALSE;
+}
+
+/* END-CODE */

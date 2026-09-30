@@ -1,0 +1,46 @@
+* verify-lcnames.bp - the BASIC half of gplbld/verify-lcnames.py.  Plan
+* section M3, one category at a time.
+*
+* STAGED, COMPILED AND RUN BY verify-lcnames.py IN THE CALLER'S OWN ACCOUNT.
+*
+* WHY BASIC: every verb that could look at the VOC FOLDS the id - CT VOC
+* $SAVEDLISTS finds $savedlists - so no verb can say which spelling is actually
+* on disk.  A READ of a DYNAMIC file is an exact match, and that is the
+* instrument.
+*
+*    RUN BP ZZLCN id    report which spellings of id exist
+*
+* id is the lower-case name, e.g. $savedlists.  Every answer is TAG=value on its
+* own line, each printed on one path only.  The DOWN and UP modes, which moved
+* an id to upper case and back for the case migration, went with it (13 Sep
+* 2026): there are no existing installs to migrate.
+*
+program zzlcn
+
+   lid = field(trim(@sentence), ' ', 4)
+   uid = upcase(lid)
+   crt 'ZZLCN.ID=':lid
+
+   if lid = '' or lid # downcase(lid) then
+      crt 'ZZLCN.FATAL=id must be given in lower case'
+      stop
+   end
+
+   open 'VOC' to v.f else
+      crt 'ZZLCN.FATAL=cannot open VOC'
+      stop
+   end
+
+   read x from v.f, lid then crt 'EXACT.LOWER=Y' else crt 'EXACT.LOWER=N'
+   read x from v.f, uid then crt 'EXACT.UPPER=Y' else crt 'EXACT.UPPER=N'
+
+* 13 Sep 26 - plan M3 D3: for a dotted id, the mixed spelling the old BASIC
+* made - name lower, last segment upper (bp.OUT).  Not printed otherwise, so a
+* missing tag is a missing measurement rather than an answer.
+   n = dcount(lid, '.')
+   if n > 1 then
+      mid = field(lid, '.', 1, n - 1) : '.' : upcase(field(lid, '.', n))
+      read x from v.f, mid then crt 'EXACT.MIXED=Y' else crt 'EXACT.MIXED=N'
+   end
+   crt 'ZZLCN.END=1'
+end

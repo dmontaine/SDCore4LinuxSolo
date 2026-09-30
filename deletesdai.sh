@@ -1,0 +1,411 @@
+#!/bin/bash
+#
+# SD bash delete script
+#   (c) 2023-2026 Donald Montaine and Mark Buller
+#   This software is released under the Blue Oak Model License
+#   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
+#
+#   rev 2.0  Mar 15 2026 mab - echo -e to printf
+#   - prior history suppressed
+#
+#   15 Sep 2026 - the API's TLS server identity (/etc/sd-tls) is kept when the
+#   accounts are kept, and removed only on a full DELETE.  A reinstall that
+#   keeps your database now keeps the server's identity with it.
+#
+#   13 Sep 2026 - the account register is sdsys/accounts on disk (plan M3 D1),
+#   so a kept register is saved as /home/sd/accounts, the name installsdai.sh
+#   restores.  An install from before the rename has sdsys/ACCOUNTS, which this
+#   does not look for: no install needs carrying across (owner, 12-13 Sep) -
+#   take the delete-accounts path instead.
+#
+
+# Modified by Composer AI - 2026/06/10.
+# Enable strict mode and predictable word splitting for safer uninstall.
+# set -e
+# set -u
+# set -o pipefail
+# IFS=$'\n\t'
+set -euo pipefail
+IFS=$'\n\t'
+# --------------------
+
+# Define color codes as variables
+# note 90–97 Set bright foreground color aixterm (not in standard)
+# 91 - bright RED
+# 92 - bright GREEN
+# 93 - bright YELLOW
+# for now stick with standard
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+#
+NC='\033[0m' # No Color (reset)
+
+sdsysdir="/usr/local/sdsys"
+systemd_dir="/usr/lib/systemd/system"
+acct_path="/home/sd"
+
+if [[ $EUID -eq 0 ]]; then
+    printf "%bThis script must NOT be run as root.%b\n" "$RED" "$NC" 1>&2
+    # exit
+    exit 1
+fi
+if [ -f "${sdsysdir}/bin/sd" ]; then
+    echo
+else
+    printf "%bSD is not installed!\n" "$RED"
+    printf "This script will not run.%b\n" "$NC"
+    # exit
+    exit 1
+fi
+#
+clear
+printf "%bREMOVE the SD Database Package\n" "$RED"
+echo    "---------------------------------------"
+printf "%b\n" "$YELLOW"
+# Modified by Composer AI - 2026/06/10.
+# Use read -r so backslashes in input are not interpreted.
+# read -p "Continue? (y/N) " yn
+read -r -p "Continue? (y/N) " yn
+# --------------------
+case $yn in
+     [yY] ) echo;;
+     [nN] ) exit 0;;
+         *) exit 0 ;;
+esac
+
+echo
+echo "If requested, enter your account password:"
+# Modified by Composer AI - 2026/06/10.
+# Refresh sudo credentials with sudo -v instead of sudo date.
+# sudo date &>/dev/null
+sudo -v
+# --------------------
+
+# Modified by Composer AI - 2026/06/10.
+# Ensure /home/sd exists before account or configuration backups.
+# (no mkdir here in original script)
+sudo mkdir -p "$acct_path"
+# --------------------
+
+echo
+printf "%bDo you want to save your existing accounts.\n" "$GREEN"
+echo "WARNING: Entering 'N' will delete all your existing accounts."
+echo         
+printf "%b\n" "$YELLOW"
+keep_accts='KEEP'
+# Modified by Composer AI - 2026/06/10.
+# read -p "Keep your existing accounts? (Y/n) " yn
+read -r -p "Keep your existing accounts? (Y/n) " yn
+# --------------------
+case $yn in
+    [yY] ) echo
+           echo Accounts Directory Saved
+           # Modified by Composer AI - 2026/06/10.
+           # sudo cp -r /usr/local/sdsys/ACCOUNTS /home/sd
+           # ls /home/sd/ACCOUNTS;;
+           sudo cp -r "${sdsysdir}/accounts" "$acct_path"
+           ls "$acct_path/accounts";;
+    [nN] ) echo
+           # Modified by Composer AI - 2026/06/10.
+           # read -p 'Enter "DELETE" to confirm deletion of Accounts ' keep_accts
+           read -r -p 'Enter "DELETE" to confirm deletion of Accounts ' keep_accts
+           # --------------------
+           if [ "$keep_accts" = "DELETE" ]; then
+               echo /home/sd Directory Deleted
+               sudo rm -fr "$acct_path"
+           else
+               echo Accounts Directory Saved
+               sudo cp -r "${sdsysdir}/accounts" "$acct_path"
+               ls "$acct_path/accounts"
+           fi
+           ;;
+    *)     echo
+           echo Accounts Directory Saved
+           sudo cp -r "${sdsysdir}/accounts" "$acct_path"
+           ls "$acct_path/accounts";;
+esac
+
+echo
+echo
+printf "%bDo you want to save your existing SD configuration.\n" "$GREEN"
+echo "WARNING: Entering 'N' will delete your current configuration."
+echo        
+printf "%b\n" "$YELLOW"
+# Modified by Composer AI - 2026/06/10.
+# Standardize prompt handling with read -r and [yY] matching.
+# read -p "Keep your existing configuration? (Y/n) " yn
+read -r -p "Keep your existing configuration? (Y/n) " yn
+# --------------------
+# 10 Sep 26  PRE_RELEASE 26 - /home/sd MUST BE A DIRECTORY FOR THE MOVE BELOW.
+#            Answering DELETE to the accounts question removes /home/sd, and
+#            "mv /etc/sd.conf /home/sd" then does not fail - it RENAMES the
+#            file to /home/sd, because the destination directory is gone.  The
+#            delete looks successful and the next install dies at
+#            "mkdir -p /home/sd/user_accounts" with "Not a directory".  Both
+#            were measured in a sandbox, 10 Sep 26.  Recreating the directory
+#            here makes the saved config land where the installer looks for it
+#            (/home/sd/sd.conf); when the accounts were kept, this is a no-op.
+sudo mkdir -p "$acct_path"
+case $yn in
+    [yY] ) echo
+           sudo mv /etc/sd.conf "$acct_path"
+           echo Configuration file saved;;
+    [nN] ) echo
+           echo Configuration file will be deleted;;
+     *)    echo
+           sudo mv /etc/sd.conf "$acct_path"
+           echo Configuration file saved;;
+esac
+printf "%b\n" "$NC"
+
+# Modified by Composer AI - 2026/06/10.
+# Stop SD and systemd services before removing binaries and unit files.
+# remove the /usr/sdsys directory
+# sudo rm -fr /usr/local/sdsys
+# ...
+# cd /usr/lib/systemd/system
+# stop services (was here, after rm)
+sudo "${sdsysdir}/bin/sd" -stop 2>/dev/null || true
+sudo systemctl stop sd.service sdclient.socket 2>/dev/null || true
+sudo systemctl disable sd.service sdclient.socket 2>/dev/null || true
+# --------------------
+
+# 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL IS APPEND-ONLY (chattr +a),
+# and "rm -fr" cannot remove such a file: the removal below would stop part way
+# and leave half an install.  So the attribute comes off first, after the
+# services are stopped above so nothing is appending.  When the accounts are
+# kept the trail is kept with them, in $acct_path, and installsdai.sh puts it
+# back - the Windows port's uninstaller keeps the trail with the database.
+# Answering DELETE removes it with everything else.
+for f in "$sdsysdir"/audit "$sdsysdir"/audit.*; do
+    [ -f "$f" ] || continue
+    sudo chattr -a "$f" 2>/dev/null || true
+    if [ "$keep_accts" != "DELETE" ]; then
+        sudo mv "$f" "$acct_path/"
+        echo "Saved audit trail $(basename "$f")"
+    fi
+done
+
+# 14 Sep 26 dm - W.4 SCRAM phase 2.  THE CREDENTIAL REGISTER GOES WITH THE
+# ACCOUNTS, for the reason the audit trail does: $cred is every account's SD
+# password (as SCRAM keys), and a keep cycle that dropped it would leave every
+# account unreachable through the API until each password was set again.
+# installsdai.sh restores it sdsys:sdusers 0700 - the administrator's own
+# (18 Sep 26, S.26; the group is sdusers, there is no sdsys group).  DELETE
+# removes it.
+if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/\$cred" ]; then
+    sudo rm -fr "$acct_path/\$cred"
+    sudo cp -a "$sdsysdir/\$cred" "$acct_path/"
+    echo "Saved the credential register (\$cred)"
+fi
+
+# 20 Sep 26 dm - S.40 (parity with the Windows port, owner's ruling).
+# batch.jobs is the per-account allowlist for a command run from the sd
+# command line (login's batch.permitted); it goes with the accounts for the
+# same reason $cred does - a keep cycle that dropped it would silently widen
+# every account back to "any command, unattended" until the list was rebuilt
+# by hand.  installsdai.sh restores it sdsys:sdusers 0750.  DELETE removes it.
+if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/batch.jobs" ]; then
+    sudo rm -fr "$acct_path/batch.jobs"
+    sudo cp -a "$sdsysdir/batch.jobs" "$acct_path/"
+    echo "Saved the batch-job allowlist (batch.jobs)"
+fi
+
+# remove the /usr/sdsys directory
+sudo rm -fr "$sdsysdir"
+echo
+echo "Removed ${sdsysdir} directory."
+
+# remove the symbolic link to sd in /usr/local/bin or /usr/bin
+if [ -L "/usr/local/bin/sd" ]; then
+    sudo rm /usr/local/bin/sd
+    echo "Removed symbolic link /usr/local/bin/sd."
+fi
+
+if [ -L "/usr/bin/sd" ]; then
+    sudo rm /usr/bin/sd
+    echo "Removed symbolic link /usr/bin/sd."
+fi
+
+#remove config file
+sudo rm -f /etc/sd.conf
+echo "Config file removed."
+
+# 15 Sep 26 dm - S.19: the API's TLS server identity, kept beside sd.conf
+# (gplsrc/linuxio.c api_tls_dir).  The relay makes a new one on the next
+# install's first API connection.
+#
+# 15 Sep 26 dm - ***IT GOES WITH THE ACCOUNTS NOW, LIKE $cred ABOVE*** (owner's
+# ruling that day: the identity persists for 1.1; client-side recognition is
+# 1.2's mutual enrolment).  A keep cycle used to destroy the server's identity,
+# so the next install came up with a NEW key while the accounts, passwords and
+# audit trail were all the ones the machine had before.  Nothing notices today,
+# because no client checks the key - but the moment one does, every upgrade
+# would look exactly like an impostor, and a warning that fires on every routine
+# upgrade is one people learn to click through.  So the decision is taken before
+# the clients exist, not after.
+#
+# It is LEFT IN PLACE rather than saved and restored: unlike $cred it lives
+# outside the sdsys tree, at /etc/sd-tls, and installsdai.sh never touches it -
+# the relay picks it up on the next first API connection.  DELETE removes it,
+# which is the case where the machine is genuinely being wiped.
+if [ "$keep_accts" = "DELETE" ]; then
+    sudo rm -rf /etc/sd-tls
+    echo "Removed /etc/sd-tls."
+else
+    if [ -d /etc/sd-tls ]; then
+        echo "Kept the API's TLS server identity (/etc/sd-tls), as the accounts were kept."
+    fi
+fi
+
+# 10 Sep 26 - nano's SD BASIC syntax file, which the installer places outside the
+# SD tree (beside its microcfg copy) because nano reads /usr/share/nano/*.nanorc.
+sudo rm -f /usr/share/nano/sdbasic.nanorc
+echo "Removed /usr/share/nano/sdbasic.nanorc."
+
+# 22 Sep 2026 - the include line the installer appends to /etc/nanorc on a
+#   distribution whose own copy does not already glob /usr/share/nano the way
+#   Debian's does (Arch, Fedora, openSUSE).  Exact-line match only, same as
+#   what was written; a line the machine's owner added themselves is untouched.
+if [ -f /etc/nanorc ] && grep -qxF 'include "/usr/share/nano/sdbasic.nanorc"' /etc/nanorc; then
+    sudo sed -i '\#^include "/usr/share/nano/sdbasic\.nanorc"$#d' /etc/nanorc
+    echo "Removed the sdbasic.nanorc include line from /etc/nanorc."
+fi
+
+# --------------------
+# PRE_RELEASE 14 - the privileged helper and its sudoers drop-in.
+#
+# ORDER MATTERS: the drop-in goes FIRST.  It names the sdsys user, and a
+# sudoers file referring to privileges that no longer belong on this machine
+# is a dangling entry in the file that decides who may become root.  Removing
+# the rule before anything it mentions means there is never a moment where
+# one outlives the other.
+sudo rm -f /etc/sudoers.d/sdcore
+echo "Removed /etc/sudoers.d/sdcore."
+sudo rm -f /usr/local/sbin/sd-elevate
+echo "Removed /usr/local/sbin/sd-elevate."
+# 12 Sep 26  PORT_ADOPTION 19.  The reconciler goes with the other helpers.
+#            It removes account directories under --sweep, so leaving a
+#            root-owned copy behind after an uninstall would leave a tool
+#            pointed at a register that is no longer there.
+sudo rm -f /usr/local/sbin/sd-reconcile-accounts
+echo "Removed /usr/local/sbin/sd-reconcile-accounts."
+#
+# 10 Sep 26  PRE_RELEASE 13 - take SD's ssh-only block back out of sshd_config.
+#            ALWAYS, regardless of the accounts question: the block is system
+#            configuration, not account data.  --remove is run BEFORE the helper
+#            is deleted, because --remove IS the helper; it validates the result
+#            with sshd -t and reloads sshd, and leaves sshd_config untouched if
+#            no SD block is present.  Non-fatal: a stale block matching a group
+#            that is about to be removed is harmless (it just never matches), so
+#            a removal hiccup must not abort the uninstall.
+if [ -x /usr/local/sbin/ssh-forcecommand ]; then
+    sudo /usr/local/sbin/ssh-forcecommand --remove || \
+        echo "WARNING: could not remove the ssh block automatically; check /etc/ssh/sshd_config."
+    sudo rm -f /usr/local/sbin/ssh-forcecommand
+    echo "Removed /usr/local/sbin/ssh-forcecommand."
+fi
+# 10 Sep 26  PRE_RELEASE 25 - THE GROUP GOES ONLY IF THE ACCOUNTS GO.
+#            This removal was unconditional, and it was a lock-out on a
+#            keep-accounts upgrade.  18 Sep 26, the teardown: sdadmin and
+#            sdapi are not created any more (the administrator is the sdsys OS
+#            user; the API is open to every account except SDSYS), so these
+#            lines now only tidy machines installed before the teardown, and
+#            only when the accounts go too.  A keep-accounts cycle leaves the
+#            legacy groups exactly as it found them.
+# 20 Sep 26 dm - S.29 BRINGS sdssh AND sdapi BACK, so sdapi is no longer a
+#   leftover to tidy: it and sdssh are where each account's remote routes are
+#   recorded.  They go with the accounts and never without them - on a keep
+#   cycle the memberships ARE the routes the accounts still have.  sdadmin
+#   stays legacy: the teardown removed the administrator group for good.
+if [ "$keep_accts" = "DELETE" ]; then
+    if getent group sdadmin &>/dev/null; then
+        sudo groupdel sdadmin || true
+        echo "Removed legacy group sdadmin."
+    fi
+    for sd_route_group in sdssh sdapi; do
+        if getent group "$sd_route_group" &>/dev/null; then
+            sudo groupdel "$sd_route_group" || true
+            echo "Removed group $sd_route_group (the accounts went with it)."
+        fi
+    done
+else
+    echo "sd ACCOUNTS were saved, so the route groups sdssh and sdapi were kept."
+fi
+# --------------------
+
+# Modified by Composer AI - 2026/06/10.
+# Remove unit files using full paths; do not cd into systemd directory.
+# cd /usr/lib/systemd/system
+# stop services
+# sudo systemctl stop sd.service
+# sudo systemctl stop sdclient.socket
+# disable services
+# sudo systemctl disable sd.service
+# sudo systemctl disable sdclient.socket
+# remove service files
+# sudo rm /usr/lib/systemd/system/sd.service
+# sudo rm /usr/lib/systemd/system/sdclient.socket
+# sudo rm /usr/lib/systemd/system/sdclient@.service
+sudo rm -f "${systemd_dir}/sd.service" \
+           "${systemd_dir}/sdclient.socket" \
+           "${systemd_dir}/sdclient@.service"
+# --------------------
+echo "Removed systemd service files."
+
+# remove sdsys user and sdusers group only if deleting ACCOUNTS
+
+if [ "$keep_accts" = "DELETE" ]; then
+    # Modified by Composer AI - 2026/06/10.
+    # Remove sdsys user and sdusers group only; sdsys is a user not a group.
+    # sudo userdel sdsys
+    # sudo groupdel sdusers
+    # echo "Removed sdusers group."
+    # sudo groupdel sdsys
+    # echo "Removed sdsys group."
+    if id sdsys &>/dev/null; then
+        sudo userdel sdsys
+        echo "Removed sdsys user."
+    fi
+    if getent group sdusers &>/dev/null; then
+        sudo groupdel sdusers
+        echo "Removed sdusers group."
+    fi
+    # Modified by Composer AI - 2026/06/10.
+    # Remove orphan sdsys group left when userdel ran without groupdel.
+    if getent group sdsys &>/dev/null; then
+        sudo groupdel sdsys || true
+        echo "Removed orphan sdsys group."
+    fi
+    # --------------------
+    echo "Note: for complete clean up groups sdu_* and sdg_* may need to be manually removed"
+else
+    echo "sd ACCOUNTS were saved, therefore"
+    echo "user sdsys and group sdusers not deleted"
+    echo "The assumption is sd will be reinstalled"
+fi
+
+
+printf "%b\n" "$GREEN"
+echo "----------------------------------------------------------------------"
+# Modified by Composer AI - 2026/06/10.
+# Correct script name in completion message.
+# echo "The deletesd.sh script has completed."
+echo "The deletesdai.sh script has completed."
+# --------------------
+echo "Reboot to update user and group information and prior to sd reinstall."
+echo "----------------------------------------------------------------------"
+printf "%b\n" "$YELLOW"
+# Modified by Composer AI - 2026/06/10.
+# read -p "Restart computer now? (y/N) " yn
+read -r -p "Restart computer now? (y/N) " yn
+# --------------------
+case $yn in
+    [yY] ) sudo reboot;;
+    [nN] ) echo;;
+    * ) echo ;;
+esac
+printf "%b\n" "$NC"
+exit 0

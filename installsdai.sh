@@ -1,0 +1,1826 @@
+#!/bin/bash
+#   SD bash install script
+#   (c) 2023-2026 Donald Montaine and Mark Buller
+#   This software is released under the Blue Oak Model License
+#   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
+#
+#   rev 2.0  Mar 15 2026 mab - echo -e to printf, allow install from local repository
+#   - prior history suppressed 
+#
+#   rev 2.1 Apr 27 2026 dsm - change git repository to codeberg.org
+#
+#   rev 2.1ai May 24 2026 dsm - modified script to test ai version
+#
+#   09 Sep 2026 - two questions removed and the source fixed.  The installer no
+#   longer asks whether to keep the download, and no longer asks which
+#   repository to use: it always clones the main branch from
+#   github.com/dmontaine/SDCore4Linux and always deletes the download when it
+#   finishes.  The <D>evelopment branch and <L>ocal repository options are gone
+#   with the question.  Debian and Ubuntu only for now - the pacman, dnf and
+#   zypper branches are removed and a non-Debian system is refused by name
+#   rather than silently taking a branch that installs nothing; Arch, Fedora and
+#   openSUSE are served by the upstream sdb64 installer until this one is
+#   stable.
+#
+#   10 Sep 2026 - two changes on the owner's ruling of that day.  The
+#   installing user is registered as an SD ADMINISTRATOR (the ADMINISTRATOR
+#   keyword on create-account) instead of a STANDARD account, so a fresh
+#   install has a registered administrator and CPROC's bootstrap arm is a
+#   fallback rather than the way in.  And a caller who cannot sudo is refused
+#   at the first sudo, in words, instead of failing part-way with sudo's own
+#   error.  Both are PRE_RELEASE 24.
+#
+#   13 Sep 2026 - the sdsys data directories are lower case on disk (plan M3
+#   D1): accounts, newvoc, voc_template, messages, syscom, sd.voclib, and the
+#   bootstrap's $ipc, $map, $map.dic, voc.dic, accounts.dic, dict.dic, dir_dict.
+#   A saved register is looked for as /home/sd/accounts only.
+#
+#   13 Sep 2026 - and the program directories (plan M3 D2): gpl.bp,
+#   gpl.bp.out, bp, bp.out and pcode.out.  sd.service is Type=oneshot
+#   (PRE_RELEASE 29).
+#
+#   13 Sep 2026 - account names are lower case, the system account included:
+#   its register record is accounts/sdsys.
+#
+#   14 Sep 2026 - the closing "two reboots / kickstart" note is gone: the
+#   Type=oneshot unit held on every boot start since 13 Sep (PRE_RELEASE 29).
+#
+#   14 Sep 2026 - process dumps go to $sdsysdir/dumps (1730 sdsys:sdusers),
+#   and DUMPDIR is added to a restored sd.conf that lacks it (PORT_ADOPTION 25).
+#
+#   14 Sep 2026 - the build runs as the calling user; only the install steps
+#   use sudo (PRE_RELEASE 16).
+#
+#   15 Sep 2026 - the install ends by setting the SD password of the account it
+#   makes for the installing user, with MODIFY.PASSWORD at the terminal - the
+#   Windows port's finishing step.  For that account only: an SDSYS password,
+#   which the port also sets, would unlock nothing on Linux.  W.4 phase 6, the
+#   owner's ruling of that day.  REVERSED 18 Sep 2026 (owner): no SD password
+#   is asked at install - a Linux login already reaches the SD account.
+#
+#   19 Sep 2026 - BACK, AND REQUIRED (owner, via the Windows port): the one
+#   account an install makes without a credential is the installer's own, and
+#   it has remote routes.  Asked up to three times, verified in $cred, never
+#   passed as an argument; a kept credential is left alone.
+
+# Modified by Composer AI - 2026/06/10.
+# Enable strict mode and predictable word splitting for safer installation.
+# (no strict mode in original script)
+set -euo pipefail
+IFS=$'\n\t'
+# --------------------
+
+# all important url of repository, change this to use your own fork
+#
+# 09 Sep 26  Now GitHub, always the main branch, and no longer a choice.  The
+#            repository moved to github.com/dmontaine/SDCore4Linux; codeberg is
+#            where this came from and is not where it is maintained.
+#            MIND THE CAPITALISATION - the lower-case form only works through a
+#            redirect.
+REPO_URL="https://github.com/dmontaine/SDCore4Linux"
+REPO_BRANCH="main"
+# define where we expect to find the package
+# 09 Sep 26  THE DOWNLOAD GOES UNDER $HOME, NOT INTO WHATEVER DIRECTORY THE
+#            SCRIPT WAS RUN FROM.  It used to be "$(pwd)/.sdb64tmp", so running
+#            the installer from a clone of this repository dropped a 4 MB build
+#            tree inside the project and made "git status" dirty - and a clean
+#            git status is a working instrument here.  Absolute, so it does not
+#            move when the script cd's into the build tree.
+dflt_git_folder="${HOME}/.sdb64tmp"
+#
+# 09 Sep 26  THE CLONE'S SOURCE TREE IS ONE LEVEL DOWN, AND THIS IS THE TRAP.
+#            The old codeberg repository WAS the source tree - its root held
+#            sd64/ - so the installer built from the clone root.  SDCore4Linux
+#            holds the installer at the root and the source under sdb_ai/, so
+#            the clone gives <tmp>/sdb_ai/sd64.  Building from <tmp> would fail
+#            the "not an sd install repo" check with nothing to explain it.
+repo_src_subdir="sdb_ai"
+
+#function to test git repo availability
+repo_available() {
+# Modified by Composer AI - 2026/06/10.
+# Test repository reachability directly instead of inspecting $? after echo.
+# Attempt to list remote references silently
+#   git ls-remote -q "$REPO_URL" &>/dev/null
+# Check the exit status of the previous command
+#   if [ $? -eq 0 ]; then
+  if git ls-remote -q "$REPO_URL" &>/dev/null; then
+# --------------------
+    echo "The Git repository at github.com is available."
+    echo "Creating temporary source code repository."
+    return 0
+  else
+    printf "%b\n" "$RED"
+    echo "The SDCore4Linux repository is not available."
+    echo "Verify your internet connection and then try again."
+    printf "%b\n" "$NC"
+    # exit
+    exit 1
+  fi
+ 
+}
+
+# Modified by Composer AI - 2026/06/10.
+# Verify required host tools before package installation begins.
+require_command() {
+  if ! command -v "$1" &>/dev/null; then
+    printf "%bRequired command not found: %s%b\n" "$RED" "$1" "$NC" 1>&2
+    exit 1
+  fi
+}
+# --------------------
+
+# Modified by Composer AI - 2026/06/10.
+# Auto-detect distribution from /etc/os-release when possible.
+# 22 Sep 2026 - word-boundary match, not a colon-joined substring.  The old
+#   "${ID_LIKE:-}:${ID}:" pattern needed a colon BEFORE the family name to
+#   match, which is only there when something precedes it in the string.  A
+#   derivative whose ID_LIKE IS the family, with nothing before it - Linux
+#   Mint (ID_LIKE=ubuntu), Pop!_OS (ID_LIKE="ubuntu debian") - built a string
+#   with the family name at position zero and so never matched *:ubuntu:*.
+#   Real Ubuntu itself was unaffected (ID_LIKE=debian precedes ID=ubuntu), which
+#   is why this went unnoticed.  Space-joined with a leading and trailing space
+#   makes every field a bounded word regardless of position.
+detect_distro() {
+  is_arch=0
+  is_debian=0
+  is_fedora=0
+  is_suse=0
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    ids=" ${ID:-} ${ID_LIKE:-} "
+    case "$ids" in *" arch "*) is_arch=1 ;; esac
+    case "$ids" in *" debian "*|*" ubuntu "*) is_debian=1 ;; esac
+    case "$ids" in *" fedora "*|*" rhel "*) is_fedora=1 ;; esac
+    case "$ids" in *" suse "*|*" opensuse"*|*" sles "*) is_suse=1 ;; esac
+  fi
+}
+# --------------------
+ 
+if [[ $EUID -eq 0 ]]; then
+    echo "This script must NOT be run as root" 1>&2
+    # exit
+    exit 1
+fi
+if [ -f  "/usr/local/sdsys/bin/sd" ]; then
+    echo "A version of sd is already installed."
+    echo "Uninstall it before running this script."
+    # exit
+    exit 1
+fi
+#
+tgroup=sdusers
+tuser=$USER
+cwd=$(pwd)
+sdsysdir="/usr/local/sdsys"
+
+# Define color codes as variables
+# note 90–97 Set bright foreground color aixterm (not in standard)
+# 91 - bright RED
+# 92 - bright GREEN
+# 93 - bright YELLOW
+# for now stick with standard
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+#
+NC='\033[0m' # No Color (reset)
+
+# Modified by Composer AI - 2026/06/10.
+# sd -start and sd -stop return non-zero when already in the target state.
+# Helpers prevent set -e from aborting reinstall/bootstrap mid-install.
+# 20 Sep 26 dm - ASTERISKS, LIKE SD'S OWN PROMPTS (owner, 20 Sep, of his
+#   install: "#2 does not display *").  "read -s" echoes NOTHING, so the LINUX
+#   step looked dead while SD's two steps showed a * per character.  This
+#   reads one character at a time and echoes the star itself, handles
+#   backspace and DEL, and reads from the terminal rather than stdin - the
+#   installer's own stdin may be a pipe.  The password never leaves this
+#   shell: it goes into the named variable, and nothing is echoed but stars.
+#   SD_PW_TTY exists so the loop can be exercised from a pipe (see its test
+#   at the end of this comment block: printf 'abc\n' | SD_PW_TTY=/dev/stdin).
+read_password() {
+  local prompt=$1 __name=$2 tty=${SD_PW_TTY:-/dev/tty} ch pw=""
+  printf '%s' "$prompt" > "$tty"
+  while IFS= read -r -s -n1 ch < "$tty"; do
+    case "$ch" in
+      "") break ;;                                  # Return
+      $'\177'|$'\b')
+        if [ -n "$pw" ]; then
+          pw=${pw%?}
+          printf '\b \b' > "$tty"
+        fi
+        ;;
+      *) pw="$pw$ch"; printf '*' > "$tty" ;;
+    esac
+  done
+  printf '\n' > "$tty"
+  printf -v "$__name" '%s' "$pw"
+}
+
+sd_install_stop() {
+  sudo "${sdsysdir}/bin/sd" -stop >/dev/null 2>&1 || true
+}
+
+# 20 Sep 26 dm - QUIET ON THE HAPPY PATH (owner, 20 Sep, reading an install):
+#   "SD (64 Bit) has been started" and its shutdown twin landed in the middle
+#   of the password steps, between the explanation and the prompt.  Only the
+#   SUCCESSFUL start is silenced; every failure path below still prints, and
+#   the retry and the red failure are untouched - a start that did not happen
+#   must say so.
+sd_install_start() {
+  if sudo "${sdsysdir}/bin/sd" -start >/dev/null; then
+    return 0
+  fi
+  printf "%b\n" "$YELLOW"
+  echo "sd -start failed; stopping any running instance and retrying."
+  printf "%b\n" "$NC"
+  sd_install_stop
+  sleep 1
+  if sudo "${sdsysdir}/bin/sd" -start; then
+    return 0
+  fi
+  printf "%b\n" "$RED"
+  echo "Could not start SD server."
+  printf "%b\n" "$NC"
+  return 1
+}
+# --------------------
+
+#
+clear
+printf "%bSD installer%b\n" "$RED" "$NC"
+echo -----------------------
+echo
+# 20 Sep 26 dm - THE WARNING BLOCK IS GONE (owner, 20 Sep).  It opened every
+#   install with "modified by AI ... very experimental ... DO NOT USE IN A
+#   PRODUCTION ENVIRONMENT", which contradicts the project's own stance that
+#   this version ships for production (CLAUDE.md, owner 9 Sep 2026), and the
+#   "do not install in parallel with a standard SD" line describes a situation
+#   the installer refuses for itself (installsdai.sh:152).
+printf "%bFor this install script to work you must have sudo installed\n" "$GREEN"
+printf "and be a member of the sudo group.  Also, systemd must be enabled.%b\n" "$NC"
+echo
+# 20 Sep 26 dm - THE "Installer tested on ..." LINE WAS GONE (owner, 20 Sep):
+#   it named one distribution and one version, so it aged the moment either
+#   moved, and it answered a question nobody installing here is asking.
+# 22 Sep 2026 - BACK, ON THE OWNER'S DIRECT INSTRUCTION OF THAT DAY, updated to
+#   the current release under test.  The 20 Sep reasoning was not wrong; the
+#   owner is choosing to accept that cost again rather than leave the line out.
+echo "Installer tested on Ubuntu 26.10."
+echo
+# --------------------
+# 09 Sep 26  Was "from the selected branch", plus a paragraph offering the local
+#            repository.  There is no selection any more: main, from GitHub.
+echo "This script will download the SD source code from the main branch at"
+echo "${REPO_URL}, compile it and install SD."
+echo
+echo "The download is temporary and is removed when the install finishes."
+echo
+#
+printf "%b\n" "$YELLOW"
+# Modified by Composer AI - 2026/06/10.
+# read -p "Continue? (y/N) " yn
+read -r -p "Continue? (y/N) " yn
+# --------------------
+echo
+case $yn in
+    [yY] ) echo;;
+    [nN] ) exit 0;;
+    * ) exit 0 ;;
+esac
+#
+# --------------------
+# Remote-access prompts (owner, 10 Sep 2026, approach B).  Asked up front so the
+# rest of the install runs unattended.  Both default to NO: without them, sshd
+# stays as the box has it and the API listens on 127.0.0.1:4243 (local only).
+# "Allow ssh access"  y -> enable sshd at boot + ufw allow 22/tcp.
+# "Allow API access"  y -> rebind the API listener to 0.0.0.0:4243 + ufw allow 4243/tcp.
+allow_ssh=n
+allow_api=n
+printf "%b\n" "$YELLOW"
+read -r -p "Allow ssh access from other computers? enables sshd at boot, opens port 22 (y/N) " yn_ssh
+case $yn_ssh in [yY]|[yY][eE][sS] ) allow_ssh=y;; esac
+read -r -p "Allow API access from other computers? opens TCP port 4243 (y/N) " yn_api
+case $yn_api in [yY]|[yY][eE][sS] ) allow_api=y;; esac
+printf "%b\n" "$NC"
+# --------------------
+#
+# 09 Sep 26  The local-repository probe is gone with the <L> menu option it fed.
+#
+printf "%b\n" "$GREEN"
+echo "If requested, enter your account password:"
+printf "%b\n" "$YELLOW"
+#
+# Modified by Composer AI - 2026/06/10.
+# Refresh sudo credentials with sudo -v instead of sudo date.
+# sudo date &>/dev/null
+# 10 Sep 26  A CALLER WHO CANNOT SUDO IS REFUSED HERE, IN WORDS, BEFORE
+#            ANYTHING IS CHANGED.  This was a bare "sudo -v": the credential
+#            check was already the right test, but the failure was sudo's own
+#            error and a set -e abort - true, and it names nothing the person
+#            can act on.  Owner's ruling, 10 Sep 26.  Every privileged step in
+#            this script shells to sudo, so without this the install fails
+#            part-way through, after it has begun changing the machine.
+if ! sudo -v; then
+    printf "%b\n" "$RED"
+    echo "This installer needs sudo, and ${USER} cannot use it."
+    echo "sudo is not installed, or ${USER} is not in the sudo group."
+    printf "%b\n" "$NC"
+    exit 1
+fi
+# --------------------
+clear
+echo
+# 09 Sep 26  The "Save downloaded source to a directory under your home folder?"
+#            question is gone.  The download is working material, not something
+#            the user is left holding: it is always removed when the install
+#            finishes.  Somebody who wants the source clones the repository.
+# Modified by Composer AI - 2026/06/10.
+# Quote path variables when removing the temporary clone directory.
+# rm -fr $cwd/$dflt_git_folder
+# 09 Sep 26  sudo, and for the same reason as the cleanup at the end of the
+#            script: a previous run that got as far as "sudo make" left
+#            root-owned gplobj/ and terminfo/ behind, and an ordinary rm cannot
+#            remove those.
+sudo rm -fr "${dflt_git_folder}"
+# --------------------
+printf "%b\n" "$NC"
+#
+# Ask for distribution type
+# Modified by Composer AI - 2026/06/10.
+# Try auto-detection first; fall back to the manual menu when unknown.
+# is_arch=0
+# is_debian=0
+# is_fedora=0
+# is_suse=0
+# printf "%bChoose your distribution.\n" "$GREEN"
+detect_distro
+# 22 Sep 2026 - ARCH, FEDORA AND OPENSUSE RESTORED (owner, 22 Sep 2026).  They
+#            were removed 09 Sep 26 "deliberately and temporarily" while the
+#            Debian/Ubuntu branch was stabilised, on the understanding they
+#            would return once it was; that day has come.  The manual a/d/f/s
+#            distribution menu stays gone - detect_distro() decides, or the
+#            refusal below fires.
+#
+# NOTE the pre-09-Sep Arch branch also START-ed and ENABLE-d sshd, which no
+# other branch did.  That asymmetry is deliberately NOT restored here: whether
+# SD turns an ssh server on is a decision, not an install detail (PRE_RELEASE
+# 13), and it is handled once, uniformly, for every distro, by the allow_ssh
+# prompt near the end of this script (systemctl enable --now ssh || sshd).
+#
+# 14 Sep 26 dm - S.18: libbsd/libbsd-dev/libbsd-devel dropped from every
+# branch, restored or not.  Its one use was getpeereid() in linuxio.c, for the
+# retired APILOGIN=0 API login; the Makefile no longer links -lbsd.
+#
+# 15 Sep 26 dm - S.19: an OpenSSL development package added to every branch.
+# Every API connection is TLS 1.3; sd and the client library link libssl
+# (gplsrc/sd_tls.c, sd_tlssrv.c).  Arch does not split a -devel package for
+# openssl the way Debian, Fedora and openSUSE do; installing "openssl" there
+# carries the headers already.
+if [ "$is_arch" -eq 1 ]; then
+    echo "Detected an Arch based distribution from /etc/os-release."
+    if ! sudo pacman -Sy --noconfirm git base-devel micro lynx libsodium openssl openssh python; then
+        printf "%b\n" "$RED"
+        echo "Package installation using pacman failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+elif [ "$is_debian" -eq 1 ]; then
+    echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
+    if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssh-server python3-dev; then
+        printf "%b\n" "$RED"
+        echo "Package installation using apt-get failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+    # run this along as only required on Ubuntu 26.04 and
+    # don't want to abort if not found on earlier distributions
+    sudo apt-get -y --ignore-missing install libcrypt-dev || true
+elif [ "$is_fedora" -eq 1 ]; then
+    echo "Detected a Fedora or RHEL based distribution from /etc/os-release."
+    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl-devel openssh-server python3-devel; then
+        printf "%b\n" "$RED"
+        echo "Package installation using dnf failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+elif [ "$is_suse" -eq 1 ]; then
+    echo "Detected an openSUSE or SUSE based distribution from /etc/os-release."
+    if ! sudo zypper --non-interactive install git make automake gcc gcc-c++ kernel-default-devel micro-editor lynx libsodium-devel libopenssl-devel openssh python3-devel; then
+        printf "%b\n" "$RED"
+        echo "Package installation using zypper failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+else
+    printf "%b\n" "$RED"
+    echo "Could not identify this distribution from /etc/os-release."
+    echo "This installer supports Debian, Ubuntu, Arch, Fedora, RHEL and"
+    echo "openSUSE based distributions (and their common derivatives)."
+    printf "%b\n" "$NC"
+    exit 1
+fi
+#
+# 22 Sep 2026 - have_ufw computed once, here, rather than re-probed at each of
+#   the two call sites and again in the closing summary.  ufw is Debian/
+#   Ubuntu's firewall front-end; Fedora and openSUSE ship firewalld and Arch
+#   ships no firewall by default, so a machine from any of the three restored
+#   branches normally has no ufw at all.  Both call sites already no-op safely
+#   without it (command -v guarded); what did not follow was the closing
+#   summary, which claimed a rule was added unconditionally - see below.
+if command -v ufw >/dev/null 2>&1; then have_ufw=1; else have_ufw=0; fi
+
+# Modified by Composer AI - 2026/06/10.
+# Confirm build tools are available after distribution packages are installed.
+require_command git
+require_command make
+require_command python3
+require_command python3-config
+# --------------------
+
+echo
+# 09 Sep 26  The <M>ain / <D>evelopment / <L>ocal menu is gone.  There is one
+#            source: the main branch at GitHub.  The development branch is not
+#            something to hand an end user, and the local-repository option
+#            installed whatever happened to be sitting in ./sdb_ai, which is not
+#            a decision an installer should offer either.
+echo "Installing the main branch from: ${REPO_URL}"
+repo_available
+git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$dflt_git_folder"
+
+# 09 Sep 26 dm - PRE_RELEASE 8.  RECORD WHICH COMMIT THIS INSTALL IS, so that
+# assert-current.py can answer exactly instead of guessing from timestamps.
+# Without it the only available comparison is "is the install older than the
+# commit", which is decisive in one direction and worthless in the other: a
+# newer mtime says nothing about WHICH commit was built.
+#
+# Read here, from the clone, rather than later from anywhere else - this is the
+# only moment the answer is known for certain, and --depth 1 means HEAD is the
+# one commit there is.  Written to the installed tree further down, once
+# $sdsysdir exists.
+sdcore_commit=$(git -C "$dflt_git_folder" rev-parse HEAD 2>/dev/null || echo unknown)
+echo "Installing commit ${sdcore_commit}"
+
+# The source tree is one level down in this repository - see repo_src_subdir.
+inst_folder="${dflt_git_folder}/${repo_src_subdir}"
+
+if [ -d "${inst_folder}/sd64" ]; then
+    echo "Installing from ${inst_folder}."
+else
+    printf "%b\n" "$RED"
+    echo "The download did not contain ${repo_src_subdir}/sd64, aborting."
+    echo "Looked in: ${inst_folder}"
+    echo "This means the repository layout changed, not that your download failed."
+    printf "%b\n" "$NC"
+    exit 1
+fi
+
+#
+# Modified by Composer AI - 2026/06/10.
+# cd $cwd/$inst_folder
+# 09 Sep 26  inst_folder is absolute now - see dflt_git_folder.
+cd "${inst_folder}"
+# --------------------
+#
+# rev 0.9.0 need python dev to build, did we get it?
+# Modified by Composer AI - 2026/06/10.
+# Write a stand-in Python header using standard include syntax.
+# python3 --version
+# if [ $? -eq 0 ]; then
+#     PY_HDRS=$(python3-config --includes)
+#     HDRS_STR="${PY_HDRS%% *}"
+#     HDRS_STR="${HDRS_STR#-I}"
+#     echo "path to include file: " $HDRS_STR
+#     echo "#include <"$HDRS_STR"/Python.h>" > sd64/gplsrc/sdext_python_inc.h
+# else
+if python3 --version &>/dev/null; then
+    if ! python3-config --includes &>/dev/null; then
+      printf "%bPython development headers missing, Cannot build!%b\n" "$RED" "$NC"
+      exit 1
+    fi
+    echo "Python development headers available."
+    echo '#include <Python.h>' > sd64/gplsrc/sdext_python_inc.h
+else
+# --------------------
+    printf "%bPython missing, Cannot build!%b\n" "$RED" "$NC"
+    exit 1
+fi
+
+#
+# Modified by Composer AI - 2026/06/10.
+# cd $cwd/$inst_folder/sd64
+cd "${inst_folder}/sd64"
+# --------------------
+#
+# Modified by Composer AI - 2026/06/10.
+# Force rebuild during install; local checkouts may otherwise report up to date.
+# if sudo make; then
+# 14 Sep 26  PRE_RELEASE 16.  AS THE CALLING USER, NOT ROOT.  Compiling needs no
+#            privilege - the Makefile writes only inside this clone, which the
+#            caller made - and only the copies into $sdsysdir below do.  Built
+#            as root, gplobj/ and terminfo/ came out root-owned, which is what
+#            made the cleanup at the end abort the 9 Sep install.  Both
+#            "sudo rm -fr" cleanups stay: the first also clears a root-owned
+#            clone left by a run from before this change.
+if make -B; then
+# --------------------
+    echo "Successful Build."
+else
+    printf "%b\n" "$RED"
+    echo "Could not build SD. Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+fi
+if [ ! -x bin/sd ]; then
+    printf "%b\n" "$RED"
+    echo "Build reported success but bin/sd is missing or not executable."
+    echo "Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+fi
+
+#
+# Create sd system user and group
+# Modified by Composer AI - 2026/06/10.
+# Create sdusers/sdsys only when absent so reinstall after deletesdai.sh succeeds.
+# echo "Creating group: sdusers."
+# sudo groupadd --system sdusers
+# sudo usermod -a -G sdusers root
+# echo "Creating user: sdsys."
+# sudo useradd --system sdsys -G sdusers
+# echo "Setting user: sdsys default group to sdusers."
+# sudo usermod -g sdusers sdsys
+if ! getent group sdusers &>/dev/null; then
+  echo "Creating group: sdusers."
+  sudo groupadd --system sdusers
+else
+  echo "Group sdusers already exists."
+fi
+# 20 Sep 26 dm - S.29, THE TWO ROUTE GROUPS (owner's ruling of 18/19 Sep 2026,
+#   relayed by the port: "every non-sdsys account has the potential to have ssh
+#   and api access by default, but it is the admins choice if it should stay
+#   on").  Membership IS the route - the Windows port's shape, and an ALLOW
+#   group fails CLOSED: !is_grp_member is three-valued and a lookup that cannot
+#   answer reaches its callers as "not a member", which with a DENY group would
+#   silently GRANT remote access instead of withholding it.  They must exist
+#   before any account is created, because CREATE.ACCOUNT joins them.
+for sd_route_group in sdssh sdapi; do
+  if ! getent group "$sd_route_group" &>/dev/null; then
+    echo "Creating group: $sd_route_group."
+    sudo groupadd --system "$sd_route_group"
+  else
+    echo "Group $sd_route_group already exists."
+  fi
+done
+sudo usermod -a -G sdusers root
+# Modified by Composer AI - 2026/06/10.
+# Use sdusers as primary group (-g). Remove orphan sdsys group when no user
+# exists; incomplete uninstalls leave group sdsys and useradd then fails.
+# if ! id sdsys &>/dev/null; then
+#   echo "Creating user: sdsys."
+#   sudo useradd --system sdsys -G sdusers
+# else
+#   echo "User sdsys already exists."
+# fi
+# echo "Setting user: sdsys default group to sdusers."
+# sudo usermod -g sdusers sdsys
+# 20 Sep 26 dm - S.38, THE OWNER'S RULING: "the account needs to be created so
+# that users can get to it through the login screen to match windows".  On
+# Windows SDSYS is an ordinary administrator account and appears at the logon
+# screen; here it must appear at the greeter, which is the same RESULT reached
+# the Linux way (parity-means-same-result).
+#
+# ***THE ONE FLAG THAT DEFEATED THE RULING ALREADY IN PLACE.***  The 18 Sep
+# block below gave sdsys a shell and a home precisely so it could be logged
+# into - and "--system" survived from the pre-teardown era and allocated a uid
+# under UID_MIN (999, measured 20 Sep), which is exactly what GDM and every
+# common greeter use to decide an account is plumbing and hide it.  So the
+# ruling was implemented and invisible: the owner, at his own machine, found
+# "there is no linux sdsys account listed to switch to" while following SD's
+# own refusal message.
+#
+# NOT --system, therefore.  Everything else about the account is unchanged: it
+# is NOT in sudo or wheel, it reaches root only through the sd-elevate drop-in
+# below, and sd-elevate refuses it as a TARGET by name (require_sd_user), not
+# by uid - so raising the uid above UID_MIN opens no door that the uid test was
+# holding shut.  That was checked before this line changed, because a uid guard
+# that happened to cover sdsys is exactly the kind of thing that stops covering
+# it silently.
+if ! id sdsys &>/dev/null; then
+  echo "Creating user: sdsys."
+  if getent group sdsys &>/dev/null; then
+    echo "Removing orphan sdsys group (no sdsys user)."
+    sudo groupdel sdsys || true
+  fi
+  if ! sudo useradd -g sdusers -G sdusers -s /bin/sh --no-create-home sdsys; then
+    printf "%b\n" "$RED"
+    echo "Failed to create sdsys user. Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+  fi
+else
+  echo "User sdsys already exists."
+  # AN EXISTING sdsys KEEPS ITS UID, so a keep-accounts cycle over a tree
+  # installed before today leaves it hidden.  Say so rather than letting the
+  # administrator hunt for it at a greeter that will never list it: changing a
+  # live uid would orphan every file under /usr/local/sdsys and /home/sdsys,
+  # which is not something an installer should do behind anyone's back.
+  sd_sdsys_uid=$(id -u sdsys 2>/dev/null)
+  sd_uid_min=$(awk '/^[[:space:]]*UID_MIN[[:space:]]/ {print $2; exit}' /etc/login.defs 2>/dev/null)
+  sd_uid_min=${sd_uid_min:-1000}
+  if [ -n "$sd_sdsys_uid" ] && [ "$sd_sdsys_uid" -lt "$sd_uid_min" ]; then
+    printf "%b\n" "$RED"
+    echo "NOTE: the existing sdsys user has uid $sd_sdsys_uid, below UID_MIN $sd_uid_min,"
+    echo "      so your login screen will not list it.  Reach it with a text console"
+    echo "      (Ctrl+Alt+F3) instead, or run a delete/install that removes accounts"
+    echo "      to have it made again as an ordinary account."
+    printf "%b\n" "$NC"
+  fi
+fi
+echo "Setting user: sdsys primary group to sdusers."
+sudo usermod -g sdusers -G sdusers sdsys
+# 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: sdsys is ENTERED BY LOGIN.
+# Its password is set at the end of this install (a hidden prompt, like the
+# SD password below), and the account needs a working shell and a home to
+# log into - at the keyboard, or over a desktop-sharing view of it.  The
+# loginuid PAM sets at that login is the one credential SD's administrator
+# gate accepts; sudo and su from another user are refused (CPROC 10195).
+sudo usermod -s /bin/sh sdsys
+sudo install -d -o sdsys -g sdusers -m 750 /home/sdsys
+# --------------------
+# PRE_RELEASE 14, the owner's ruling of 9 Sep 2026: SD ships a sudoers.d
+# drop-in for a group SD owns.
+#
+# WHY.  SD's account verbs shell out to sudo (useradd, passwd, usermod,
+# groupadd, groupdel, userdel, chmod g+s) from ten call sites in GPL.BP.  With
+# no sudoers configuration those block on a PASSWORD PROMPT INSIDE an SD
+# session, which is a hang rather than an error - measured 9 Sep 2026, when
+# "sudo -n -v" on this machine answered "a password is required".
+#
+# The drop-in names ONE command, SD's own helper, which validates its
+# arguments; see gplbld/sdcore.sudoers for why naming useradd/passwd/usermod
+# directly would be root by another route.
+#
+# 18 Sep 26 dm - TEARDOWN (S.26).  The sudoers grant is the sdsys OS user's
+#   now, not sdadmin's: one administrator, entered only from a local session.
+#   The sdadmin and sdapi groups are gone and are no longer created.
+
+# Root-owned, and deliberately NOT under /usr/local/sdsys: that tree is
+# chown -R sdsys:sdusers'd further down, so a helper living there could be
+# rewritten by anyone who reached the sdsys account - and the sudoers entry
+# would then hand them root.
+echo "Installing privileged helper: /usr/local/sbin/sd-elevate."
+sudo mkdir -p /usr/local/sbin
+sudo install -o root -g root -m 0755 gplbld/sd-elevate /usr/local/sbin/sd-elevate
+
+# 10 Sep 26  PRE_RELEASE 13's ssh-boundary helper is installed alongside it, and
+#            for the same root-owned reason.  The uninstaller calls it with
+#            --remove, so it has to outlive the source tree - it cannot be run
+#            from the clone, which is deleted at the end of this script.
+echo "Installing ssh-boundary helper: /usr/local/sbin/ssh-forcecommand."
+sudo install -o root -g root -m 0755 gplbld/ssh-forcecommand.sh /usr/local/sbin/ssh-forcecommand
+
+# 12 Sep 26  PORT_ADOPTION 19.  The register reconciler, beside the other two
+#            and for the same reasons: it must outlive the clone (sd.service
+#            runs it at every start), and it removes account directories under
+#            --sweep, so it is root-owned and not writable by sdsys or sdusers.
+#            sd.service runs only its REPORT mode; --sweep is the
+#            administrator's deliberate act.
+echo "Installing register reconciler: /usr/local/sbin/sd-reconcile-accounts."
+sudo install -o root -g root -m 0755 gplbld/reconcile-accounts.sh /usr/local/sbin/sd-reconcile-accounts
+
+# Validate BEFORE installing.  A malformed sudoers file can lock sudo out of
+# the machine, so this is checked rather than trusted.
+echo "Validating sudoers drop-in."
+if ! sudo visudo -cf gplbld/sdcore.sudoers; then
+  printf "%b\n" "$RED"
+  echo "gplbld/sdcore.sudoers failed validation. Install terminated!"
+  printf "%b\n" "$NC"
+  exit 1
+fi
+
+# The drop-in is inert unless /etc/sudoers includes the directory, and an
+# ignored file looks exactly like one that grants nothing.  Checked rather
+# than assumed.  sudo 1.9.1+ writes @includedir, older writes #includedir.
+if ! sudo grep -Eq '^[[:space:]]*[@#]includedir[[:space:]]+/etc/sudoers\.d' /etc/sudoers; then
+  printf "%b\n" "$RED"
+  echo "/etc/sudoers has no includedir for /etc/sudoers.d, so the drop-in would"
+  echo "be ignored. Add '#includedir /etc/sudoers.d' using visudo, then re-run."
+  echo "Install terminated!"
+  printf "%b\n" "$NC"
+  exit 1
+fi
+
+# The filename must carry no '.' or '~' - sudo skips those silently.
+sudo install -o root -g root -m 0440 gplbld/sdcore.sudoers /etc/sudoers.d/sdcore
+echo "Installed: /etc/sudoers.d/sdcore (the sdsys user may run sd-elevate)."
+# --------------------
+#
+sudo cp -R sdsys /usr/local
+# Fool sd's vm into thinking gcat is populated
+sudo touch /usr/local/sdsys/gcat/\$CPROC
+# create errlog
+sudo touch /usr/local/sdsys/errlog
+#
+# The TAPE and RESTORE subsystem was removed (plan I1, step 4 shrink). It was
+# optional and copied in here at install time from tape/, which is gone; an
+# install that declined the old prompt never had it and is unchanged.
+#
+# copy install template
+sudo cp -R bin "$sdsysdir"
+sudo cp -R gplsrc "$sdsysdir"
+sudo cp -R gplobj "$sdsysdir"
+# Modified by Composer AI - 2026/06/10.
+# sudo mkdir $sdsysdir/gplbld
+sudo mkdir -p "$sdsysdir/gplbld"
+# --------------------
+sudo cp -R gplbld/FILES_DICTS "$sdsysdir/gplbld/FILES_DICTS"
+sudo cp -R terminfo "$sdsysdir"
+#
+# build program objects for bootstrap install
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/bbproc gpl.bp.out/bbproc
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/bcomp gpl.bp.out/bcomp
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/pathtkn gpl.bp.out/pathtkn
+sudo python3 gplbld/pcode_bld.py
+
+sudo cp Makefile "$sdsysdir"
+sudo cp gpl.src "$sdsysdir"
+sudo cp terminfo.src "$sdsysdir"
+
+# 09 Sep 26 dm - PRE_RELEASE 12.  SHIP THE micro SYNTAX FILE.  It was generated
+# and validated by entry 2 and then went nowhere, so the highlighting the owner
+# asked to keep from the Windows port never reached a user.
+#
+# THIS ONLY PUTS IT IN THE INSTALLED TREE.  micro reads syntax files from a
+# PER-USER directory (~/.config/micro/syntax) and stock micro has no
+# system-wide path - measured, there is no /usr/share/micro - so an installer
+# running as root cannot place it for everyone who will ever run SD.  GPL.BP's
+# MICRO copies it into the caller's own config on first use; this is the master
+# it copies FROM.  Before the chown below, so it lands sdsys:sdusers like the
+# rest of the tree.
+sudo cp -r gplbld/microcfg "$sdsysdir"
+#
+# 10 Sep 26 dm - AND nano's, SYSTEM-WIDE.  The NANO verb (GPL.BP/EDIT) runs nano
+# (owner, 10 Sep 2026: Microsoft Edit is not packaged for Linux).  Unlike micro,
+# nano HAS a system-wide syntax directory - Debian's /etc/nanorc includes
+# /usr/share/nano/*.nanorc (measured: nano 9.2, /etc/nanorc:257) - so one copy
+# here serves every user and GPL.BP/EDIT copies nothing for it.  If the directory
+# is missing nano is not installed; say so rather than create a directory
+# nothing would read.  deletesdai.sh removes the file.
+#
+# 22 Sep 2026 - THE GLOB THAT MAKES THIS ACHIEVE ANYTHING IS DEBIAN'S OWN
+#   PATCH TO NANO'S DEFAULT /etc/nanorc, NOT UPSTREAM NANO BEHAVIOUR
+#   (PROJECT_STATUS, row A2).  Restoring Arch, Fedora and openSUSE support
+#   without checking this would place the file and silently never have nano
+#   read it on any of the three.  Same reachability test verify-editors.py's
+#   active_includes()/include_covers() already use: an UNCOMMENTED
+#   include "..." line, matched by directory for a *.nanorc glob rather than
+#   a substring search that a commented-out line (Debian's own /etc/nanorc
+#   ships three, right below the live one) would also match.  Where it is not
+#   already covered, one exact line is appended to that machine's own
+#   /etc/nanorc - deletesdai.sh removes it again, by the same exact match.
+if [ -d /usr/share/nano ]; then
+    sudo install -m 644 gplbld/nanocfg/sdbasic.nanorc /usr/share/nano/sdbasic.nanorc
+    nanorc_target="/usr/share/nano/sdbasic.nanorc"
+    nanorc_covered=0
+    if [ -f /etc/nanorc ]; then
+        while IFS= read -r nanorc_inc; do
+            case "$nanorc_inc" in
+                "$nanorc_target"|/usr/share/nano/*.nanorc) nanorc_covered=1 ;;
+            esac
+        done < <(sed -n 's/^[[:space:]]*include[[:space:]]\+"\([^"]*\)".*/\1/p' /etc/nanorc)
+    fi
+    if [ "$nanorc_covered" -eq 1 ]; then
+        echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
+    else
+        echo "include \"$nanorc_target\"" | sudo tee -a /etc/nanorc >/dev/null
+        echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
+        echo "  (this distribution's own /etc/nanorc does not glob /usr/share/nano the"
+        echo "  way Debian's does, so one include line was appended to it.)"
+    fi
+else
+    echo "Note: /usr/share/nano not found, so nano's SD BASIC highlighting was not installed (the NANO verb needs nano)."
+fi
+#
+sudo chown -R sdsys:sdusers "$sdsysdir"
+sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
+
+sudo cp sd.conf /etc/sd.conf
+sudo chmod 644 /etc/sd.conf
+sudo chmod -R 755 "$sdsysdir"
+sudo chmod 775 "$sdsysdir/errlog"
+sudo chmod -R 775 "$sdsysdir/prt"
+
+# 09 Sep 26 dm - PRE_RELEASE 8.  THE INSTALL STAMP, read from the clone above.
+# assert-current.py compares "commit" against the working tree's HEAD, which is
+# the only exact way to ask whether a measurement is being taken against the
+# source that produced it.  Without it the best available comparison is "is the
+# install older than the commit" - decisive in one direction and worthless in
+# the other, because a newer mtime says nothing about WHICH commit was built.
+#
+# ***WRITTEN HERE AND NOT EARLIER, DELIBERATELY.***  Both "chown -R
+# sdsys:sdusers" and "chmod -R 755" run above; a stamp written before them
+# would be swept into sdsys ownership and mode, and it must not be, because
+# anything that can rewrite this file can lie about what is installed.
+sudo tee "$sdsysdir/.sdcore-install" >/dev/null <<SDSTAMP
+# Written by installsdai.sh.  Read by gplbld/assert-current.py.
+commit=${sdcore_commit}
+branch=${REPO_BRANCH}
+origin=${REPO_URL}
+installed=$(date '+%Y-%m-%d %H:%M:%S')
+SDSTAMP
+sudo chown root:root "$sdsysdir/.sdcore-install"
+sudo chmod 644 "$sdsysdir/.sdcore-install"
+#
+#   Add $tuser to sdusers group
+sudo usermod -aG sdusers "$tuser"
+#
+ # directories for sd accounts
+ACCT_PATH=/home/sd
+# 10 Sep 26  PRE_RELEASE 27 - ENSURE BOTH SUBDIRECTORIES WHATEVER /home/sd IS.
+#            This was an "if [ ! -d "$ACCT_PATH" ]" around both mkdirs, so
+#            they were created only when /home/sd was ABSENT.  PRE_RELEASE 26
+#            makes deletesdai.sh recreate /home/sd to hold the saved sd.conf
+#            on the DELETE path, so /home/sd now EXISTS but empty; the guard
+#            skipped the mkdirs, the chown of /home/sd/group_accounts below
+#            died with "No such file or directory", and set -e aborted the
+#            install after the tree had been copied and stamped - measured
+#            10 Sep 26, on the first real run of 26.  mkdir -p is idempotent:
+#            absent, empty and populated /home/sd all end with both
+#            directories present.  A /home/sd that is a FILE is the pre-26
+#            wreck and is refused by name rather than failing below with
+#            "Not a directory".
+if [ -e "$ACCT_PATH" ] && [ ! -d "$ACCT_PATH" ]; then
+   printf "%b\n" "$RED"
+   echo "/home/sd exists but is not a directory. Remove it and re-run."
+   printf "%b\n" "$NC"
+   exit 1
+fi
+sudo mkdir -p "$ACCT_PATH"/user_accounts "$ACCT_PATH"/group_accounts
+#
+# Modified by Composer AI - 2026/06/10.
+# Reference deletesdai.sh by its actual script name.
+# rev 0.9.3 always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesd.sh script
+# rev 0.9.3 always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesdai.sh script
+# --------------------
+sudo chown sdsys:sdusers "$ACCT_PATH"
+sudo chmod 775 "$ACCT_PATH"
+sudo chown sdsys:sdusers "$ACCT_PATH"/group_accounts
+sudo chmod 775 "$ACCT_PATH"/group_accounts
+sudo chown sdsys:sdusers "$ACCT_PATH"/user_accounts
+sudo chmod 775 "$ACCT_PATH"/user_accounts
+#
+# Modified by Composer AI - 2026/06/10.
+# sudo ln -s $sdsysdir/bin/sd /usr/local/bin/sd
+sudo ln -sf "$sdsysdir/bin/sd" /usr/local/bin/sd
+# --------------------
+#
+# Install sd service for systemd
+SYSTEMDPATH=/usr/lib/systemd/system
+#
+if [ -d  "$SYSTEMDPATH" ]; then
+    if [ -f "$SYSTEMDPATH/sd.service" ]; then
+        echo "SD systemd service is already installed."
+    else
+        echo "Installing sd.service for systemd."
+        sudo cp usr/lib/systemd/system/* "$SYSTEMDPATH"
+        sudo chown root:root "$SYSTEMDPATH/sd.service"
+        sudo chown root:root "$SYSTEMDPATH/sdclient.socket"
+        sudo chown root:root "$SYSTEMDPATH/sdclient@.service"
+        sudo chmod 644 "$SYSTEMDPATH/sd.service"
+        sudo chmod 644 "$SYSTEMDPATH/sdclient.socket"
+        sudo chmod 644 "$SYSTEMDPATH/sdclient@.service"
+    fi
+fi
+#
+# Remote-access prompts (owner, 10 Sep 2026, approach B) - API listener bind.
+# The shipped sdclient.socket listens on the Unix socket plus 127.0.0.1:4243
+# (local only).  If API access was requested, rebind the TCP listener to all
+# interfaces and open the firewall; otherwise leave it local and add no rule.
+# daemon-reload so the started socket below picks up the deployed/edited unit.
+if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
+    if [ "$allow_api" = "y" ]; then
+        echo "Allowing API access from other computers (TCP 4243)."
+        sudo sed -i 's#^ListenStream=127\.0\.0\.1:4243#ListenStream=0.0.0.0:4243#' "$SYSTEMDPATH/sdclient.socket"
+        if [ "$have_ufw" -eq 1 ]; then sudo ufw allow 4243/tcp || true; fi
+    else
+        echo "API access is local-only (listener bound to 127.0.0.1:4243)."
+    fi
+    sudo systemctl daemon-reload
+fi
+#
+# Copy saved directories if they exist
+if [ -d /home/sd/accounts ]; then
+    sudo rm -fr "$sdsysdir/accounts"
+    sudo mv /home/sd/accounts "$sdsysdir"
+    echo Restored accounts directory
+else
+    echo No accounts backup directory exists
+fi
+#
+# 14 Sep 26 dm - W.4 SCRAM phase 2, the Windows port's credential register.
+# $cred holds each account's SCRAM StoredKey and ServerKey - no password.  A
+# holder of StoredKey can impersonate the SERVER, so it is root:root 0700 and
+# nobody else reads it; MODIFY.PASSWORD writes it with euid 0 (CPROC
+# privileged_commands) and the API server reads it while still root.  A keep
+# cycle restores the saved register (deletesdai.sh keeps it with the audit
+# trail); otherwise it starts empty.  AFTER the chmod -R 755 above, which would
+# otherwise open it.  The mode is printed, not assumed.
+if [ -d "/home/sd/\$cred" ]; then
+    sudo rm -fr "$sdsysdir/\$cred"
+    sudo mv "/home/sd/\$cred" "$sdsysdir/"
+    echo "Restored the credential register (\$cred)"
+else
+    sudo mkdir -p "$sdsysdir/\$cred"
+    echo "Created an empty credential register (\$cred)"
+fi
+sudo chown -R root:root "$sdsysdir/\$cred"
+# 18 Sep 26 dm - TEARDOWN (S.26).  $cred belongs to the administrator now: the
+#            sdsys OS user reads and writes it (MODIFY.PASSWORD runs in a local
+#            sdsys session, which is never root), and the API server reads it as
+#            root, which reads anything regardless of ownership.
+# 18 Sep 26 dm - THE GROUP IS sdusers, NOT sdsys.  The first fresh cycle after
+#            the teardown was pushed died on this line, before anything else
+#            could: "chown: invalid group: 'sdsys:sdsys'" - THERE IS NO sdsys
+#            GROUP.  The sdsys USER's primary group is sdusers (gid 979) and
+#            nothing in this tree ever created a group of that name.  Every
+#            other sdsys-owned path in this script is sdsys:sdusers, and the
+#            mode two lines down is 700, so the group confers nothing either
+#            way: what the wall rests on is the OWNER (the sdsys user, which
+#            MODIFY.PASSWORD runs as) plus CPROC's administrator flag.
+sudo chown -R sdsys:sdusers "$sdsysdir/\$cred"
+sudo chmod 700 "$sdsysdir/\$cred"
+echo "credential register: $(sudo stat -c '%U:%G %a' "$sdsysdir/\$cred")"
+#
+# 20 Sep 26 dm - S.40, PARITY WITH THE WINDOWS PORT (owner's ruling, 20 Sep
+# 2026: a behavior prevented on one port must be prevented on both, the
+# mechanism free to vary with the OS).  Windows built batch.jobs 22 Aug 2026
+# (its PROJECT_STATUS.md 7 step 9) because sd.exe refused every unelevated
+# command-line invocation outright, which broke a legitimate scheduled job
+# along with everything else; batch.jobs is the controlled exception, one
+# record per account, one command name per field.  Linux's CPROC ran ANY
+# single-command invocation unconditionally since it was written - the
+# group-membership test at LOGTO/login proves WHO is running it, never WHAT
+# it may run unattended - so this is a genuine gap being closed, not a
+# documented divergence like S.27's.
+#
+# STARTS EMPTY, SO NOTHING IS RUNNABLE FROM THE COMMAND LINE UNTIL AN
+# ADMINISTRATOR LISTS IT (security ships tight, the Project stance's rule):
+# an account with no entry here is refused 11000, exactly as one with an
+# entry that does not match.  A keep cycle restores the saved list
+# (deletesdai.sh keeps it with the accounts and the credential register);
+# otherwise a fresh, empty directory.
+if [ -d "/home/sd/batch.jobs" ]; then
+    sudo rm -fr "$sdsysdir/batch.jobs"
+    sudo mv "/home/sd/batch.jobs" "$sdsysdir/"
+    echo "Restored the batch-job allowlist (batch.jobs)"
+else
+    sudo mkdir -p "$sdsysdir/batch.jobs"
+    echo "Created an empty batch-job allowlist (batch.jobs)"
+fi
+# READ-ONLY TO sdusers, WHICH IS THE WHOLE OF THE CONTROL (the port's own
+# words for the same rule): sdusers must be able to READ their own account's
+# entry from their own unprivileged sd session, but must never be able to
+# WRITE one - a user who could add their own name grants themselves whatever
+# is on somebody else's list, or their own without an administrator's say.
+# 0750: sdsys may add, change or remove records; sdusers may traverse and
+# read; nobody else reaches it at all.  The administrator maintains it
+# directly - there is no verb to edit it with, matching the port, which has
+# not built one either (its own step 10, still open there).
+sudo chown -R sdsys:sdusers "$sdsysdir/batch.jobs"
+sudo chmod 750 "$sdsysdir/batch.jobs"
+echo "batch-job allowlist: $(sudo stat -c '%U:%G %a' "$sdsysdir/batch.jobs")"
+#
+# 13 Sep 26  PRE_RELEASE 30.  THE SDSYS REGISTER RECORD'S MODE IS SET HERE, AFTER
+#            BOTH THINGS THAT USED TO UNDO IT: the recursive "chmod -R 755" on
+#            sdsys (the old "chmod 654" sat four lines before it, and the record
+#            was measured 755 on install 58365cc), and the restore just above,
+#            which on a keep cycle replaces the whole register with the saved
+#            copy.  644, not 654: it is a data record, execute on it grants
+#            nothing, and 644 is what every other register record is
+#            (accounts/don, written by SD as root).  Printed, not assumed.
+#            The record is accounts/sdsys: account names are lower case (13 Sep).
+# 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.
+#            sdsys:sdusers 644, like every other record after the teardown
+#            chown below: a local sdsys session writes records without root,
+#            everyone else only reads.  (MODIFYA refuses to touch SDSYS's
+#            record regardless - 2202.)
+sudo chown sdsys:sdusers "$sdsysdir/accounts/sdsys"
+sudo chmod 644 "$sdsysdir/accounts/sdsys"
+echo "sdsys register record: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts/sdsys")"
+#
+# Copy saved sd.conf file if it exists
+if [ -f /home/sd/sd.conf ]; then
+    sudo rm /etc/sd.conf
+    sudo mv /home/sd/sd.conf /etc
+    echo Restored sd.conf file
+else
+    echo No sd.conf backup file exists
+fi
+#
+# 14 Sep 26 dm - PORT_ADOPTION 25 (the Windows port's PRE_RELEASE 28).  PROCESS
+# DUMPS IN THEIR OWN DIRECTORY.  A dump holds a session's variables and used to
+# land in $sdsysdir, readable by every SD user.  dumps/ is 1730 sdsys:sdusers:
+# an SD user's session (which runs as that user) can create a dump but cannot
+# list the directory, and pdump.c creates each file 0600, so nobody but its
+# owner and root reads it.  Sticky, so nobody removes another user's dump.
+# FOUR PARTS, AND ANY ONE MISSING SILENTLY PUTS DUMPS BACK IN $sdsysdir: this
+# directory, DUMPDIR in sd.conf (pdump.c falls back to the system directory
+# without it), pdump.c's 0600 create, and the line below for a restored
+# sd.conf - a keep-configuration cycle puts back a file written before
+# DUMPDIR existed, and replacing the setting there is the installer's job.
+# AFTER the chmod -R above and the sd.conf restore.
+sudo mkdir -p "$sdsysdir/dumps"
+sudo chown sdsys:sdusers "$sdsysdir/dumps"
+sudo chmod 1730 "$sdsysdir/dumps"
+if ! grep -q '^DUMPDIR=' /etc/sd.conf; then
+    echo "DUMPDIR=$sdsysdir/dumps" | sudo tee -a /etc/sd.conf >/dev/null
+    echo "Added DUMPDIR to /etc/sd.conf (the restored file did not have it)."
+fi
+echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dumps, $(grep '^DUMPDIR=' /etc/sd.conf)"
+#
+# 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL, $sdsysdir/audit.
+# Every SD user must be able to ADD a record, and must not be able to read,
+# truncate, rewrite, rename or delete one - sessions run as the user, since sd
+# is not setuid.  So group sdusers gets write and no read (0620), and the
+# append-only attribute is what turns "write" into "append": the kernel then
+# refuses every open that does not append, and every truncate, rename and
+# unlink, to everyone until root lifts it.  Without the attribute a writable
+# file can be emptied by anyone who can write it - the Windows port measured
+# that and rejected it.  A trail deletesdai.sh saved is put back first, so a
+# keep-accounts reinstall keeps its history.  AFTER the chown -R and chmod -R
+# above, which would otherwise reset the mode.
+for f in /home/sd/audit /home/sd/audit.*; do
+    if [ -f "$f" ]; then
+        sudo mv "$f" "$sdsysdir/"
+        echo "Restored audit trail $(basename "$f")"
+    fi
+done
+sudo touch "$sdsysdir/audit"
+for f in "$sdsysdir"/audit "$sdsysdir"/audit.*; do
+    [ -f "$f" ] || continue
+    sudo chown sdsys:sdusers "$f"
+    sudo chmod 620 "$f"
+    if sudo chattr +a "$f" 2>/dev/null && sudo lsattr "$f" | cut -d' ' -f1 | grep -q a; then
+        echo "Audit trail $(basename "$f") is append-only."
+    else
+        echo "WARNING: could not make $f append-only (chattr +a); SD users can write it and so could empty it."
+    fi
+done
+#
+#   Start SD server
+# Modified by Composer AI - 2026/06/10.
+# Stop any running instance before bootstrap; sd -start fails if already up.
+# echo "Starting SD server."
+# sudo "$sdsysdir/bin/sd" -start
+echo "Starting SD server."
+sudo systemctl stop sd.service sdclient.socket 2>/dev/null || true
+sd_install_stop
+sleep 1
+if ! sd_install_start; then
+    echo "Install terminated!"
+    exit 1
+fi
+# --------------------
+echo
+# Modified by Composer AI - 2026/06/10.
+# Fix bootstrap spelling in user-facing messages.
+# echo "Bootstap pass 1."
+echo "Bootstrap pass 1."
+# --------------------
+# Modified by Composer AI - 2026/06/10.
+# Abort install when bootstrap pass 1 fails (e.g. LOGIN compile error).
+# sudo "$sdsysdir/bin/sd" -i
+if ! sudo "$sdsysdir/bin/sd" -i; then
+    printf "%b\n" "$RED"
+    echo "Bootstrap pass 1 failed. Install terminated!"
+    echo "Review compile errors above before re-running the installer."
+    printf "%b\n" "$NC"
+    exit 1
+fi
+# --------------------
+#
+# files added in pass1 need perm and owner setup
+# Modified by Composer AI - 2026/06/10.
+# Skip chmod/chown when bootstrap did not create expected directories.
+# sudo chmod -R 755 "$sdsysdir/\$HOLD.DIC"
+# 13 Sep 26  Plan M3 D1/D3: the names BBPROC creates, all lower case.  A name that
+#            no longer matches used to be skipped in silence, leaving that file
+#            owned by root - so a missing one is now said out loud.
+for bootstrap_dir in '$hold.dic' '$ipc' '$map' '$map.dic' voc accounts.dic dict.dic dir_dict voc.dic; do
+    if [ -d "${sdsysdir}/${bootstrap_dir}" ]; then
+        if [ "${bootstrap_dir}" = '$ipc' ]; then
+            sudo chmod -R 775 "${sdsysdir}/${bootstrap_dir}"
+        else
+            sudo chmod -R 755 "${sdsysdir}/${bootstrap_dir}"
+        fi
+        sudo chown -R sdsys:sdusers "${sdsysdir}/${bootstrap_dir}"
+    else
+        printf "%bWARNING: bootstrap did not create %s - its owner and mode were not set.%b\n" "$YELLOW" "${sdsysdir}/${bootstrap_dir}" "$NC"
+    fi
+done
+# --------------------
+#
+# echo "Bootstap pass 2."
+echo "Bootstrap pass 2."
+# Modified by Composer AI - 2026/06/10.
+# sudo "$sdsysdir/bin/sd" -internal SECOND.COMPILE
+if ! sudo "$sdsysdir/bin/sd" -internal SECOND.COMPILE; then
+    printf "%b\n" "$RED"
+    echo "Bootstrap pass 2 failed. Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+fi
+# --------------------
+#
+# echo "Bootstap pass 3."
+# 29 Sep 26 dm - JUDGED ON WHAT THE PROGRAM SAID, NOT ON sd'S EXIT CODE (SD Core
+#   Solo's SOLO 12, adopted; S.48).  sd exits 0 when the command it was given
+#   never ran - measured 29 Sep: a refused command line printed "Connection
+#   terminated" and exited 0 - so the old "if ! sd ..." passed an install with
+#   no dictionaries.  write_install_dicts ends with its own line COMPLETE and
+#   says ERROR OPENING / PROCESS ABORTED / READLIST EMPTY / ... when it stops;
+#   require the first and refuse on any of the others, or on a RUN that never
+#   started (10918, 1123, 1002/1134) or a refused session (5024, which only
+#   LOGIN's and CPROC's refusal paths display).
+# 29 Sep 26 dm - ***ITS FIRST TWO REAL RUNS STOPPED GOOD INSTALLS, SILENTLY.***
+#   Not the rules: the p3_bad assignment below failed under set -euo pipefail
+#   whenever grep found nothing (the clean case) - fixed with "|| true" and
+#   guarded by the free check gplbld/test-install-pass3.sh, which runs this
+#   block under this script's own options.  Two real outputs have since been
+#   read (/var/tmp/sdcore-install-pass3.log: COMPLETE, rc 0) and the rules
+#   pass them, so the check is STRICT again (owner, 29 Sep 2026).  Every
+#   run's raw output is still kept in that log, so a refusal can be read.
+echo "Bootstrap pass 3."
+p3_rc=0
+p3_out=$(sudo "$sdsysdir/bin/sd" RUN gpl.bp write_install_dicts NO.PAGE 2>&1) || p3_rc=$?
+printf '%s\n' "$p3_out"
+printf '%s\n' "$p3_out" | sudo tee /var/tmp/sdcore-install-pass3.log >/dev/null
+echo "sd exit code: $p3_rc" | sudo tee -a /var/tmp/sdcore-install-pass3.log >/dev/null
+if [ "$p3_rc" -ne 0 ]; then
+    printf "%b\n" "$RED"
+    echo "Bootstrap pass 3 failed. Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+fi
+p3_plain=$(printf '%s\n' "$p3_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+# "|| true": under this script's set -euo pipefail, grep finding NOTHING -
+# the normal, clean case - fails the pipeline, and a failing assignment ends
+# the script with no message.  That, not the rules, is what stopped both
+# 29 Sep installs right after a clean pass 3 (measured: the rules pass the
+# real output in /var/tmp/sdcore-install-pass3.log).
+p3_bad=$(printf '%s\n' "$p3_plain" | grep -E 'ERROR OPENING|PROCESS ABORTED|READLIST EMPTY|NO DIRECTORY RECORDS FOUND|CANNOT READ TRANSFER_FILE|ERROR CANNOT OPEN|requires administrator privileges|Runfile pathname is longer than|Invalid runfile|Runfile .* not found|Unable to load .* object code|Connection terminated' | head -1 || true)
+if [ -n "$p3_bad" ] || ! printf '%s\n' "$p3_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+    printf "%b\n" "$RED"
+    echo "Bootstrap pass 3 failed: the install dictionaries were not written. Install terminated!"
+    if [ -n "$p3_bad" ]; then
+        echo "  write_install_dicts said: $p3_bad"
+    else
+        echo "  write_install_dicts did not print a COMPLETE line."
+    fi
+    echo "  Its full output is in /var/tmp/sdcore-install-pass3.log."
+    printf "%b\n" "$NC"
+    exit 1
+fi
+#
+echo "Compiling C and I type dictionaries."
+if ! sudo "$sdsysdir/bin/sd" THIRD.COMPILE; then
+    printf "%b\n" "$RED"
+    echo "THIRD.COMPILE failed. Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+fi
+#
+# 18 Sep 26 dm - TEARDOWN (S.26).  CPROC is recompiled without IS_INSTALL
+# AFTER the seeding below: the seed steps run on the install build, whose
+# entry block grants the administrator bootstrap and has no root refusal.
+# The production CPROC refuses root outright, so once it is in place there is
+# no more root sd session on this machine.
+sudo chmod -R 755 "$sdsysdir/gcat"
+#
+#  create a user account for the current user
+echo
+echo
+# 10 Sep 26  THE INSTALLING USER IS REGISTERED AS A PLAIN SD ACCOUNT (S.26).
+#            This was "create-account USER $tuser no.query" first, then
+#            ADMINISTRATOR - the tier model.  With the tiers gone the account
+#            is a plain one: the installing user administers by LOGGING IN as
+#            sdsys (its own password, at the keyboard or a desktop-sharing
+#            view of it), and needs no register rank to be who they are.
+#
+#            AN EXISTING ACCOUNT IS NOT TOUCHED.  The directory test above
+#            means an upgrade that saved its accounts keeps what it has,
+#            so this seeds a fresh install rather than changing anybody.
+# 11 Sep 26  ADOPT, AND THE MARKER THAT MAKES IT INSTALL-ONLY (PORT_ADOPTION 15).
+#            CREATE.ACCOUNT now REFUSES a pre-existing Linux user (10038) - the
+#            owner's rule is that SD accounts create their own Linux user, and
+#            the installer's own user is the single exception.  ADOPT is that
+#            exception and it needs BOTH -internal and this one-shot marker,
+#            which CREATEA deletes as it accepts the keyword.
+#
+#            ***THE MARKER IS WRITTEN HERE AND NEVER SHIPPED.***  One in the
+#            source tree would be copied into every install and leave the door
+#            open permanently, which is the state this replaces.  It is removed
+#            again below whatever happens, so a failed create cannot leave it.
+#
+#            THIS RUNS ON THE IS_INSTALL CPROC, whose entry block grants the
+#            administrator bootstrap and does not refuse root (18 Sep, S.26).
+# 11 Sep 26  PORT_ADOPTION 16 (port PRE_RELEASE_FIXES 70).  Captured BEFORE the
+#            seeding block, because that block creates the very directory this
+#            asks about.  "The accounts were kept" is what makes this install an
+#            UPGRADE rather than a first one, and the walk below is for upgrades:
+#            on a first install every account is built from the current NEWVOC
+#            already, so there is nothing to bring forward.
+# 19 Sep 26  ADOPT IS NOW ATTACH, and the line matches SD Core for Windows'
+#            (agreed by mail, 19 Sep 00:10): marker $attach.<name>, no
+#            NO.QUERY - the ATTACH arm never prompts.  AND THE ACCOUNT NAME IS
+#            FOLDED (the port's RELEASE_1.1 67): CREATEA now names the account,
+#            its directory and its sdu_ group in lower case even when the Linux
+#            user is not, so every test here uses the folded name.  The fold is
+#            ASCII-only (LC_ALL=C), as SD's own lc_chars[] is.
+tuser_lc=$(printf '%s' "$tuser" | LC_ALL=C tr 'A-Z' 'a-z')
+if [ -d "/home/sd/user_accounts/${tuser_lc}" ]; then
+    accounts_kept=yes
+else
+    accounts_kept=no
+fi
+
+if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
+    echo "Creating a user account for ${tuser}."
+    attach_marker="${sdsysdir}/\$attach.${tuser_lc}"
+    sudo touch "$attach_marker"
+    sudo bin/sd -internal create-account USER "$tuser" ATTACH
+    sudo rm -f "$attach_marker"
+
+    # The instrument rule: say what the register ACTUALLY holds, not what the
+    # command was asked for.  A record now holds three fields: path, description
+    # and the sdu_ group - no tier.  13 Sep 26: account names are lower case,
+    # the register key is the name downcased, as CREATE.ACCOUNT stores it.
+    acct_reg="${sdsysdir}/accounts/${tuser_lc}"
+    seeded_group=$(sudo sed -n '3p' "$acct_reg" 2>/dev/null)
+    if [ "$seeded_group" = "sdu_${tuser_lc}" ]; then
+      echo "Registered ${tuser} as a plain SD account (group: ${seeded_group})."
+    else
+      printf "%b\n" "$RED"
+      echo "WARNING: ${tuser} was registered with group '${seeded_group:-<none>}',"
+      echo "not sdu_${tuser_lc}. Inspect the register record before using SD:"
+      echo "    cat ${acct_reg}"
+      printf "%b\n" "$NC"
+    fi
+fi
+
+# 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD (PORT_ADOPTION 16,
+#            port PRE_RELEASE_FIXES 70).  Replacing NEWVOC and VOC_TEMPLATE on
+#            disk does not touch a live account's VOC, so verbs added since an
+#            account was created are simply not typeable in it - the port found
+#            this when four verbs it had just added were missing from every
+#            upgraded account.
+#
+#            ALL is the unattended form: it does the walk without asking the
+#            "update all accounts?" question, which is the point of running it
+#            from a script.  It must run from SDSYS as an administrator; the
+#            IS_INSTALL build's entry block grants the administrator bootstrap
+#            to this root session (18 Sep, S.26).
+#
+#            ***IT MAY STILL ASK ABOUT A RECORD TYPE CHANGE***, one account at a
+#            time, when NEWVOC's type for an id differs from the account's.
+#            Stdin is deliberately left attached so a person can answer; the
+#            alternative is a script that cannot be answered and hangs.
+if [ "$accounts_kept" = yes ]; then
+    echo
+    echo "Bringing every registered account's VOC up to this release."
+    echo "(If it asks about a record type change, answer for each account.)"
+    sudo bin/sd UPDATE.ACCOUNTS ALL
+fi
+
+# 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.
+#            Records are sdsys:sdusers 644: a local sdsys session writes them
+#            without root (CREATE.ACCOUNT, MODIFY.ACCOUNT, DELETE.ACCOUNT all
+#            run as sdsys now), everyone else only reads.  A keep-accounts
+#            install carries records written by root sessions under the old
+#            model, so the chown runs every install and repairs those too.
+sudo chown -R sdsys:sdusers "$sdsysdir/accounts"
+sudo chmod 755 "$sdsysdir/accounts"
+sudo find "$sdsysdir/accounts" -maxdepth 1 -type f -exec chmod 644 {} +
+echo "account register: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts")"
+
+# 18 Sep 26 dm - TEARDOWN (S.26).  CPROC IS RECOMPILED WITHOUT IS_INSTALL HERE,
+#            LAST: the seeding above ran on the install build (no root
+#            refusal, administrator bootstrap), and from this point the
+#            production CPROC refuses a root session outright - the one way
+#            into administration is a real LOGIN as sdsys (night ruling, 18
+#            Sep: sudo and su from another user are refused with it, 10195).
+echo "Compiling CPROC without IS_INSTALL defined."
+sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
+if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
+    printf "%b\n" "$RED"
+    echo "CPROC recompile failed. Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+fi
+#
+echo
+echo Stopping sd
+# Modified by Composer AI - 2026/06/10.
+# Use sd_install_stop/start so already-stopped/started does not abort install.
+# sudo "$sdsysdir/bin/sd" -stop
+sd_install_stop
+# --------------------
+sleep 1
+#
+echo
+echo Enabling services
+sudo systemctl start sd.service
+sudo systemctl start sdclient.socket
+sudo systemctl enable sd.service
+sudo systemctl enable sdclient.socket
+#
+sleep 1
+sd_install_stop
+sleep 1
+sd_install_start || true
+sleep 1
+sd_install_stop
+#
+echo
+echo Compiling terminfo database
+sudo "${inst_folder}/sd64/bin/sdtic" -v "${inst_folder}/sd64/terminfo.src"
+echo Terminfo compilation complete
+sudo cp "${inst_folder}/sd64/terminfo.src" "$sdsysdir"
+echo
+
+# 09 Sep 26  The download is always removed.  There is no longer a saved-copy
+#            branch, and no local-repository case to exempt.
+# 09 Sep 26  ***sudo, AND THIS IS THE BUG THAT MADE THE FIRST GITHUB INSTALL
+#            "FAIL" AFTER IT HAD ACTUALLY SUCCEEDED.***  installsdai.sh:359 runs
+#            "sudo make -B", so gplobj/ and terminfo/ inside the download are
+#            owned by root.  A plain "rm -fr" as the calling user cannot unlink
+#            files inside a root-owned directory: it deletes everything else,
+#            prints "Permission denied", and RETURNS 1 - which under
+#            "set -euo pipefail" at line 28 aborts the script.  SD was already
+#            installed and working by then; the run just ended on an error with
+#            no message, leaving a stripped .sdb64tmp holding only those two
+#            directories.  It was invisible before only because the <L>ocal
+#            option left no download for this block to find.
+if [ -d "${dflt_git_folder}" ]; then
+    echo "Remove ${dflt_git_folder}"
+    sudo rm -fr "${dflt_git_folder}"
+fi
+cd "$cwd"
+#
+# 10 Sep 26  PRE_RELEASE 13 - hold the SD boundary at the edge of the machine.
+#            Without this an SD account just ssh's in and gets a shell, never
+#            entering SD.  The helper appends a fenced block to sshd_config,
+#            validates it with sshd -t before the live file changes, and reloads
+#            sshd.  18 Sep 26, the teardown (S.28): every sdusers member is
+#            forced into sd over ssh, and the sdsys OS account is denied network
+#            login outright - SDSYS is entered only from a local session.
+#
+#            NON-FATAL ON PURPOSE.  By here SD is installed and working; a
+#            refusal (the administrator has customised sshd_config) or a failure
+#            must WARN, not discard the install.  The boundary can then be
+#            applied by hand, which the message says how to do.  The absolute
+#            installed path is used so this does not depend on the clone, which
+#            was just deleted.
+echo
+echo "Applying the ssh boundary (PRE_RELEASE 13)."
+if sudo /usr/local/sbin/ssh-forcecommand --install; then
+    ssh_boundary_ok=1
+else
+    ssh_boundary_ok=0
+    printf "%b\n" "$YELLOW"
+    echo "WARNING: the ssh boundary was NOT applied (see the message above)."
+    echo "SD is installed and working, but until this is in place an SD"
+    echo "account can reach a shell over ssh without entering SD.  To apply it"
+    echo "by hand once any conflicting sshd_config setting is resolved, run:"
+    echo
+    echo "      sudo /usr/local/sbin/ssh-forcecommand --install"
+    printf "%b\n" "$NC"
+fi
+#
+# Remote-access prompts (owner, 10 Sep 2026, approach B) - enable ssh if asked.
+# The SD boundary above is applied to sshd_config regardless; this only turns
+# the ssh SERVICE on (at boot) and opens port 22, when the operator asked for it.
+if [ "$allow_ssh" = "y" ]; then
+    echo "Enabling ssh access from other computers (sshd at boot, port 22)."
+    sudo systemctl enable --now ssh 2>/dev/null || sudo systemctl enable --now sshd 2>/dev/null || true
+    if [ "$have_ufw" -eq 1 ]; then sudo ufw allow 22/tcp || true; fi
+else
+    echo "ssh access was not enabled (sshd left as the box had it; the SD"
+    echo "boundary is in sshd_config for whenever ssh is turned on)."
+fi
+#
+# 15 Sep 26  W.4 PHASE 6: THE INSTALL SETS THE INSTALLING USER'S SD PASSWORD -
+#            THE WINDOWS PORT'S FINISHING STEP (finish-install.ps1:375).  An API
+#            login is SCRAM against the account's credential in $cred, which only
+#            MODIFY.PASSWORD writes, so an install ended with no account able to
+#            use the API at all and nothing on screen said so.
+#
+#            THAT ONE ACCOUNT, NOT SDSYS - the owner's ruling of 15 Sep 2026, and
+#            the one departure from the port.  Windows sets SDSYS's as well
+#            because an ELEVATED Windows session lands in SDSYS and LOGIN's
+#            require.credential asks there (port PRE_RELEASE_FIXES 138,
+#            finish-install.ps1:379-407).  NEITHER HALF OF THAT HOLDS HERE: this
+#            LOGIN has no require.credential anywhere, and sdsys could not use
+#            the API even with a password - after the teardown the API refuses
+#            SDSYS unless the connection is from this machine (10174), and SDSYS
+#            is entered locally anyway.  An SDSYS password here would unlock
+#            nothing.
+#
+#            THE THREE FAULTS THAT KILLED THE PORT'S FIRST PASSWORD STEP
+#            (adopt-account.ps1:46-61).  A change that brings back any one of
+#            them fails the same silent way:
+#            * A SESSION NEEDS A RUNNING SERVER - sysseg.c:133, "SD has not been
+#              started."  SD is stopped a few lines above, so this starts it and
+#              stops it again, leaving the machine as this step found it.
+#            * IT NEEDS AN ADMINISTRATOR (18 Sep 26, S.26).  $cred is
+#              sdsys:sdusers 0700 and MODIFY.PASSWORD refuses before prompting
+#              unless the administrator flag is set - so this runs as the
+#              sdsys OS user, the one administrator, on a local session:
+#              CPROC grants it, exactly as an operator would after install.
+#            * THE OUTPUT HAS TO SURVIVE.  It runs in this terminal with the rest
+#              of the install, not in a window that closes on the error.
+#
+#            SKIPPED WHEN A KEEP CYCLE ALREADY HAS A CREDENTIAL ($cred is restored
+#            at :786), as the port skips a reinstall.  ***THE PORT'S REASON FOR
+#            SKIPPING DOES NOT ARISE HERE***: it would be asked for the OLD
+#            password, whereas this is an administrator setting another account -
+#            the session is sdsys - and SET_ACC_PASSWORD asks for the current one
+#            only for your own.  The reason here is simply that the person
+#            already set one and a reinstall must not quietly replace it.
+#
+#            NON-FATAL EVERY WAY IT CAN GO: declining, a failure, or no terminal
+#            leaves the install complete and says how to set one later.  ***AND
+#            NO INSTRUMENT CAN WITNESS IT***: "input ... hidden" needs a tty and
+#            every automated route in this project pipes stdin (the port's
+#            structural note, finish-install.ps1:121-127).  The first install at
+#            a keyboard is the witness; the $cred test below is what makes a
+#            prompt that never appeared visible instead of silent.
+# 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: administration is by LOGGING
+# IN as sdsys, so the account needs a password of its own - set here, at a
+# hidden prompt, by whoever is installing.  There is no other way in: SD
+# refuses a session that arrived by sudo or su from another user (CPROC
+# 10195), and sshd denies sdsys the network.  A desktop-sharing view of the
+# console (VNC, TeamViewer) is a local login and works.
+# 20 Sep 26 dm - SAY WHAT IS COMING, AND WHOSE IT IS (owner, 20 Sep 2026, after
+#   an install: "It is not clear what users are being asked for and confusing
+#   that it goes sdsys, os, sdsys.  There should be a message stating that the
+#   user will be entering 3 passwords ... the prompts should make it very clear
+#   which password is being entered").  The order he asked for is the order
+#   these already ran in - his own Linux password at the start (sudo), then
+#   sdsys's Linux one, then sdsys's SD one; what he did not recognise was the
+#   THIRD prompt, his own account's SD password, which he required on 19 Sep.
+#   So: a list before the first of them, and every heading and prompt below
+#   names the account AND which of its two passwords it is.
+echo
+echo ---------------------------------------------------------------
+echo "PASSWORDS."
+echo
+# 20 Sep 26 dm - THE COLUMN IS COMPUTED, NOT TYPED (owner, 20 Sep: "don is my
+#   name and the account name for another installer might be much longer").
+#   The names were padded with literal spaces, so an installing user called
+#   something longer than "don" pushed its dash past the other two.  The width
+#   is the longest of the three labels, so they line up whatever the name is.
+pw_label1="$tuser_lc's SD password"
+pw_label2="sdsys's LINUX password"
+pw_label3="sdsys's SD password"
+pw_w=${#pw_label1}
+[ ${#pw_label2} -gt "$pw_w" ] && pw_w=${#pw_label2}
+[ ${#pw_label3} -gt "$pw_w" ] && pw_w=${#pw_label3}
+printf "  1. %-${pw_w}s - remote access using the API\n"  "$pw_label1"
+echo
+printf "  2. %-${pw_w}s - local console administration\n" "$pw_label2"
+echo
+printf "  3. %-${pw_w}s - local API administration\n"     "$pw_label3"
+echo
+echo "All passwords must contain at least 8 characters, with a lower-case"
+echo "letter, an upper-case letter, a digit and a symbol."
+echo
+echo "A password that already exists is not asked for again."
+echo
+echo ---------------------------------------------------------------
+# 20 Sep 26 dm - THE INSTALLING USER'S OWN PASSWORD COMES FIRST (owner, 20 Sep
+#   2026: the three ran "sdsys, installer, sdsys", and he asked for the
+#   installer's own first, then sdsys's two).  This block was below the sdsys
+#   Linux one; moving it up is safe because it needs no password of sdsys's -
+#   it reaches MODIFY.PASSWORD through the root loginuid bridge, not a login.
+# 18 Sep 26 dm - (REVERSED 19 Sep, below.)  The step was removed on the
+#            owner's ruling that a Linux login already reaches the account.
+# 19 Sep 26 dm - THE INSTALL-TIME SD PASSWORD IS BACK, AND REQUIRED (owner, on
+#            the Windows side, 19 Sep 2026; the port's RELEASE_1.1 70, relayed
+#            by mail 01:40 and binding here).  His words: ask for it during
+#            install, "saying that it only has to be used for remote access",
+#            and on whether it may be skipped: "required".  The 18 Sep reason
+#            was true only AT THE KEYBOARD: every account but sdsys has remote
+#            routes, and the installing user's account is the ONE account per
+#            machine made without a credential - an ordinary CREATE.ACCOUNT
+#            writes one through set_passwd, ATTACH deliberately does not.
+#
+#            ON LINUX "REMOTE" MEANS THE API.  ssh signs in with the Linux
+#            password; the SD password is the API's SCRAM credential ($cred),
+#            and the wording below says so rather than repeat the port's.
+#
+#            THE PASSWORD IS NEVER AN ARGUMENT: MODIFY.PASSWORD asks for it
+#            itself, hidden, twice, so nothing here holds the plaintext and it
+#            cannot reach a command line, a log or the command stack.
+#
+#            "REQUIRED" IS SAID HONESTLY - ASKED AGAIN, NOT ENFORCED.  Nothing
+#            can stop somebody leaving the prompt.  So: ask, VERIFY that
+#            $cred/<name> appeared (the prompt that never showed must not read
+#            as success - the port's regression of 24 Aug 2026), ask again, up
+#            to three times, then print the one command that puts it right.
+#
+#            A KEEP CYCLE'S CREDENTIAL IS LEFT ALONE: a reinstall over kept
+#            accounts must not replace a password somebody has been using.
+#
+#            THE ROUTE: MODIFY.PASSWORD for ANOTHER account needs the
+#            administrator, and only a sdsys login administers (S.26) - so the
+#            install, as root, gives this one process tree sdsys's loginuid
+#            (the witnesses' bridge, granted by M8d on the 19 Sep cycle).  It
+#            grants nothing to anyone not already root; if the write fails the
+#            session is refused (10195) and the $cred check says "not set".
+sd_pw_state="not set"
+# 20 Sep 26 dm - THE RULED BLOCK ANNOUNCES THE STEP (owner, 20 Sep: "The blocks
+#   ... should announce each password block not be at the end").  It used to be
+#   a bare heading line, and the only ruled block in view was SD's own notice,
+#   which arrived after the explanation and read as its result.
+echo
+echo ---------------------------------------------------------------
+echo "1 of 3: Password for the SD $tuser_lc account"
+echo ---------------------------------------------------------------
+if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
+    sd_pw_state="kept from the previous install"
+    echo
+    echo "  Password exists - not changed"
+elif ! sudo test -f "$sdsysdir/accounts/$tuser_lc"; then
+    sd_pw_state="not set - $tuser_lc is not in the SD register"
+    echo
+    echo "  Cannot ask: $tuser_lc has no record in the SD account register."
+elif ! ( : </dev/tty ) 2>/dev/null; then
+    sd_pw_state="not set - there was no terminal to ask at"
+    echo
+    echo "  Cannot ask: this install has no terminal."
+elif ! sd_install_start; then
+    sd_pw_state="not set - SD would not start for this step"
+else
+    # 20 Sep 26 dm - NOTHING BETWEEN THE BLOCK AND THE PROMPT (owner, 20 Sep:
+    #   "The text between the section header and the password entry is
+    #   unnecessary.  The header explains everything").  What was said here -
+    #   which password this is, what it is for, that ssh still uses the Linux
+    #   one, the rule (message 10920, which -QUIET stops SD from saying) and
+    #   that SD asks twice - is now IN the block above, said once.
+    pw_try=1
+    while [ "$pw_try" -le 3 ]; do
+        echo
+        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD "$2"' sd-pw "$sdsysdir/bin/sd" "$tuser_lc" </dev/tty ) || true
+        if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
+            sd_pw_state="set"
+            break
+        fi
+        echo "  No password was recorded for $tuser_lc (attempt $pw_try of 3)."
+        pw_try=$((pw_try + 1))
+    done
+    sd_install_stop
+fi
+#
+sdsys_pw_state="not set"
+echo
+echo ---------------------------------------------------------------
+echo "2 of 3: Password for the LINUX sdsys account"
+echo ---------------------------------------------------------------
+# 20 Sep 26 dm - AND IT IS NOT REPLACED IN SILENCE (owner, same note: "What
+#   happens if you give a different password at 3 than the one you currently
+#   have? ... Doesn't seem like you should have to enter it again if it already
+#   exists").  It was asked for unconditionally and chpasswd'd, so a keep-
+#   accounts reinstall - which leaves the sdsys USER in place, deletesdai only
+#   removes it on a DELETE (deletesdai.sh:332-343) - silently replaced a
+#   password the administrator was already using, with no way to enter the
+#   existing one.  The two SD prompts below already kept what they found;
+#   this one now does the same, and says how to change it deliberately.
+#   "passwd -S <user>" prints P (usable), L (locked) or NP (none) as field 2.
+if [ "$(sudo passwd -S sdsys 2>/dev/null | awk '{print $2}')" = "P" ]; then
+    sdsys_pw_state="kept from the previous install"
+    echo
+    echo "  Password exists - not changed"
+elif ! ( : </dev/tty ) 2>/dev/null; then
+    sdsys_pw_state="not set - there was no terminal to ask at"
+    echo
+    echo "  Skipped: this install has no terminal to ask at."
+    echo "  Set one before administering:  sudo passwd sdsys"
+else
+    # 20 Sep 26 dm - said in the block above, once (owner, 20 Sep).
+    # 19 Sep 26 dm - SD'S RULE, NOT ONLY THE MACHINE'S (owner, 19 Sep 2026: SD
+    #   requires a complex password whatever the OS allows, SDSYS included).
+    #   "sudo passwd sdsys" applied PAM's rule only, and SD never saw the entry,
+    #   so the installer asks itself: hidden, twice, three attempts; the rule
+    #   is judged by the INSTALLED helper's own pw_complex (one implementation,
+    #   absolute path, no root needed for --dry-run), and the password reaches
+    #   chpasswd on its stdin - printf is a builtin, so it is never an argv.
+    #   The text below is message 10920's.
+    echo
+    pw_try=0
+    while [ "$pw_try" -lt 3 ]; do
+        pw_try=$((pw_try + 1))
+        read_password "  New LINUX sdsys password: " sdsys_p1
+        if [ -z "$sdsys_p1" ]; then
+            echo "  Nothing entered - the sdsys password is not set."
+            break
+        fi
+        if ! printf '%s\n' "$sdsys_p1" | /usr/local/sbin/sd-elevate --dry-run pw-check >/dev/null 2>&1; then
+            sdsys_p1=""
+            echo "  That does not meet the rule above (attempt $pw_try of 3)."
+            continue
+        fi
+        read_password "  Enter password again: " sdsys_p2
+        if [ "$sdsys_p1" != "$sdsys_p2" ]; then
+            sdsys_p1=""; sdsys_p2=""
+            echo "  The two entries did not match (attempt $pw_try of 3)."
+            continue
+        fi
+        if printf 'sdsys:%s\n' "$sdsys_p1" | sudo chpasswd; then
+            sdsys_pw_state="set"
+            echo
+            echo "  Password accepted"
+        else
+            echo "  The machine's own password rules refused it; set one later"
+            echo "  (see the end of the install)."
+        fi
+        sdsys_p1=""; sdsys_p2=""
+        break
+    done
+    sdsys_p1=""; sdsys_p2=""
+fi
+#
+# 19 Sep 26 dm - AND SDSYS'S SD PASSWORD, WHICH THIS INSTALLER USED TO WITHHOLD.
+#            REVERSES THE 15 Sep RULING ABOVE, on the owner's decision of 19 Sep
+#            2026: "I have no problem with the user having to enter two
+#            passwords, one for the os level sdsys and a second for sd itself.
+#            The ability to use the API outweighs the slight inconvenience."
+#
+#            WHY IT WAS WITHHELD, AND WHY THAT REASONING WAS WRONG.  The note
+#            above says sdsys "could not use the API even with a password,
+#            because the API refuses SDSYS unless the connection is from this
+#            machine".  10174 refuses sdsys only when the peer is REMOTE - a
+#            LOCAL connection was always admitted, so the capability was real
+#            and the missing password was the only thing shutting it.  That is
+#            a door held closed by an omission, which is the kind that opens
+#            when somebody later supplies what was missing.
+#
+#            WHAT MAKES IT SAFE TO ISSUE NOW: APISRVR no longer trusts the
+#            ADDRESS for this one account.  SDSYS over the API is Unix-socket
+#            only and the kernel must say the socket was opened by the sdsys OS
+#            user itself (system(43), SO_PEERCRED - an ssh -L tunnel reports its
+#            own owner, and sdsys can never own one because sshd denies it).
+#            So the password unlocks a local sdsys process and nothing else.
+#
+#            TWO PASSWORDS, AND THE TEXT SAYS SO: this is not the Linux password
+#            asked for earlier - that one signs sdsys in at the machine.
+sdsys_sd_pw_state="not set"
+echo
+echo ---------------------------------------------------------------
+echo "3 of 3: Password for the SD sdsys account"
+echo ---------------------------------------------------------------
+if sudo test -f "$sdsysdir/\$cred/sdsys"; then
+    sdsys_sd_pw_state="kept from the previous install"
+    echo
+    echo "  Password exists - not changed"
+elif ! ( : </dev/tty ) 2>/dev/null; then
+    sdsys_sd_pw_state="not set - there was no terminal to ask at"
+    echo
+    echo "  Cannot ask: this install has no terminal."
+elif ! sd_install_start; then
+    sdsys_sd_pw_state="not set - SD would not start for this step"
+else
+    # 20 Sep 26 dm - said in the block above, once (owner, 20 Sep).
+    pw_try=1
+    while [ "$pw_try" -le 3 ]; do
+        echo
+        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD sdsys' sd-pw "$sdsysdir/bin/sd" </dev/tty ) || true
+        if sudo test -f "$sdsysdir/\$cred/sdsys"; then
+            sdsys_sd_pw_state="set"
+            break
+        fi
+        echo "  No SD password was recorded for sdsys (attempt $pw_try of 3)."
+        pw_try=$((pw_try + 1))
+    done
+    sd_install_stop
+fi
+#
+# display end of script message
+echo
+echo ---------------------------------------------------------------
+# Modified by Composer AI - 2026/06/10.
+# Reset terminal colors correctly in completion banner.
+# printf "%bThe SD server is installed.%b\n" "$RED" "$YELLOW"
+printf "%bThe SD server is installed.%b\n" "$RED" "$NC"
+# --------------------
+echo "---------------------------"
+echo
+# 09 Sep 26  One outcome to report now: the download is always deleted.
+printf "%bThe temporary source code directory used during the install%b\n" "$GREEN" "$NC"
+echo "has been deleted."
+echo
+echo "The /home/sd directory has been created."
+echo "User directories are created under /home/sd/user_accounts."
+echo "Group directories are created under /home/sd/group_accounts."
+echo "Accounts are only created using CREATE-ACCOUNT in SD."
+echo
+if [ "${ssh_boundary_ok:-0}" -eq 1 ]; then
+    echo "Over ssh, SD accounts are forced into SD and sdsys is denied network"
+    echo "login; /etc/ssh/sshd_config was backed up to"
+    echo "/etc/ssh/sshd_config.before-sd."
+    echo
+fi
+# 22 Sep 2026 - both messages below used to claim a ufw rule unconditionally.
+#   ufw is Debian/Ubuntu's firewall front-end; on the three restored branches
+#   there is normally none to add a rule to (Fedora and openSUSE ship
+#   firewalld, Arch ships nothing by default), so the claim was wrong there
+#   even though the ufw call itself was already safely guarded.  $have_ufw was
+#   computed once, earlier, alongside the package install.
+if [ "$allow_ssh" = "y" ]; then
+    if [ "$have_ufw" -eq 1 ]; then
+        echo "ssh access: ENABLED - sshd runs at boot; a ufw allow rule for 22 was added."
+    else
+        echo "ssh access: ENABLED - sshd runs at boot on port 22 (no ufw found;"
+        echo "  open port 22 with this distribution's own firewall tool if it has one)."
+    fi
+else
+    echo "ssh access: not enabled - sshd left as the box had it."
+fi
+if [ "$allow_api" = "y" ]; then
+    if [ "$have_ufw" -eq 1 ]; then
+        echo "API access: OPEN - the network API listens on 0.0.0.0:4243 and a ufw"
+        echo "  allow rule for 4243 was added.  Clients still enter an SD user/password."
+    else
+        echo "API access: OPEN - the network API listens on 0.0.0.0:4243 (no ufw found;"
+        echo "  open TCP 4243 with this distribution's own firewall tool if it has one)."
+        echo "  Clients still enter an SD user/password."
+    fi
+else
+    echo "API access: LOCAL only - the API listens on 127.0.0.1:4243; a remote"
+    echo "  client reaches it by tunnelling over ssh: ssh -L 4243:127.0.0.1:4243 <host>."
+fi
+echo "SD password for $tuser_lc (remote access through the SD API): $sd_pw_state."
+case "$sd_pw_state" in
+    set|kept*) ;;
+    *) printf "%b" "$RED"
+       echo "  It is required.  Log in as sdsys and, at the SD prompt:"
+       echo "    MODIFY.PASSWORD $tuser_lc"
+       echo "  Until then nothing can reach $tuser_lc through the API."
+       printf "%b" "$NC" ;;
+esac
+echo "Linux password for sdsys (the administrator): $sdsys_pw_state."
+case "$sdsys_pw_state" in
+    set) ;;
+    *) echo "  Set one before administering:  sudo passwd sdsys"
+       echo "  and keep to SD's rule, which passwd itself does not apply: at least"
+       echo "  8 characters, with a lower-case letter, an upper-case letter, a"
+       echo "  digit and a symbol." ;;
+esac
+# 19 Sep 26 dm - sdsys's SECOND password, reported apart from its first so the
+#   two are never read as one.
+# 20 Sep 26 dm - ALL THREE ARE REQUIRED NOW (owner, 20 Sep: "always require all
+#   three passwords but don't ask if already exist"), so this reads like
+#   $tuser_lc's when it is missing rather than calling itself optional.
+echo "SD password for sdsys (API access as the administrator): $sdsys_sd_pw_state."
+case "$sdsys_sd_pw_state" in
+    set|kept*) ;;
+    *) printf "%b" "$RED"
+       echo "  It is required.  Log in as sdsys and, at the SD prompt:"
+       echo "    MODIFY.PASSWORD sdsys"
+       echo "  Until then no program can reach SD as the administrator.  Even"
+       echo "  with it, SD admits sdsys over the API only from a process"
+       echo "  running as sdsys on this machine."
+       printf "%b" "$NC" ;;
+esac
+echo
+echo "SD is administered ONLY by logging in as sdsys (its own password) and"
+echo "running sd - that session has every admin verb.  There is no sudo or"
+echo "su route into it, and sdsys cannot log in over ssh; a desktop-sharing"
+echo "view of the console (VNC, TeamViewer) is a local login and works."
+echo
+echo "Reboot to assure that group memberships are updated"
+echo "and the APIsrvr Service is enabled."
+#
+echo
+echo "After rebooting, open a terminal and enter \'sd\' "
+echo "to connect to your sd home directory."
+echo
+echo
+printf "%b----------------------------------------------------------------\n" "$NC" 
+printf "%b\n" "$YELLOW"
+# read -p "Restart Computer? (y/N) " yn
+read -r -p "Restart Computer? (y/N) " yn
+printf "%b\n" "$NC"
+case $yn in
+    [yY] ) sudo reboot;;
+    [nN] ) echo;;
+    * ) echo ;;
+esac
+exit 0

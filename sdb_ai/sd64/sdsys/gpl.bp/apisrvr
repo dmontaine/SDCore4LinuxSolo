@@ -1,0 +1,1984 @@
+* APISRVR
+* API server process.
+* Was VBSRVR
+* Copyright (c) 2007 Ladybridge Systems, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+*
+* START-HISTORY:
+* 20 Sep 26 dm S.29 part 3: vb.scram's sdapi gate is BACK (10073, the port's
+*           number and text).  The owner's ruling of 18/19 Sep reverses S.28's
+*           disposal of the per-account route: membership of sdapi IS the API
+*           route, MODIFY.ACCOUNT turns it off and on, and this is the test that
+*           makes the word mean something.  status() is read so "could not tell"
+*           refuses with its own audit reason rather than reading as "not a
+*           member"; sdsys is exempt by name, as at vb.account.
+* 19 Sep 26 dm SDSYS's API door asks the KERNEL who opened the socket, not the
+*           address (owner, 19 Sep 2026: only a user logged in as sdsys reaches
+*           SDSYS, and local API access is worth a second password).  An
+*           address cannot see through an ssh tunnel and sdsys can never own
+*           one, so !peer_local alone admitted a tunnel opened by anybody with
+*           a login here.  system(43) is the socket peer's OS user
+*           (SO_PEERCRED); 10922 refuses when it is not sdsys, 10174 keeps the
+*           remote case.  SDSYS over the API is now Unix-socket only.
+* 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  vb.account's
+*           tier-ordering gate is gone with the tier model (S.25); vb.scram's
+*           sdapi test is gone - the API is open to every account (S.28) - and
+*           the remote-administrator gate is now SDSYS's own door: refused
+*           unless the connection is from this machine (10174).  The suspended
+*           test reads ACC$SUSPENDED (W.7).
+* 13 Sep 26 dm  Account names are lower case (plan M, owner): the register is
+*               read with the name downcased.
+* 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
+* 13 Sep 26 dm  Opens sdsys $ipc and accounts by their lower-case names on disk
+*               (plan M3 D1).
+* 12 Sep 26 dm  The LOGIN paragraph read folds as typed, then lower (plan M1).
+* 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+* 20240219x mab rebrand as APISRVR
+*               always run in secure mode
+* 28 Jul 24 mab remove enter.package / exit.package (commands not supported)
+* rev 0.9.0 Jan 25 mab test for user member of account on logto
+* 11 Sep 26 dm  vb.account refuses a suspended account with 10003, the same
+*               text as every other refusal (PORT_ADOPTION 12, the port's).
+* 11 Sep 26 dm  vb.login writes an API REFUSED audit record at every refusal;
+*               a name reaches the record only after valid_os_name passed it
+*               (PORT_ADOPTION 13, the port's).
+* 14 Sep 26 dm  vb.account applies the tier ordering (!tier_allows, 10003), the
+*               port's of 29 Aug 2026; an account name folds to lower case, so
+*               WHO names it as it is on disk (W.4).
+* 14 Sep 26 dm  vb.login takes a password of any length and refuses an empty
+*               one, as the port does (S.14).
+* 14 Sep 26 dm  SCRAM-SHA-256 login, requests 47 and 48 (vb.scram.first,
+*               vb.scram.final), from the Windows port's APISRVR of 19-23 Aug
+*               2026 (W.4 SCRAM phase 3).  Additive: request 24 still works
+*               until phase 5.  Linux differences, each marked where it sits:
+*               $cred ids are lower case; the API-use test is sdusers (this
+*               tree has no sdapi); the port's remote-administrator gate is not
+*               here (no !peer_local); becoming the user is initgroups/setuid.
+* 14 Sep 26 dm  Request 24, the cleartext login, is retired: vb.login answers
+*               5275 and drops the connection, the port's (W.4 SCRAM phase 5).
+* 14 Sep 26 dm  vb.scram.final refuses an administrator (tier or sdadmin) whose
+*               connection is not from this machine, with 10174 - the port's
+*               remote-administrator gate (S.17).
+* 14 Sep 26 dm  vb.scram.final requires sdapi membership (10073), the port's
+*               per-account API route (S.16).
+* END-HISTORY
+*
+*
+* START-DESCRIPTION:
+*
+* All actions return:
+*    0 - 1   server error status (see below)
+*    2 - 5   status()
+*    6+      action specific data
+*
+* All numbers in the client packets are low byte first regardless of the
+* server platform byte ordering.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+* Server error status values
+$define SV$OK               0    ;* Action successful
+$define SV$ON.ERROR         1    ;* Action took ON ERROR clause
+$define SV$ELSE             2    ;* Action took ELSE clause
+$define SV$ERROR            3    ;* Action failed. Error text available
+$define SV$LOCKED           4    ;* Took locked clause
+
+$define MAX.ARG.COUNT     255
+
+$define APILOGGING 0    ;* 0 = no log, 1 = log
+
+$internal
+program apisrvr
+$catalog $APISRVR
+
+$flags cproc
+$flags trusted
+* mab
+* Linux port, plan D6: REVSTAMP reads ./gplsrc/revstamp.h, a path that only
+* exists in the dev tree, so this pair fails on an installed system.  REVSTAMP.H
+* is generated by gplbld/gen_includes.py now, matching CPROC's commented pair;
+* the tracked revstamp.h included below is current.
+*$execute 'BASIC GPL.BP REVSTAMP'
+*$execute 'RUN GPL.BP REVSTAMP'
+$include revstamp.h
+
+$include syscom.h
+$include int$keys.h
+$include header.h
+
+$include err.h
+$include keys.h
+
+* 20240219 mab user must be member of sdusers  
+deffun is_grp_member(user,group) calling '!is_grp_member'
+* 14 Sep 26 dm - DECLARED HERE, NOT IN vb.login, as the port did on 19 Aug:
+*   vb.scram.first calls it too, and phase 5 retires vb.login.
+deffun valid_os_name(name) calling '!valid_os_name'
+
+
+common /$APISRVR/ logged.in,          ;* Process is logged in
+files(100),         ;* Array of file variables
+logging             ;* Logging network traffic?
+
+* If this is the first time through, initialise various things in
+* the SYSCOM common block.
+
+if not(kernel(K$CPROC.LEVEL,0)) then
+   abort.message = ""
+
+   parser = "!PARSER"          ;* Command parser subroutine
+
+   * Attach to SDSYS directory
+
+   if not(ospath(@sdsys, OS$CD)) then
+      abort.message = sysmsg(5261) ;* Cannot attach to SDSYS
+      goto connection.failed
+   end
+
+   clearselect all
+   i = high.select
+   loop
+   while i > high.user.select
+      clearselect i
+      i -= 1
+   repeat
+
+   i = kernel(K$CPROC.LEVEL,1)
+   xeq.command = ""
+   data.queue = ""
+   command.stack = ""
+   at.sentence = ""
+   last.command = ""
+   sys.bell = char(7)
+   user.return.code = 0
+   aliased.commands = ''
+   alias.targets = ''
+   default.style.rec = ''
+   logname = kernel(K$USERNAME, 0)
+   mat qproc.breakpoint.value = ''
+   user.var.names = ''
+   user.var.values = ''
+   itype.mode = 0                  ;* Standard I-type
+   trigger.return.code = 0
+   dir.separator = '/'
+
+   echo on
+
+   * not having any luck with this logging = bitand(config('DEBUG'), 0x20) ;* debug=32
+   logging = APILOGGING
+
+   account.path = ospath("", os$cwd)     ;* @PATH
+   initial.account.path = account.path
+* 14 Sep 26 dm - no upcase: account directories are lower case on disk (plan M),
+*   and LOGIN:472 takes WHO as it is.
+   who = account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999] ;* 0414
+   abort.code = 0
+
+   tty = 'apisrvr'
+
+   openpath "voc" to voc else
+      abort.message = sysmsg(2026) ;* Cannot open VOC
+      goto connection.failed
+   end
+
+
+   * Open IPC file and delete any items for old versions of this process id
+
+   openpath @sdsys:@ds:'$ipc' to ipc.f then
+      recordlocku ipc.f,'M':@userno     ;* Message queue
+      delete ipc.f, 'M':@userno
+
+      recordlocku ipc.f,'P':@userno     ;* Phantom register
+      delete ipc.f, 'P':@userno
+   end
+
+end else   ;* Abort
+   abort.code = abort.cause()
+   clearselect
+   echo on
+   hush off
+
+   if abort.code = K$LOGOUT then goto abort.vbsrvr
+
+   server.error = SV$ON.ERROR
+   st = status()
+   writepkt iconv(server.error, 'ISL'):iconv(st, 'ILL'):@abort.message
+end
+
+gosub reset.environment
+
+if logging then
+* mab 20240219 most likely this does not work unless we pre create the log file for userno??
+   openseq '/tmp/api_srvr.log' overwrite to log.f then
+      writeseq '> logging started at: ': timedate() to log.f else null
+   end else
+      if status() then logging = @false
+   end
+end
+
+
+* Main processing loop
+
+dim args(MAX.ARG.COUNT)
+
+error.msg = ''
+done = @false
+
+* 14 Sep 26 dm - SCRAM exchange state, the port's (W.4 SCRAM phase 3).  Ordinary
+*   program variables: APISRVR is one process per connection running one loop,
+*   so what request 47 sets is still set when 48 arrives and no two connections
+*   share it.  INITIALISED HERE, outside the first-time block, because
+*   scram.stage is the only thing standing between a client-final and a
+*   signature check run against empty values.
+scram.stage = 0        ;* 0 = no exchange in progress, 1 = client-first accepted
+scram.user = ''        ;* User name from client-first, once screened
+scram.cfirst.bare = '' ;* client-first-bare, the GS2 header stripped
+scram.sfirst = ''      ;* server-first, exactly as it went out
+scram.nonce = ''       ;* Combined nonce, client's then ours
+scram.storedkey = ''   ;* From $cred, base64
+scram.serverkey = ''   ;* From $cred, base64
+scram.audit.name = ''   ;* Name as PRESENTED, sanitised - see scram.clean.name
+scram.refuse.reason = '';* Why this exchange was refused; '' = not refused
+
+loop
+   unload.object               ;* Unload inactive object code
+
+   * Fetch new command
+
+   cmnd = readpkt()
+   if cmnd = '' then
+      logmsg sysmsg(5271) ;* Connection to client lost
+      goto abort.vbsrvr
+   end
+
+   if logging then
+      s = oconv(cmnd, 'MX0C')
+      writeseq '> ' : s[1,4] : ' ' : s[5,1000] to log.f else null
+   end
+
+   action = oconv(cmnd[1,2], 'ISL')
+
+   cmnd = cmnd[3,99999999]          ;* Strip off action code
+   response = ''
+   server.error = SV$OK           ;* Assume success
+
+   if not(logged.in) then
+      * 14 Sep 26 dm - 47 and 48, the two halves of one SCRAM exchange, join 24
+      * and 25 as the requests a session may make before authenticating (the
+      * port's).  48 refuses itself if 47 did not come first.  24 STAYS IN THIS
+      * LIST THOUGH IT IS RETIRED, so vb.login can answer 5275 and name the
+      * reason (the port's, phase 5).
+      if action # 24 and action # 25 and action # 47 and action # 48 then
+         abort.message = sysmsg(5270) ;* Not logged in
+         goto connection.failed
+      end
+   end
+
+   cproc.date = date()
+   cproc.time = time()
+
+   on action + 1 gosub vb.illegal.action,
+   vb.quit,           ;*   1   Quit
+   vb.geterror,       ;*   2   Get extended error text
+   vb.account,        ;*   3   Set account
+   vb.open,           ;*   4   Open file
+   vb.close,          ;*   5   Close file
+   vb.read,           ;*   6   Read record (READ)
+   vb.readl,          ;*   7   Read record (READL)
+   vb.readlw,         ;*   8   Read record (READL, waiting)
+   vb.readu,          ;*   9   Read record (READU)
+   vb.readuw,         ;*  10   Read record (READU, waiting)
+   vb.select,         ;*  11   Select file
+   vb.readnext,       ;*  12   Read next id from select list
+   vb.clearselect,    ;*  13   Clear select list
+   vb.readlist,       ;*  14   Read select list
+   vb.release,        ;*  15   Release lock
+   vb.write,          ;*  16   Write record
+   vb.writeu,         ;*  17   Write record, retaining lock
+   vb.delete,         ;*  18   Delete record
+   vb.deleteu,        ;*  19   Delete record, retaining lock
+   vb.call,           ;*  20   Call catalogued subroutine
+   vb.execute,        ;*  21   Execute command
+   vb.respond,        ;*  22   Response to input
+   vb.endcommand,     ;*  23   End command
+   vb.login,          ;*  24   Network login - RETIRED, always refused
+   vb.local.login,    ;*  25   SDLocal login
+   vb.selectindex,    ;*  26   Select index
+   vb.illegal.action, ;*  27   Enter licensed package - not supported
+   vb.illegal.action, ;*  28   Exit licensed package  - not supported
+   vb.open.sdnet,     ;*  29   Open SDNet file
+   vb.lock.record,    ;*  30   Lock a record
+   vb.clearfile,      ;*  31   Clearfile
+   vb.filelock,       ;*  32   Get file lock
+   vb.fileunlock,     ;*  33   Release file lock
+   vb.recordlocked,   ;*  34   Test lock
+   vb.indices1,       ;*  35   Fetch information about indices
+   vb.indices2,       ;*  36   Fetch information about an index
+   vb.selectlist,     ;*  37   Select file and return list
+   vb.selectindexv,   ;*  38   Select index, returning indexed values
+   vb.selectindexk,   ;*  39   Select index, returning keys for value
+   vb.fileinfo,       ;*  40   Perform FILEINFO() action
+   vb.readv,          ;*  41   READV and variants
+   vb.setleft,        ;*  42   Set index at extreme left
+   vb.setright,       ;*  43   Set index at extreme right
+   vb.selectleft,     ;*  44   Scan index to left
+   vb.selectright,    ;*  45   Scan index to right
+   vb.mark.mapping,   ;*  46   Enable/disable mark mapping
+   vb.scram.first,    ;*  47   SCRAM client-first
+   vb.scram.final,    ;*  48   SCRAM client-final
+   vb.illegal.action
+
+   st = status()
+return.status.set: ;* Return to here if ST already set
+
+   if server.error = SV$ON.ERROR then response = @abort.message
+
+   if logging then
+      s = oconv(iconv(server.error, 'ISL'):iconv(st, 'ILL'):response, 'MX0C')
+      writeseq '< ' : s[1,4] : ' ' : s[5,8] : ' ' : s[13,1000] to log.f else null
+   end
+
+   writepkt iconv(server.error, 'ISL'):iconv(st, 'ILL'):response
+until done
+repeat
+
+abort.vbsrvr:
+return to abort.vbsrvr
+
+connection.failed:
+server.error = SV$ON.ERROR
+st = status()
+writepkt iconv(server.error, 'ISL'):iconv(st, 'ILL'):@abort.message
+goto abort.vbsrvr
+
+* ======================================================================
+
+reset.environment:
+i = ospath("", os$flush.cache)
+
+cleardata               ;* Clear any unused DATA queue entries
+
+printer close on -3     ;* Close all printers at this or higher level
+printer off
+heading ""              ;* Ensure no heading or...
+footing ""              ;* ...footing on default print unit
+
+inline.prompts = ""     ;* Cast off inline prompts...
+inline.responses = ""   ;* ...and responses
+
+i = kernel(K$CPROC.LEVEL,0)
+delete.common '$':i   ;* Delete unnamed common
+
+return
+
+* ======================================================================
+
+vb.illegal.action:
+server.error = SV$ERROR
+error.msg = "Illegal action code (" : action : ")"
+return
+
+* ======================================================================
+* SrvrQuit  -  Disconnect server
+
+vb.quit:
+done = @true
+return
+
+* ======================================================================
+* SrvrGetError  -  Return extended error text
+
+vb.geterror:
+response = error.msg
+return
+
+* ======================================================================
+* SrvrAccount  -  Logto named account
+* In:  account name or path
+
+vb.account:
+* Run the ON.LOGTO paragraph, if it exists
+
+readv i from @voc,'ON.LOGTO',0 on error null
+then execute 'ON.LOGTO' trapping aborts capturing response
+
+* 14 Sep 26 dm - LOWER CASE, GOING PAST THE PORT, which upcases (plan M: no
+*   account name exists in two casings).  WHO is set from this at the end, so
+*   an upcase here showed ZZREL1 over the API where CPROC's LOGTO shows zzrel1.
+*   A PATH is left as typed - a Linux path is case-sensitive, and upcasing one
+*   could only ever have missed it.
+new.account = cmnd
+if index(new.account, @ds, 1) = 0 then new.account = downcase(new.account)
+
+old.account.path = account.path
+
+if len(new.account) < 1 or len(new.account) > MAX.ACCOUNT.NAME.LEN then
+   server.error = SV$ERROR
+   error.msg = sysmsg(5037) ;* Invalid account name
+   goto revert.to.old.account
+end
+
+account.path = new.account
+acc.suspended = @false
+if index(new.account, @ds, 1) = 0 then
+   openpath @sdsys:@ds:'accounts' to acc.f then
+      read acc.rec from acc.f, downcase(new.account) then
+         account.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
+         acc.suspended = (upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED')
+      end
+      close acc.f
+   end
+end
+
+* 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
+*   port's APISRVR of 27 Aug 2026).  The third door, after LOGIN and CPROC's
+*   LOGTO; an API caller reaches an account through neither.
+*
+*   IT REUSES 10003, AND THAT IS THE RULE HERE.  Every refusal in this routine
+*   gives the same text, so a caller cannot tell "no such account" from "not a
+*   member" from "suspended", and the API does not enumerate the register for
+*   anyone probing it.  No administrator exemption: an API session carries none.
+if acc.suspended then
+    server.error = SV$ERROR
+    error.msg = sysmsg(10003) ;* User not allowed in requested account
+    abort.message = error.msg
+    goto revert.to.old.account
+end
+
+* rev 0.9.0 * is user member of account?   
+if  not(is_grp_member(@logname,acc.rec<ACC$GROUP>)) then
+* 18 Sep 26 dm - TEARDOWN (S.26).  SDSYS ENTERS ITS OWN ACCOUNT WITHOUT A GROUP.
+*   The SDSYS register record's ACC$GROUP reads "sdsys", which is no Linux
+*   group - the OS user IS the account, so there is nothing to be a member of.
+*   The local API door above (10174) already confined it to this machine; the
+*   exemption is by NAME and for the sdsys account only.
+   if not(downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys') then
+      server.error = SV$ERROR
+      error.msg = sysmsg(10003) ;* User not allowed in requested account
+      abort.message = error.msg
+      goto revert.to.old.account
+   end
+end
+
+* 18 Sep 26 dm - TEARDOWN (S.25).  The tier-ordering gate is gone with the
+*   tier model: a grant is Linux group membership, and the group test above is
+*   the whole of the wall.
+
+if not(ospath(account.path, OS$CD)) then
+   server.error = SV$ERROR
+   error.msg = sysmsg(5019, account.path) ;* Unable to change to directory %1
+   goto revert.to.old.account
+end
+
+openpath "voc" to new.voc else
+   server.error = SV$ERROR
+   error.msg = sysmsg(5163) ;* Directory is not a SD account
+   goto revert.to.old.account
+end
+
+i = ospath("", os$flush.cache)
+
+account.path = ospath("", os$cwd)     ;* Ensure @PATH is absolute path
+initial.account.path = account.path   ;* Make WHO show only one element
+who = new.account
+
+voc = new.voc
+
+* 0452 Set up the private catalogue pathname
+
+private.catalogue = 'cat'
+read voc.rec from voc, "$PRIVATE.CATALOGUE" then
+   if upcase(voc.rec[1,1]) = 'X' then private.catalogue = voc.rec<2>
+end
+
+i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
+
+* Run the LOGIN paragraph, if it exists
+
+* 18 Aug 26 Windows port - AS TYPED, THEN LOWER, port PROJECT_STATUS 5.12 (b).
+*   @voc is a DYNAMIC file, so this is an exact byte match; without the second
+*   attempt an API session would silently stop running the LOGIN paragraph the
+*   moment the VOC id moves.  Blocked THEN/ELSE deliberately - see 5.12 trap 3.
+readv i from @voc, 'LOGIN', 0 on error null
+then
+   execute 'LOGIN' trapping aborts capturing response
+end else
+   readv i from @voc, 'login', 0 on error null
+   then
+      execute 'login' trapping aborts capturing response
+   end
+end
+
+return
+
+revert.to.old.account:
+if not(ospath(old.account.path, OS$CD)) then
+   server.error = SV$ERROR
+   error.msg = sysmsg(5162) ;* Fatal error : Cannot return to previous account
+   return to abort.vbsrvr
+end
+
+return
+
+* ======================================================================
+* Open file
+* In:  fname
+* Out: fileno (short integer)
+
+vb.open:
+if kernel(K$SDNET, -1)  or config("SDCLIENT") # 0 then
+   abort.message = sysmsg(5262) ;* File access is disabled
+   server.error = SV$ON.ERROR
+   return
+end
+
+* Locate a spare file table entry
+
+n = inmat(files)
+
+for i = 1 to n
+   if not(fileinfo(files(i), FL$OPEN)) then goto vb.open.continue
+next i
+
+* Extend file table
+
+dim files(n + 50)
+i = n + 1
+
+vb.open.continue:
+* Open file to file table entry i
+
+open cmnd to files(i)
+on error server.error = SV$ON.ERROR
+then
+   if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
+      server.error = SV$ELSE
+      end else
+         response = iconv(i, 'ISL')
+      end
+   end
+   else server.error = SV$ELSE
+
+      return
+
+      * ======================================================================
+      * Close file
+      * In:  fileno (short integer)
+      * Out:
+
+vb.close:
+      fno = oconv(cmnd[1,2], 'ISL')
+      gosub check.file
+      if err then return
+
+      close files(fno)   ;* 0346
+
+      return
+
+      * ======================================================================
+      * Read record
+      * In:  fileno (short integer)
+      *      id
+      * Out: record
+
+vb.read:
+      fno = oconv(cmnd[1,2], 'ISL')
+      gosub check.file
+      if err then return
+
+      id = cmnd[3,99]
+      read rec from files(fno), id
+      on error
+      server.error = SV$ON.ERROR
+   end then
+      response = rec
+   end else
+      server.error = SV$ELSE
+      end
+
+      return
+
+      * ======================================================================
+      * Read record with shared lock
+      * In:  fileno (short integer)
+      *      id
+      * Out: record
+
+vb.readl:
+      fno = oconv(cmnd[1,2], 'ISL')
+      gosub check.file
+      if err then return
+
+      id = cmnd[3,99]
+      readl rec from files(fno), id
+      on error
+      server.error = SV$ON.ERROR
+   end locked
+      server.error = SV$LOCKED
+      end then
+         response = rec
+      end else
+         server.error = SV$ELSE
+         end
+
+         return
+
+         * ======================================================================
+         * Read record with shared lock, waiting if locked
+         * In:  fileno (short integer)
+         *      id
+         * Out: record
+
+vb.readlw:
+         fno = oconv(cmnd[1,2], 'ISL')
+         gosub check.file
+         if err then return
+
+         id = cmnd[3,99]
+         readl rec from files(fno), id
+         on error
+         server.error = SV$ON.ERROR
+      end then
+         response = rec
+      end else
+         server.error = SV$ELSE
+         end
+
+         return
+
+         * ======================================================================
+         * Read record with exclusive lock
+         * In:  fileno (short integer)
+         *      id
+         * Out: record
+
+vb.readu:
+         fno = oconv(cmnd[1,2], 'ISL')
+         gosub check.file
+         if err then return
+
+         id = cmnd[3,99]
+         readu rec from files(fno), id
+         on error
+         server.error = SV$ON.ERROR
+      end locked
+         server.error = SV$LOCKED
+         end then
+            response = rec
+         end else
+            server.error = SV$ELSE
+            end
+
+            return
+
+            * ======================================================================
+            * Read record with exclusive lock, waiting if locked
+            * In:  fileno (short integer)
+            *      id
+            * Out: record
+
+vb.readuw:
+            fno = oconv(cmnd[1,2], 'ISL')
+            gosub check.file
+            if err then return
+
+            id = cmnd[3,99]
+            readu rec from files(fno), id
+            on error
+            server.error = SV$ON.ERROR
+         end then
+            response = rec
+         end else
+            server.error = SV$ELSE
+            end
+
+            return
+
+            * ======================================================================
+            * Select file
+            * In:  file no  (short int)
+            *      list no  (short int)
+
+vb.select:
+            fno = oconv(cmnd[1,2], 'ISL')
+            gosub check.file
+            if err then return
+
+            listno = oconv(cmnd[3,2], 'ISL')
+            gosub check.list
+            if err then return
+
+            select files(fno) to listno
+
+            return
+
+            * ======================================================================
+            * Read next entry from select list
+            * In:  listno (short integer)
+            * Out: id
+
+vb.readnext:
+            listno = oconv(cmnd[1,2], 'ISL')
+            gosub check.list
+            if err then return
+
+            readnext response from listno else server.error = SV$ELSE
+
+               return
+
+               * ======================================================================
+               * Clear select list
+               * In:  listno (short integer)
+
+vb.clearselect:
+               listno = oconv(cmnd[1,2], 'ISL')
+               gosub check.list
+               if err then return
+
+               clearselect listno
+
+               return
+
+               * ======================================================================
+               * Read select list
+               * In:  listno (short integer)
+
+vb.readlist:
+               listno = oconv(cmnd[1,2], 'ISL')
+               gosub check.list
+               if err then return
+
+               readlist response from listno else response = ''
+
+               return
+
+               * ======================================================================
+               * Release lock
+               * In:  fileno (short integer)
+               *      id
+
+vb.release:
+               fno = oconv(cmnd[1,2], 'ISL')
+               if fno then               ;* 0249
+                  gosub check.file
+                  if err then return
+               end
+
+               id = cmnd[3,99]
+
+               begin case
+                  case fno = 0
+                     release
+
+                  case id = ''
+                     release files(fno)
+
+                  case 1
+                     release files(fno), id
+               end case
+
+               return
+
+               * ======================================================================
+               * Write record
+               * In:  fileno (short integer)
+               *      id_len (short integer)
+               *      id
+               *      data
+
+vb.write:
+               fno = oconv(cmnd[1,2], 'ISL')
+               gosub check.file
+               if err then return
+
+               id.len = oconv(cmnd[3,2], 'ISL')
+               id = cmnd[5,id.len]
+
+               write cmnd[5 + id.len, 99999999] to files(fno), id
+               on error server.error = SV$ON.ERROR
+
+               return
+
+               * ======================================================================
+               * Write record, retaiining lock
+               * In:  fileno (short integer)
+               *      id_len (short integer)
+               *      id
+               *      data
+
+vb.writeu:
+               fno = oconv(cmnd[1,2], 'ISL')
+               gosub check.file
+               if err then return
+
+               id.len = oconv(cmnd[3,2], 'ISL')
+               id = cmnd[5,id.len]
+
+               writeu cmnd[5 + id.len, 99999999] to files(fno), id
+               on error server.error = SV$ON.ERROR
+
+               return
+
+               * ======================================================================
+               * Delete record
+               * In:  fileno (short integer)
+               *      id
+
+vb.delete:
+               fno = oconv(cmnd[1,2], 'ISL')
+               gosub check.file
+               if err then return
+
+               id = cmnd[3,99]
+               delete files(fno), id
+               on error server.error = SV$ON.ERROR
+
+               return
+
+               * ======================================================================
+               * Delete record, retaining lock
+               * In:  fileno (short integer)
+               *      id
+
+vb.deleteu:
+               fno = oconv(cmnd[1,2], 'ISL')
+               gosub check.file
+               if err then return
+
+               id = cmnd[3,99]
+
+               deleteu files(fno), id
+               on error server.error = SV$ON.ERROR
+
+               return
+
+               * ======================================================================
+               * Call catalogued subroutine
+               * In:  subr name len (short integer)
+               *      subr name (rounded to 2 byte boundary)
+               *      arg count (short integer)
+               *      arg len (long integer)
+               *      arg data (rounded to 2 byte boundary)
+               *
+               * Out: arg no (short integer)   Always in ascending arg no order
+               *      arg len (long integer)
+               *      arg data (rounded to 2 byte boundary)
+
+vb.call:
+               name.len = oconv(cmnd[1,2], 'ISL')
+               if name.len < 1 or name.len > MAX.CALL.NAME.LEN then
+                  abort.message = sysmsg(5263) ;* Invalid call name
+                  server.error = SV$ON.ERROR
+                  return
+               end
+
+               subr.name = cmnd[3,name.len]
+               pos = 3 + name.len + bitand(name.len, 1)
+
+               arg.count = oconv(cmnd[pos,2], 'ISL')
+               pos += 2
+
+               * Are we allowed to run this program?
+
+               obj.flags = load.object(subr.name)
+               if subr.name[1,1] = '$' or config("SDCLIENT") = 2 or kernel(K$SDNET, -1) then
+                  if not(bitand(obj.flags, HDR.SDCALL.ALLOWED)) then
+                     abort.message = sysmsg(5264, subr.name) ;* %1 cannot be called from a SDClient session
+                     server.error = SV$ON.ERROR
+                  end
+               end
+
+               if arg.count then
+                  mat args = ''
+                  for i = 1 to arg.count
+                     arg.len = oconv(cmnd[pos,4], 'ILL')
+                     pos += 4
+                     args(i) = cmnd[pos,arg.len]
+                     pos += arg.len + bitand(arg.len, 1)
+                  next i
+
+                  callv @subr.name, arg.count, args
+
+                  * Now return values of changed arguments (if any)
+
+                  for i = 1 to arg.count
+                     if changed(args(i)) then
+                        response := iconv(i, 'ISL') : iconv(len(args(i)), 'ILL') : args(i)
+                        if bitand(len(args(i)), 1) then response := ' '
+                     end
+                  next i
+               end else
+                  call @subr.name
+               end
+
+               gosub reset.environment
+
+               return
+
+               * ======================================================================
+               * Execute command
+               * In:  Command string
+               * Out: Command output
+
+vb.execute:
+               if config("SDCLIENT") # 0  or kernel(K$SDNET, -1) then
+                  abort.message = sysmsg(5265) ;* Command execution is disabled
+                  server.error = SV$ON.ERROR
+                  return
+               end
+
+               execute cmnd capturing response
+               st = @system.return.code
+               return to return.status.set
+
+               * ======================================================================
+               * Response to input
+               * In:  Command string
+               * Should never happen as client end should detect this
+
+vb.respond:
+               server.error = SV$ERROR
+               error.msg = sysmsg(5266) ;* Response to prompt sent when no prompt outstanding
+               return
+
+               * ======================================================================
+               * End command
+               * Should never happen as client end should detect this
+
+vb.endcommand:
+               server.error = SV$ERROR
+               error.msg = sysmsg(5267) ;* End command request sent when no prompt outstanding
+               return
+
+               * ======================================================================
+               * Network login, request 24 - RETIRED.  The Windows port's, 20 Aug
+               * 2026 (its docs/SCRAM_AUTH.md phase 5); W.4 SCRAM phase 5 here,
+               * 14 Sep 2026.
+               *
+               * THE CLEARTEXT LOGIN IS GONE AND THERE IS NO FALLBACK.  This
+               * handler read a length-prefixed user name and password out of
+               * the packet body and checked them against /etc/shadow through
+               * login() - the password crossed the wire in clear.  Requests 47
+               * and 48 replace it, and a client that still sends 24 is refused
+               * rather than quietly served a weaker path.
+               *
+               * IT REFUSES HERE RATHER THAN BEING DROPPED FROM THE GATE ABOVE:
+               * taking 24 out of that list would answer an old client with 5270
+               * "Not logged in", which reads as a client bug rather than as a
+               * protocol that moved.
+               *
+               * THE BODY IS NOT PARSED.  It still carries a password, so nothing
+               * here reads it, copies it or lets it reach a variable.
+               *
+               * LINUX: the APILOGIN=0 branch went with it.  It trusted the Unix
+               * socket peer's uid (linuxio.c getpeereid) in place of a password,
+               * and its only client, SDConnectUDS, is removed from sdclilib in
+               * the same change - the port has neither.
+               *
+               * The connection is dropped, as it was for a failed login.
+
+vb.login:
+               abort.message = sysmsg(5275) ;* Request no longer supported...
+               server.error = SV$ON.ERROR
+               done = @true
+
+               return
+
+               * ======================================================================
+               * Login user for SDLocal connection
+
+vb.local.login:
+              * dsm 20240612 openpath @sdsys:@ds:'$LOGINS' to lgn.f else
+              * dsm 20240612    abort.message = sysmsg(6050) ;* Cannot open $LOGINS register
+              * dsm 20240612    server.error = SV$ON.ERROR
+              * dsm 20240612    return
+              * dsm 20240612 end
+
+               * mab 20240219  read security.rec from lgn.f, '$SECURE' then
+               * mab 20240219     = kernel(K$SECURE, security.rec<1>)
+               * mab 20240219  end
+
+               username = logname
+
+               * mab 20240219 if kernel(K$SECURE, -1) then
+               * dsm 20240612 readu lgn.rec from lgn.f, username else null
+               * 20240219 mab user must be member of sdusers           
+               if  not(is_grp_member(username,'sdusers')) then
+                     server.error = SV$ON.ERROR
+                     void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=not a member of sdusers (local login)')
+                     abort.message = sysmsg(5009) ;* This user is not registered for SD use
+                     goto exit.vb.local.login
+               end
+
+               * dsm 20240612 lgn.rec<LGN$DATE> = date()
+               * dsm 20240612 lgn.rec<LGN$TIME> = time()
+               * dsm 20240612 recordlocku lgn.f, username
+               * dsm 20240612 write lgn.rec to lgn.f, username
+
+               logname = username
+               * dsm 20240612 i = kernel(K$ADMINISTRATOR,lgn.rec<LGN$ADMIN>)
+               * mab 20240219    end else      ;* System is insecure
+               * mab 20240219      i = kernel(K$ADMINISTRATOR,1)    ;* All users are administrators
+               * mab 20240219    end
+
+exit.vb.local.login:
+               * dsm 20240612close lgn.f
+               if server.error = SV$OK then logged.in = @true
+               else done = @true
+
+               return
+
+               * ======================================================================
+               * SCRAM-SHA-256 login, client-first.  The Windows port's, 19 Aug
+               * 2026 (its docs/SCRAM_AUTH.md phase 3); W.4 SCRAM phase 3 here.
+               *
+               * In:   n,,n=<user>,r=<client nonce>
+               * Out:  r=<combined nonce>,s=<salt>,i=<iterations>
+               *
+               * NO PASSWORD CROSSES THE WIRE IN EITHER DIRECTION.  The server
+               * publishes the salt and cost, the client answers a nonce, and a
+               * capture yields an offline guess bounded by the iteration count.
+               * THE SERVER DOES NOT RUN PBKDF2 HERE: it holds StoredKey, so login
+               * costs two HMACs and a hash.
+               *
+               * THIS PROCESS IS STILL ROOT HERE (sdclient@.service), which is
+               * what lets it read $cred, root:root 0700.
+
+vb.scram.first:
+               gosub scram.trim.body
+
+               * A fresh exchange on an authenticated session is a client bug or
+               * an attempt to change identity part way through.
+               if logged.in then
+                  scram.refuse.reason = 'sequence error - already authenticated'
+                  abort.message = sysmsg(5273) ;* Authentication sequence error
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+               scram.stage = 0        ;* a restart abandons any exchange in flight
+
+* 15 Sep 26 dm - S.19: THE GS2 HEADER FOLLOWS THE TRANSPORT; THE CLIENT DOES NOT
+*   CHOOSE IT.  Every socket connection is TLS (gplsrc/sd_tlssrv.c) and must
+*   bind the login to it with 'p=tls-exporter,,' (RFC 9266).  A session with no
+*   TLS - a local pipe - has nothing to bind to and must say 'n,,'.  'y,,' is
+*   refused everywhere.  A client that offered 'n,,' over TLS would be a
+*   downgrade, so it is a malformed message here, not a weaker login.
+               scram.cbind = SDEXT('', @FALSE, SD_TLS_CBIND)
+               if scram.cbind = '' then scram.gs2 = 'n,,' else scram.gs2 = 'p=tls-exporter,,'
+               if cmnd[1,len(scram.gs2)] # scram.gs2 then goto scram.bad.message
+
+               scram.cfirst.bare = cmnd[len(scram.gs2)+1,99999999]
+
+               * Exactly two attributes: RFC 5802 requires failing on an m=
+               * extension, and counting commas makes that automatic.
+               if count(scram.cfirst.bare, ',') # 1 then goto scram.bad.message
+
+               scram.attr = field(scram.cfirst.bare, ',', 1)
+               if scram.attr[1,2] # 'n=' then goto scram.bad.message
+               username = scram.attr[3,99999999]
+
+               * Taken before any check, so every refusal has a name to record.
+               gosub scram.clean.name
+
+               scram.attr = field(scram.cfirst.bare, ',', 2)
+               if scram.attr[1,2] # 'r=' then goto scram.bad.message
+               scram.cnonce = scram.attr[3,99999999]
+               if scram.cnonce = '' then goto scram.bad.message
+
+               * No =2C / =3D unescaping is needed: valid_os_name allows no
+               * character that would have required it.
+               if username = '' or username[1,1] = '$' then
+                  scram.refuse.reason = 'unusable name'
+                  goto scram.bad.cred
+               end
+               if not(valid_os_name(username)) then
+                  scram.refuse.reason = 'name rejected by valid_os_name'
+                  goto scram.bad.cred
+               end
+
+               openpath @sdsys:@ds:'$cred' to scram.cred.f else
+                  scram.refuse.reason = 'cannot open $cred'
+                  abort.message = sysmsg(5274) ;* Authentication service unavailable
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+               * LINUX: record ids are lower case (plan M), as !CRED_SET writes
+               * them; the port reads upcase(username).
+               read scram.cred from scram.cred.f, downcase(username) else
+                  close scram.cred.f
+                  scram.refuse.reason = 'no credential'
+                  goto scram.bad.cred      ;* no credential - fail closed
+               end
+               close scram.cred.f
+
+               if scram.cred<CRED$VERSION> # SCRAM$CRED.VERSION then
+                  scram.cred = ''
+                  scram.refuse.reason = 'credential is not version 2 - run MODIFY.PASSWORD'
+                  goto scram.bad.cred
+               end
+
+               scram.salt = scram.cred<CRED$SALT>
+               scram.iter = scram.cred<CRED$ITER>
+               scram.storedkey = scram.cred<CRED$STOREDKEY>
+               scram.serverkey = scram.cred<CRED$SERVERKEY>
+               scram.cred = ''
+
+               if scram.salt = '' or scram.iter = '' then
+                  scram.refuse.reason = 'credential incomplete'
+                  goto scram.bad.cred
+               end
+               if scram.storedkey = '' or scram.serverkey = '' then
+                  scram.refuse.reason = 'credential incomplete'
+                  goto scram.bad.cred
+               end
+
+               * 18 random bytes: a multiple of three, so base64 has no '='
+               * padding and every character is inside RFC 5802's printable set.
+               scram.snonce = SDEXT('18', @TRUE, SD_RANDBYTES)
+               if scram.snonce = '' then goto scram.crypto.failed
+
+               scram.nonce = scram.cnonce : scram.snonce
+
+               * Kept verbatim: server-first goes into AuthMessage byte for byte.
+               scram.sfirst = 'r=' : scram.nonce : ',s=' : scram.salt : ',i=' : scram.iter
+
+               scram.user = username
+               scram.stage = 1
+               response = scram.sfirst
+
+               return
+
+               * ======================================================================
+               * SCRAM-SHA-256 login, client-final.  The port's.
+               *
+               * In:   c=biws,r=<combined nonce>,p=<ClientProof>
+               * Out:  v=<ServerSignature>
+               *
+               * The server never holds ClientKey.  It recovers a candidate from
+               * the proof and checks its SHA-256 against StoredKey.
+
+vb.scram.final:
+               gosub scram.trim.body
+
+               if logged.in then
+                  scram.refuse.reason = 'sequence error - already authenticated'
+                  abort.message = sysmsg(5273) ;* Authentication sequence error
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+               * A client-final with no client-first has no nonce and no
+               * AuthMessage: refusing is what stops a check against empty values.
+               if scram.stage # 1 then
+                  scram.refuse.reason = 'sequence error - no client-first'
+                  abort.message = sysmsg(5273) ;* Authentication sequence error
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+               * ONE ATTEMPT PER CLIENT-FIRST, cleared before the proof is read.
+               scram.stage = 0
+
+               if count(cmnd, ',') # 2 then goto scram.bad.message
+
+* 15 Sep 26 dm - S.19: c= is base64 of the GS2 header plus, over TLS, this
+*   session's binding; 'biws' is base64('n,,').  Recomputed rather than carried
+*   from client-first.  The client's copy must equal the server's: a login
+*   relayed by a man in the middle carries the relay's binding, not this
+*   session's, and the proof - computed over this attribute - fails with it.
+               scram.cbind = SDEXT('', @FALSE, SD_TLS_CBIND)
+               if scram.cbind = '' then scram.cattr = 'c=biws' else scram.cattr = 'c=' : scram.cbind
+               scram.attr = field(cmnd, ',', 1)
+               if scram.attr # scram.cattr then goto scram.bad.message
+
+               scram.attr = field(cmnd, ',', 2)
+               if scram.attr[1,2] # 'r=' then goto scram.bad.message
+
+               * Exact match on the whole combined nonce: this kills replay.
+               if scram.attr[3,99999999] # scram.nonce then goto scram.bad.message
+
+               scram.cfinal.bare = scram.cattr : ',' : scram.attr
+
+               scram.attr = field(cmnd, ',', 3)
+               if scram.attr[1,2] # 'p=' then goto scram.bad.message
+               scram.proof = scram.attr[3,99999999]
+               if scram.proof = '' then goto scram.bad.message
+
+               scram.authmsg = scram.cfirst.bare : ',' : scram.sfirst : ',' : scram.cfinal.bare
+
+               * Every failure from here is one answer.
+               scram.csig = SDEXT(scram.storedkey : @FM : scram.authmsg, @TRUE, SD_HMACSHA256)
+               if scram.csig = '' then goto scram.crypto.failed
+
+               scram.ckey = SDEXT(scram.proof : @FM : scram.csig, @TRUE, SD_XORBYTES)
+               if scram.ckey = '' then
+                  scram.refuse.reason = 'client key derivation failed'
+                  goto scram.bad.cred
+               end
+
+               scram.derived = SDEXT(scram.ckey, @TRUE, SD_SHA256)
+               scram.ckey = ''
+               if scram.derived = '' then
+                  scram.refuse.reason = 'stored key derivation failed'
+                  goto scram.bad.cred
+               end
+
+               * Constant time, as !CRED_VERIFY is.
+               if SDEXT(scram.derived : @FM : scram.storedkey, @TRUE, SD_CTEQUAL) # '1' then
+                  scram.refuse.reason = 'wrong password'
+                  goto scram.bad.cred
+               end
+
+               * AUTHENTICATED.  The reply is a signature only a holder of this
+               * account's ServerKey can compute - the mutual half.
+               scram.ssig = SDEXT(scram.serverkey : @FM : scram.authmsg, @TRUE, SD_HMACSHA256)
+               if scram.ssig = '' then goto scram.crypto.failed
+
+* 14 Sep 26 dm - LINUX: MAY THIS USER USE THE API AT ALL?  After the proof (so
+*   the distinct refusal leaks nothing).  THE NAME IS scram.user, the one just
+*   proven.  sdusers first, with 5009 - an SD user at all.
+               if not(is_grp_member(scram.user, 'sdusers')) then
+                  scram.refuse.reason = 'not a member of sdusers'
+                  abort.message = sysmsg(5009) ;* This user is not registered for SD use
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+* 20 Sep 26 dm - S.29 PART 3: THE sdapi GATE IS BACK, AND IT IS WHAT MAKES THE
+*   ROUTE REAL.  S.28 disposed of it; that disposal is reversed by the owner's
+*   ruling of 18/19 Sep 2026 (relayed by the port): every account has ssh and
+*   the API by default, and the administrator may turn either off and on
+*   again.  Parts 1
+*   and 2 gave the groups and the words; until this test existed, MODIFY.ACCOUNT
+*   <acc> NONE reported the routes gone and the account was still reachable.
+*
+*   THE SHAPE IS THE PORT'S AND THE NUMBER IS THE PORT'S (10073).  Membership of
+*   sdapi IS the route: an ALLOW group, so a missing or unreadable register
+*   refuses rather than grants.
+*
+*   ***status() IS READ AND A THREE-VALUED ANSWER IS NOT COLLAPSED.***
+*   !is_grp_member returns @false both for "not a member" and for "could not
+*   tell" (is_grp_member:48/:87/:91 set status 1 for an empty argument, an
+*   unreadable /etc/group and an unopenable /etc).  Both refuse here - an allow
+*   group fails closed in either case - but the two are written into the audit
+*   trail as different reasons, because "this account has no API route" and "the
+*   machine could not answer" call for different action from whoever reads it.
+*
+*   SDSYS IS EXEMPT BY NAME, as it is at vb.account's group test above and for
+*   the same reason: the sdsys register record's ACC$GROUP is "sdsys", the OS
+*   user IS the account, and nothing joins it to sdapi.  Its own door is the
+*   next two gates, which are stricter than this one - so the exemption widens
+*   nothing.  The name is compared downcased, as everywhere else.
+               if not(downcase(scram.user) = 'sdsys') then
+                  api.in.sdapi = is_grp_member(scram.user, 'sdapi')
+                  api.route.stat = status()
+                  if api.route.stat # 0 then
+                     scram.refuse.reason = 'the sdapi route could not be read, status ' : api.route.stat
+                     abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+                  if not(api.in.sdapi) then
+                     scram.refuse.reason = 'not a member of sdapi'
+                     abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+               end
+
+* 18 Sep 26 dm - TEARDOWN (S.28, was S.17).  THE SDSYS DOOR: SDSYS is refused
+*   over the API unless the connection came from this machine - loopback, or
+*   the Unix socket (!peer_local).  After the proof, so the distinct refusal
+*   leaks nothing to somebody without the password; before the identity is
+*   taken, so a refused session never becomes the user.  10174, the port's
+*   number, Linux wording.
+*
+* 19 Sep 26 dm - 10174 IS OURS ALONE NOW.  It was taken FROM the port, but the
+*   port DELETED its own 10174 (and 10175) in its tier teardown of 18 Sep 2026
+*   - its RELEASE_1.1 64 - so the number is live here and free there, in a
+*   space the two ports share.  Its agent flagged it 19 Sep 23:30 and has
+*   recorded 10174 as spoken for at our request, so a later Windows session
+*   cannot take it and give it a second meaning.  Kept rather than moved: it is
+*   in service here and renumbering a shipped refusal costs more than the
+*   bookkeeping does.  ***THE GENERAL POINT IS WORTH MORE THAN THIS NUMBER: a
+*   deletion in one port is invisible to the other, exactly as an allocation
+*   is, so "the port's number" is a fact about the day it was taken and not a
+*   standing guarantee.***
+*
+*   WHY IT MATTERS: SDSYS can change every account on this system, and the API
+*   admits a connection on the SD password alone.  On this machine SDSYS is
+*   admitted - the port's owner runs a local application that way - and
+*   ssh -L is the way in from elsewhere, because the tunnel needs the Linux
+*   login first.  The comparison is against the sdsys name itself: there is
+*   one administrator now, no register lookup needed.
+*
+* 19 Sep 26 dm - AND THE ADDRESS WAS NEVER ENOUGH FOR THIS ONE ACCOUNT (owner,
+*   19 Sep 2026: only a user actually logged in as sdsys reaches SDSYS; local
+*   API access is kept, and a second password is worth it to have it).
+*
+*   THE FLAW IN THE OLD TEST: !peer_local classifies an ADDRESS, and its own
+*   header says it cannot see through an ssh tunnel - "ssh -L" ends on this
+*   host, so a tunnelled connection arrives from 127.0.0.1 or from the socket
+*   and reads LOCAL.  That was accepted everywhere else because a tunnel needs
+*   the account's own Linux login first.  ***THAT ARGUMENT DOES NOT HOLD FOR
+*   SDSYS***: sdsys is DenyUsers'd at sshd (ssh-forcecommand.sh), so sdsys can
+*   never own a tunnel - a tunnel carrying SDSYS's credential belongs to SOME
+*   OTHER USER, and no address can tell.
+*
+*   WHAT REPLACES IT: system(43), the kernel's own view of the process at the
+*   other end of the Unix socket (SO_PEERCRED, linuxio.c, read before the TLS
+*   relay takes the descriptor).  Under a tunnel that process is sshd running
+*   as the TUNNEL'S OWNER, so it reports that user and never sdsys.
+*
+*   THREE CONDITIONS, ALL REQUIRED, AND "" IS A REFUSAL NOT A GAP: the peer
+*   must be local, the transport must be the Unix socket (TCP has no such
+*   credential, so loopback TCP no longer admits SDSYS - a real narrowing,
+*   stated rather than glossed), and the socket's peer must BE sdsys.
+               api.peer.local = @false
+               call !peer_local(api.peer.local, api.peer.addr)
+*
+*   TWO REFUSALS, NOT ONE, AND 10174 KEEPS ITS OWN CASE.  "You are not on this
+*   machine" and "you are on it but you are not sdsys" are different facts and
+*   an administrator reading a log needs to know which.  Keeping 10174 on the
+*   remote arm also leaves §13e E4 measuring what it has always measured, and
+*   leaves no message record without a caller - tonight's other lesson.
+               if downcase(scram.user) = 'sdsys' and not(api.peer.local) then
+                  scram.refuse.reason = 'sdsys on a remote API session from ' : api.peer.addr
+                  abort.message = sysmsg(10174)
+                  * SDSYS may be reached through the API only from this machine
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+               if downcase(scram.user) = 'sdsys' then
+                  api.peer.user = downcase(trim(system(43)))
+                  sdsys.api.ok = @true
+                  if api.peer.addr[1,1] # '/' then sdsys.api.ok = @false
+                  if api.peer.user # 'sdsys' then sdsys.api.ok = @false
+                  if not(sdsys.api.ok) then
+                     if api.peer.user = '' then
+                        scram.refuse.reason = 'sdsys API session with no socket credential from ' : api.peer.addr
+                     end else
+                        scram.refuse.reason = 'sdsys API session opened by ' : api.peer.user : ' from ' : api.peer.addr
+                     end
+                     abort.message = sysmsg(10922)
+                     * SDSYS may use the API only from a process running as sdsys
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+               end
+
+               * THE IDENTITY IS THE NAME THAT WAS PROVEN, UNCONDITIONALLY - no
+               * APILOGIN branch.  The answer is taken, as the port's is (its
+               * PRE_RELEASE_FIXES 99): K$SET.USERNAME reports the name as it
+               * stands, so a refused or overlength name shows here.
+               logname = scram.user
+               set.name = kernel(K$SET.USERNAME, scram.user)
+               if set.name # scram.user then
+                  scram.refuse.reason = 'the session user name could not be set'
+                  abort.message = sysmsg(10160)
+                  * Authentication succeeded but the session could not take your user name
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+               scram.storedkey = ''
+               scram.serverkey = ''
+
+* 14 Sep 26 dm - BECOME THE USER, BEFORE logged.in, WHICH IS THE WHOLE CONTROL.
+*   LINUX: K$ASSUME.USER is initgroups/setgid/setuid while still root
+*   (op_kernel.c), the drop login_user's password path makes (S.15).  A
+*   refusal leaves logged.in false and ends the connection, so the caller has
+*   authenticated into nothing rather than into a root session.
+               if not(kernel(K$ASSUME.USER, scram.user)) then
+                  scram.refuse.reason = 'could not assume the Linux identity of the authenticated user'
+                  abort.message = sysmsg(5277) ;* Authentication succeeded but...
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+               response = 'v=' : scram.ssig
+               logged.in = @true
+
+               return
+
+               * ----------------------------------------------------------------------
+               * Shared exits for both SCRAM handlers, the port's.
+
+scram.bad.message:
+               if scram.refuse.reason = '' then scram.refuse.reason = 'malformed authentication message'
+               abort.message = sysmsg(5272) ;* Invalid authentication message
+               server.error = SV$ON.ERROR
+               goto exit.vb.scram.fail
+
+scram.crypto.failed:
+               if scram.refuse.reason = '' then scram.refuse.reason = 'authentication service failed'
+               abort.message = sysmsg(5274) ;* Authentication service unavailable
+               server.error = SV$ON.ERROR
+               goto exit.vb.scram.fail
+
+scram.bad.cred:
+               * ONE MESSAGE AND ONE DELAY FOR EVERY CREDENTIAL FAILURE.  Known
+               * gap, the port's "Still open": an account with no credential
+               * fails at 47 and a wrong password at 48, so the round trip tells
+               * them apart.
+               if scram.refuse.reason = '' then scram.refuse.reason = 'credential'
+               abort.message = sysmsg(5017) ;* Invalid username or password
+               server.error = SV$ON.ERROR
+               sleep 3
+               goto exit.vb.scram.fail
+
+exit.vb.scram.fail:
+               * THE ONE PLACE A REFUSED SCRAM LOGIN IS RECORDED: every path out
+               * of both handlers passes here, so a refusal added later is
+               * audited whether or not its author thinks about the trail.
+               if scram.refuse.reason # '' then
+                  if scram.audit.name = '' then scram.audit.name = '(none)'
+                  void kernel(K$AUDIT, 'API REFUSED user=' : scram.audit.name : ' reason=' : scram.refuse.reason)
+                  scram.refuse.reason = ''
+               end
+
+               * The connection goes, as for a failed request 24.
+               scram.stage = 0
+               scram.storedkey = ''
+               scram.serverkey = ''
+               done = @true
+
+               return
+
+               * ----------------------------------------------------------------------
+               * Drop trailing NULs from the request body.  The packet carries its
+               * own length, but a client written from vb.login's two-byte padding
+               * would put one inside the base64; NUL is not valid in SCRAM.
+
+scram.trim.body:
+               loop
+               while cmnd # '' and cmnd[len(cmnd),1] = char(0)
+                  cmnd = cmnd[1,len(cmnd)-1]
+               repeat
+
+               return
+
+               * ----------------------------------------------------------------------
+               * The presented user name, made safe for the audit trail (the
+               * port's).  audit_message() writes verbatim and ends with a newline,
+               * so a name carrying one would forge a line.  The permitted set is
+               * valid_os_name's own; anything else becomes ?.
+
+scram.clean.name:
+               scram.cn.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-'
+               scram.cn.raw = username
+               scram.cn.trunc = @false
+               if len(scram.cn.raw) > MAX.USERNAME.LEN then
+                  scram.cn.raw = scram.cn.raw[1, MAX.USERNAME.LEN]
+                  scram.cn.trunc = @true
+               end
+
+               scram.cn.bad = convert(scram.cn.chars, '', scram.cn.raw)
+               if scram.cn.bad # '' then
+                  scram.cn.raw = convert(scram.cn.bad, str('?', len(scram.cn.bad)), scram.cn.raw)
+               end
+
+               scram.audit.name = scram.cn.raw
+               if scram.audit.name = '' then scram.audit.name = '(empty)'
+               if scram.cn.trunc then scram.audit.name := '...'
+               return
+
+               * ======================================================================
+               * Select index
+               * In:  file no  (short int)
+               *      list no  (short int)
+               *      index name len (short int)
+               *      index name (padded to 2 byte interval)
+               *      index value len (short int)
+               *      index value (padded to 2 byte interval)
+
+vb.selectindex:
+               fno = oconv(cmnd[1,2], 'ISL')
+               gosub check.file
+               if err then return
+
+               listno = oconv(cmnd[3,2], 'ISL')
+               gosub check.list
+               if err then return
+
+               * Extract index name
+
+               pos = 5
+               n = oconv(cmnd[pos,2], 'ISL')
+               pos += 2
+               index.name = cmnd[pos, n]
+               pos += n + bitand(n, 1)
+
+               * Extract index value
+
+               n = oconv(cmnd[pos,2], 'ISL')
+               pos += 2
+               index.value = cmnd[pos, n]
+
+               selectindex index.name, index.value from files(fno) to listno
+
+               return
+
+                     * ======================================================================
+                     * Open file SDNet file
+                     * In:  Account name;filename
+                     * Out: fileno (short integer)
+
+vb.open.sdnet:
+                     if not(bitand(config('NETFILES'), 2)) then
+                        set.status ER$XREMOTE
+                        server.error = SV$ELSE
+                           return
+                        end
+
+                        * Use of this operation identifies the process as a SDNet user.
+                        * Set the appropriate process flag so that LISTU etc show this.
+
+                        i = kernel(K$SDNET, 1)
+
+                        * Locate a spare file table entry
+
+                        n = inmat(files)
+
+                        for i = 1 to n
+                           if not(fileinfo(files(i), FL$OPEN)) then goto vb.open.sdnet.continue
+                        next i
+
+                        * Extend file table
+
+                        dim files(n + 50)
+                        i = n + 1
+
+vb.open.sdnet.continue:
+
+                        * Open file to file table entry i
+
+                        acc = field(cmnd, ';', 1)   ;* Account name or path
+                        file = field(cmnd, ';', 1)  ;* File name
+
+                        openpath @sdsys:@ds:'accounts' to acc.f then
+                           read acc.rec from acc.f, downcase(acc) then
+                              acc = parse.pathname.tokens(acc.rec<ACC$PATH>)
+                           end
+                           close acc.f
+                        end
+
+                        qvoc.path = acc:@ds:'voc'
+                        openpath qvoc.path to qvoc.f else
+                           server.error = SV$ELSE
+                              return
+                           end
+
+                           file = field(cmnd, ';', 2)
+                           if file[1,5] = 'DICT ' then
+                              j = 3
+                              file = file[6,999]
+                           end else
+                              j = 2
+                           end
+
+                           read voc.rec from qvoc.f, file else null
+                           close qvoc.f
+
+                           if voc.rec[1,1] # 'F' then
+                              set.status ER$VNF
+                              server.error = SV$ELSE
+                                 return
+                              end
+
+                              path = voc.rec<j>
+                              if path = '' then
+                                 set.status ER$NPN
+                                 server.error = SV$ELSE
+                                    return
+                                 end
+
+                                 if upcase(path[1,6]) = '@SDSYS' then path = @sdsys:path[7,9999]
+
+                                 if path[1,1] # @ds then
+                                    * Convert voc item to absolute path
+                                    path = acc : @ds : path
+                                 end
+
+                                 openpath path to files(i)
+                                 on error server.error = SV$ON.ERROR
+                                 then
+                                    if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
+                                       server.error = SV$ELSE
+                                       end else
+                                          response = iconv(i, 'ISL')
+                                       end
+                                    end
+                                    else server.error = SV$ELSE
+
+                                       return
+
+                                       * ======================================================================
+                                       * Lock record
+                                       * In:  fileno (short integer)
+                                       *      flags (short integer)    0x0001 = Update lock, 0x0002 = no wait.
+                                       *      id
+
+vb.lock.record:
+                                       fno = oconv(cmnd[1,2], 'ISL')
+                                       gosub check.file
+                                       if err then return
+
+                                       flags = oconv(cmnd[3,2], 'ISL')
+
+                                       id = cmnd[5,99]
+
+                                       begin case
+                                          case flags = 0
+                                             recordlockl files(fno), id
+                                          case flags = 1
+                                             recordlocku files(fno), id
+                                          case flags = 2
+                                             recordlockl files(fno), id locked server.error = SV$LOCKED
+                                             case flags = 3
+                                                recordlocku files(fno), id locked server.error = SV$LOCKED
+                                             end case
+
+                                             return
+
+                                             * ======================================================================
+                                             * Clear file
+                                             * In:  fileno (short integer)
+                                             * Out:
+
+vb.clearfile:
+                                             fno = oconv(cmnd[1,2], 'ISL')
+                                             gosub check.file
+                                             if err then return
+
+                                             clearfile files(i)
+
+                                             return
+
+                                             * ======================================================================
+                                             * Get file lock
+                                             * In:  fileno (short integer)
+                                             *      Wait?  (short integer)
+                                             * Out:
+
+vb.filelock:
+                                             fno = oconv(cmnd[1,2], 'ISL')
+                                             wait = oconv(cmnd[3,2], 'ISL')
+                                             gosub check.file
+                                             if err then return
+
+                                             if wait then
+                                                filelock files(i)
+                                             end else
+                                                filelock files(i) locked server.error = SV$LOCKED
+                                                end
+
+                                                return
+
+                                                * ======================================================================
+                                                * Release file lock
+                                                * In:  fileno (short integer)
+                                                * Out:
+
+vb.fileunlock:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                fileunlock files(i)
+
+                                                return
+
+                                                * ======================================================================
+                                                * Test lock
+                                                * In:  fileno (short integer)
+                                                *      id
+
+vb.recordlocked:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                id = cmnd[3,99]
+                                                i = recordlocked(files(fno), id)
+                                                st = status()
+                                                response = iconv(i, 'ILL');
+                                                set.status st
+
+                                                return
+
+                                                * ======================================================================
+                                                * Fetch information about indices
+                                                * In:  fileno (short integer)
+
+vb.indices1:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                response = indices(files(fno))
+
+                                                return
+
+                                                * ======================================================================
+                                                * Fetch information about indices
+                                                * In:  fileno (short integer)
+                                                *      Index name
+
+vb.indices2:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                response = indices(files(fno), cmnd[3,99])
+
+                                                return
+
+                                                * ======================================================================
+                                                * Select file and return list
+                                                * In:  fileno (short integer)
+
+vb.selectlist:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                select files(fno) to 11
+                                                readlist response from 11 else null
+
+                                                return
+
+                                                * ======================================================================
+                                                * Select index, returning indexed values
+                                                * In:  fileno (short integer)
+                                                *      index name
+
+vb.selectindexv:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                index.name = cmnd[3,999]
+                                                selectindex cmnd[3,99] from files(fno) to 11
+                                                readlist response from 11 else null
+
+                                                return
+
+                                                * ======================================================================
+                                                * Select index, returning keys for indexed value
+                                                * In:  fileno (short integer)
+                                                *      index name len (short integer)
+                                                *      index name
+                                                *      indexed value
+
+vb.selectindexk:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                i = oconv(cmnd[3,2], 'ISL')
+                                                index.name = cmnd[5,i]
+
+                                                selectindex index.name, cmnd[5+i,999] from files(fno) to 11
+                                                readlist response from 11 else null
+
+                                                return
+
+                                                * ======================================================================
+                                                * Perform FILEINFO() action
+                                                * In:  fileno (short integer)
+                                                *      key (long integer)
+
+vb.fileinfo:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                i = oconv(cmnd[3,4], 'ILL')
+                                                response = fileinfo(files(fno), i)
+
+                                                return
+
+                                                * ======================================================================
+                                                * READV and variants
+                                                * In:  fileno (short integer)
+                                                *      flags  (short integer) 1 = update lock, 2 = shared lock, 4 = no wait
+                                                *      field no (long integer)
+                                                *      id
+                                                * Out: record data
+
+vb.readv:
+                                                fno = oconv(cmnd[1,2], 'ISL')
+                                                gosub check.file
+                                                if err then return
+
+                                                flags = oconv(cmnd[3,2], 'ISL')
+                                                field_no = oconv(cmnd[5,4], 'ILL')
+
+                                                id = cmnd[9,99]
+
+                                                begin case
+                                                   case flags = 0
+                                                      readv rec from files(fno), id, field_no
+                                                      on error server.error = SV$ON.ERROR
+                                                      then response = rec
+                                                      else server.error = SV$ELSE
+
+                                                      case flags = 1
+                                                         readvu rec from files(fno), id, field_no
+                                                         on error server.error = SV$ON.ERROR
+                                                         then response = rec
+                                                         else server.error = SV$ELSE
+
+                                                         case flags = 2
+                                                            readvl rec from files(fno), id, field_no
+                                                            on error server.error = SV$ON.ERROR
+                                                            then response = rec
+                                                            else server.error = SV$ELSE
+
+                                                            case flags = 5
+                                                               readvu rec from files(fno), id, field_no
+                                                               on error server.error = SV$ON.ERROR
+                                                               locked server.error = SV$LOCKED
+                                                                  then response = rec
+                                                                  else server.error = SV$ELSE
+
+                                                                  case flags = 6
+                                                                     readvl rec from files(fno), id, field_no
+                                                                     on error server.error = SV$ON.ERROR
+                                                                     locked server.error = SV$LOCKED
+                                                                        then response = rec
+                                                                        else server.error = SV$ELSE
+                                                                     end case
+
+                                                                     return
+
+                                                                     * ======================================================================
+                                                                     * SetLeft
+                                                                     * In:  fileno (short integer)
+                                                                     *      index name
+
+vb.setleft:
+                                                                     fno = oconv(cmnd[1,2], 'ISL')
+                                                                     gosub check.file
+                                                                     if err then return
+
+                                                                     setleft cmnd[3,999] from files(fno)
+
+                                                                     return
+
+                                                                     * ======================================================================
+                                                                     * SetRight
+                                                                     * In:  fileno (short integer)
+                                                                     *      index name
+
+vb.setright:
+                                                                     fno = oconv(cmnd[1,2], 'ISL')
+                                                                     gosub check.file
+                                                                     if err then return
+
+                                                                     setright cmnd[3,999] from files(fno)
+
+                                                                     return
+
+                                                                     * ======================================================================
+                                                                     * SelectLeft
+                                                                     * In:  fileno (short integer)
+                                                                     *      list no (short integer)
+                                                                     *      index name
+
+vb.selectleft:
+                                                                     fno = oconv(cmnd[1,2], 'ISL')
+                                                                     gosub check.file
+                                                                     if err then return
+
+                                                                     listno = oconv(cmnd[3,2], 'ISL')
+
+                                                                     selectleft cmnd[5,999] from files(fno) setting response to listno
+
+                                                                     return
+
+                                                                     * ======================================================================
+                                                                     * SelectRight
+                                                                     * In:  fileno (short integer)
+                                                                     *      list no (short integer)
+                                                                     *      index name
+
+vb.selectright:
+                                                                     fno = oconv(cmnd[1,2], 'ISL')
+                                                                     gosub check.file
+                                                                     if err then return
+
+                                                                     listno = oconv(cmnd[3,2], 'ISL')
+
+                                                                     selectright cmnd[5,999] from files(fno) setting response to listno
+
+                                                                     * ======================================================================
+                                                                     * MarkMapping
+                                                                     * In:  fileno (short integer)
+                                                                     *      state (short integer)
+
+vb.mark.mapping:
+                                                                     fno = oconv(cmnd[1,2], 'ISL')
+                                                                     gosub check.file
+                                                                     if err then return
+
+                                                                     mark.mapping files(fno), oconv(cmnd[3,2], 'ISL')
+
+                                                                     return
+
+                                                                     * ======================================================================
+check.file:
+                                                                     err = @true
+
+                                                                     if fno < 1 or fno > inmat(files) then      ;* Invalid file number
+                                                                        server.error = SV$ERROR
+                                                                        error.msg = sysmsg(5268) ;* Invalid file number
+                                                                        return
+                                                                     end
+
+                                                                     if not(fileinfo(files(fno), FL$OPEN)) then ;* File not open
+                                                                        server.error = SV$ERROR
+                                                                        error.msg = sysmsg(5268) ;* Invalid file number
+                                                                        return
+                                                                     end
+
+                                                                     err = @false
+                                                                     return
+
+
+                                                                     * ======================================================================
+check.list:
+                                                                     err = @true
+
+                                                                     if listno < 0 or listno > 10 then      ;* Invalid list number   0225
+                                                                        server.error = SV$ERROR
+                                                                        error.msg = sysmsg(5269) ;* Invalid select list number
+                                                                        return
+                                                                     end
+
+                                                                     err = @false
+                                                                     return
+                                                                  end
+
+
+
+                                                                  * END-CODE
