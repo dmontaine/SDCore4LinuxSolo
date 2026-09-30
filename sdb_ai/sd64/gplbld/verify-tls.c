@@ -14,6 +14,7 @@
  */
 
 #define _GNU_SOURCE
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -36,6 +37,7 @@
 #include "sd_tls.h"
 
 #define STAND_IN_REFUSED 10
+#define STAND_IN_KILLED 31            /* the relay died of SIGSYS */
 
 static int checks = 0;
 static int failures = 0;
@@ -110,8 +112,13 @@ static pid_t start_server(const char* dir, int timeout_ms, int* client_fd) {
     if (dup2(sv[1], 0) < 0 || dup2(sv[1], 1) < 0 || dup2(sv[1], 2) < 0)
       _exit(20);
     close(sv[1]);
-    if (!sd_tls_relay_start(dir, timeout_ms, err, sizeof(err)))
+    if (!sd_tls_relay_start(dir, timeout_ms, err, sizeof(err))) {
+      /* A relay killed by the seccomp filter ends with SIGSYS: say so. */
+      int ws;
+      if (wait(&ws) > 0 && WIFSIGNALED(ws) && WTERMSIG(ws) == SIGSYS)
+        _exit(STAND_IN_KILLED);
       _exit(STAND_IN_REFUSED);
+    }
     /* Plaintext on stderr after the relay starts.  If descriptor 2 were still
        the connection, these bytes would land in the TLS stream ahead of the
        ACK and A3/B3 would fail. */
@@ -381,6 +388,103 @@ int main(int argc, char* argv[]) {
   else
     printf("  [SKIP] G1 run as root, but this test does not inspect the relay's "
            "uid - UNMEASURED, the install witness's\n");
+
+  /* ---- H ------------------------------------------------------------ */
+  printf("\nH  the relay is confined (LSOLO 18)\n");
+  {
+    unsigned char hb[SD_TLS_BINDING_BYTES];
+    unsigned char hf[32];
+    SD_TLS_CLIENT* hc = open_session("Hs", dir, &fd, &pid, hb, hf);
+    pid_t relay_pid = 0;
+    int seccomp = -1;
+    int nnp = -1;
+
+    if (hc != NULL) {
+      DIR* pd = opendir("/proc");
+      struct dirent* de;
+
+      while (pd != NULL && (de = readdir(pd)) != NULL) {
+        char p[300];
+        FILE* f;
+        int ppid = 0;
+        char line[256];
+
+        if (de->d_name[0] < '0' || de->d_name[0] > '9')
+          continue;
+        snprintf(p, sizeof(p), "/proc/%s/status", de->d_name);
+        f = fopen(p, "r");
+        if (f == NULL)
+          continue;
+        while (fgets(line, sizeof(line), f) != NULL)
+          if (sscanf(line, "PPid: %d", &ppid) == 1)
+            break;
+        fclose(f);
+        if (ppid == (int)pid)
+          relay_pid = (pid_t)atoi(de->d_name);
+      }
+      if (pd != NULL)
+        closedir(pd);
+      if (relay_pid > 0) {
+        char p[64];
+        FILE* f;
+        char line[256];
+
+        snprintf(p, sizeof(p), "/proc/%d/status", (int)relay_pid);
+        f = fopen(p, "r");
+        while (f != NULL && fgets(line, sizeof(line), f) != NULL) {
+          if (sscanf(line, "Seccomp: %d", &seccomp) == 1)
+            continue;
+          (void)sscanf(line, "NoNewPrivs: %d", &nnp);
+        }
+        if (f != NULL)
+          fclose(f);
+      }
+      snprintf(detail, sizeof(detail), "relay pid %d, Seccomp %d, NoNewPrivs %d",
+               (int)relay_pid, seccomp, nnp);
+      check("H1 the relay runs with seccomp filter mode 2", relay_pid > 0 && seccomp == 2, detail);
+      check("H2 and with no_new_privs", nnp == 1, detail);
+      sd_tls_client_end(hc);
+      close(fd);
+      (void)wait_exit(pid, 5000);
+    } else {
+      check("H1 the relay runs with seccomp filter mode 2", false, "no session");
+      check("H2 and with no_new_privs", false, "no session");
+    }
+  }
+  {
+    static const char* const probes[] = {"open", "socket", "exec"};
+    int pi;
+
+    for (pi = 0; pi < 3; pi++) {
+      char what[96];
+
+      (void)setenv("SD_RELAY_PROBE", probes[pi], 1);
+      pid = start_server(dir, 3000, &fd);
+      c = sd_tls_client_start(fd, 3000, err, sizeof(err));
+      if (c != NULL)
+        sd_tls_client_end(c);
+      close(fd);
+      code = wait_exit(pid, 10000);
+      snprintf(what, sizeof(what), "H%d a relay that tries %s is killed (SIGSYS)", 3 + pi, probes[pi]);
+      snprintf(detail, sizeof(detail), "exit %d", code);
+      check(what, c == NULL && code == STAND_IN_KILLED, detail);
+    }
+    /* The control: a call the filter allows must not stop the relay, or the
+       three kills above prove only that the probe hook kills. */
+    (void)setenv("SD_RELAY_PROBE", "getpid", 1);
+    {
+      unsigned char hb[SD_TLS_BINDING_BYTES];
+      unsigned char hf[32];
+
+      c = open_session("Hc", dir, &fd, &pid, hb, hf);
+      check("H6 a relay that tries an allowed call carries on", c != NULL, "");
+      if (c != NULL)
+        sd_tls_client_end(c);
+      close(fd);
+      (void)wait_exit(pid, 5000);
+    }
+    (void)unsetenv("SD_RELAY_PROBE");
+  }
 
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;

@@ -117,6 +117,31 @@ else
   leg "S6 API socket" "listening on 127.0.0.1:$PORT" 1 "not listening"
 fi
 
+# ---- S6g. the live TLS relay is confined and the sd session it serves is not (LSOLO 18).
+# A connection is held open (stdin of s_client is a sleep), every process running this tree's
+# bin/sd is read from /proc, and the ones with Seccomp 2 + NoNewPrivs 1 are the relays.
+if command -v openssl >/dev/null && ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT "; then
+  ( sleep 6 | timeout 10 openssl s_client -connect 127.0.0.1:$PORT -tls1_3 >/dev/null 2>&1 ) &
+  hold=$!
+  sleep 3
+  conf=0; free=0; seen=""
+  for d in /proc/[0-9]*; do
+    [ "$(readlink "$d/exe" 2>/dev/null)" = "$(readlink -f "$SD")" ] || continue
+    sc="$(sed -n 's/^Seccomp:[[:space:]]*//p' "$d/status" 2>/dev/null)"
+    nn="$(sed -n 's/^NoNewPrivs:[[:space:]]*//p' "$d/status" 2>/dev/null)"
+    seen="$seen ${d#/proc/}:seccomp=$sc,nnp=$nn"
+    if [ "$sc" = 2 ] && [ "$nn" = 1 ]; then conf=$((conf+1)); else free=$((free+1)); fi
+  done
+  wait "$hold" 2>/dev/null
+  if [ "$conf" -ge 1 ] && [ "$free" -ge 1 ]; then
+    leg "S6g the relay is confined, sd is not" "at least one sd process with seccomp 2 + no_new_privs (the relay) and at least one without (the session)" 0 "confined=$conf unconfined=$free ($seen )"
+  else
+    leg "S6g the relay is confined, sd is not" "at least one confined and one unconfined sd process" 1 "confined=$conf unconfined=$free ($seen )"
+  fi
+else
+  echo "  [SKIP] S6g the relay is confined | openssl missing or the API is not listening; NOT MEASURED"
+fi
+
 # ---- The API LOGIN (LSOLO 6): SCRAM-SHA-256 over TLS, driven by gplbld/scram-probe.py,
 # a client that shares no code with SD.  api_login PASSWORD_VAR USER ACCOUNT COMMAND
 # prints the probe's verdict lines; the password goes through the environment.

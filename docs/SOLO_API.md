@@ -17,7 +17,7 @@ and 48, and nothing else. Request 24 (cleartext) is refused, and request 25
 | The daemon | `sd-solo.service`, a systemd **user** unit: `sd -start`. It owns the shared-memory segment. Runs as the user, never as root |
 | The listener | `sd-solo-api.socket`, only with `--api local\|open`. `Accept=true`, so systemd accepts each connection and starts one `sd-solo-api@.service` per connection |
 | One connection | `sd -n -q`, with the accepted socket as its standard input. `-n` is a network session, `-q` no banner. It runs as the user |
-| The TLS relay | `sd_tls_relay_start()` (`gplsrc/sd_tlssrv.c`) forks; the relay does the handshake and copies bytes, `sd` gets one end of a socketpair and a 32-byte channel binding. The relay's "drop from root to nobody" is skipped: **Solo is never root, so the relay runs as the user and is not confined** — a flaw in the TLS code would land in a process that can read the user's files (open, LSOLO 6 cleanup) |
+| The TLS relay | `sd_tls_relay_start()` (`gplsrc/sd_tlssrv.c`) forks; the relay does the handshake and copies bytes, `sd` gets one end of a socketpair and a 32-byte channel binding. The relay's "drop from root to nobody" is skipped: **Solo is never root, so the relay runs as the user** — but it is confined (LSOLO 18): before it reads one byte from the network it sets `no_new_privs` and installs a seccomp whitelist (`confine()`), so it cannot open a file, make a socket or run a program, and any such call kills it with SIGSYS. `sd` and the session are not filtered. Checked by `gplbld/test-tls-relay.py` (group H: the filter is on, three forbidden calls kill, an allowed one does not) and `verify-solo-service.sh` S6g (a live relay is confined, the session is not). Whitelist for x86_64 and aarch64; any other architecture runs unconfined and logs a warning. The aarch64 list is unbuilt and untested |
 | The identity | `~/SDCoreSolo/sd-tls/api.pem` (private key and self-signed certificate), made on the first connection. The directory must be 0700 and the file 0600 and owned by the user, or the relay refuses to start |
 
 `local` binds `127.0.0.1`, `open` binds `0.0.0.0`; the port is 4243 unless
@@ -72,7 +72,10 @@ checks of the relay and the SCRAM arithmetic.
 
 - **Containment** of an API session to the account's files (the multiuser
   product's `OPEN` refusal, status 3035) has not been tested on Solo.
-- **The relay is not confined** (above).
+- **The relay's filter** has been run only on x86_64, with OpenSSL 4.0.1. A different
+  OpenSSL or libc that needs another system call would kill the relay, and the API
+  connection would drop; `journalctl -t sd` would show nothing, because the kill is
+  instant. If that happens, run `gplbld/test-tls-relay.py` on that machine.
 - **The address of a refused login is not in the audit trail**, only in the
   journal (`journalctl -t sd_Log`: *API connection over TCP from …*).
 - Not run: an API session from another computer, `open` behind a real firewall.

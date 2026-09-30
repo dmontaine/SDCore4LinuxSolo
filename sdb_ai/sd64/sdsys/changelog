@@ -59,6 +59,26 @@ processor and the file system are the same.  What differs:
            changes the global password, and only a session signed in with it
            may do so.
 
+30 Sep 26  THE API'S TLS HELPER IS LOCKED DOWN.
+
+           Every API connection is first handled by a small helper process
+           that does the TLS handshake and passes the bytes on.  The multiuser
+           product starts it as root so it can read the server key, then turns
+           it into the unprivileged user "nobody".  Solo is never root, so
+           there was nothing to turn it into, and the helper ran with all of
+           your rights.  Before it reads anything from the network it now
+           tells the kernel to allow it only what copying bytes needs.  If it
+           ever tried to open a file, make a connection or run a program, the
+           kernel would end it.
+
+           What it does not do: your session, which is what actually runs
+           your commands, is not filtered, so nothing a person does through
+           the API or ssh is limited by this.  It is built for x86_64 and
+           aarch64 and tested on x86_64 only; on any other processor the
+           helper runs as before and says so in the log.  If an unusual
+           OpenSSL ever needed a call the list lacks, the API connection
+           would drop.
+
 30 Sep 26  NANO NOW HIGHLIGHTS SD BASIC.
 
            The NANO verb used to open nano with no colour: the highlighting file
