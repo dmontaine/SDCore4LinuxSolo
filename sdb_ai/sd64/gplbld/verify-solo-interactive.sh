@@ -54,25 +54,25 @@ IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --hom
 
 # The answers, in the installer's order.  Each send waits for its prompt.
 answers() {   # answers CONTINUE-ANSWER
-  echo expect:'managed by an SD Core server\? \[y/N\]' send:n
-  echo expect:'Choose the account password: ' send:"$WEAK"
-  echo expect:'The password must be'
-  echo expect:'Choose the account password: ' send:"$ACC"
-  echo expect:'Confirm the account password: ' send:"$OTHER"
-  echo expect:'The two did not match'
-  echo expect:'Choose the account password: ' send:"$ACC"
-  echo expect:'Confirm the account password: ' send:"$ACC"
-  echo expect:'Choose the administrator password: ' send:"$ADM"
-  echo expect:'Confirm the administrator password: ' send:"$ADM"
-  echo expect:'API listener \[off/local/open\] \(default off\): ' send:local
-  echo expect:'Set up ssh straight into sd .*\[y/N\]' send:n
-  echo expect:'Enable it now\? \[Y/n\]' send:n
-  echo expect:'Ready to install:'
-  echo expect:'Continue\? \[Y/n\]' send:"$1"
+  printf '%s\n' expect:'managed by an SD Core server\? \[y/N\]' send:n
+  printf '%s\n' expect:'Choose the account password: ' send:"$WEAK"
+  printf '%s\n' expect:'The password must be'
+  printf '%s\n' expect:'Choose the account password: ' send:"$ACC"
+  printf '%s\n' expect:'Confirm the account password: ' send:"$OTHER"
+  printf '%s\n' expect:'The two did not match'
+  printf '%s\n' expect:'Choose the account password: ' send:"$ACC"
+  printf '%s\n' expect:'Confirm the account password: ' send:"$ACC"
+  printf '%s\n' expect:'Choose the administrator password: ' send:"$ADM"
+  printf '%s\n' expect:'Confirm the administrator password: ' send:"$ADM"
+  printf '%s\n' expect:'API listener \[off/local/open\] \(default off\): ' send:local
+  printf '%s\n' expect:'Set up ssh straight into sd .*\[y/N\]' send:n
+  printf '%s\n' expect:'Enable it now\? \[Y/n\]' send:n
+  printf '%s\n' expect:'Ready to install:'
+  printf '%s\n' expect:'Continue\? \[Y/n\]' send:"$1"
 }
 
 # ---- 1. answered "n" at "Continue?": nothing is created, and it says so.
-mapfile -t steps < <(answers n; echo expect:'cancelled by you; nothing was changed')
+mapfile -t steps < <(answers n; printf '%s\n' expect:'cancelled by you; nothing was changed')
 t="$(IA 60 "${steps[@]}" 2>&1)"; rc=$?
 if [ "$rc" -eq 0 ] && [ ! -e "$H" ] && [ ! -e "$HOME/.sdsolotmp" ]; then
   leg "1 answering n at Continue? changes nothing" "every question answered at the terminal, 'cancelled by you', no tree, no download" 0 "cancelled"
@@ -87,7 +87,7 @@ else
 fi
 
 # ---- 2. answered "y": a real install.
-mapfile -t steps < <(answers y; echo expect:'SOLO INSTALL COMPLETE')
+mapfile -t steps < <(answers y; printf '%s\n' expect:'SOLO INSTALL COMPLETE')
 t="$(IA 900 "${steps[@]}" 2>&1)"; rc=$?
 if [ "$rc" -eq 0 ] && [ -f "$H/.sdcoresolo" ]; then
   leg "2 answering y installs" "the questions answered, 'SOLO INSTALL COMPLETE'" 0 "installed"
