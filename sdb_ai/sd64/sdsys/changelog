@@ -103,15 +103,25 @@ processor and the file system are the same.  What differs:
            packages, a firewall rule you ask for, the optional sshd block and
            "loginctl enable-linger".  Without linger SD stops when your last
            session ends.  deletesolo.sh removes it again and keeps your data if
-           you ask.  Upgrading in place is not there yet.
+           you ask.
 
            "sd -internal", the door the installer uses, is closed once the
            install finishes.
 
+           To move to a newer release run "installsolo.sh --upgrade".  It
+           keeps your account, its data, your passwords, sd.conf, the audit
+           trail, GLOBAL.BP.OUT and the denied-commands list, and replaces
+           SD's programs and system objects.  It first copies the whole tree
+           to <folder>.before-upgrade-<time>; if any step fails the tree is
+           put back from that copy.  The copy is left when it succeeds, and
+           deleting it is up to you.  It asks no question and takes no
+           password.
+
            What it does NOT do: it cannot be installed on a computer that has
            the multi-user SD Core for Linux; it has no commands for other
-           accounts; and the server-side catalogue and denied-commands controls
-           of managed mode are not built yet.
+           accounts; and an upgrade cannot change the mode (standalone or
+           managed), the passwords, the API or ssh settings - reinstall for
+           those.
 
 L1.1-1 - 29 Sep 2026
 -------------
