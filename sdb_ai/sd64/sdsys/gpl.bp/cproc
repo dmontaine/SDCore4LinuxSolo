@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 30 Sep 26 LSOLO 15 - Windows Solo SOLO 16 (ruling 28), the two spins the parent's
+*           11 Sep fix of the command editor left: get.string cancels and PAUSE
+*           takes Q at end of input.
 * 30 Sep 26 LSOLO 12 - check.denied.verb also denies a verb that dispatches
 *           like a listed one (fields 2, 3 and 4), so "!" goes with SH; ADMIN,
 *           OFF, QUIT and LO are never denied; the list is searched by field
@@ -1184,6 +1187,15 @@ get.string:
    first = @true
    loop
       c = keycode(0)
+
+*     30 Sep 26 LSOLO 15 (Windows Solo SOLO 16, ruling 28): end of input cancels the
+*     string.  '' is never a key (the command editor above takes it as OFF); the
+*     caller then returns to the command editor, which ends the session on the
+*     same end of input.
+      if c = '' then
+         string = ''
+         exit
+      end
 
       n = seq(c)
       if first and n >= 32 and n < 128 then
@@ -3675,7 +3687,15 @@ int.pause:
 
    loop
       c = keycode(0)
+*     30 Sep 26 LSOLO 15 (Windows Solo SOLO 16, ruling 28): end of input ('') is Q.
+*     It spun here at 100% CPU (measured 30 Sep 26: "printf 'PAUSE\n' | sd" and
+*     no OFF) because no case matched ''.  Q unwinds to the command editor, which
+*     ends the session on the same end of input.
       begin case
+         case c = ''
+            display
+            unwinding = 1
+            exit
          case seq(c) = K$RETURN
             display
             exit

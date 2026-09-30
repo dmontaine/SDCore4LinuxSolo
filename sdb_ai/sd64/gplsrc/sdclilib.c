@@ -1188,8 +1188,25 @@ int DLLEntry SDConnectLocal(char* account) {
   char username[MAX_USERNAME_LEN + 1];
   u_int32_t m;
   char* p;
-  
+
   initialise_client();
+
+  /* 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - SDCONNECTLOCAL IS DISABLED, as in
+     SD Core Solo for Windows (bd59940; owner 25 Sep 2026: "disable sdconnectlocal,
+     they can login with sdconnect instead").  It sends no password and ruling 21
+     makes every session prove the account password.  Measured here before this
+     change: it HUNG for ever - sysdir() reads /etc/sd.conf (or $SD_CONFIG), which a
+     Solo tree does not have, so the forked "sd -Q -C" could not even be started, and
+     the parent then waited on a pipe whose write end it holds open itself.  It now
+     fails at once and says what to use.  (The server refuses request 25 as well,
+     apisrvr message 11021, for a client of the old library.) */
+  if (!FindFreeSession())
+    return FALSE;
+  ClearError;
+  snprintf(session[session_idx].sderror, sizeof(session[session_idx].sderror),
+           "SDConnectLocal is not available in SD Core for Linux Solo - "
+           "connect with SDConnect and the account password");
+  return FALSE;
 
   if (!FindFreeSession())
     goto exit_sdconnect_local;

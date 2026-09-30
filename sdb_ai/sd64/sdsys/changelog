@@ -59,6 +59,22 @@ processor and the file system are the same.  What differs:
            changes the global password, and only a session signed in with it
            may do so.
 
+30 Sep 26  SDCONNECTLOCAL IS GONE, AND TWO SPINS AT END OF INPUT ARE CLOSED.
+
+           A client program that called SDConnectLocal used to hang for ever
+           on Solo.  It sends no password and every Solo session proves one,
+           so it is disabled: the call returns at once with a message saying
+           to use SDConnect and the account password.
+
+           A piped session whose input ended while it was at PAUSE, or at the
+           Ctrl-R search string, used to spin at full CPU and never end.
+           End of input now ends it, as it already did at the command prompt.
+
+           What it does not do: nothing makes SDConnectLocal work without a
+           password, and a session that is stopped by something other than
+           end of input (a kill signal) still ends only when the signal is
+           handled.
+
 30 Sep 26  A MANAGED COMPUTER CAN BE SET UP WITHOUT AN ACCOUNT PASSWORD.
 
            The installer can be given a control file that answers its

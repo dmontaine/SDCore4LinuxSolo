@@ -375,6 +375,19 @@ else
   leg "23 the internal door is audited" "admitted, 'no internal marker', 'had expired'" 1 "$(printf '%s\n' "$new_audit" | grep -E 'INTERNAL|internal marker' | cut -c1-90 | tr '\n' '|')"
 fi
 
+# ---- 24. END OF INPUT ENDS A SESSION at PAUSE, with no OFF (Windows Solo SOLO 16, ruling 28).
+# "PAUSE" waits for a key; at the end of piped input keycode() gives '' every time, and PAUSE
+# used to spin at 100% CPU for ever (measured 30 Sep 2026).  The session must end, quickly.
+t0="$(date +%s)"
+printf '%s\n' "$GOOD" PAUSE | timeout 40 "$SD" >/dev/null 2>&1; rc24=$?
+el=$(( $(date +%s) - t0 ))
+left="$("$SD" -u 2>&1 | strip | grep -c ' sduser')"
+if [ "$rc24" -ne 124 ] && [ "$el" -lt 20 ] && [ "$left" -eq 0 ]; then
+  leg "24 end of input at PAUSE ends the session" "the session ends by itself in under 20 s and leaves no entry" 0 "ended in ${el}s"
+else
+  leg "24 end of input at PAUSE ends the session" "ends by itself in under 20 s, no session left" 1 "rc=$rc24 after ${el}s, sessions left=$left"
+fi
+
 echo
 echo "verify-solo: $pass passed, $fail failed, of $legs legs"
 [ "$legs" -gt 0 ] || refuse "no leg ran"

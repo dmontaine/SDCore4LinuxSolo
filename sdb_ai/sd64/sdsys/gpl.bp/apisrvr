@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - request 25 (SDConnectLocal) is
+*           refused (message 11021): it sends no password, ruling 21 requires
+*           one (Windows Solo bd59940).
 * 20 Sep 26 dm S.29 part 3: vb.scram's sdapi gate is BACK (10073, the port's
 *           number and text).  The owner's ruling of 18/19 Sep reverses S.28's
 *           disposal of the per-account route: membership of sdapi IS the API
@@ -1007,6 +1010,20 @@ vb.login:
                * Login user for SDLocal connection
 
 vb.local.login:
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - SDConnectLocal IS DISABLED (Windows
+*   Solo bd59940, owner 25 Sep 2026: "disable sdconnectlocal, they can login with
+*   sdconnect instead").  Ruling 21 makes every session prove the account password;
+*   this request carries none and the client libraries stay unchanged, so it cannot
+*   be made to ask.  Measured here before the change: sdclilib's SDConnectLocal forks
+*   "sd -Q" and HUNG (30 s and still waiting) instead of failing.  Refused the way
+*   retired request 24 is, with one message naming what to use instead, audited, and
+*   the connection ends.  The old body below is unreachable and goes with the
+*   LSOLO 6 cleanup.
+               abort.message = sysmsg(11021) ;* SDConnectLocal is not available... use SDConnect
+               server.error = SV$ON.ERROR
+               void kernel(K$AUDIT, 'API REFUSED request=25 SDConnectLocal - disabled in SD Core for Linux Solo')
+               done = @true
+               return
               * dsm 20240612 openpath @sdsys:@ds:'$LOGINS' to lgn.f else
               * dsm 20240612    abort.message = sysmsg(6050) ;* Cannot open $LOGINS register
               * dsm 20240612    server.error = SV$ON.ERROR

@@ -191,6 +191,26 @@ else
   echo "  [SKIP] S6e managed-mode API login | no GLOBAL_PASSWORD_FILE given; NOT MEASURED"
 fi
 
+# ---- S6f. SDConnectLocal is disabled and FAILS AT ONCE (Windows Solo bd59940; LSOLO 15).
+# Before the change it hung for ever: the client library's sysdir() reads /etc/sd.conf, which a
+# Solo tree does not have.  Judged on the library's own error text; a hang is a failed leg.
+if command -v gcc >/dev/null 2>&1 && [ -f "$H/bin/sdclilib.so" ]; then
+  LCT="$(mktemp -d)"
+  if gcc -o "$LCT/lct" "$(dirname "$SVC")/local-connect-test.c" -ldl 2>/dev/null; then
+    lo="$(cd "$H" && timeout 30 "$LCT/lct" "$H/bin/sdclilib.so" 2>&1)"; lrc=$?
+    if [ "$lrc" -eq 0 ] && printf '%s\n' "$lo" | grep -q "^SDConnectLocal -> 0 error='SDConnectLocal is not available in SD Core for Linux Solo - connect with SDConnect and the account password'$"; then
+      leg "S6f SDConnectLocal is refused, not hung" "returns 0 with the 'not available ... use SDConnect' error" 0 "refused at once"
+    else
+      leg "S6f SDConnectLocal is refused, not hung" "returns 0 with the 'not available' error, within 30 s" 1 "rc=$lrc; $lo"
+    fi
+  else
+    echo "  [SKIP] S6f SDConnectLocal | local-connect-test.c did not compile; NOT MEASURED"
+  fi
+  rm -rf "$LCT"
+else
+  echo "  [SKIP] S6f SDConnectLocal | no gcc or no sdclilib.so; NOT MEASURED"
+fi
+
 # ---- S7. the server identity is private and inside the tree.
 mode_dir="$(stat -c '%a' "$H/sd-tls" 2>/dev/null)"; mode_key="$(stat -c '%a' "$H/sd-tls/api.pem" 2>/dev/null)"
 if [ "$mode_dir" = "700" ] && [ "$mode_key" = "600" ]; then
