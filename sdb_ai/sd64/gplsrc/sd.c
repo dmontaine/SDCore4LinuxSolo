@@ -126,6 +126,19 @@ int main(int argc, char *argv[]) {
   int status = 1;
   char errmsg[80 + 1];
 
+  /* 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - BEFORE ANYTHING ELSE, so no
+     state is built as root.  Solo belongs to the one user who owns the tree
+     and every session, remote ones included, runs as that user: root has no
+     business here, and a root session would own files the user could not
+     then read.  This is the Linux form of Solo for Windows' ruling 16 (never
+     serve a session on an administrator token).  It is not a security
+     boundary against root, who can do anything; it stops the mistake of
+     "sudo sd" and of a service started as root.                           */
+  if (geteuid() == 0) {
+    fprintf(stderr, "SD Core for Linux Solo does not run as root.\n");
+    return status;
+  }
+
   tio.term_type[0] = '\0';
 
  /* 20240126 mab add syslog */
@@ -656,11 +669,19 @@ void dump(u_char *addr, int32_t bytes) {
    operations (start, stop, kill, restart, bootstrap install) rather than SD
    ones, so root is the right question for them to ask.                     */
 
+/* 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - NO ELEVATION TEST.  The text
+   above is the multi-user product's reasoning and no longer applies: Solo's
+   server, data and programs belong to the one user who runs them, and the
+   daemon runs unprivileged as that user, so "sd -start", "-stop", "-k" and the
+   rest are that user's own business and the file permissions of their home are
+   the gate.  Administrator COMMANDS are gated by a password (LSOLO 6), not by
+   root.  main() refuses uid 0 outright.  ***-internal and -i ARE THEREFORE
+   OPEN TO THE USER UNTIL RULING 13 IS BUILT*** (the installer turns them on
+   for its own steps and off when it finishes - LSOLO 9); SD_DEV_BUILD no
+   longer changes anything.  Kept as a function so every switch still names
+   its gate, as in SD Core Solo for Windows.                                */
+
 void check_admin() {
-  if (geteuid() != 0) {
-    fprintf(stderr, "Command requires administrator privileges\n");
-    exit(1);
-  }
 }
 
 /* ====================================================================== */

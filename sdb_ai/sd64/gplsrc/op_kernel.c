@@ -36,6 +36,8 @@
  *               (PORT_ADOPTION 13).
  * 14 Sep 26 dm  K_INTERNAL: only an $internal program may change internal
  *               mode, in the shape of K_ADMINISTRATOR (PROJECT_STATUS S.8).
+ * 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - K_ASSUME_USER no longer
+ *               switches identity: see the case.
  * 29 Sep 26 dm  K_SET_LANGUAGE (38) removed: SD is English only.  Key 38 is
  *               retired, not reused; calling it is an illegal key.
  * END-HISTORY
@@ -310,21 +312,25 @@ void op_kernel() {
        as root, whatever the register holds.  The drop is checked by reading
        the uids back, not assumed from the calls' return codes.  No way back
        to root is offered.                                                   */
+    /* 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - THERE IS NO ONE TO BECOME.
+       The paragraph above describes the multi-user server, a root process
+       that took an OS user's identity after SCRAM.  In Solo the API server
+       already runs as the one Linux user who owns the tree, and the account
+       an API client proves itself as (sduser) is not an OS user, so nothing
+       is switched.  The call is kept because key 61 is shared with the other
+       ports and APISRVR calls it.  It answers 1 for an $internal caller with
+       a well-formed name and 0 otherwise - NEVER 1 while the process is root,
+       so a root API server (which main() already refuses) could not pass
+       itself off as having dropped anything.  It changes no uid, no gid and
+       no group.                                                            */
     case K_ASSUME_USER:
       {
         char uname[MAX_USERNAME_LEN + 1];
-        struct passwd *pwd;
 
         result.data.value = 0;
         if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
             (process.program.flags & HDR_INTERNAL) &&
-            (geteuid() == 0) &&
-            ((pwd = getpwnam(uname)) != NULL) &&
-            (pwd->pw_uid != 0) &&
-            (initgroups(pwd->pw_name, pwd->pw_gid) == 0) &&
-            (setgid(pwd->pw_gid) == 0) &&
-            (setuid(pwd->pw_uid) == 0) &&
-            (getuid() == pwd->pw_uid) && (geteuid() == pwd->pw_uid)) {
+            (geteuid() != 0)) {
           result.data.value = 1;
         }
       }
