@@ -12,13 +12,34 @@ after the Linux user, and no commands to create accounts or grant access to
 them. It is the Linux counterpart of
 [SD Core Solo for Windows](https://github.com/dmontaine/SDCore4WindowsSolo).
 
-**Version LS1.1-1. This repository is a work in progress: nothing has been
-built or released yet.** It started on 29 September 2026 as a copy of
-SD Core for Linux L1.1-1, and the Solo changes are being made to it in the
-order listed in the project's task table. Until they are done, the code here
-still installs and behaves as the multi-user SD Core for Linux.
+**Version LS1.1-1, not yet released.** It started on 29 September 2026 as a copy
+of SD Core for Linux L1.1-1. The one-account model, the passwords and ADMIN, the
+API login, the systemd user service, ssh into `sd` and the installer are built
+and have been run on one machine; the documentation, a version stamp that says
+LS1.1-1 (the programs still print L1.1-1) and an in-place upgrade are not done.
 
 SD Core is English only: it has no support for other languages or locales.
+
+## Installing
+
+Run as your own user - never as root. The script asks for `sudo` only to install
+the build packages, to open a firewall port you asked for, to write the optional
+`sshd_config.d` block and to enable linger.
+
+```sh
+bash installsolo.sh          # asks its questions; --help lists the options
+```
+
+It downloads the source (the `main` branch of this repository) into a temporary
+directory under your home, builds it there, installs into `~/SDCoreSolo`, sets your
+passwords, starts SD as your own systemd service and deletes the download. The
+script can be carried on a USB stick; it needs the network for the packages and the
+download. `bash ~/SDCoreSolo/tools/deletesolo.sh` removes it again, keeping your
+data if you ask.
+
+**Requirements:** a 64-bit Linux with a systemd user manager and one of the
+Debian/Ubuntu, Fedora/RHEL, openSUSE or Arch families; a user who can use `sudo`.
+It cannot be installed on a computer that has the multi-user SD Core for Linux.
 
 ## What it is for
 
