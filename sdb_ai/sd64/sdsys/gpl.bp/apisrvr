@@ -253,6 +253,8 @@ scram.sfirst = ''      ;* server-first, exactly as it went out
 scram.nonce = ''       ;* Combined nonce, client's then ours
 scram.storedkey = ''   ;* From $cred, base64
 scram.serverkey = ''   ;* From $cred, base64
+scram.gstored = ''     ;* $global's StoredKey, when it shares the salt (ruling 19)
+scram.gserver = ''     ;* $global's ServerKey, likewise
 scram.audit.name = ''   ;* Name as PRESENTED, sanitised - see scram.clean.name
 scram.refuse.reason = '';* Why this exchange was refused; '' = not refused
 
@@ -461,24 +463,25 @@ if acc.suspended then
     goto revert.to.old.account
 end
 
-* rev 0.9.0 * is user member of account?   
-if  not(is_grp_member(@logname,acc.rec<ACC$GROUP>)) then
-* 18 Sep 26 dm - TEARDOWN (S.26).  SDSYS ENTERS ITS OWN ACCOUNT WITHOUT A GROUP.
-*   The SDSYS register record's ACC$GROUP reads "sdsys", which is no Linux
-*   group - the OS user IS the account, so there is nothing to be a member of.
-*   The local API door above (10174) already confined it to this machine; the
-*   exemption is by NAME and for the sdsys account only.
-   if not(downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys') then
-      server.error = SV$ERROR
-      error.msg = sysmsg(10003) ;* User not allowed in requested account
-      abort.message = error.msg
-      goto revert.to.old.account
-   end
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE GROUP TEST IS GONE, AND
+*   SOLO'S RULE REPLACES IT (SD Core Solo for Windows' "branch 4").  There are
+*   no SD groups and no SDSYS exemption: the one enterable account is the one
+*   the session holds - the name the SCRAM login proved, sduser - and SDSYS is
+*   never a target (owner's ruling 11), whatever the transport.  The name is
+*   read from the session (K$USERNAME), not from a client-supplied value.
+acc.who = downcase(kernel(K$USERNAME, 0))
+acc.member = (downcase(new.account) # 'sdsys') and (downcase(new.account) = acc.who)
+if not(acc.member) then
+   void kernel(K$AUDIT, 'ACCOUNT REFUSED not.own.account user=' : acc.who : ' account=' : new.account)
+   server.error = SV$ERROR
+   error.msg = sysmsg(10003) ;* User not allowed in requested account
+   abort.message = error.msg
+   goto revert.to.old.account
 end
 
-* 18 Sep 26 dm - TEARDOWN (S.25).  The tier-ordering gate is gone with the
-*   tier model: a grant is Linux group membership, and the group test above is
-*   the whole of the wall.
+* 29 Sep 26 SD Core for Linux Solo - the tier-ordering gate was already gone
+*   with the tier model (S.25); the own-account test above is the whole of the
+*   wall now.
 
 if not(ospath(account.path, OS$CD)) then
    server.error = SV$ERROR
@@ -1120,32 +1123,94 @@ vb.scram.first:
                   goto exit.vb.scram.fail
                end
 
-               * LINUX: record ids are lower case (plan M), as !CRED_SET writes
-               * them; the port reads upcase(username).
-               read scram.cred from scram.cred.f, downcase(username) else
-                  close scram.cred.f
-                  scram.refuse.reason = 'no credential'
-                  goto scram.bad.cred      ;* no credential - fail closed
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 19, as SD Core Solo for
+*   Windows' vb.scram.first: THE ACCOUNT HAS TWO PASSWORDS AND ONE LOGIN NAME.
+*   The user's own account password ($cred, keyed by the account name) and, in
+*   managed mode, the master server's global password ($global).  The two
+*   records SHARE A SALT (!CRED_SET keeps a record's own salt on a change - see
+*   gpl.bp/set_password), so ONE server-first serves either, and the proof in
+*   request 48 is checked against each StoredKey in turn.  Record ids are lower
+*   case here (a case-sensitive filesystem; !CRED_SET writes them so).
+*
+*   $admin and $global can never be API logins: a name starting with '$' is
+*   refused above.  SDSYS is never an API login (ruling 11), even though it is
+*   in the register: it has no credential, and the global-password route below
+*   admits only a name that is an account other than SDSYS.
+               scram.gstored = ''
+               scram.gserver = ''
+               have.user = @false
+               read scram.cred from scram.cred.f, downcase(username) then
+                  have.user = @true
+               end else
+                  scram.cred = ''
+               end
+               have.global = @false
+               read scram.gcred from scram.cred.f, '$global' then
+                  if scram.gcred<CRED$VERSION> = SCRAM$CRED.VERSION then have.global = @true
+               end else
+                  scram.gcred = ''
                end
                close scram.cred.f
 
-               if scram.cred<CRED$VERSION> # SCRAM$CRED.VERSION then
-                  scram.cred = ''
-                  scram.refuse.reason = 'credential is not version 2 - run MODIFY.PASSWORD'
-                  goto scram.bad.cred
+               if have.user then
+                  * A version 1 record holds an Argon2 verifier and no StoredKey.
+                  * It cannot drive a SCRAM exchange; the account has to set its
+                  * password again.  !CRED_VERIFY refuses it too.
+                  if scram.cred<CRED$VERSION> # SCRAM$CRED.VERSION then
+                     scram.cred = ''
+                     scram.gcred = ''
+                     scram.refuse.reason = 'credential is version 1 - run SET.PASSWORD'
+                     goto scram.bad.cred
+                  end
+                  scram.salt = scram.cred<CRED$SALT>
+                  scram.iter = scram.cred<CRED$ITER>
+                  scram.storedkey = scram.cred<CRED$STOREDKEY>
+                  scram.serverkey = scram.cred<CRED$SERVERKEY>
+                  if scram.storedkey = '' or scram.serverkey = '' then
+                     scram.storedkey = ''
+                     scram.serverkey = ''
+                  end
+               end else
+                  * No account password of its own: the master may still log in
+                  * under the name, but only the name of an account in the
+                  * register, and never SDSYS.
+                  in.register = @false
+                  if have.global and downcase(username) # 'sdsys' then
+                     openpath @sdsys:@ds:'accounts' to scram.acc.f then
+                        read scram.acc.rec from scram.acc.f, downcase(username) then in.register = @true
+                        close scram.acc.f
+                     end
+                  end
+                  if not(in.register) then
+                     scram.gcred = ''
+                     scram.refuse.reason = 'no credential'
+                     goto scram.bad.cred      ;* no credential - fail closed
+                  end
+                  scram.salt = scram.gcred<CRED$SALT>
+                  scram.iter = scram.gcred<CRED$ITER>
+                  scram.storedkey = ''
+                  scram.serverkey = ''
                end
-
-               scram.salt = scram.cred<CRED$SALT>
-               scram.iter = scram.cred<CRED$ITER>
-               scram.storedkey = scram.cred<CRED$STOREDKEY>
-               scram.serverkey = scram.cred<CRED$SERVERKEY>
+               if have.global then
+                  if scram.gcred<CRED$SALT> = scram.salt and scram.gcred<CRED$ITER> = scram.iter then
+                     scram.gstored = scram.gcred<CRED$STOREDKEY>
+                     scram.gserver = scram.gcred<CRED$SERVERKEY>
+                     if scram.gstored = '' or scram.gserver = '' then
+                        scram.gstored = ''
+                        scram.gserver = ''
+                     end
+                  end else
+                     void kernel(K$AUDIT, 'API NOTE user=' : scram.audit.name : ' - $global does not share this account''s salt, so the global password cannot log in under this name')
+                  end
+               end
                scram.cred = ''
+               scram.gcred = ''
 
                if scram.salt = '' or scram.iter = '' then
                   scram.refuse.reason = 'credential incomplete'
                   goto scram.bad.cred
                end
-               if scram.storedkey = '' or scram.serverkey = '' then
+               if scram.storedkey = '' and scram.gstored = '' then
                   scram.refuse.reason = 'credential incomplete'
                   goto scram.bad.cred
                end
@@ -1224,25 +1289,36 @@ vb.scram.final:
 
                scram.authmsg = scram.cfirst.bare : ',' : scram.sfirst : ',' : scram.cfinal.bare
 
-               * Every failure from here is one answer.
-               scram.csig = SDEXT(scram.storedkey : @FM : scram.authmsg, @TRUE, SD_HMACSHA256)
-               if scram.csig = '' then goto scram.crypto.failed
-
-               scram.ckey = SDEXT(scram.proof : @FM : scram.csig, @TRUE, SD_XORBYTES)
-               if scram.ckey = '' then
-                  scram.refuse.reason = 'client key derivation failed'
-                  goto scram.bad.cred
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 19: the proof is checked
+*   against the user's StoredKey and, only if that fails, against $global's
+*   (vb.scram.first kept it only when it shares the salt).  scram.check.proof
+*   is the single check that used to stand here, run once per key; a global
+*   match signs with the global ServerKey and unlocks the administrator
+*   commands below.  Every failure from here is one answer.
+               scram.via = ''
+               scram.check.crypto = @false
+               if scram.storedkey # '' then
+                  scram.check.key = scram.storedkey
+                  gosub scram.check.proof
+                  if scram.check.ok then scram.via = 'user'
                end
-
-               scram.derived = SDEXT(scram.ckey, @TRUE, SD_SHA256)
-               scram.ckey = ''
-               if scram.derived = '' then
-                  scram.refuse.reason = 'stored key derivation failed'
-                  goto scram.bad.cred
+               if scram.via = '' and scram.gstored # '' and not(scram.check.crypto) then
+                  scram.check.key = scram.gstored
+                  gosub scram.check.proof
+                  if scram.check.ok then
+                     scram.via = 'global'
+                     scram.serverkey = scram.gserver
+                  end
                end
+               scram.check.key = ''
+               scram.gstored = ''
+               scram.gserver = ''
+               if scram.check.crypto then goto scram.crypto.failed
 
-               * Constant time, as !CRED_VERIFY is.
-               if SDEXT(scram.derived : @FM : scram.storedkey, @TRUE, SD_CTEQUAL) # '1' then
+               if scram.via = '' then
+                  * The wrong password - the one refusal that means somebody
+                  * knows the account exists.  (A malformed or wrong-length
+                  * proof lands here too; it was never a separate answer.)
                   scram.refuse.reason = 'wrong password'
                   goto scram.bad.cred
                end
@@ -1252,138 +1328,14 @@ vb.scram.final:
                scram.ssig = SDEXT(scram.serverkey : @FM : scram.authmsg, @TRUE, SD_HMACSHA256)
                if scram.ssig = '' then goto scram.crypto.failed
 
-* 14 Sep 26 dm - LINUX: MAY THIS USER USE THE API AT ALL?  After the proof (so
-*   the distinct refusal leaks nothing).  THE NAME IS scram.user, the one just
-*   proven.  sdusers first, with 5009 - an SD user at all.
-               if not(is_grp_member(scram.user, 'sdusers')) then
-                  scram.refuse.reason = 'not a member of sdusers'
-                  abort.message = sysmsg(5009) ;* This user is not registered for SD use
-                  server.error = SV$ON.ERROR
-                  goto exit.vb.scram.fail
-               end
-
-* 20 Sep 26 dm - S.29 PART 3: THE sdapi GATE IS BACK, AND IT IS WHAT MAKES THE
-*   ROUTE REAL.  S.28 disposed of it; that disposal is reversed by the owner's
-*   ruling of 18/19 Sep 2026 (relayed by the port): every account has ssh and
-*   the API by default, and the administrator may turn either off and on
-*   again.  Parts 1
-*   and 2 gave the groups and the words; until this test existed, MODIFY.ACCOUNT
-*   <acc> NONE reported the routes gone and the account was still reachable.
-*
-*   THE SHAPE IS THE PORT'S AND THE NUMBER IS THE PORT'S (10073).  Membership of
-*   sdapi IS the route: an ALLOW group, so a missing or unreadable register
-*   refuses rather than grants.
-*
-*   ***status() IS READ AND A THREE-VALUED ANSWER IS NOT COLLAPSED.***
-*   !is_grp_member returns @false both for "not a member" and for "could not
-*   tell" (is_grp_member:48/:87/:91 set status 1 for an empty argument, an
-*   unreadable /etc/group and an unopenable /etc).  Both refuse here - an allow
-*   group fails closed in either case - but the two are written into the audit
-*   trail as different reasons, because "this account has no API route" and "the
-*   machine could not answer" call for different action from whoever reads it.
-*
-*   SDSYS IS EXEMPT BY NAME, as it is at vb.account's group test above and for
-*   the same reason: the sdsys register record's ACC$GROUP is "sdsys", the OS
-*   user IS the account, and nothing joins it to sdapi.  Its own door is the
-*   next two gates, which are stricter than this one - so the exemption widens
-*   nothing.  The name is compared downcased, as everywhere else.
-               if not(downcase(scram.user) = 'sdsys') then
-                  api.in.sdapi = is_grp_member(scram.user, 'sdapi')
-                  api.route.stat = status()
-                  if api.route.stat # 0 then
-                     scram.refuse.reason = 'the sdapi route could not be read, status ' : api.route.stat
-                     abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
-                     server.error = SV$ON.ERROR
-                     goto exit.vb.scram.fail
-                  end
-                  if not(api.in.sdapi) then
-                     scram.refuse.reason = 'not a member of sdapi'
-                     abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
-                     server.error = SV$ON.ERROR
-                     goto exit.vb.scram.fail
-                  end
-               end
-
-* 18 Sep 26 dm - TEARDOWN (S.28, was S.17).  THE SDSYS DOOR: SDSYS is refused
-*   over the API unless the connection came from this machine - loopback, or
-*   the Unix socket (!peer_local).  After the proof, so the distinct refusal
-*   leaks nothing to somebody without the password; before the identity is
-*   taken, so a refused session never becomes the user.  10174, the port's
-*   number, Linux wording.
-*
-* 19 Sep 26 dm - 10174 IS OURS ALONE NOW.  It was taken FROM the port, but the
-*   port DELETED its own 10174 (and 10175) in its tier teardown of 18 Sep 2026
-*   - its RELEASE_1.1 64 - so the number is live here and free there, in a
-*   space the two ports share.  Its agent flagged it 19 Sep 23:30 and has
-*   recorded 10174 as spoken for at our request, so a later Windows session
-*   cannot take it and give it a second meaning.  Kept rather than moved: it is
-*   in service here and renumbering a shipped refusal costs more than the
-*   bookkeeping does.  ***THE GENERAL POINT IS WORTH MORE THAN THIS NUMBER: a
-*   deletion in one port is invisible to the other, exactly as an allocation
-*   is, so "the port's number" is a fact about the day it was taken and not a
-*   standing guarantee.***
-*
-*   WHY IT MATTERS: SDSYS can change every account on this system, and the API
-*   admits a connection on the SD password alone.  On this machine SDSYS is
-*   admitted - the port's owner runs a local application that way - and
-*   ssh -L is the way in from elsewhere, because the tunnel needs the Linux
-*   login first.  The comparison is against the sdsys name itself: there is
-*   one administrator now, no register lookup needed.
-*
-* 19 Sep 26 dm - AND THE ADDRESS WAS NEVER ENOUGH FOR THIS ONE ACCOUNT (owner,
-*   19 Sep 2026: only a user actually logged in as sdsys reaches SDSYS; local
-*   API access is kept, and a second password is worth it to have it).
-*
-*   THE FLAW IN THE OLD TEST: !peer_local classifies an ADDRESS, and its own
-*   header says it cannot see through an ssh tunnel - "ssh -L" ends on this
-*   host, so a tunnelled connection arrives from 127.0.0.1 or from the socket
-*   and reads LOCAL.  That was accepted everywhere else because a tunnel needs
-*   the account's own Linux login first.  ***THAT ARGUMENT DOES NOT HOLD FOR
-*   SDSYS***: sdsys is DenyUsers'd at sshd (ssh-forcecommand.sh), so sdsys can
-*   never own a tunnel - a tunnel carrying SDSYS's credential belongs to SOME
-*   OTHER USER, and no address can tell.
-*
-*   WHAT REPLACES IT: system(43), the kernel's own view of the process at the
-*   other end of the Unix socket (SO_PEERCRED, linuxio.c, read before the TLS
-*   relay takes the descriptor).  Under a tunnel that process is sshd running
-*   as the TUNNEL'S OWNER, so it reports that user and never sdsys.
-*
-*   THREE CONDITIONS, ALL REQUIRED, AND "" IS A REFUSAL NOT A GAP: the peer
-*   must be local, the transport must be the Unix socket (TCP has no such
-*   credential, so loopback TCP no longer admits SDSYS - a real narrowing,
-*   stated rather than glossed), and the socket's peer must BE sdsys.
-               api.peer.local = @false
-               call !peer_local(api.peer.local, api.peer.addr)
-*
-*   TWO REFUSALS, NOT ONE, AND 10174 KEEPS ITS OWN CASE.  "You are not on this
-*   machine" and "you are on it but you are not sdsys" are different facts and
-*   an administrator reading a log needs to know which.  Keeping 10174 on the
-*   remote arm also leaves §13e E4 measuring what it has always measured, and
-*   leaves no message record without a caller - tonight's other lesson.
-               if downcase(scram.user) = 'sdsys' and not(api.peer.local) then
-                  scram.refuse.reason = 'sdsys on a remote API session from ' : api.peer.addr
-                  abort.message = sysmsg(10174)
-                  * SDSYS may be reached through the API only from this machine
-                  server.error = SV$ON.ERROR
-                  goto exit.vb.scram.fail
-               end
-               if downcase(scram.user) = 'sdsys' then
-                  api.peer.user = downcase(trim(system(43)))
-                  sdsys.api.ok = @true
-                  if api.peer.addr[1,1] # '/' then sdsys.api.ok = @false
-                  if api.peer.user # 'sdsys' then sdsys.api.ok = @false
-                  if not(sdsys.api.ok) then
-                     if api.peer.user = '' then
-                        scram.refuse.reason = 'sdsys API session with no socket credential from ' : api.peer.addr
-                     end else
-                        scram.refuse.reason = 'sdsys API session opened by ' : api.peer.user : ' from ' : api.peer.addr
-                     end
-                     abort.message = sysmsg(10922)
-                     * SDSYS may use the API only from a process running as sdsys
-                     server.error = SV$ON.ERROR
-                     goto exit.vb.scram.fail
-                  end
-               end
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE GATES THAT STOOD HERE ARE GONE:
+*   membership of sdusers (5009), membership of sdapi (10073) and the SDSYS door
+*   (10174, 10922 - !peer_local and the socket peer's user).  There are no SD
+*   groups and SDSYS is never an API login (ruling 11).  What decides who may use
+*   the API is the credential itself: only an account that was given a password
+*   (solo_password ACCOUNT) has a record to prove against, or - in managed mode -
+*   the master's global password under an account's name.  The account the
+*   session may then ENTER is decided at vb.account (own account only).
 
                * THE IDENTITY IS THE NAME THAT WAS PROVEN, UNCONDITIONALLY - no
                * APILOGIN branch.  The answer is taken, as the port's is (its
@@ -1402,21 +1354,55 @@ vb.scram.final:
                scram.storedkey = ''
                scram.serverkey = ''
 
-* 14 Sep 26 dm - BECOME THE USER, BEFORE logged.in, WHICH IS THE WHOLE CONTROL.
-*   LINUX: K$ASSUME.USER is initgroups/setgid/setuid while still root
-*   (op_kernel.c), the drop login_user's password path makes (S.15).  A
-*   refusal leaves logged.in false and ends the connection, so the caller has
-*   authenticated into nothing rather than into a root session.
-               if not(kernel(K$ASSUME.USER, scram.user)) then
-                  scram.refuse.reason = 'could not assume the Linux identity of the authenticated user'
-                  abort.message = sysmsg(5277) ;* Authentication succeeded but...
-                  server.error = SV$ON.ERROR
-                  goto exit.vb.scram.fail
-               end
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - NO K$ASSUME.USER: the API server
+*   already runs as the one Linux user who owns the tree (it never was root
+*   here), and the account the client proved, sduser, is not an operating
+*   system user, so there is no identity to take.  It was the root-to-user drop
+*   of the multi-user server (initgroups/setgid/setuid).
 
                response = 'v=' : scram.ssig
                logged.in = @true
 
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 19 (with 12): THE GLOBAL
+*   PASSWORD IS THE MASTER SERVER'S, AND IT CARRIES THE ADMINISTRATOR COMMANDS -
+*   as ADMIN does when given the global password.  This program is $internal,
+*   which is what K$ADMINISTRATOR requires to be set (op_kernel.c).  Audited
+*   both ways.  (The Windows port also marks the session K$GLOBAL.SESSION,
+*   ruling 33; that key is LSOLO 12.)
+               if scram.via = 'global' then
+                  if kernel(K$ADMINISTRATOR, 1) then
+                     void kernel(K$AUDIT, 'API LOGIN user=' : scram.user : ' via=global - administrator commands unlocked')
+                  end else
+                     void kernel(K$AUDIT, 'API LOGIN user=' : scram.user : ' via=global - administrator flag NOT set')
+                  end
+               end else
+                  void kernel(K$AUDIT, 'API LOGIN user=' : scram.user : ' via=account')
+               end
+
+               return
+
+               * ======================================================================
+               * scram.check.proof - does scram.proof prove the password behind
+               * scram.check.key (a StoredKey)?  29 Sep 26 SD Core for Linux Solo,
+               * ruling 19: vb.scram.final's single check, lifted out so it can be
+               * run once per key.  Constant time, as !CRED_VERIFY is.
+               *
+               * Out: scram.check.ok     @true only on a match
+               *      scram.check.crypto @true if HMAC failed - a fault, not a guess
+
+scram.check.proof:
+               scram.check.ok = @false
+               scram.csig = SDEXT(scram.check.key : @FM : scram.authmsg, @TRUE, SD_HMACSHA256)
+               if scram.csig = '' then
+                  scram.check.crypto = @true
+                  return
+               end
+               scram.ckey = SDEXT(scram.proof : @FM : scram.csig, @TRUE, SD_XORBYTES)
+               if scram.ckey = '' then return
+               scram.derived = SDEXT(scram.ckey, @TRUE, SD_SHA256)
+               scram.ckey = ''
+               if scram.derived = '' then return
+               if SDEXT(scram.derived : @FM : scram.check.key, @TRUE, SD_CTEQUAL) = '1' then scram.check.ok = @true
                return
 
                * ----------------------------------------------------------------------

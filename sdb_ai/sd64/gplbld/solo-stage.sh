@@ -49,10 +49,14 @@ umask 077
 # line.  Without it no password is set and every session is refused (11020).
 # --admin-password-file FILE: the same for the administrator password (ADMIN).
 # Without it ADMIN answers 11007 and no administrator command can be unlocked.
+# --global-password-file FILE: the global password - its presence IS managed mode
+# (ruling 15).  Set AFTER the account password so the two records share a salt
+# (!CRED_SET's partner rule, ruling 19); it must differ from the account password.
 pwfile=""
 adminfile=""
-usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] HOME_DIR"
-while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ]; do
+globalfile=""
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] HOME_DIR"
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ]; do
   [ "$#" -ge 3 ] || refuse "$usage"
   f="$2"
   [ -r "$f" ] || refuse "cannot read the password file $f"
@@ -60,9 +64,13 @@ while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password
   case "$1" in
     --account-password-file) pwfile="$f" ;;
     --admin-password-file)   adminfile="$f" ;;
+    --global-password-file)  globalfile="$f" ;;
   esac
   shift 2
 done
+if [ -n "$globalfile" ] && [ -z "$pwfile" ]; then
+  refuse "--global-password-file needs --account-password-file: the two share a salt, so the account's is set first"
+fi
 [ "$#" -eq 1 ] || refuse "$usage"
 H="$1"
 case "$H" in
@@ -197,6 +205,20 @@ if [ -n "$adminfile" ]; then
 else
   echo
   echo "NOTE: no --admin-password-file, so ADMIN cannot be unlocked (11007)."
+fi
+
+if [ -n "$globalfile" ]; then
+  echo
+  echo "Setting the global password - MANAGED MODE (cat $globalfile | $SD -internal RUN gpl.bp solo_password GLOBAL)"
+  gl_out="$(cat "$globalfile" | "$SD" -internal RUN gpl.bp solo_password GLOBAL 2>&1)" || true
+  gl_plain="$(printf '%s\n' "$gl_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$gl_plain" | tail -3
+  printf '%s\n' "$gl_plain" | grep -qx 'SOLO PASSWORD SET GLOBAL' || fail "solo_password did not print 'SOLO PASSWORD SET GLOBAL'"
+  printf '%s\n' "$gl_plain" | grep -q 'solo_password:' && fail "solo_password said: $(printf '%s\n' "$gl_plain" | grep 'solo_password:' | head -1)"
+  # The two records must share a salt or the master cannot log in (ruling 19).
+  s_acc="$(sed -n 3p "$H/\$cred/sduser")"; s_glb="$(sed -n 3p "$H/\$cred/\$global")"
+  [ -n "$s_acc" ] && [ "$s_acc" = "$s_glb" ] || fail "sduser and \$global do not share a salt ('$s_acc' / '$s_glb')"
+  echo "  the account and global records share a salt"
 fi
 
 echo

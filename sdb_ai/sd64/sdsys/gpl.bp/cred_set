@@ -80,15 +80,60 @@ $include err.h
       return
    end
 
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 19: ONE SALT PER ACCOUNT,
+*  ported from SD Core Solo for Windows' !CRED_SET.  The master server logs in
+*  under the account's own name with the global password, so apisrvr checks one
+*  SCRAM proof against TWO records - and SCRAM tells the client the salt and
+*  iteration count BEFORE the proof, so both records must share them.  The salt
+*  therefore comes, in order, from: this record's own (a password change keeps
+*  it); its PARTNER's ($global for the account record, the account record for
+*  $global); and only then a fresh one.  A version-1 record has no SCRAM salt
+*  and is never reused.  Record ids are lower case here.
    salt = ''
-   call !SD_GET_SALT(salt)
+   iter = ''
+   read old.rec from cred.f, account then
+      if old.rec<CRED$VERSION> = SCRAM$CRED.VERSION then
+         salt = old.rec<CRED$SALT>
+         iter = old.rec<CRED$ITER>
+      end
+   end
+   if salt = '' or iter = '' then
+      salt = ''
+      iter = ''
+      partner = ''
+      begin case
+         case account = '$global'
+            select cred.f to 9
+            loop
+               readnext id from 9 else exit
+               if id[1,1] # '$' then
+                  partner = id
+                  exit
+               end
+            repeat
+            clearselect 9
+         case account[1,1] # '$'
+            partner = '$global'
+      end case
+      if partner # '' then
+         read p.rec from cred.f, partner then
+            if p.rec<CRED$VERSION> = SCRAM$CRED.VERSION then
+               salt = p.rec<CRED$SALT>
+               iter = p.rec<CRED$ITER>
+            end
+         end
+      end
+   end
+   if salt = '' or iter = '' then
+      salt = ''
+      call !SD_GET_SALT(salt)
+      iter = SCRAM$ITERATIONS
+   end
    if salt = '' then
       close cred.f
       set.status ER$ARGS
       return
    end
-
-   iter = SCRAM$ITERATIONS
 
    salted = SDEXT(password : @FM : salt : @FM : iter : @FM : SCRAM$KEY.LEN, @TRUE, SD_PBKDF2)
    if salted = '' then

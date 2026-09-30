@@ -18,8 +18,11 @@
 set -uo pipefail
 
 refuse() { echo "REFUSED: $*" >&2; exit 2; }
-[ "$#" -eq 2 ] || refuse "usage: bash $0 HOME_DIR ACCOUNT_PASSWORD_FILE"
-H="$1"; PWF="$2"
+[ "$#" -ge 2 ] && [ "$#" -le 4 ] || refuse "usage: bash $0 HOME_DIR ACCOUNT_PASSWORD_FILE [ADMIN_PASSWORD_FILE [GLOBAL_PASSWORD_FILE]]"
+H="$1"; PWF="$2"; ADF="${3:-}"; GLF="${4:-}"
+[ -z "$ADF" ] || [ -s "$ADF" ] || refuse "cannot read the administrator password file $ADF"
+[ -z "$GLF" ] || [ -s "$GLF" ] || refuse "cannot read the global password file $GLF"
+[ -z "$GLF" ] || [ -n "$ADF" ] || refuse "a global password file needs the administrator password file before it"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
 [ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
@@ -112,6 +115,80 @@ if ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT "; then
   fi
 else
   leg "S6 API socket" "listening on 127.0.0.1:$PORT" 1 "not listening"
+fi
+
+# ---- The API LOGIN (LSOLO 6): SCRAM-SHA-256 over TLS, driven by gplbld/scram-probe.py,
+# a client that shares no code with SD.  api_login PASSWORD_VAR USER ACCOUNT COMMAND
+# prints the probe's verdict lines; the password goes through the environment.
+PROBE="$here/scram-probe.py"
+[ -f "$PROBE" ] || refuse "$PROBE is missing"
+command -v python3 >/dev/null || refuse "python3 is required for the API legs"
+api_login() {
+  local pw="$1" user="$2" acct="$3"; shift 3
+  SD_SCRAM_PASSWORD="$pw" timeout 90 python3 "$PROBE" --port "$PORT" --user "$user" --account "$acct" -- "$@" 2>&1 | strip
+}
+VERIFIED='SCRAM: server signature VERIFIED'
+REFUSED='SCRAM: login REFUSED'
+
+# ---- S6a. the account password logs in over the API and the session is sduser.
+o="$(api_login "$GOOD" sduser sduser WHO)"
+if printf '%s\n' "$o" | grep -qx "$VERIFIED" && printf '%s\n' "$o" | grep -q '^account sduser: entered' && printf '%s\n' "$o" | grep -qE '^\| [0-9]+ sduser'; then
+  leg "S6a API login as sduser" "server signature VERIFIED, account entered, WHO answers sduser" 0 "$(printf '%s\n' "$o" | grep -E '^\| [0-9]+ sduser' | head -1)"
+else
+  leg "S6a API login as sduser" "VERIFIED, entered, WHO answers sduser" 1 "$(printf '%s\n' "$o" | grep -E '^SCRAM|REFUSED' | head -1)"
+fi
+
+# ---- S6b. a wrong password, and the names that are not API logins.
+o1="$(api_login 'Wrong-Pass-9!' sduser sduser WHO)"
+o2="$(api_login "$GOOD" sdsys sdsys WHO)"
+o3="$(api_login "$GOOD" '$admin' sduser WHO)"
+n=0
+for o in "$o1" "$o2" "$o3"; do printf '%s\n' "$o" | grep -q "^$REFUSED" && n=$((n+1)); done
+if [ "$n" -eq 3 ] && ! printf '%s\n%s\n%s\n' "$o1" "$o2" "$o3" | grep -q "$VERIFIED"; then
+  leg "S6b refused: wrong password, sdsys, \$admin" "3 refusals and no VERIFIED" 0 "3 of 3"
+else
+  leg "S6b refused: wrong password, sdsys, \$admin" "3 refusals and no VERIFIED" 1 "refusals=$n"
+fi
+
+# ---- S6c. sduser can enter no other account - not SDSYS, not one that does not exist.
+o1="$(api_login "$GOOD" sduser sdsys WHO)"
+o2="$(api_login "$GOOD" sduser other WHO)"
+if printf '%s\n' "$o1" | grep -q '^account sdsys: REFUSED: User not allowed in requested account' \
+   && printf '%s\n' "$o2" | grep -q '^account other: REFUSED: User not allowed in requested account'; then
+  leg "S6c only its own account" "sdsys and 'other' both 'User not allowed in requested account'" 0 "refused"
+else
+  leg "S6c only its own account" "sdsys and 'other' both refused" 1 "$(printf '%s\n%s\n' "$o1" "$o2" | grep -E '^account' | tr '\n' ' ')"
+fi
+
+# ---- S6d. the administrator password is not an API login (needs ADMIN_PASSWORD_FILE).
+if [ -n "$ADF" ]; then
+  ADMINPW="$(head -1 "$ADF")"
+  o="$(api_login "$ADMINPW" sduser sduser WHO)"
+  if printf '%s\n' "$o" | grep -q "^$REFUSED" && ! printf '%s\n' "$o" | grep -qx "$VERIFIED"; then
+    leg "S6d admin password is not an API login" "REFUSED, never VERIFIED" 0 "refused"
+  else
+    leg "S6d admin password is not an API login" "REFUSED, never VERIFIED" 1 "$(printf '%s\n' "$o" | grep -E '^SCRAM' | head -1)"
+  fi
+else
+  echo "  [SKIP] S6d admin password is not an API login | no ADMIN_PASSWORD_FILE given; NOT MEASURED"
+fi
+
+# ---- S6e. MANAGED MODE (needs a global password file and a tree that has one).
+# The master logs in under the account's name with the global password: it gets the
+# administrator commands (LISTU lists); the account password on the same name does not.
+if [ -n "$GLF" ]; then
+  GLOBALPW="$(head -1 "$GLF")"
+  [ -f "$H/\$cred/\$global" ] || refuse "$H has no \$cred/\$global - it was not built in managed mode; leg S6e would measure nothing"
+  og="$(api_login "$GLOBALPW" sduser sduser LISTU)"
+  oa="$(api_login "$GOOD" sduser sduser LISTU)"
+  if printf '%s\n' "$og" | grep -qx "$VERIFIED" && printf '%s\n' "$og" | grep -q 'Username' \
+     && printf '%s\n' "$oa" | grep -qx "$VERIFIED" && printf '%s\n' "$oa" | grep -q 'Command requires administrator privileges'; then
+    leg "S6e managed: global password carries ADMIN" "global: LISTU lists; account: LISTU refused" 0 "as expected"
+  else
+    leg "S6e managed: global password carries ADMIN" "global: LISTU lists; account: LISTU refused" 1 "global: $(printf '%s\n' "$og" | grep -E '^SCRAM|Command' | head -1) / account: $(printf '%s\n' "$oa" | grep -E '^SCRAM|Command' | head -1)"
+  fi
+else
+  echo "  [SKIP] S6e managed-mode API login | no GLOBAL_PASSWORD_FILE given; NOT MEASURED"
 fi
 
 # ---- S7. the server identity is private and inside the tree.
