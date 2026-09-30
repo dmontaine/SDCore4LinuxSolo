@@ -1,9 +1,91 @@
 LS1.1-1 - not yet released
 --------------
-SD Core for Linux Solo, the single-user edition of SD Core for Linux, is under
-construction.  This entry lists what users of Solo will notice; nothing has been
-built or released yet, and the code still behaves as SD Core for Linux L1.1-1,
-whose changelog follows unchanged.
+SD Core for Linux Solo is the single-user edition of SD Core for Linux L1.1-1, the
+release it was made from.  It is one person's SD, installed entirely in that
+person's home directory and run as that person, and the language, the query
+processor and the file system are the same.  What differs:
+
+30 Sep 26  ONE USER, ONE ACCOUNT, NO ROOT.
+
+           There is one account, named sduser on every computer whatever the
+           Linux user is called.  SD never runs as root and refuses to start
+           as root.  There is no sdsys operating system user, no sudo helper,
+           no groups and no commands to create, delete or change accounts, to
+           grant access to them, or to run other people's commands.  Nothing
+           is installed outside your home directory.
+
+           Everything lives in ~/SDCoreSolo.  SD finds its own folder from
+           where its program is, so the folder can be anywhere.
+
+30 Sep 26  EVERY SESSION ASKS FOR THE ACCOUNT PASSWORD.
+
+           At the keyboard, over ssh, through the API and for a one-shot
+           "sd COMMAND" alike.  A one-shot command from a script does not
+           stop to ask: it uses a copy of the password kept for it, and, if
+           that no longer matches, reads the password from its input.
+
+           THE KEPT COPY IS THE PASSWORD ITSELF, in a file only you can read
+           (mode 0600, in a 0700 folder).  Linux has nothing that lets a job
+           with no session unlock a secret for you.  Anyone who can read your
+           files can read it, as they could read a ~/.pgpass.
+
+           Passwords must have 8 or more characters with a lower-case letter,
+           an upper-case letter, a digit and a symbol.
+
+30 Sep 26  ADMIN UNLOCKS THE ADMINISTRATOR COMMANDS.
+
+           Type ADMIN and the administrator password you chose at install
+           (ADMIN OFF locks again).  CONFIG (except CONFIG GPL and CONFIG
+           CONTRIB), LISTU, LIST.LOCKS, LIST.READU, LOCK, CLEAR.LOCKS,
+           SET.DATE, CLEAN.ACCOUNT and UPDATE.ACCOUNTS need it, and so does
+           any direct change to the VOC: ED, COPY, DELETE, CLEAR.FILE and
+           RENAME on it, .S and .D with a name, and a program that writes to
+           it.  What SD writes to the VOC by itself, such as the entry
+           CREATE.FILE makes, does not.  SET.PASSWORD changes the account
+           password (it asks for the current one unless ADMIN is on) and,
+           with ADMIN, the administrator password.
+
+           It stops a slip or a stranger at an unattended keyboard.  It does
+           not stop you: the files are yours.
+
+30 Sep 26  MANAGED MODE.
+
+           A computer can be installed as a client of an SD Core server that
+           manages it with a global password.  The server logs in under
+           sduser with that password and gets the administrator commands; the
+           account password on the same login does not.  In managed mode the
+           API is open to the network and ssh is required.  Standalone or
+           managed is chosen at install and fixed.  SET.PASSWORD GLOBAL is
+           refused until the server-side controls arrive.
+
+30 Sep 26  THE API, AND SSH STRAIGHT INTO SD.
+
+           The API is TLS 1.3 with a SCRAM login.  It runs as you, from your
+           own systemd user service, and is off unless you turn it on.
+
+           ssh: a public key added with tools/solo-ssh.sh lands in SD at the
+           password prompt and gets no shell, no scp or sftp and no port
+           forwarding.  Your other ssh keys are left alone.  An optional block
+           for the machine's sshd_config makes your password login land in SD
+           too.
+
+30 Sep 26  INSTALLING AND REMOVING.
+
+           installsolo.sh downloads the source to a temporary folder under
+           your home, builds it, installs it, starts SD as a systemd user
+           service and deletes the download.  It uses sudo only for the build
+           packages, a firewall rule you ask for, the optional sshd block and
+           "loginctl enable-linger".  Without linger SD stops when your last
+           session ends.  deletesolo.sh removes it again and keeps your data if
+           you ask.  Upgrading in place is not there yet.
+
+           "sd -internal", the door the installer uses, is closed once the
+           install finishes.
+
+           What it does NOT do: it cannot be installed on a computer that has
+           the multi-user SD Core for Linux; it has no commands for other
+           accounts; and the server-side catalogue and denied-commands controls
+           of managed mode are not built yet.
 
 L1.1-1 - 29 Sep 2026
 -------------

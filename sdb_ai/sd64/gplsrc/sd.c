@@ -505,7 +505,9 @@ Private bool comlin(int argc, char *argv[]) {
             goto help;
           } else if (!stricmp(argv[arg], "--VERSION")) {
 /* rev 0.9.1 Mar 25 return to single rev track */            
-            printf("String Database (sd) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
+/* 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - the product's name, as Solo for
+   Windows prints "SD Core Solo for Windows (sd) Version WS1.1-1".            */
+            printf("SD Core for Linux Solo (sd) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
 /* 09 Sep 26 dm - PRE_RELEASE 21.  A developer build must be identifiable
    without running anything privileged, because the ONE thing it changes is a
    privilege check.  Anything that reports a version - a bug report, a

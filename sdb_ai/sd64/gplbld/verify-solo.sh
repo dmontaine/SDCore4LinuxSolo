@@ -150,7 +150,7 @@ fi
 sess() {
   printf '%s\n' "$GOOD" "$@" OFF | timeout 120 "$SD" 2>&1 \
     | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the'
 }
 NEEDS='Command requires administrator privileges'
 
@@ -260,7 +260,7 @@ sess_as() {
   local first="$1"; shift
   printf '%s\n' "$first" "$@" OFF | timeout 120 "$SD" 2>&1 \
     | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the'
 }
 NEWPW='New-Pass-3!'
 

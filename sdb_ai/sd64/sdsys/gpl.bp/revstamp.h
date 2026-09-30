@@ -17,6 +17,10 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 * 
 * START-HISTORY:
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - SD_REV_STAMP LS1.1-1: the product
+*           is SD Core for Linux Solo, its first release is LS1.1-1 (owner,
+*           29 Sep 2026: "SD Core for Linux Solo - LS1.1-1"), paired with the
+*           multi-user L1.1-1 it was made from.
 * 29 Sep 26 dm  SD_REV_STAMP L1.1-1 (English-only release)
 * rev 1.0-2 see sdsys/changelog
 * rev 1.0-1 Add back PROCREAD PROCWRITE
@@ -88,7 +92,7 @@
 $define MAJOR.REV      1
 $define MINOR.REV      0
 $define BUILD          2
-$define SD.REV.STAMP   "L1.1-1"
+$define SD.REV.STAMP   "LS1.1-1"
 
 $define SD.COPYRIGHT.YEAR "2007"
 

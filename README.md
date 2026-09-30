@@ -15,8 +15,8 @@ them. It is the Linux counterpart of
 **Version LS1.1-1, not yet released.** It started on 29 September 2026 as a copy
 of SD Core for Linux L1.1-1. The one-account model, the passwords and ADMIN, the
 API login, the systemd user service, ssh into `sd` and the installer are built
-and have been run on one machine; the documentation, a version stamp that says
-LS1.1-1 (the programs still print L1.1-1) and an in-place upgrade are not done.
+and have been run on one machine; the documentation, an in-place upgrade and the
+managed-mode server controls (global catalogue, denied commands) are not done.
 
 SD Core is English only: it has no support for other languages or locales.
 
