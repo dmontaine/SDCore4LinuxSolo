@@ -162,7 +162,7 @@ read_password() {   # read_password "Prompt: " VARNAME  - stars, from the termin
 # everything from here to "scratch space".
 cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_match=""; cf_linger=""; cf_deny=""
 ACC_PW=""; ADM_PW=""; GLB_PW=""
-ssh_wanted=0
+ssh_wanted=0; first_login=0
 if [ "$upgrade" -eq 1 ]; then
   api="off"   # not used: an upgrade leaves the service and API as they are
   old_commit="$(sed -n 's/^commit //p' "$HOME_DIR/.sdcore-install" | head -1)"
@@ -263,11 +263,22 @@ say "Passwords. Every SD session asks for the ACCOUNT password; the ADMINISTRATO
 say "SD's administrator commands (ADMIN)."
 say
 ACC_PW=""; ADM_PW=""; GLB_PW=""
-get_password ACC_PW account "$acc_file" ""
+# LSOLO 14 (Windows Solo SOLO 18, owner 27 Sep 2026): a control file never holds the
+# account password.  With one and no --account-password-file, the installer does not
+# ask for it either: the user chooses it at the console on first login, which is what
+# lets one control file initialise several computers.  --account-password-file still
+# sets it at install time, as before.
+first_login=0
+if [ -n "$control_file" ] && [ -z "$acc_file" ]; then
+  first_login=1
+  say "The account password is not asked for: whoever first starts SD at this computer's keyboard chooses it."
+else
+  get_password ACC_PW account "$acc_file" ""
+fi
 get_password ADM_PW administrator "$adm_file" "$cf_admin"
 if [ "$managed" -eq 1 ]; then
   get_password GLB_PW global "$glb_file" "$cf_global"
-  [ "$GLB_PW" != "$ACC_PW" ] || refuse "the global password must differ from the account password (ruling 19)"
+  [ "$first_login" -eq 1 ] || [ "$GLB_PW" != "$ACC_PW" ] || refuse "the global password must differ from the account password (ruling 19)"
   [ "$GLB_PW" != "$ADM_PW" ] || refuse "the global password must differ from the administrator password"
 fi
 
@@ -315,6 +326,7 @@ fi
 say
 say "Ready to install:"
 say "  mode          : $mode_name"
+say "  account pw    : $([ "$first_login" -eq 1 ] && echo "chosen at first login, at this computer's keyboard" || echo "set now")"
 say "  API           : $api$([ "$api" != off ] && echo " (port $api_port)")"
 say "  ssh into sd   : $([ "$ssh_wanted" -eq 1 ] && echo "yes$([ -n "$ssh_key" ] && echo ", key $ssh_key")$([ "$ssh_match" -eq 1 ] && echo ", Match block")" || echo no)"
 say "  service       : $([ "$no_service" -eq 1 ] && echo "not installed" || echo "systemd user service$([ "$enable_linger" -eq 1 ] && echo ", linger on" || echo ", linger NOT enabled")")"
@@ -435,15 +447,21 @@ if [ "$upgrade" -eq 1 ]; then
 else
 say "Installing into $HOME_DIR and running the bootstrap."
 st_args=()
-printf '%s\n' "$ACC_PW" > "$WORK/acc.pw"; st_args+=(--account-password-file "$WORK/acc.pw")
+if [ "$first_login" -eq 0 ]; then printf '%s\n' "$ACC_PW" > "$WORK/acc.pw"; st_args+=(--account-password-file "$WORK/acc.pw"); fi
 printf '%s\n' "$ADM_PW" > "$WORK/adm.pw"; st_args+=(--admin-password-file "$WORK/adm.pw")
 if [ "$managed" -eq 1 ]; then printf '%s\n' "$GLB_PW" > "$WORK/glb.pw"; st_args+=(--global-password-file "$WORK/glb.pw"); fi
 if [ -n "$cf_deny" ]; then st_args+=(--deny-verbs "$cf_deny"); fi
 bash "$SRC/gplbld/solo-stage.sh" "${st_args[@]}" "$HOME_DIR" > "$WORK/stage.log" 2>&1 \
   || { tail -25 "$WORK/stage.log"; fail "the bootstrap (full log: $WORK/stage.log - removed when this script ends; re-run the failing step by hand from $SRC/gplbld/solo-stage.sh)"; }
 rm -f "$WORK/acc.pw" "$WORK/adm.pw" "$WORK/glb.pw"
-grep -qx 'SOLO PASSWORD SET ACCOUNT' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
-  || fail "the stage log has no 'SOLO PASSWORD SET ACCOUNT'"
+if [ "$first_login" -eq 0 ]; then
+  grep -qx 'SOLO PASSWORD SET ACCOUNT' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
+    || fail "the stage log has no 'SOLO PASSWORD SET ACCOUNT'"
+else
+  grep -qx 'SOLO PASSWORD SET GLOBAL' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
+    || fail "the stage log has no 'SOLO PASSWORD SET GLOBAL' (a first-login install is managed, so the global password must be set)"
+  [ ! -e "$HOME_DIR/\$cred/sduser" ] || fail "\$cred/sduser exists on a first-login install"
+fi
 [ -f "$HOME_DIR/user_accounts/sduser/voc/%0" ] || [ -d "$HOME_DIR/user_accounts/sduser" ] || fail "the account directory is missing"
 
 # what was installed
@@ -520,6 +538,10 @@ say "Checking the install."
 if [ "$upgrade" -eq 1 ]; then
   # No password is known here; a one-shot command uses the copy SD keeps for it.
   chk="$(echo "" | timeout 60 "$HOME_DIR/bin/sd" WHO 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+elif [ "$first_login" -eq 1 ]; then
+  # There is no account password yet; the global password (which this installer
+  # has) opens the same account, and that is what the check can prove.
+  chk="$(printf '%s\nWHO\nOFF\n' "$GLB_PW" | timeout 60 "$HOME_DIR/bin/sd" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 else
   chk="$(printf '%s\nWHO\nOFF\n' "$ACC_PW" | timeout 60 "$HOME_DIR/bin/sd" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 fi
@@ -544,7 +566,11 @@ else
   say "SD Core for Linux Solo is installed."
 fi
 say "  home          : $HOME_DIR      (mode: $mode_name)"
-say "  start a session: sd            (the account is sduser; it asks for the account password)"
+if [ "$first_login" -eq 1 ]; then
+  say "  start a session: sd            (at THIS computer's keyboard: it asks you to choose the account password)"
+else
+  say "  start a session: sd            (the account is sduser; it asks for the account password)"
+fi
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
 say "  service       : ${svc_state:-not installed}"
 [ "$api" = "off" ] || say "  API           : $api, port $api_port (TLS 1.3, account password)"

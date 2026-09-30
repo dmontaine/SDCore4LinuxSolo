@@ -1,0 +1,72 @@
+# sd-solo-setup.conf - answers for the SD Core for Linux Solo installer
+#
+# To use it, copy this file, fill in the answers, and give it to the installer:
+#
+#     bash installsolo.sh --control-file /path/to/sd-solo-setup.conf
+#
+# It can live on a USB stick beside installsolo.sh, so one stick initialises
+# several computers.  Without the file the installer asks every question itself.
+#
+# It is for MANAGED MODE ONLY.  Its presence makes the install a managed
+# client of an SD Core server, so the API and ssh are always on and reachable
+# from other computers.
+#
+# Each item below is explained in comment lines, then a SAMPLE answer
+# (commented out), then the line for your answer.  Leave an answer blank and
+# the installer asks for it.  An answer the installer cannot accept (a
+# password that breaks the rules below) is refused.
+#
+# The ACCOUNT password is deliberately not here.  The person who first runs sd
+# at this computer's keyboard chooses it.  (Give the installer
+# --account-password-file FILE as well if you want it set at install time.)
+#
+# This file holds passwords in clear text.  Keep the stick safe.
+
+[install]
+
+# admin-password
+#   The administrator password.  It unlocks SD's administrator commands
+#   (ADMIN).  At least 8 characters, with a lower-case letter, an upper-case
+#   letter, a digit and a symbol - letters, digits and punctuation only.
+#admin-password=Adm1n-Sample!
+
+admin-password=
+
+# global-password
+#   The global password.  The SD Core server uses it to manage this
+#   computer, and it also unlocks the administrator commands.  The same rules
+#   as the administrator password, and it must be different from it.
+#global-password=Gl0bal-Sample!
+
+global-password=
+
+# deny-verbs
+#   Commands the user of this computer may not run.  A comma-separated list
+#   of verb names; each then needs the administrator or global password
+#   first, like SD's own administrator commands.  ADMIN, OFF, QUIT and LO are
+#   never denied.  Leave it blank to deny nothing extra.  The SD Core server
+#   can change the list later with DENY.VERBS.
+#deny-verbs=LISTU,CREATE.FILE
+
+deny-verbs=
+
+# ssh-public-key-file
+#   A public key file (on this computer) whose owner may ssh straight into sd.
+#   Leave it blank for none.
+#ssh-public-key-file=/home/alex/.ssh/id_ed25519.pub
+
+ssh-public-key-file=
+
+# ssh-match
+#   yes = also write the sshd_config.d block so that an ssh PASSWORD login
+#   lands in sd (needs sudo).  Anything else = no.
+#ssh-match=yes
+
+ssh-match=
+
+# enable-linger
+#   yes = run "loginctl enable-linger" so SD keeps running after the user
+#   signs out.  Anything else = no.
+#enable-linger=yes
+
+enable-linger=

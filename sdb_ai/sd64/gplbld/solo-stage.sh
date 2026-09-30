@@ -89,9 +89,9 @@ while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password
   esac
   shift 2
 done
-if [ -n "$globalfile" ] && [ -z "$pwfile" ]; then
-  refuse "--global-password-file needs --account-password-file: the two share a salt, so the account's is set first"
-fi
+# LSOLO 14 (Windows Solo SOLO 18): a managed tree may be staged with NO account
+# password.  LOGIN then has the user choose it at the console on first login, and
+# !CRED_SET takes $global's salt for the new record, so the master still logs in.
 [ "$#" -eq 1 ] || refuse "$usage"
 H="$1"
 case "$H" in
@@ -315,9 +315,14 @@ if [ -n "$globalfile" ]; then
   printf '%s\n' "$gl_plain" | grep -qx 'SOLO PASSWORD SET GLOBAL' || fail "solo_password did not print 'SOLO PASSWORD SET GLOBAL'"
   printf '%s\n' "$gl_plain" | grep -q 'solo_password:' && fail "solo_password said: $(printf '%s\n' "$gl_plain" | grep 'solo_password:' | head -1)"
   # The two records must share a salt or the master cannot log in (ruling 19).
-  s_acc="$(sed -n 3p "$H/\$cred/sduser")"; s_glb="$(sed -n 3p "$H/\$cred/\$global")"
-  [ -n "$s_acc" ] && [ "$s_acc" = "$s_glb" ] || fail "sduser and \$global do not share a salt ('$s_acc' / '$s_glb')"
-  echo "  the account and global records share a salt"
+  if [ -n "$pwfile" ]; then
+    s_acc="$(sed -n 3p "$H/\$cred/sduser")"; s_glb="$(sed -n 3p "$H/\$cred/\$global")"
+    [ -n "$s_acc" ] && [ "$s_acc" = "$s_glb" ] || fail "sduser and \$global do not share a salt ('$s_acc' / '$s_glb')"
+    echo "  the account and global records share a salt"
+  else
+    [ ! -e "$H/\$cred/sduser" ] || fail "no account password was given but \$cred/sduser exists"
+    echo "  no account password yet: the user sets it at the console on first login (11025)"
+  fi
 fi
 fi   # end of "not an upgrade"
 

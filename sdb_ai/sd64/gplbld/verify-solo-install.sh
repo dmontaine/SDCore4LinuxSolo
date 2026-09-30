@@ -174,6 +174,42 @@ if [ "$full" -eq 1 ]; then
     leg "F4 uninstall keeps the data and leaves nothing" "complete; nothing left; data kept" 1 "left=$left kept='$kept' $(printf '%s\n' "$dout" | tail -2 | tr '\n' ' ')"
   fi
   [ -z "$kept" ] || rm -rf "$kept"    # my own test data, in the home directory
+
+  # F5 a MANAGED install from a control file that has no account password (LSOLO 14): the
+  # installer neither asks for one nor sets one, the global password opens the account,
+  # the deny list from the file is in place, and there is no $cred/sduser until first login.
+  H2="$W/inst2"
+  cat > "$W/ctl.conf" <<CTL
+[install]
+admin-password=$(head -1 "$W/adm.pw")
+global-password=$(head -1 "$W/glb.pw")
+deny-verbs=DATE
+CTL
+  out="$(timeout 900 bash "$INSTALL" --home "$H2" --skip-packages --yes --control-file "$W/ctl.conf" --api-port 14244 2>&1 < /dev/null | strip)"
+  if printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H2" && printf '%s\n' "$out" | grep -q 'The account password is not asked for' \
+     && [ -f "$H2/\$cred/\$global" ] && [ ! -e "$H2/\$cred/sduser" ] && [ "$(sed -n 's/^mode //p' "$H2/.sdcore-install")" = "managed" ]; then
+    leg "F5 a control-file install sets no account password" "COMPLETE, 'not asked for', \$cred/\$global and no \$cred/sduser, mode managed" 0 "complete"
+  else
+    leg "F5 a control-file install sets no account password" "COMPLETE, no \$cred/sduser, mode managed" 1 "$(printf '%s\n' "$out" | tail -5 | tr '\n' ' ')"
+  fi
+  if [ -x "$H2/bin/sd" ]; then
+    g="$(printf '%s\nWHO\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd" 2>&1 | strip)"
+    d="$(printf '%s\nDATE\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd" 2>&1 | strip)"
+    if printf '%s\n' "$g" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$d" | grep -qE '[0-9]{4} +[0-9]+:[0-9]{2}(am|pm)' \
+       && [ "$(grep -cx DATE "$H2/solo.policy/denied.verbs" 2>/dev/null)" -eq 1 ]; then
+      leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; solo.policy lists DATE" 0 "as expected"
+    else
+      leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; DATE on the list" 1 "$(printf '%s\n' "$g" | tail -2 | tr '\n' '|')"
+    fi
+    bash "$H2/tools/deletesolo.sh" --yes > /dev/null 2>&1
+  fi
+  # the shipped sample, untouched, gives no answers: nothing in it may be taken as one
+  o="$(timeout 60 bash "$INSTALL" --home "$W/h9" --skip-packages --yes --control-file "$here/sd-solo-setup.conf.sample" </dev/null 2>&1 | strip)"
+  if printf '%s\n' "$o" | grep -q '^REFUSED: .*no administrator password was given' && [ ! -e "$W/h9" ]; then
+    leg "F6 the shipped sample answers nothing" "REFUSED ... no administrator password was given (its commented samples are not answers)" 0 "refused"
+  else
+    leg "F6 the shipped sample answers nothing" "REFUSED ... no administrator password was given" 1 "$(printf '%s\n' "$o" | grep -E 'REFUSED|COMPLETE' | head -2 | tr '\n' ' ')"
+  fi
 fi
 
 echo

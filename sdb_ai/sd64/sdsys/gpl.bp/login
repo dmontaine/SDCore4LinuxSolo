@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 14) - Windows Solo SOLO 18: a managed
+*           account with no password yet sets its first one at the console
+*           (set.first.password; messages 11025-11027, 11036, 11037).
 * 20 Sep 26 dm THE BATCH GATE (S.40), PARITY WITH THE WINDOWS PORT.  Owner's
 *           ruling, 20 Sep 2026: a behavior prevented on one port must be
 *           prevented on both, the mechanism free to differ with the OS.  A
@@ -119,6 +122,8 @@ $include keyin.h
 $include keycode.h
 * 20240219 mab user must be member of sdusers  
 deffun is_grp_member(user,group) calling '!is_grp_member'
+* 30 Sep 26 LSOLO 14 (Windows Solo SOLO 18): set.first.password runs the password rule.
+deffun pw_complex(pw) calling '!pw_complex'
 
    ok = @false
    is.phantom = kernel(K$IS.PHANTOM, 0)
@@ -767,6 +772,32 @@ require.password:
       return
    end
 
+*  30 Sep 26 - LSOLO 14 (Windows Solo SOLO 18, owner 27 Sep 2026): A MANAGED TREE
+*  INSTALLED FROM A CONTROL FILE HAS NO ACCOUNT PASSWORD UNTIL ITS FIRST LOGIN,
+*  and it is set AT THE CONSOLE ONLY: an interactive session, on a terminal, not
+*  over ssh.  Managed only ($global present), as the control file is; a
+*  standalone tree without its record still gets 11020 above.  Anywhere else the
+*  session is told so, and the prompt below then accepts only the global
+*  password (the master's, ruling 19), as it always has.
+   if not(pw.has.acct) and pw.has.global then
+      if pw.interactive and pw.on.tty and env('SSH_CONNECTION') = '' then
+*        Assigned here too: BCOMP reads in order, and set.first.password is
+*        further down (the ERRGEN trap, "is not assigned a value").
+         pf.ok = @false
+         gosub set.first.password
+         if pf.ok then
+            pw.via = 'first'
+            void kernel(K$AUDIT, 'LOGIN FIRST PASSWORD SET account=' : initial.account)
+            pw.ok = @true
+         end else
+            pw.why = 'no first password was set'
+            void kernel(K$AUDIT, 'LOGIN REFUSED account=' : initial.account : ' - no first password was set')
+         end
+         return
+      end
+      display sysmsg(11026) ;* This account has no password yet. Set it at this computer's keyboard first...
+   end
+
 *  A ONE-SHOT TRIES THE KEPT PASSWORD FIRST.  $STORED in $cred is the account
 *  password (!SOLO_STORE_PW).  It counts only for THIS account and only if it
 *  still verifies; anything else - no record, a stale copy - falls through to
@@ -833,6 +864,71 @@ require.password:
    end
    void kernel(K$AUDIT, 'LOGIN PASSWORD account=' : initial.account : ' via=' : pw.via)
    pw.ok = @true
+   return
+
+*
+* ======================================================================
+* SET.FIRST.PASSWORD  -  LSOLO 14 (Windows Solo SOLO 18): the account's first
+* password, at the console.
+*
+* Sets pf.ok.  Three tries, the password rule, the repeat, with Solo's two
+* stores: !CRED_SET - which takes $global's salt for a new account record, so
+* the master's password still logs in under this name (ruling 19) - and $stored
+* for one-shot commands (!SOLO_STORE_PW), as SET.PASSWORD does.  An empty answer
+* gives up.  Neither password is displayed, stored in clear or logged.
+
+set.first.password:
+   pf.ok = @false
+   pf.max = 3
+   pf.pw1 = ''
+   pf.pw2 = ''
+   display sysmsg(11025) ;* This account has no password yet. Choose one now...
+   display
+   for pf.try = 1 to pf.max
+      display sysmsg(11009) : ' ' :  ;* New password:
+      input pf.pw1 HIDDEN
+      display
+      if pf.pw1 = '' then exit
+      if not(pw_complex(pf.pw1)) then
+         display sysmsg(10920)  ;* A password needs at least 8 characters...
+         display sysmsg(10921, pf.try, pf.max) ;* That was attempt %1 of %2
+         continue
+      end
+*     Ruling 19: equal to the global password, the master's logins would land
+*     in an ordinary session.
+      pf.same = @false
+      call !CRED_VERIFY('$GLOBAL', pf.pw1, pf.same)
+      if pf.same then
+         display sysmsg(11027) ;* Use a password different from the global password.
+         display sysmsg(10921, pf.try, pf.max) ;* That was attempt %1 of %2
+         continue
+      end
+      display sysmsg(11010) : ' ' :  ;* Confirm the new password:
+      input pf.pw2 HIDDEN
+      display
+      if pf.pw1 # pf.pw2 then
+         pf.pw2 = ''
+         display sysmsg(11011) ;* The passwords do not match
+         display sysmsg(10921, pf.try, pf.max) ;* That was attempt %1 of %2
+         continue
+      end
+      pf.pw2 = ''
+      pf.set = @false
+      call !CRED_SET(upcase(initial.account), pf.pw1, pf.set)
+      if not(pf.set) then
+         display sysmsg(11016, status()) ;* The password could not be stored (status %1)
+         exit
+      end
+      pf.kept = @false
+      call !SOLO_STORE_PW(upcase(initial.account), pf.pw1, pf.kept)
+      if not(pf.kept) then display sysmsg(11022, status()) ;* ...could not be kept for commands given on the sd command line
+      display sysmsg(11036, initial.account) ;* Password set for account %1
+      pf.ok = @true
+      exit
+   next pf.try
+   pf.pw1 = ''
+   pf.pw2 = ''
+   if not(pf.ok) then display sysmsg(11037) ;* No password was set, and one is required...
    return
 
 *
