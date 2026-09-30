@@ -68,7 +68,7 @@ incat() { ls -A "$GCAT" | grep -i -c -- "$SUB" || true; }
 cleanup() {
   rm -f "$BP/$SUB" "$BP/$CALL" "$OUT/$SUB" "$OUT/$CALL" "$GBP/$SUB" "$GBP/who" "$BP/zzgw"
   ls -A "$GCAT" | grep -i -- "$SUB" | while IFS= read -r f; do rm -f -- "$GCAT/$f"; done
-  printf '%s\n' "$GLOBALPW" 'DENY.VERBS REMOVE WHO,SH' OFF | timeout 60 "$SD" >/dev/null 2>&1
+  printf '%s\n' "$GLOBALPW" 'DENY.VERBS REMOVE WHO,SH,TIME' OFF | timeout 60 "$SD" >/dev/null 2>&1
 }
 trap cleanup EXIT
 
@@ -76,7 +76,7 @@ trap cleanup EXIT
 base="$(asglobal DENY.VERBS | grep -E '^DENY\.VERBS [0-9]+:' | head -1)"
 [ -n "$base" ] || refuse "a global session got no 'DENY.VERBS n:' line - cannot read the list"
 echo "  deny list at the start: $base"
-case "$base" in *WHO*|*SH*) refuse "WHO or SH is already on the deny list - the legs would remove it" ;; esac
+case "$base" in *WHO*|*SH*|*TIME*) refuse "WHO, SH or TIME is already on the deny list - the legs would remove it" ;; esac
 
 # ---- 1. GLOBAL.BP.OUT is installed and empty, and nothing is catalogued from it.
 n_obj="$(ls -A "$GBP" | wc -l)"
@@ -168,7 +168,9 @@ else
 fi
 
 # ---- 6. the server denies WHO, sduser is refused it, ADMIN runs it, the server allows it again.
-out="$(asglobal 'DENY.VERBS ADD WHO')"
+# TIME goes on first, so WHO is added to a list of TWO or more - the case a search by
+# field (LOCATE list<1>) silently missed on Windows Solo (its leg 17c).
+out="$(asglobal 'DENY.VERBS ADD TIME,WHO')"
 if printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*WHO'; then
   leg "6a a global session adds WHO to the list" "'DENY.VERBS n: ...WHO'" 0 "$(printf '%s\n' "$out" | grep -E '^DENY\.VERBS [0-9]+:' | tail -1)"
 else
@@ -197,6 +199,20 @@ if [ "$(count "$out" "$NEEDS")" -eq 0 ] && printf '%s\n' "$out" | grep -qE '^[0-
   leg "6e CONTROL: sduser runs WHO again" "a WHO answer and no 2001" 0 "ran"
 else
   leg "6e CONTROL: sduser runs WHO again" "a WHO answer and no 2001" 1 "$(last "$out")"
+fi
+
+# ---- 6f. ADMIN can never be denied, and the two-verb list can be emptied again.
+out="$(asglobal 'DENY.VERBS ADD ADMIN')"
+if printf '%s\n' "$out" | grep -qx 'DENY.VERBS: ADMIN is never denied - dropped' && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*ADMIN'; then
+  leg "6f ADMIN is never denied" "'ADMIN is never denied - dropped', ADMIN not on the list" 0 "dropped"
+else
+  leg "6f ADMIN is never denied" "'ADMIN is never denied - dropped', ADMIN not on the list" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
+fi
+out="$(asglobal 'DENY.VERBS REMOVE TIME')"
+if printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+:' && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*TIME'; then
+  leg "6g the server removes TIME" "a 'DENY.VERBS n:' line without TIME" 0 "removed"
+else
+  leg "6g the server removes TIME" "a 'DENY.VERBS n:' line without TIME" 1 "$(last "$out")"
 fi
 
 # ---- 7. a verb is denied by what it runs: denying SH denies ! too (Windows SOLO 22).

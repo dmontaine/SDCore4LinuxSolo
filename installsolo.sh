@@ -32,6 +32,12 @@
 #   --skip-packages               do not install packages; check the tools instead
 #   --no-service                  do not install the systemd user service
 #   --yes                         do not ask "Continue?"
+#   --upgrade                     bring an installed tree up to the current release in place:
+#                                 programs and system objects are replaced; the account, its data,
+#                                 the passwords, sd.conf, the audit trail, GLOBAL.BP.OUT and the
+#                                 deny list are kept.  A safety copy of the whole tree is made
+#                                 first (<home>.before-upgrade-<time>) and put back if any step
+#                                 fails.  Takes no password and no other install option.
 #
 # EXIT: 0 installed and self-checked; 1 a step failed; 2 refused to start.
 # The last line of a good install is "SOLO INSTALL COMPLETE <home>".
@@ -71,7 +77,7 @@ HOME_DIR="$HOME/SDCoreSolo"
 control_file=""; managed=0
 acc_file=""; adm_file=""; glb_file=""
 api="" ; api_port="4243"
-ssh_key=""; ssh_match=0; enable_linger=0; skip_pkgs=0; no_service=0; assume_yes=0
+ssh_key=""; ssh_match=0; enable_linger=0; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --home)                   [ "$#" -ge 2 ] || refuse "--home needs a directory"; HOME_DIR="$2"; shift 2 ;;
@@ -88,7 +94,8 @@ while [ "$#" -gt 0 ]; do
     --skip-packages)          skip_pkgs=1; shift ;;
     --no-service)             no_service=1; shift ;;
     --yes)                    assume_yes=1; shift ;;
-    -h|--help)                sed -n '2,45p' "$0"; exit 0 ;;
+    --upgrade)                upgrade=1; shift ;;
+    -h|--help)                sed -n '2,52p' "$0"; exit 0 ;;
     *) refuse "unknown option: $1 (see --help)" ;;
   esac
 done
@@ -101,10 +108,19 @@ case "$api_port" in ''|*[!0-9]*) refuse "--api-port must be a number" ;; esac
 interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
 
 # ---------------------------------------------------------------- what is already here
-[ -f "$HOME_DIR/.sdcoresolo" ] && refuse "SD Core for Linux Solo is already installed in $HOME_DIR.
-  Upgrading in place is not built yet.  Remove it first (your data can be kept):
+if [ -f "$HOME_DIR/.sdcoresolo" ] && [ "$upgrade" -eq 0 ]; then
+  refuse "SD Core for Linux Solo is already installed in $HOME_DIR.
+  To bring it up to the current release, keeping your account, data and passwords:
+      bash $0 --upgrade --home $HOME_DIR
+  To remove it instead (your data can be kept):
       bash $HOME_DIR/tools/deletesolo.sh"
-if [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
+fi
+if [ "$upgrade" -eq 1 ]; then
+  [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core for Linux Solo in $HOME_DIR to upgrade (no .sdcoresolo marker)"
+  [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsolo.sh; upgrade it by hand or reinstall"
+  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh_key" ] && [ "$managed" -eq 0 ] && [ "$ssh_match" -eq 0 ] && [ "$enable_linger" -eq 0 ] \
+    || refuse "--upgrade keeps the mode, passwords, API and ssh settings as installed; it takes no password, control-file, --api, --ssh-key, --ssh-match, --enable-linger or --managed option"
+elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
   refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree; this script will not use it"
 fi
 if [ -x /usr/local/sdsys/bin/sd ] || [ -e /etc/sd.conf ]; then
@@ -112,7 +128,7 @@ if [ -x /usr/local/sdsys/bin/sd ] || [ -e /etc/sd.conf ]; then
   Solo cannot share a computer with it: both use the API port 4243 and the shared-memory name.
   Uninstall it first (its deletesdai.sh)."
 fi
-systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is already running for this user"
+[ "$upgrade" -eq 1 ] || { systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is already running for this user"; }
 command -v systemctl >/dev/null || refuse "systemctl is required (a systemd user manager)"
 [ -d "/run/user/$(id -u)" ] || warn "no /run/user/$(id -u): the systemd user manager may not be running in this shell"
 
@@ -142,8 +158,31 @@ read_password() {   # read_password "Prompt: " VARNAME  - stars, from the termin
   printf -v "$__name" '%s' "$pw"
 }
 
-# ---------------------------------------------------------------- the control file
+# An upgrade asks nothing and reads the install's own record; a first install does
+# everything from here to "scratch space".
 cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_match=""; cf_linger=""; cf_deny=""
+ACC_PW=""; ADM_PW=""; GLB_PW=""
+ssh_wanted=0
+if [ "$upgrade" -eq 1 ]; then
+  api="off"   # not used: an upgrade leaves the service and API as they are
+  old_commit="$(sed -n 's/^commit //p' "$HOME_DIR/.sdcore-install" | head -1)"
+  mode_name="$(sed -n 's/^mode //p' "$HOME_DIR/.sdcore-install" | head -1)"
+  case "$mode_name" in standalone) managed=0 ;; managed) managed=1 ;; *) refuse "$HOME_DIR/.sdcore-install has no usable 'mode' line" ;; esac
+  say
+  say "SD Core for Linux Solo - upgrade"
+  say "  tree        : $HOME_DIR ($mode_name, installed from ${old_commit:-an unknown commit})"
+  say "  source      : $REPO_URL ($REPO_BRANCH), downloaded to $CLONE_DIR and removed afterwards"
+  say "  kept        : the account and its data, all passwords, sd.conf, the audit trail, GLOBAL.BP.OUT, the deny list,"
+  say "                the service and ssh settings"
+  say "  replaced    : programs and system objects; a safety copy of the whole tree is made first"
+  say "  running as  : $(id -un)"
+  if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
+    read -r -p "Continue? [Y/n] " a < /dev/tty; a="${a:-y}"
+    case "$a" in y|Y|yes|YES) ;; *) refuse "cancelled by you; nothing was changed" ;; esac
+  fi
+fi
+if [ "$upgrade" -eq 0 ]; then
+# ---------------------------------------------------------------- the control file
 if [ -n "$control_file" ]; then
   [ -r "$control_file" ] || refuse "cannot read the control file $control_file"
   in_install=0
@@ -283,6 +322,7 @@ say "  packages      : $([ "$skip_pkgs" -eq 1 ] && echo "not installed (checked)
 if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
   ask_yn "Continue?" y || refuse "cancelled by you; nothing was changed"
 fi
+fi   # end of "a first install asks its questions"
 
 # ---------------------------------------------------------------- scratch space
 WORK="$(mktemp -d)"; chmod 700 "$WORK"
@@ -369,9 +409,32 @@ say "Build complete."
 
 # ---------------------------------------------------------------- stage and bootstrap
 say
+umask 077
+had_service=0
+if [ "$upgrade" -eq 1 ]; then
+  say "Upgrading $HOME_DIR and running the bootstrap over it."
+  # The service holds the shared-memory segment and the daemon; stop it (and the API
+  # socket that would start it again) before the tree is touched, and start it again
+  # afterwards whether the upgrade worked or was put back.
+  if systemctl --user is-active sd-solo.service >/dev/null 2>&1 || [ -f "$HOME/.config/systemd/user/sd-solo.service" ]; then
+    had_service=1
+    systemctl --user stop sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
+  fi
+  if ! bash "$SRC/gplbld/solo-stage.sh" --upgrade "$HOME_DIR" > "$WORK/stage.log" 2>&1; then
+    tail -25 "$WORK/stage.log"
+    [ "$had_service" -eq 0 ] || systemctl --user start sd-solo.service sd-solo-api.socket >/dev/null 2>&1 || true
+    fail "the upgrade (full log: $WORK/stage.log - removed when this script ends). The tree was put back as it was; if the log above does not say so, do not use $HOME_DIR: your data is in the safety copy $HOME_DIR.before-upgrade-*"
+  fi
+  grep -qx "solo-stage: UPGRADE COMPLETE in $HOME_DIR" <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
+    || fail "the stage log has no 'solo-stage: UPGRADE COMPLETE'"
+  upgrade_backup="$(cat "$HOME_DIR/.last-upgrade-backup" 2>/dev/null || true)"
+  rm -f "$HOME_DIR/.last-upgrade-backup"
+  { printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; \
+    printf 'upgraded-from %s\n' "${old_commit:-unknown}"; } > "$HOME_DIR/.sdcore-install"
+  chmod 600 "$HOME_DIR/.sdcore-install"
+else
 say "Installing into $HOME_DIR and running the bootstrap."
 st_args=()
-umask 077
 printf '%s\n' "$ACC_PW" > "$WORK/acc.pw"; st_args+=(--account-password-file "$WORK/acc.pw")
 printf '%s\n' "$ADM_PW" > "$WORK/adm.pw"; st_args+=(--admin-password-file "$WORK/adm.pw")
 if [ "$managed" -eq 1 ]; then printf '%s\n' "$GLB_PW" > "$WORK/glb.pw"; st_args+=(--global-password-file "$WORK/glb.pw"); fi
@@ -386,6 +449,7 @@ grep -qx 'SOLO PASSWORD SET ACCOUNT' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e '
 # what was installed
 { printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; } > "$HOME_DIR/.sdcore-install"
 chmod 600 "$HOME_DIR/.sdcore-install"
+fi
 
 # The stage leaves its own daemon running; the service takes over below.
 "$HOME_DIR/bin/sd" -stop >/dev/null 2>&1 || true
@@ -401,7 +465,22 @@ fi
 
 # ---------------------------------------------------------------- the service, ssh, firewall
 svc_state="not installed"
-if [ "$no_service" -eq 0 ]; then
+if [ "$upgrade" -eq 1 ]; then
+  # The units name the tree by absolute path and the tree has not moved, so they are
+  # kept; the daemon and the API socket are started again.
+  if [ "$had_service" -eq 1 ]; then
+    say
+    say "Starting the systemd user service again."
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+    systemctl --user start sd-solo.service || fail "systemctl --user start sd-solo.service"
+    if [ -f "$HOME/.config/systemd/user/sd-solo-api.socket" ]; then systemctl --user start sd-solo-api.socket || fail "systemctl --user start sd-solo-api.socket"; fi
+    [ "$(systemctl --user is-active sd-solo.service)" = "active" ] || fail "sd-solo.service is not active after the upgrade"
+    svc_state="sd-solo.service active"
+  else
+    say "There was no service; starting SD directly ($HOME_DIR/bin/sd -start)."
+    "$HOME_DIR/bin/sd" -start >/dev/null 2>&1 || true
+  fi
+elif [ "$no_service" -eq 0 ]; then
   say
   say "Installing the systemd user service."
   svc_args=(install "$HOME_DIR" --api "$api" --api-port "$api_port")
@@ -438,7 +517,12 @@ fi
 # ---------------------------------------------------------------- self-check (ruling 13 included)
 say
 say "Checking the install."
-chk="$(printf '%s\nWHO\nOFF\n' "$ACC_PW" | timeout 60 "$HOME_DIR/bin/sd" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+if [ "$upgrade" -eq 1 ]; then
+  # No password is known here; a one-shot command uses the copy SD keeps for it.
+  chk="$(echo "" | timeout 60 "$HOME_DIR/bin/sd" WHO 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+else
+  chk="$(printf '%s\nWHO\nOFF\n' "$ACC_PW" | timeout 60 "$HOME_DIR/bin/sd" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+fi
 printf '%s\n' "$chk" | grep -qE '^[0-9]+ sduser$' || { printf '%s\n' "$chk" | tail -5; fail "a session as sduser did not work"; }
 say "  a session as sduser works"
 rm -f "$HOME_DIR/\$internal"
@@ -451,7 +535,14 @@ ACC_PW=""; ADM_PW=""; GLB_PW=""
 
 # ---------------------------------------------------------------- summary
 say
-say "SD Core for Linux Solo is installed."
+if [ "$upgrade" -eq 1 ]; then
+  say "SD Core for Linux Solo is upgraded."
+  say "  from commit   : ${old_commit:-unknown}"
+  say "  to commit     : $COMMIT"
+  say "  safety copy   : ${upgrade_backup:-not recorded}   (the tree as it was; delete it when you are satisfied)"
+else
+  say "SD Core for Linux Solo is installed."
+fi
 say "  home          : $HOME_DIR      (mode: $mode_name)"
 say "  start a session: sd            (the account is sduser; it asks for the account password)"
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
@@ -460,4 +551,4 @@ say "  service       : ${svc_state:-not installed}"
 say "  uninstall     : bash $HOME_DIR/tools/deletesolo.sh"
 say "  the download in $CLONE_DIR is removed when this script ends"
 say
-say "SOLO INSTALL COMPLETE $HOME_DIR"
+if [ "$upgrade" -eq 1 ]; then say "SOLO UPGRADE COMPLETE $HOME_DIR"; else say "SOLO INSTALL COMPLETE $HOME_DIR"; fi

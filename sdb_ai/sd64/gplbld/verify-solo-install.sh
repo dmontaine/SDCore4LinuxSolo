@@ -82,7 +82,11 @@ refusal "R4 no password and no terminal"    "no terminal to ask on"          "$W
 refusal "R5 global password = account's"    "must differ from the account"   "$W/h5" --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw" --global-password-file "$W/same.pw"
 mkdir -p "$W/h6" && : > "$W/h6/.sdcoresolo"
 refusal "R6 already installed"              "already installed"              "$W/h6" --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw"
-absent=0; for d in h1 h2 h4 h5; do [ -e "$W/$d" ] && absent=1; done
+refusal "R8 --upgrade with nothing installed" "there is no SD Core for Linux Solo in .* to upgrade" "$W/h7" --upgrade
+refusal "R9 --upgrade of a tree the installer did not make" "has no .sdcore-install record" "$W/h6" --upgrade
+mkdir -p "$W/h8" && : > "$W/h8/.sdcoresolo" && echo "commit x" > "$W/h8/.sdcore-install"
+refusal "R10 --upgrade takes no password option" "keeps the mode, passwords, API and ssh settings" "$W/h8" --upgrade --account-password-file "$W/acc.pw"
+absent=0; for d in h1 h2 h4 h5 h7; do [ -e "$W/$d" ] && absent=1; done
 [ "$absent" -eq 0 ] && leg "R7 a refusal creates nothing" "h1, h2, h4 and h5 do not exist" 0 "none created" || leg "R7 a refusal creates nothing" "h1, h2, h4, h5 do not exist" 1 "one was created"
 
 if [ "$full" -eq 1 ]; then
@@ -119,6 +123,42 @@ if [ "$full" -eq 1 ]; then
       *) leg "F3 the installed tree passes verify-solo.sh" "0 failed" 1 "$v" ;;
     esac
   fi
+  # U1-U3 the installer's own in-place upgrade (LSOLO 13): the data, the password and the
+  # service survive, the stamp records where it came from, the safety copy is left.
+  echo "kept data" > "$H/user_accounts/sduser/keepme.txt"
+  kept_sum="$(cd "$H" && find user_accounts '$cred' -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-64)"
+  # the second refusal: without --upgrade an installed tree is still refused, and the refusal says how to upgrade
+  o="$(timeout 60 bash "$INSTALL" --home "$H" --skip-packages --yes --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw" </dev/null 2>&1 | strip)"
+  if printf '%s\n' "$o" | grep -q '^REFUSED: .*already installed' && printf '%s\n' "$o" | grep -q -- '--upgrade --home'; then
+    leg "U0 an installed tree is refused, with the way to upgrade it" "REFUSED ... already installed, naming --upgrade --home" 0 "refused"
+  else
+    leg "U0 an installed tree is refused, with the way to upgrade it" "REFUSED ... already installed, naming --upgrade" 1 "$(printf '%s\n' "$o" | tail -2 | tr '\n' ' ')"
+  fi
+  uout="$(timeout 900 bash "$INSTALL" --upgrade --home "$H" --skip-packages --yes 2>&1 | strip)"
+  if printf '%s\n' "$uout" | grep -qx "SOLO UPGRADE COMPLETE $H" \
+     && printf '%s\n' "$uout" | grep -qx '  a session as sduser works' && printf '%s\n' "$uout" | grep -qx '  sd -internal is closed'; then
+    leg "U1 --upgrade completes and self-checks" "'SOLO UPGRADE COMPLETE <home>', a session works, the internal door is closed" 0 "complete"
+  else
+    leg "U1 --upgrade completes and self-checks" "'SOLO UPGRADE COMPLETE <home>'" 1 "$(printf '%s\n' "$uout" | tail -6 | tr '\n' ' ')"
+  fi
+  ok=1; why=""
+  [ "$(sed -n 1p "$H/.sdcore-install")" = "commit $COMMIT" ] || { ok=0; why="$why stamp-commit;"; }
+  grep -q '^upgraded-from ' "$H/.sdcore-install" || { ok=0; why="$why no-upgraded-from;"; }
+  grep -qx 'mode standalone' "$H/.sdcore-install" || { ok=0; why="$why mode;"; }
+  [ "$(cd "$H" && find user_accounts '$cred' -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-64)" = "$kept_sum" ] || { ok=0; why="$why data-changed;"; }
+  [ "$(systemctl --user is-active sd-solo.service)" = "active" ] || { ok=0; why="$why service;"; }
+  ls -d "$H".before-upgrade-* >/dev/null 2>&1 || { ok=0; why="$why no-safety-copy;"; }
+  [ ! -e "$HOME/.sdsolotmp" ] && [ ! -e "$H/\$internal" ] && [ ! -e "$H/.last-upgrade-backup" ] || { ok=0; why="$why leftovers;"; }
+  [ "$ok" -eq 1 ] && leg "U2 what the upgrade promised" "stamp is HEAD with upgraded-from; account data and \$cred byte-identical; service active; safety copy left; no leftovers" 0 "all" \
+                  || leg "U2 what the upgrade promised" "stamp, data identical, service, safety copy, no leftovers" 1 "$why"
+  if [ -f "$here/verify-solo.sh" ]; then
+    v="$(timeout 900 bash "$here/verify-solo.sh" "$H" "$W/acc.pw" "$W/adm.pw" 2>&1 | strip | grep -E 'verify-solo:|\[FAIL\]' | cut -c1-240)"
+    case "$v" in
+      *", 0 failed,"*) leg "U3 the upgraded tree passes verify-solo.sh" "0 failed" 0 "$(printf '%s\n' "$v" | tail -1)" ;;
+      *) leg "U3 the upgraded tree passes verify-solo.sh" "0 failed" 1 "$v" ;;
+    esac
+  fi
+  rm -rf "$H".before-upgrade-*
   # F4 uninstall, keeping the data, from the tree's own copy of the script
   echo "kept data" > "$H/user_accounts/sduser/keepme.txt"
   dout="$(bash "$H/tools/deletesolo.sh" --keep-data --yes 2>&1 | strip)"

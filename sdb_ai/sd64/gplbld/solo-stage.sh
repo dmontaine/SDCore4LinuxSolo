@@ -59,8 +59,17 @@ pwfile=""
 adminfile=""
 globalfile=""
 denyverbs=""
-usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] HOME_DIR"
-while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ]; do
+# --upgrade (LSOLO 13): HOME_DIR is an EXISTING Solo tree; replace its programs and
+# system objects, keep the account, its data, the passwords, sd.conf, the audit
+# trail, GLOBAL.BP.OUT and the deny list, run the bootstrap over it, refresh the
+# account's VOC (UPDATE.ACCOUNTS ALL) and re-sync the global catalogue.  A full
+# copy of the tree is made first and put back if any step fails.  Takes no
+# password and no --deny-verbs: nothing about the credentials changes.
+upgrade=0
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] HOME_DIR
+       bash $0 --upgrade HOME_DIR"
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--upgrade" ]; do
+  if [ "$1" = "--upgrade" ]; then upgrade=1; shift; continue; fi
   [ "$#" -ge 3 ] || refuse "$usage"
   if [ "$1" = "--deny-verbs" ]; then
     case "$2" in
@@ -89,7 +98,12 @@ case "$H" in
   /*) ;;
   *) refuse "HOME_DIR must be an absolute path (got '$H')" ;;
 esac
-if [ -e "$H" ] && [ -n "$(ls -A "$H" 2>/dev/null)" ]; then
+if [ "$upgrade" -eq 1 ]; then
+  [ -z "$pwfile$adminfile$globalfile$denyverbs" ] || refuse "--upgrade takes no password file and no --deny-verbs: the credentials and the deny list are kept as they are"
+  [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not an SD Core for Linux Solo tree, nothing to upgrade"
+  [ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there - the tree is damaged; reinstall"
+  [ -d "$H/user_accounts/sduser" ] || refuse "$H/user_accounts/sduser is not there - the tree is damaged; reinstall"
+elif [ -e "$H" ] && [ -n "$(ls -A "$H" 2>/dev/null)" ]; then
   refuse "$H exists and is not empty; remove it yourself (this script never deletes)"
 fi
 for f in bin/sd bin/sdlnxd bin/sdtic sdsys gplbld/bbcmp.py gplbld/pcode_bld.py sd.conf; do
@@ -102,6 +116,44 @@ echo "  source tree : $sd64"
 echo "  HOME_DIR    : $H"
 echo "  running as  : $(id -un) (uid $(id -u))"
 
+UPGRADE_BACKUP=""
+upgrade_ok=0
+if [ "$upgrade" -eq 1 ]; then
+  # Stop the OLD daemon with the OLD binary, then take the safety copy.  The copy
+  # is of everything, data included: a step that fails halfway through the
+  # bootstrap can leave SDSYS's own files half-replaced, and only a whole copy
+  # puts that right.  It is kept after a good upgrade too (the installer says
+  # where); the user deletes it.
+  echo "stopping the running SD ($H/bin/sd -stop)"
+  "$H/bin/sd" -stop >/dev/null 2>&1 || true
+  sleep 1
+  if [ -e "$H/\$internal" ]; then rm -f "$H/\$internal"; fi
+  UPGRADE_BACKUP="$H.before-upgrade-$(date +%Y%m%d%H%M%S)"
+  [ ! -e "$UPGRADE_BACKUP" ] || refuse "$UPGRADE_BACKUP already exists"
+  echo "safety copy: $UPGRADE_BACKUP"
+  cp -a "$H" "$UPGRADE_BACKUP" || { rm -rf "$UPGRADE_BACKUP"; refuse "could not make the safety copy (disk full?); the tree is unchanged"; }
+  put_back() {
+    if [ "$upgrade_ok" -eq 0 ] && [ -n "$UPGRADE_BACKUP" ] && [ -d "$UPGRADE_BACKUP" ]; then
+      echo "UPGRADE FAILED - putting the tree back from $UPGRADE_BACKUP" >&2
+      "$H/bin/sd" -stop >/dev/null 2>&1 || true
+      rm -rf "$H" && mv "$UPGRADE_BACKUP" "$H" && echo "the tree is as it was before the upgrade" >&2
+    fi
+  }
+  trap put_back EXIT
+  # What is replaced is code and shipped system objects only.  Nothing below names
+  # user_accounts, \$cred, audit, errlog, global.bp.out, solo.policy, sd.conf,
+  # sd-tls or the account register's sduser file.
+  rm -rf "$H/bin" "$H/gplsrc" "$H/gplobj" "$H/terminfo" "$H/microcfg" "$H/gplbld/FILES_DICTS" "$H/tools"
+  # The bootstrap refuses a tree whose gpl.bp.out already holds LOGIN ("System
+  # Already Installed?", bbproc) and re-creates SDSYS's own VOC, so the objects and
+  # SDSYS's VOC - system files, rebuilt from the release's sources and templates -
+  # go too.  No account file is among them: an account has its own voc.
+  # Likewise the files bbproc's create.file makes (it stops on one that exists):
+  # SDSYS's VOC and the dictionaries and work files of the system account.
+  rm -rf "$H/gpl.bp.out" "$H/voc" "$H/voc.dic" "$H/accounts.dic" "$H/\$hold.dic" \
+         "$H/\$map" "$H/\$map.dic" "$H/\$ipc" "$H/dict.dic" "$H/dir_dict"
+fi
+
 mkdir -p "$H"
 cd "$sd64"
 
@@ -112,7 +164,7 @@ touch "$H/errlog"
 # The audit trail (K$AUDIT appends to it; it is not created on demand).  The
 # parent made it append-only with chattr +a, which needs root; Solo cannot, so
 # the user who owns the tree can edit it - say so in the docs.
-: > "$H/audit"
+[ "$upgrade" -eq 1 ] && [ -f "$H/audit" ] || : > "$H/audit"
 mkdir -p "$H/user_accounts" "$H/group_accounts" "$H/gplbld"
 # LSOLO 12 (rulings 33, 34, 36): the SD Core server's compiled programs (managed
 # mode; starts empty) and the deny-verbs list's directory.  Both belong to the
@@ -138,7 +190,7 @@ cp -R gplbld/microcfg "$H/microcfg"
 mkdir -p "$H/tools"
 cp gplbld/solo-service.sh gplbld/solo-ssh.sh "$H/tools/"
 [ -f ../../deletesolo.sh ] && cp ../../deletesolo.sh "$H/tools/deletesolo.sh"
-cp sd.conf "$H/sd.conf"
+[ "$upgrade" -eq 1 ] && [ -f "$H/sd.conf" ] || cp sd.conf "$H/sd.conf"   # an upgrade keeps the user's
 : > "$H/.sdcoresolo"
 
 # ---- program objects for the bootstrap, and the pcode file.
@@ -203,6 +255,19 @@ fi
 
 run_step "Compiling C and I type dictionaries" "$SD" -internal THIRD.COMPILE
 
+if [ "$upgrade" -eq 1 ]; then
+  # LSOLO 13.  The account, its data and every password are kept.  What the new
+  # release changes in the account's own files - its VOC, from the shipped
+  # vocabulary - is refreshed the way Windows Solo's upgrade does it.
+  echo
+  echo "Refreshing the account's VOC ($SD -internal UPDATE.ACCOUNTS ALL)"
+  ua_out="$(sdi UPDATE.ACCOUNTS ALL 2>&1)" || true
+  ua_plain="$(printf '%s\n' "$ua_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$ua_plain" | tail -4
+  printf '%s\n' "$ua_plain" | grep -qx '1 account(s) had their VOC updated from the shipped vocabulary.' \
+    || fail "UPDATE.ACCOUNTS ALL did not print '1 account(s) had their VOC updated ...'"
+  printf '%s\n' "$ua_plain" | grep -q 'requires administrator\|Cannot update every' && fail "UPDATE.ACCOUNTS ALL was refused"
+else
 echo
 echo "Creating the one account ($SD -internal RUN gpl.bp solo_account)"
 acct_out="$(sdi RUN gpl.bp solo_account 2>&1)" || true
@@ -254,6 +319,7 @@ if [ -n "$globalfile" ]; then
   [ -n "$s_acc" ] && [ "$s_acc" = "$s_glb" ] || fail "sduser and \$global do not share a salt ('$s_acc' / '$s_glb')"
   echo "  the account and global records share a salt"
 fi
+fi   # end of "not an upgrade"
 
 if [ -n "$denyverbs" ]; then
   echo
@@ -275,6 +341,15 @@ printf '%s\n' "$sg_plain" | tail -3
 printf '%s\n' "$sg_plain" | grep -qE '^SYNC GLOBAL CATALOG DONE [0-9]+ catalogued [0-9]+ removed 0 refused[[:space:]]*$' \
   || fail "SYNC.GLOBAL.CATALOG did not print its DONE line with 0 refused"
 
+upgrade_ok=1
+if [ "$upgrade" -eq 1 ]; then
+  echo
+  echo "solo-stage: UPGRADE COMPLETE in $H"
+  echo "  the safety copy of the tree as it was is $UPGRADE_BACKUP (delete it when you are satisfied)"
+  echo "$UPGRADE_BACKUP" > "$H/.last-upgrade-backup"
+  "$SD" -stop >/dev/null 2>&1 || true
+  exit 0
+fi
 echo
 echo "solo-stage: bootstrap passes 1-3, THIRD.COMPILE and the account completed in $H"
 echo "  SD is running from $H; stop it with: $SD -stop"
