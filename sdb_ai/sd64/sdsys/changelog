@@ -59,6 +59,22 @@ processor and the file system are the same.  What differs:
            changes the global password, and only a session signed in with it
            may do so.
 
+30 Sep 26  A MANAGED COMPUTER CAN BE SET UP WITHOUT AN ACCOUNT PASSWORD.
+
+           The installer can be given a control file that answers its
+           questions (a sample is in gplbld/sd-solo-setup.conf.sample), so one
+           USB stick can set up several computers.  The file holds the
+           administrator and global passwords in clear text and NEVER the
+           account password: whoever first starts SD at that computer's
+           keyboard is asked to choose it.  Until then only the global
+           password opens the account, and an ssh or API login, or a command
+           given on the sd command line, is never offered the choice.  Give
+           the installer --account-password-file as well if you would rather
+           set it at install time.
+
+           What it does not do: it is for managed installs only - a
+           standalone install always sets the account password itself.
+
 30 Sep 26  THE SD CORE SERVER OWNS THE GLOBAL CATALOGUE AND THE DENY LIST.
 
            In managed mode the global catalogue is the SD Core server's
