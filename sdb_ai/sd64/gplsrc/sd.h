@@ -19,6 +19,7 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 29 Sep 26 dm  load_language() is init_messages(): English only.
+ * 29 Sep 26 SD Core for Linux Solo - GetHomePath(), GetDefaultSysdir().
  * END-HISTORY
  * 
 */
@@ -178,6 +179,8 @@ OSFILE dio_open(char * fn, int mode);
 
 /* INIPATH.C */
 bool GetConfigPath(char * inipath);
+bool GetHomePath(char * buff, int buff_len);
+bool GetDefaultSysdir(char * buff, int buff_len);
 
 /* KERNEL.C */
 int16_t assign_user_no(int16_t user_table_index);

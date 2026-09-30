@@ -21,6 +21,7 @@
  * 02 Jul 24 mab define max string size.
  * 06 Aug 24 mab define sdext max arg
  * 15 Sep 26 dm - SD_CONFIG_ENV / SD_CONFIG_DEFAULT, one pair for both sides.
+ * 29 Sep 26 SD Core for Linux Solo - SD_CONFIG_DEFAULT removed; see inipath.c
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -122,15 +123,16 @@
  * (sdclilib.c) - so setting the variable you would expect configured exactly
  * one of them.  SCARLET_CONFIG is not read any more: it named a project this
  * is not part of, and the standing rule is to convert rather than tolerate.
- * The default stays /etc/sd.conf, which is right on Linux; the port's
- * %ProgramData% reasoning is Windows-only and does not come across.
+ * 29 Sep 26 SD Core for Linux Solo - SD_CONFIG_DEFAULT is gone.  With the
+ * variable unset the file is sd.conf in the installation's own folder,
+ * found at run time from the executable's path (inipath.c GetHomePath), so
+ * no machine path is compiled in.  Same as SD Core Solo for Windows.
  *
  * The client library is a separate toolchain and does not include this header,
  * so it carries its own copy of these two values.  If you change them here,
  * change gplsrc/sdclilib.c to match.
  */
 #define SD_CONFIG_ENV     "SD_CONFIG"
-#define SD_CONFIG_DEFAULT "/etc/sd.conf"
 
 #define MAX_ID_LEN 255          /* Increasing requires major file changes */
 #define MAX_CALL_NAME_LEN 63    /* Cannot exceed MAX_ID_LEN */

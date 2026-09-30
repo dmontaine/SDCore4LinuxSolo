@@ -19,6 +19,8 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 15 Sep 26 dm - read SD_CONFIG, not SCARLET_CONFIG, and bound the copy.
+ * 29 Sep 26 SD Core for Linux Solo (LSOLO 3) - SD_CONFIG_DEFAULT is gone; the
+ *           home is found from the executable's own path (GetHomePath).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -28,17 +30,84 @@
  * setting the one you would expect configured the server or the client but
  * never both.  SCARLET_CONFIG is not read any more.
  *
+ * SD CORE FOR LINUX SOLO: THE HOME IS WHERE THE PROGRAMS ARE.  Solo installs
+ * into one folder, ~/SDCoreSolo, with the programs in its bin, so the home is
+ * the folder above the directory holding the running executable.  sd.conf is
+ * <home>/sd.conf, SDSYS defaults to <home>/sdsys and the account folders sit
+ * beside it; nothing holds the user's path, so the tree works wherever it is
+ * put.  Mirrors SD Core Solo for Windows (its inipath.c).
+ *
+ * FROM THE EXECUTABLE'S OWN PATH (/proc/self/exe), NOT FROM THE WORKING
+ * DIRECTORY OR $HOME.  And the folder must carry the marker file
+ * .sdcoresolo, written by the installer: without it this refuses, because a
+ * guess at the home from an executable somewhere else is worse than an error
+ * - in particular a development run from sdb_ai/sd64/bin would otherwise
+ * take the SOURCE TREE for an installation.  A development run sets
+ * SD_CONFIG.
+ *
  * END-DESCRIPTION
  *
  * START-CODE
  */
 
 #include "sd.h"
+#include <unistd.h>
+
+/* ======================================================================
+   GetHomePath()  -  The installation's own folder, with no trailing
+                     slash.  FALSE if it cannot be had; callers must fail
+                     rather than guess.                                     */
+
+bool GetHomePath(char* buff, int buff_len) {
+  char exe[MAX_PATHNAME_LEN + 1];
+  char marker[MAX_PATHNAME_LEN + 16];
+  char* p;
+  ssize_t n;
+
+  if ((buff == NULL) || (buff_len < 2))
+    return FALSE;
+
+  n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+  if ((n <= 0) || (n >= (ssize_t)sizeof(exe) - 1))
+    return FALSE;
+  exe[n] = '\0';
+
+  /* <home>/bin/sd  ->  <home>.  Strip the name, then insist on bin.        */
+
+  if (((p = strrchr(exe, '/')) == NULL) || (p == exe))
+    return FALSE;
+  *p = '\0';
+  if (((p = strrchr(exe, '/')) == NULL) || (p == exe) ||
+      (strcmp(p + 1, "bin") != 0))
+    return FALSE;
+  *p = '\0';
+
+  if (snprintf(marker, sizeof(marker), "%s/.sdcoresolo", exe) >=
+      (int)sizeof(marker))
+    return FALSE;
+  if (access(marker, F_OK) != 0)
+    return FALSE;
+
+  return (snprintf(buff, (size_t)buff_len, "%s", exe) < buff_len);
+}
+
+/* ======================================================================
+   GetDefaultSysdir()  -  <home>/sdsys, used when sd.conf names no SDSYS    */
+
+bool GetDefaultSysdir(char* buff, int buff_len) {
+  char home[MAX_PATHNAME_LEN + 1];
+
+  if (!GetHomePath(home, sizeof(home)))
+    return FALSE;
+
+  return (snprintf(buff, (size_t)buff_len, "%s/sdsys", home) < buff_len);
+}
 
 /* ====================================================================== */
 
-bool GetConfigPath(char *inipath) { 
+bool GetConfigPath(char *inipath) {
 
+  char home[MAX_PATHNAME_LEN + 1];
   char* p;
 
   /* Callers pass a buffer of MAX_PATHNAME_LEN + 1.  Nothing here may write
@@ -48,11 +117,16 @@ bool GetConfigPath(char *inipath) {
   p = getenv(SD_CONFIG_ENV);
   if ((p != NULL) && (*p != '\0')) {
     snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s", p);
-  } else {
-    snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s", SD_CONFIG_DEFAULT);
+    return TRUE;
   }
 
-  return TRUE;
+  if (!GetHomePath(home, sizeof(home))) {
+    fprintf(stderr, "Cannot determine the SD Core for Linux Solo folder.\n");
+    return FALSE;
+  }
+
+  return (snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s/sd.conf", home) <
+          MAX_PATHNAME_LEN + 1);
 }
 
 /* END-CODE */

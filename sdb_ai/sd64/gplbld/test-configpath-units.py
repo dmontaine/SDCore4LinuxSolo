@@ -57,7 +57,7 @@ OLD_NAME = "SCARLET_CONFIG"
 # so a file that disappears is a failure, not a smaller sweep.
 SWEPT = ["inipath.c", "sdclilib.c", "sdfix.c", "sd.c", "sdtic.c", "config.c"]
 
-EXPECTED_CHECKS = 2 + 3 + 2 + 1 + len(SWEPT)
+EXPECTED_CHECKS = 2 + 4 + 2 + 1 + len(SWEPT)
 
 checks = 0
 fails = 0
@@ -118,7 +118,17 @@ def run_checks(src):
     env = c_define_string(sddefs, "SD_CONFIG_ENV")
     dflt = c_define_string(sddefs, "SD_CONFIG_DEFAULT")
     expect("gplsrc/sddefs.h", "SD_CONFIG_ENV", env, WANT_ENV)
-    expect("gplsrc/sddefs.h", "SD_CONFIG_DEFAULT", dflt, WANT_DEFAULT)
+    # LSOLO 3: the server compiles in NO machine path.  The client library
+    # keeps its own /etc/sd.conf default (ruling 18: client libraries unchanged).
+    expect("gplsrc/sddefs.h", "SD_CONFIG_DEFAULT is not defined",
+           "absent" if dflt is None else "present", "absent")
+
+    # The server's default is the installation's own folder, from the
+    # executable's path - never the working directory or $HOME.
+    home = ("/proc/self/exe" in inipath and "GetHomePath(home" in inipath
+            and "getenv(\"HOME\")" not in inipath)
+    expect("gplsrc/inipath.c", "the home comes from /proc/self/exe",
+           "yes" if home else None, "yes")
 
     # The server asks for the variable BY SYMBOL, so sddefs.h is the only
     # place the name is written on the server side.
@@ -174,8 +184,11 @@ def reset():
 MUTANTS = [
     ("the variable is renamed", "gplsrc/sddefs.h",
      '#define SD_CONFIG_ENV     "SD_CONFIG"', '#define SD_CONFIG_ENV     "SDCONFIG"'),
-    ("the default moves", "gplsrc/sddefs.h",
-     '#define SD_CONFIG_DEFAULT "/etc/sd.conf"', '#define SD_CONFIG_DEFAULT "/etc/sd2.conf"'),
+    ("a compiled default comes back", "gplsrc/sddefs.h",
+     '#define SD_CONFIG_ENV     "SD_CONFIG"',
+     '#define SD_CONFIG_ENV     "SD_CONFIG"\n#define SD_CONFIG_DEFAULT "/etc/sd.conf"'),
+    ("the home comes from $HOME", "gplsrc/inipath.c",
+     "readlink(\"/proc/self/exe\"", "getenv(\"HOME\"), (\"/proc/self/exe\""),
     ("the server asks for a literal", "gplsrc/inipath.c",
      "getenv(SD_CONFIG_ENV)", 'getenv("SD_CONFIG")'),
     ("the copy goes back to strcpy", "gplsrc/inipath.c",

@@ -20,6 +20,8 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
+ * 29 Sep 26 SD Core for Linux Solo - USRDIR, GRPDIR and SDSYS default to
+ *               folders in the installation's own folder (inipath.c).
  * 15 Sep 26 dm  S.24: the TMP fallback is bounded; it came from the environment
  *               and was strcpy'd into a MAX_PATHNAME_LEN+1 field.
  * START-DESCRIPTION:
@@ -85,6 +87,8 @@ struct CONFIG* read_config(char* errmsg) {
   int n2;
   int n3;
   struct stat statbuf;
+  char home[MAX_PATHNAME_LEN + 1];
+  bool home_ok;
 
   cfg = (struct CONFIG*)k_alloc(1, sizeof(struct CONFIG));
   if (cfg == NULL) {
@@ -106,7 +110,16 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.fsync = 0;                 /* FSYNC:    Controls when to do fsync() */
   pcfg.gdi = 0;                   /* GDI:      Default GDI spool API? */
  /* 20240219 mab create-account based on type (user / group / other) */   
-  strncpy(pcfg.grpdir,"/home/sd/group_accounts",MAX_PATHNAME_LEN+1);  /* GRPDIR: group accounts parent dir */
+ /* 29 Sep 26 SD Core for Linux Solo (LSOLO 3) - accounts live in the
+    installation's own folder, found at run time (inipath.c GetHomePath), so
+    sd.conf holds no path.  With no home (a development run with SD_CONFIG)
+    these defaults are left EMPTY rather than guessed; sd.conf must then set
+    them.  A default that would not fit is left empty too, never truncated. */
+  home_ok = GetHomePath(home, sizeof(home));
+  if (!home_ok ||
+      (snprintf(pcfg.grpdir, MAX_PATHNAME_LEN + 1, "%s/group_accounts", home)  /* GRPDIR: group accounts parent dir */
+       >= MAX_PATHNAME_LEN + 1))
+    pcfg.grpdir[0] = '\0';
   pcfg.grpsize = 1;               /* GRPSIZE:  Default group size */
   pcfg.intprec = 13;              /* INTPREC:  Precision for INT() etc */
   pcfg.lptrhigh = 66;             /* LPTRHIGH: Default printer lines */
@@ -129,7 +142,10 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.terminfodir[0] = '\0'; /* TERMINFO: Use default location */
   pcfg.txchar = TRUE;         /* TXCHAR:   Enable ansi/oem translation */
 /* 20240219 mab create-account based on type (user / group / other) */   
-  strncpy(pcfg.usrdir,"/home/sd/user_accounts",MAX_PATHNAME_LEN+1);  /* USRDIR: user accounts parent dir */
+  if (!home_ok ||
+      (snprintf(pcfg.usrdir, MAX_PATHNAME_LEN + 1, "%s/user_accounts", home)  /* USRDIR: user accounts parent dir */
+       >= MAX_PATHNAME_LEN + 1))
+    pcfg.usrdir[0] = '\0';
   pcfg.yearbase = 1930;       /* YEARBASE: Two digit year base */
 
   /* Set any non-zero defaults for shared configuration parameters */
@@ -140,6 +156,14 @@ struct CONFIG* read_config(char* errmsg) {
   cfg->maxidlen = 63;
   cfg->fds_limit = SHRT_MAX;
   cfg->max_users = 1;
+
+  /* 29 Sep 26 SD Core for Linux Solo - SDSYS defaults to <home>/sdsys, so
+     sd.conf need not name it.  An SDSYS line still overrides; -f (CMD_FLASH)
+     has already set it from the command line and is left alone.            */
+  if (home_ok && !(command_options & CMD_FLASH) &&
+      (snprintf(cfg->sysdir, sizeof(cfg->sysdir), "%s/sdsys", home)
+       >= (int)sizeof(cfg->sysdir)))
+    cfg->sysdir[0] = '\0';
 
   fu = fopen(config_path, "r");
   if (fu == NULL) {
