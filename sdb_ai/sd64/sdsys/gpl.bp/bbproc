@@ -135,10 +135,12 @@ end
 
 * Main processing loop
 
-if system(27) # 0 then
-  crt 'Command requires administrator privileges'
-  goto abort.bbproc
-end
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE "MUST BE ROOT" TEST IS GONE.
+* It read system(27) (the real uid) and refused unless it was 0, because the
+* multi-user install ran the bootstrap under sudo.  Solo never runs as root
+* (sd refuses uid 0) and its bootstrap runs as the installing user in their own
+* tree, so the test could only ever refuse.  What guards a bootstrap in an
+* installed system is the check just below, and ruling 13 (LSOLO 9).
 
 if ospath(@sdsys:@ds:'gpl.bp.out/login',OS$EXISTS) then
    crt 'System Already Installed?'

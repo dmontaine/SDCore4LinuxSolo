@@ -20,9 +20,8 @@ CRT
 *INPUT OK
 *IF UPCASE(OK) # 'Y' THEN STOP 'Process Aborted'
 
-IF SYSTEM(27) # 0 THEN
-      stop 'Command requires administrator privileges'
-END
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - the SYSTEM(27) # 0 "must be
+* root" test is gone; Solo never runs as root.  See BBPROC.
 
 OPENPATH DATA_PATH TO DP.FILEVAR ELSE
    CRT 'ERROR OPENING FILE: ':DATA_PATH

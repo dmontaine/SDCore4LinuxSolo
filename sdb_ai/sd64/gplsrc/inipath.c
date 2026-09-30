@@ -33,8 +33,9 @@
  * SD CORE FOR LINUX SOLO: THE HOME IS WHERE THE PROGRAMS ARE.  Solo installs
  * into one folder, ~/SDCoreSolo, with the programs in its bin, so the home is
  * the folder above the directory holding the running executable.  sd.conf is
- * <home>/sd.conf, SDSYS defaults to <home>/sdsys and the account folders sit
- * beside it; nothing holds the user's path, so the tree works wherever it is
+ * <home>/sd.conf, SDSYS defaults to <home> itself (the Linux code finds
+ * <sysdir>/bin/pcode) and the account folders sit in it; nothing holds the
+ * user's path, so the tree works wherever it is
  * put.  Mirrors SD Core Solo for Windows (its inipath.c).
  *
  * FROM THE EXECUTABLE'S OWN PATH (/proc/self/exe), NOT FROM THE WORKING
@@ -92,7 +93,9 @@ bool GetHomePath(char* buff, int buff_len) {
 }
 
 /* ======================================================================
-   GetDefaultSysdir()  -  <home>/sdsys, used when sd.conf names no SDSYS    */
+   GetDefaultSysdir()  -  <home> itself, used when sd.conf names no SDSYS.
+   The Linux code finds <sysdir>/bin/sd and <sysdir>/bin/pcode, so unlike
+   Solo for Windows the SDSYS directory is the home, not a folder in it.    */
 
 bool GetDefaultSysdir(char* buff, int buff_len) {
   char home[MAX_PATHNAME_LEN + 1];
@@ -100,7 +103,7 @@ bool GetDefaultSysdir(char* buff, int buff_len) {
   if (!GetHomePath(home, sizeof(home)))
     return FALSE;
 
-  return (snprintf(buff, (size_t)buff_len, "%s/sdsys", home) < buff_len);
+  return (snprintf(buff, (size_t)buff_len, "%s", home) < buff_len);
 }
 
 /* ====================================================================== */

@@ -171,11 +171,14 @@ bool init_kernel() {
     /* Phantom processes have the user name entered by the parent when the
       user table entry is reserved.  For other users, initialise this now. */
 
+    /* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE SESSION'S USER NAME IS
+       ALWAYS THE ONE ACCOUNT, sduser, not the Linux user's name.  This is what
+       LOGIN lands as the account and what WHO, @LOGNAME and the audit report.
+       The process is not touched: it still runs as the Linux user, and ssh
+       still authenticates that user.  An API session is renamed again by
+       APISRVR (K$SET.USERNAME) to the name its client proved, sduser too.  */
     if (!is_phantom) {
-      m = MAX_USERNAME_LEN + 1;
-      if (!GetUserName((char*)(my_uptr->username), &m)) {
-        my_uptr->username[0] = '\0';
-      }
+      strcpy((char*)(my_uptr->username), SOLO_ACCOUNT_NAME);
       p = ttyname(fileno(stdin));
       if (p != NULL) {
         strncpy((char*)(my_uptr->ttyname), p, MAX_TTYNAME_LEN);

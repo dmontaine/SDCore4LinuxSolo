@@ -526,17 +526,12 @@ check.global:
 * assumes:
 * set.owner.path - file path
 
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - NOTHING TO CHANGE OWNER TO.  It
+*   made the new catalogue entry sdsys:sdusers; Solo has neither the user nor
+*   the group (it failed with "Unable change ownership", err 1000, on every
+*   entry) and the files belong to the one Linux user who runs SD.  Kept as a
+*   label so its callers still read as before.
 set.owner:
-   uid='sdsys'
-   gid='sdusers'
-   chown_parm = uid:@VM:gid:@VM:set.owner.path
-   * print 'set.owner: ':chown_parm
-   result = ospath(chown_parm,OS$CHOWN)
-   if result <= 0 then
-     st = set.owner.path:' err: ':status()
-     display sysmsg(10000,st) ;* Unable change ownership of directory error %1 
-   end
-
 return
    
 end

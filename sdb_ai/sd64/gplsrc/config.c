@@ -157,11 +157,15 @@ struct CONFIG* read_config(char* errmsg) {
   cfg->fds_limit = SHRT_MAX;
   cfg->max_users = 1;
 
-  /* 29 Sep 26 SD Core for Linux Solo - SDSYS defaults to <home>/sdsys, so
-     sd.conf need not name it.  An SDSYS line still overrides; -f (CMD_FLASH)
-     has already set it from the command line and is left alone.            */
+  /* 29 Sep 26 SD Core for Linux Solo - SDSYS IS THE HOME ITSELF, so sd.conf
+     need not name it.  Unlike SD Core Solo for Windows (<home>\sdsys beside
+     usr\bin) the Linux code finds its programs and the pcode file at
+     <sysdir>/bin (sysseg.c, op_kernel.c, gplbld/pcode_bld.py), so the home -
+     the folder above bin - is the SDSYS directory.  user_accounts sits beside
+     bin in it.  An SDSYS line still overrides; -f (CMD_FLASH) has already set
+     it from the command line and is left alone.                            */
   if (home_ok && !(command_options & CMD_FLASH) &&
-      (snprintf(cfg->sysdir, sizeof(cfg->sysdir), "%s/sdsys", home)
+      (snprintf(cfg->sysdir, sizeof(cfg->sysdir), "%s", home)
        >= (int)sizeof(cfg->sysdir)))
     cfg->sysdir[0] = '\0';
 

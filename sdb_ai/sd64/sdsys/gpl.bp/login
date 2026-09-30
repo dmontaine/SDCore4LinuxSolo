@@ -310,12 +310,12 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
   end else
      * This user has come in from a command prompt.
      lgn.id = @logname
-     * 20240219 mab user must be member of sdusers     
-     if  not(is_grp_member(lgn.id,'sdusers')) then
-        display sysmsg(5009) ;* This user is not registered for SD use
-        audit.reason = 'not a member of sdusers'
-        goto terminate.connection
-     end
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE sdusers GATE IS GONE.  There
+*   are no SD groups: the one user's tree is in their own home and the file
+*   permissions on it are the gate.  @logname is always sduser (kernel.c).  A
+*   session with no register record still stops below, at the register read,
+*   and every session that is not internal proves the account password (still
+*   to be built - LSOLO 6).
   end
 
 * 13 Sep 26 dm - CASE INVERSION IS NO LONGER TURNED ON HERE.  This line set it,
@@ -347,11 +347,13 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
             goto terminate.connection
          end
 
-* rev 0.9.0 *  user must be a member of ACCOUNT's linux group to access ACCOUNT
-*
-         if  not(is_grp_member(lgn.id,acc.rec<ACC$GROUP>)) then  
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE ACCOUNT-GROUP TEST IS GONE
+*   (there are no groups).  What replaces it: with no group to consult, "sd
+*   -Aname" may name only the one account, or SDSYS on the internal door
+*   (checked above).  Anything else is refused as not allowed.
+         if initial.account # 'sduser' and initial.account # 'sdsys' then
             display sysmsg(10003) ;* User not allowed in requested account
-            audit.reason = 'not a member of the account group'
+            audit.reason = 'not the one account'
             goto terminate.connection
          end
 
@@ -582,13 +584,13 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   interactive session has a human present to use judgement, a bare command
 *   line does not, so it gets a pre-vetted list instead, regardless of whose
 *   Linux identity is running it.
-   if mode = 0 and not(is.phantom) and not(kernel(K$INTERNAL,-1)) then
-      batch.command = trim(system(1026))
-      if batch.command # '' and not(kernel(K$ADMINISTRATOR,-1)) then
-         gosub batch.permitted
-         if not(batch.ok) then goto terminate.connection
-      end
-   end
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE BATCH GATE IS GONE, as in SD
+*   Core Solo for Windows (SOLO 4).  It limited what an unattended "sd <cmd>"
+*   could run to a list in SDSYS batch.jobs, because the multi-user product runs
+*   other people's commands.  In Solo "sd <command>" is the one user running
+*   their own command, and the administrator verbs are gated by ADMIN where they
+*   run (LSOLO 6), not here.  The batch.permitted subroutine that followed this
+*   is deleted with it.
 
 * 11 Sep 26 dm - THE SUCCESS RECORD, mode 0 only: the update modes reach here
 *   too and are not sign-ons.
@@ -602,102 +604,6 @@ terminate.connection:
    sleep 2
 abort.login:
    return to abort.login
-
-*
-* ======================================================================
-* BATCH.PERMITTED - may this account run this command from the command line?
-*
-* PARITY WITH THE WINDOWS PORT, 20 Sep 2026.  Sets batch.ok, and on a
-* refusal sets audit.reason and displays which of the four refusals it was.
-* NEVER SETS batch.ok TRUE BY FALLING THROUGH: every path that does not
-* reach the last line leaves it false, which is the direction a permission
-* list has to fail.
-*
-* THE LIST IS @SDSYS/batch.jobs, A DIRECTORY FILE, ONE RECORD PER ACCOUNT -
-* the same shape as `accounts` and $cred, not a VOC entry: a VOC record
-* grants its own account Modify by default and cannot carry an ACL of its
-* own, so an ordinary account could add its own name to a VOC-based list.
-* The installer makes it sdsys:sdusers 640 - sdusers may READ it (every
-* login checks its own account's entry from its own, unprivileged process)
-* but never WRITE it; the administrator, who owns the file, maintains it
-* directly - there is no verb to edit it with, matching the port, which has
-* not built one either.
-*
-* KEYED BY initial.account, DOWNCASED - the same identity the group-
-* membership test above already proved, so this cannot consult one
-* account's list while running as another.
-*
-* BOTH FIELD-MARK AND VALUE-MARK LISTS ARE READ, deliberately (the port's
-* reasoning, carried over): an administrator editing with a plain editor as
-* naturally puts one command per LINE (a field mark) as per VALUE, and
-* folding both into one list lets them agree instead of one silently
-* granting nothing.
-
-batch.permitted:
-   batch.ok = @false
-
-*  ONE TOKEN, NO ARGUMENTS - THE LINE DOING THE SECURITY WORK.  "Must be in
-*  the VOC" is worth nothing alone, since every verb is a VOC item; it is
-*  the absence of arguments that stops a listed name being turned into
-*  something else.
-   if index(batch.command, ' ', 1) then
-      display sysmsg(11001) ;* A command run this way takes no arguments
-      audit.reason = 'command line carried arguments'
-      return
-   end
-
-   openpath @sdsys:@ds:'batch.jobs' to batch.f else
-      display sysmsg(11000, batch.command, initial.account)
-      audit.reason = 'batch.jobs could not be opened'
-      return
-   end
-
-   read batch.rec from batch.f, downcase(initial.account) else batch.rec = ''
-   close batch.f
-
-   batch.listed = @false
-   batch.list = change(batch.rec, @fm, @vm)
-   batch.n = dcount(batch.list, @vm)
-   for batch.i = 1 to batch.n
-      if downcase(trim(batch.list<1, batch.i>)) = downcase(batch.command) then
-         batch.listed = @true
-      end
-   next batch.i
-
-   if not(batch.listed) then
-      display sysmsg(11000, batch.command, initial.account)
-      audit.reason = 'command is not on the account list'
-      return
-   end
-
-*  PA AND S ONLY.  A mislisted name should fail when it is set up, not at
-*  3am; this cannot fully deliver that without a verb to edit the list
-*  with, but it refuses with a message naming the type problem rather than
-*  a bare "not permitted".  THE THREE-CASE FOLD is CPROC's own VOC-read
-*  order: as typed, then lower, then upper.
-   read batch.voc.rec from voc, batch.command else
-      read batch.voc.rec from voc, downcase(batch.command) else
-         read batch.voc.rec from voc, upcase(batch.command) else
-            display sysmsg(11002, batch.command)
-            audit.reason = 'no VOC record for the command'
-            return
-         end
-      end
-   end
-
-*  THE TYPE IS THE LEADING CHARACTERS OF FIELD 1, and the rest may be
-*  prose - "File for BASIC programs" is how CREATEA writes a file pointer,
-*  so testing for exact equality with 'PA' would reject a perfectly good
-*  paragraph.
-   batch.type = upcase(trim(batch.voc.rec<1>))
-   if batch.type[1,2] # 'PA' and batch.type[1,1] # 'S' then
-      display sysmsg(11002, batch.command)
-      audit.reason = 'VOC type is not PA or S'
-      return
-   end
-
-   batch.ok = @true
-   return
 
 *
 * ======================================================================

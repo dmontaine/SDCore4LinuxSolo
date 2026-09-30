@@ -11,8 +11,13 @@ import array
 import logging
 logger = logging.getLogger(__name__)
 
-# hardcoded path to sdsys, bad practice but it is what it is for now
-SDSYS = '/usr/local/sdsys'
+# 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - the SDSYS directory is the
+# ONE argument.  It was hardcoded to /usr/local/sdsys, a path Solo never has.
+# No default: a build that guessed would write bin/pcode into the wrong tree.
+import sys
+if len(sys.argv) != 2 or not os.path.isdir(sys.argv[1]):
+    sys.exit("usage: python3 pcode_bld.py <SDSYS directory>")
+SDSYS = os.path.abspath(sys.argv[1])
 
 DEBUG_DIFF = False
 

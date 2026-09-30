@@ -405,7 +405,18 @@ restart.cproc:
 *   still building the machine there is no register and no finished CPROC, and
 *   the seeding steps run as root.  That arm compiles only into the install
 *   build of CPROC.
-      if system(27) = 0 then           ;* entered as root?
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE COMMENTS ABOVE DESCRIBE THE
+*   MULTI-USER PRODUCT (root, an sdsys OS user, sudo) AND NO LONGER APPLY.  Solo
+*   never runs as root (sd refuses uid 0) and has no sdsys OS user.  The only
+*   session that is an administrator at entry is the INTERNAL one: "sd -i" and
+*   "sd -internal", the installer's door (ruling 13 - LSOLO 9 makes it available
+*   only while installing).  Every other session starts without the flag and
+*   gets it only from ADMIN and a password (LSOLO 6, still to be built).
+*   IS_INSTALL is now defined permanently (define_install.h), so the
+*   $ifndef IS_INSTALL blocks in this program - the euid dance around
+*   privileged commands and the sdsys checks - are compiled out, not deleted,
+*   until a cleanup pass.
+      if kernel(K$INTERNAL, -1) then   ;* the installer's door
 $ifndef IS_INSTALL
          refuse.msg = sysmsg(10190)   ;* several lines: one DISPLAY each
          loop

@@ -134,6 +134,16 @@
  */
 #define SD_CONFIG_ENV     "SD_CONFIG"
 
+/* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE ONE ACCOUNT, and every
+ * session's user name (kernel.c init_kernel), whatever the Linux user is
+ * called.  Owner's ruling 29 for Solo for Windows: "the name of the single
+ * account is always sduser, not the name of the [operating system] account".
+ * The BASIC side spells it in gpl.bp/solo_account; the installer and the
+ * verify script use the same literal.  It is NOT an operating system user:
+ * the process keeps running as the Linux user who owns the tree, and ssh
+ * still authenticates that user.                                           */
+#define SOLO_ACCOUNT_NAME "sduser"
+
 #define MAX_ID_LEN 255          /* Increasing requires major file changes */
 #define MAX_CALL_NAME_LEN 63    /* Cannot exceed MAX_ID_LEN */
 #define MAX_TRIGGER_NAME_LEN 32 /* Increasing would alter file header */
