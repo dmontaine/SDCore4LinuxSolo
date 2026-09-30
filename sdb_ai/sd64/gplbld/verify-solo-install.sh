@@ -113,9 +113,9 @@ if [ "$full" -eq 1 ]; then
   [ "$ok" -eq 1 ] && leg "F2 what the installer promised" "self-checks ran; stamp is HEAD; clone and marker gone; modes 700; service active; link" 0 "all" || leg "F2 what the installer promised" "self-checks; stamp; clone/marker gone; modes; service; link" 1 "$why"
   # F3 the installed tree passes its own witness
   if [ -f "$here/verify-solo.sh" ]; then
-    v="$(timeout 900 bash "$here/verify-solo.sh" "$H" "$W/acc.pw" "$W/adm.pw" 2>&1 | strip | grep -E 'verify-solo:')"
+    v="$(timeout 900 bash "$here/verify-solo.sh" "$H" "$W/acc.pw" "$W/adm.pw" 2>&1 | strip | grep -E 'verify-solo:|\[FAIL\]' | cut -c1-240)"
     case "$v" in
-      *", 0 failed,"*) leg "F3 the installed tree passes verify-solo.sh" "0 failed" 0 "$v" ;;
+      *", 0 failed,"*) leg "F3 the installed tree passes verify-solo.sh" "0 failed" 0 "$(printf '%s\n' "$v" | tail -1)" ;;
       *) leg "F3 the installed tree passes verify-solo.sh" "0 failed" 1 "$v" ;;
     esac
   fi
