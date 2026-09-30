@@ -18,10 +18,11 @@
 *
 *
 * START-HISTORY:
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 12) - the second half: SDSYS's gcat,
+*           global.bp.out and solo.policy need a global-password session
+*           (ruling 33, K$GLOBAL.SESSION; message 11028).
 * 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - the VOC half of SD Core Solo for
-*           Windows' gpl.bp/voc_guard (SOLO 5).  Its second half, the global
-*           catalogue and the deny list that need a global-password session
-*           (ruling 33, K$GLOBAL.SESSION), is LSOLO 12 and is not here.
+*           Windows' gpl.bp/voc_guard (SOLO 5).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -58,6 +59,26 @@ $include int$keys.h
    p = downcase(fileinfo(f, FL$PATH))
    if p[len(p), 1] = '/' then p = p[1, len(p) - 1]
    last = field(p, '/', dcount(p, '/'))
+
+*  30 Sep 26 LSOLO 12 - RULING 33 (Windows Solo): SDSYS's gcat, global.bp.out and
+*  solo.policy (ruling 34's deny list) are the SD Core server's, changed only
+*  by a session signed in with the global password - ADMIN is NOT enough, so
+*  this comes before the ADMIN test.  The C gate (op_dio3.c
+*  global_write_refused) lets $internal verbs through, and COPY, ED, DELETE and
+*  the rest are $internal.  On Linux the SDSYS directory IS the install's home
+*  directory (no "sdsys" component), so the test is the full path: @SDSYS plus
+*  the name.  A symbolic link to one of them is NOT recognised here - the
+*  tree belongs to the Linux user, so this governs what SD will do, not what
+*  that user can do to the files from outside SD (op_dio3.c says the same).
+   if fileinfo(f, FL$TYPE) = FL$TYPE.DIR then
+      sd.dir = downcase(@sdsys)
+      if sd.dir[len(sd.dir), 1] = '/' then sd.dir = sd.dir[1, len(sd.dir) - 1]
+      if p = sd.dir : '/gcat' or p = sd.dir : '/global.bp.out' or p = sd.dir : '/solo.policy' then
+         if kernel(K$GLOBAL.SESSION, -1) then return @true
+         display sysmsg(11028) ;* The global catalogue can only be changed by the SD Core server
+         return @false
+      end
+   end
 
    if kernel(K$ADMINISTRATOR, -1) then return @true
 

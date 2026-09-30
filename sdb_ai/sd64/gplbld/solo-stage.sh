@@ -52,12 +52,24 @@ umask 077
 # --global-password-file FILE: the global password - its presence IS managed mode
 # (ruling 15).  Set AFTER the account password so the two records share a salt
 # (!CRED_SET's partner rule, ruling 19); it must differ from the account password.
+# --deny-verbs LIST: the verbs denied to the local user (ruling 34), a comma
+# separated list; set with DENY.VERBS SET, which normalises each name and drops
+# ADMIN, OFF, QUIT and LO.  Not a secret; only verb-name characters and commas.
 pwfile=""
 adminfile=""
 globalfile=""
-usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] HOME_DIR"
-while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ]; do
+denyverbs=""
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] HOME_DIR"
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ]; do
   [ "$#" -ge 3 ] || refuse "$usage"
+  if [ "$1" = "--deny-verbs" ]; then
+    case "$2" in
+      *[!A-Za-z0-9.\$_,\ -]*) refuse "--deny-verbs holds a character that cannot be in a verb name" ;;
+    esac
+    denyverbs="$(printf '%s' "$2" | tr -d ' ')"
+    shift 2
+    continue
+  fi
   f="$2"
   [ -r "$f" ] || refuse "cannot read the password file $f"
   [ -s "$f" ] || refuse "the password file $f is empty"
@@ -102,6 +114,10 @@ touch "$H/errlog"
 # the user who owns the tree can edit it - say so in the docs.
 : > "$H/audit"
 mkdir -p "$H/user_accounts" "$H/group_accounts" "$H/gplbld"
+# LSOLO 12 (rulings 33, 34, 36): the SD Core server's compiled programs (managed
+# mode; starts empty) and the deny-verbs list's directory.  Both belong to the
+# server: SD refuses a user program's write to either (op_dio3.c).
+mkdir -p "$H/global.bp.out" "$H/solo.policy"
 mkdir -p "$H/\$cred"           # the credential register: SCRAM verifiers, $STORED
 chmod 700 "$H/\$cred"
 echo "  credential register: $(stat -c '%U %a' "$H/\$cred")"
@@ -238,6 +254,26 @@ if [ -n "$globalfile" ]; then
   [ -n "$s_acc" ] && [ "$s_acc" = "$s_glb" ] || fail "sduser and \$global do not share a salt ('$s_acc' / '$s_glb')"
   echo "  the account and global records share a salt"
 fi
+
+if [ -n "$denyverbs" ]; then
+  echo
+  echo "Setting the denied verbs ($SD -internal DENY.VERBS SET $denyverbs)"
+  dv_out="$(sdi DENY.VERBS SET "$denyverbs" 2>&1)" || true
+  dv_plain="$(printf '%s\n' "$dv_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$dv_plain" | tail -4
+  printf '%s\n' "$dv_plain" | grep -q 'is not a verb name\|DENY.VERBS: cannot open\|can only be listed' && fail "DENY.VERBS refused: $(printf '%s\n' "$dv_plain" | tail -2)"
+  printf '%s\n' "$dv_plain" | grep -qE '^DENY\.VERBS [0-9]+: ' || fail "DENY.VERBS did not print its 'DENY.VERBS <n>:' line"
+fi
+
+# Ruling 33: the SD Core server's programs in GLOBAL.BP.OUT go into the global
+# catalogue, last, in both modes (standalone says so and succeeds).
+echo
+echo "Syncing the global catalogue ($SD -internal SYNC.GLOBAL.CATALOG)"
+sg_out="$(sdi SYNC.GLOBAL.CATALOG 2>&1)" || true
+sg_plain="$(printf '%s\n' "$sg_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+printf '%s\n' "$sg_plain" | tail -3
+printf '%s\n' "$sg_plain" | grep -qE '^SYNC GLOBAL CATALOG DONE [0-9]+ catalogued [0-9]+ removed 0 refused[[:space:]]*$' \
+  || fail "SYNC.GLOBAL.CATALOG did not print its DONE line with 0 refused"
 
 echo
 echo "solo-stage: bootstrap passes 1-3, THIRD.COMPILE and the account completed in $H"

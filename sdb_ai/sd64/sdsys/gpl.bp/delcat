@@ -97,15 +97,18 @@ $include int$keys.h
 *   part way through.  Here a non-administrator naming ANY global entry - by
 *   the GLOBAL keyword or a "*!_$" prefix - deletes nothing at all.  dcount/for
 *   because the loop below consumes name.list with remove().
-   if not(kernel(K$ADMINISTRATOR, -1)) then
-      gbl.count = dcount(name.list, @fm)
-      for gbl.i = 1 to gbl.count
-         gbl.name = name.list<gbl.i>
-         if global or index(prefix.chars, gbl.name[1,1], 1) then
-            stop sysmsg(2001) ;* Command requires administrator privileges
-         end
-      next gbl.i
-   end
+*  30 Sep 26 LSOLO 12 - RULING 33: NO SESSION DELETES A GLOBAL ENTRY HERE, ADMIN
+*  or not.  The global catalogue is SD's own $ ! _ programs and, in managed
+*  mode, the SD Core server's GLOBAL.BP.OUT programs, which only
+*  SYNC.GLOBAL.CATALOG adds and removes.  Was: refused without ADMIN.  Same
+*  place and same all-or-nothing shape as before.
+   gbl.count = dcount(name.list, @fm)
+   for gbl.i = 1 to gbl.count
+      gbl.name = name.list<gbl.i>
+      if global or index(prefix.chars, gbl.name[1,1], 1) then
+         stop sysmsg(11029) ;* ... changed only by SYNC.GLOBAL.CATALOG
+      end
+   next gbl.i
 
 
    * Open global and private catalogues

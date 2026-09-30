@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 30 Sep 26 LSOLO 12  ruling 33: @SDSYS/global.bp.out, gcat and solo.policy are
+*               kept unless the session signed in with the global password (11028).
 * 14 Sep 26 dm  6133 gains a cancel answer, C, which Enter takes (W.3, the
 *               port's ruling of 13 Sep 26).
 * 13 Sep 26 dm  The file name tries lower case, silently, before the upper-case
@@ -500,6 +502,23 @@ write.voc:
 * ======================================================================
 
 check.sdsys.file:
+
+* 30 Sep 26 LSOLO 12 - RULING 33: THE SD CORE SERVER'S FILES ARE NOT sduser's TO
+* DELETE.  @SDSYS/global.bp.out (and gcat, and solo.policy - ruling 34's deny
+* list - should a VOC ever point at them) is kept unless this session signed in
+* with the global password - whatever the answer to 6146 would have been, and
+* ADMIN is not enough.  The VOC reference may still go (skip.part, as for "N");
+* the directory stays.  The path of the part being asked about: data.path for
+* 'data', dict.path for 'dictionary' (the other may be stale or unassigned).
+   if part = 'data' then sdsys.tail = data.path else sdsys.tail = dict.path
+   sdsys.tail = downcase(sdsys.tail)
+   if sdsys.tail = '@sdsys/global.bp.out' or sdsys.tail = '@sdsys/gcat' or sdsys.tail = '@sdsys/solo.policy' then
+      if not(kernel(K$GLOBAL.SESSION, -1)) then
+         display sysmsg(11028) ;* The global catalogue can only be changed by the SD Core server
+         skip.part = @true
+         return
+      end
+   end
 
 * 11 Sep 26 Windows port - NO.QUERY TAKES THE SAFE BRANCH INSTEAD OF ASKING.
 * This routine prompted unconditionally, so "delete.file zzak force no.query"

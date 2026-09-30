@@ -141,6 +141,71 @@ Private bool voc_write_refused(FILE_VAR *fvar) {
 }
 
 /* ======================================================================
+   global_write_refused()  -  A change to the global catalogue, or to the
+   master's object file, from a session not signed in with $GLOBAL?
+
+   28 Sep 26 SD Core Solo - RULING 33: "the sduser, even in admin mode should
+   not have access to the global catalog"; in managed mode the catalogue is the
+   programs in SDSYS's global.bp.out, which "only the global password can
+   administer".  So a write, delete or clear of SDSYS's gcat or global.bp.out
+   is refused unless the program is $internal (CATALOG, SYNC.GLOBAL.CATALOG and
+   the bootstrap check for themselves in BASIC) or the session holds
+   USR_GLOBAL (K_GLOBAL_SESSION).  USR_ADMIN is deliberately NOT enough.
+
+   THE LIMIT, STATED: in Solo the whole tree belongs to the Linux user, so
+   this governs what SD will do, not what that user can do to the files from
+   outside SD.  Recognised as <sysdir>/gcat or <sysdir>/global.bp.out.
+
+   Linux port (29-30 Sep 26, LSOLO 12): both sides go through realpath() so a
+   symlink or "../" cannot make the same directory look different; names are
+   case-sensitive here, as the files are.  The last component is tested first,
+   so only a file NAMED gcat or global.bp.out pays for that; and if the
+   resolution fails for such a file the write is REFUSED - a gate that fails
+   open on an unresolvable path is decoration. */
+
+Private bool global_write_refused(FILE_VAR *fvar) {
+  char path[MAX_PATHNAME_LEN + 1];
+  char want[MAX_PATHNAME_LEN + 1];
+  char pposix[PATH_MAX + 1];
+  char wposix[PATH_MAX + 1];
+  char *p;
+  char *last;
+  int i;
+  /* 28 Sep 26 - solo.policy joins them: ruling 34's deny list, set at
+     install and changed only by the server. */
+  static const char *names[] = {"gcat", "global.bp.out", "solo.policy", NULL};
+
+  if ((fvar == NULL) || (fvar->type != DIRECTORY_FILE))
+    return FALSE;
+  if (process.program.flags & HDR_INTERNAL)
+    return FALSE;
+  if (my_uptr->flags & USR_GLOBAL)
+    return FALSE;
+
+  strncpy(path, (char *)FPtr(fvar->file_id)->pathname, MAX_PATHNAME_LEN);
+  path[MAX_PATHNAME_LEN] = '\0';
+  for (p = path; *p != '\0'; p++)
+    if (*p == '\\')
+      *p = '/';
+  while ((p > path) && (*(p - 1) == '/'))
+    *(--p) = '\0';
+  last = strrchr(path, '/');
+  last = (last == NULL) ? path : last + 1;
+
+  for (i = 0; names[i] != NULL; i++) {
+    if (strcmp(last, names[i]) != 0)
+      continue;
+    if (snprintf(want, sizeof(want), "%s/%s", (char *)(sysseg->sysdir),
+                 names[i]) >= (int)sizeof(want))
+      return TRUE;
+    if ((realpath(path, pposix) == NULL) || (realpath(want, wposix) == NULL))
+      return TRUE;
+    return (strcmp(pposix, wposix) == 0);
+  }
+  return FALSE;
+}
+
+/* ======================================================================
    op_clrfile()  -  Clear File                                            */
 
 void op_clrfile() {
@@ -190,6 +255,8 @@ void op_clrfile() {
 
   if (voc_write_refused(fvar)) /* 29 Sep 26 LSOLO 6, ruling 14 */
     k_error(sysmsg(11008));
+  if (global_write_refused(fvar)) /* 30 Sep 26 LSOLO 12, ruling 33 */
+    k_error(sysmsg(11028));
 
   {
     /* Get exclusive access to the file_lock entry in the file table. Because
@@ -371,7 +438,7 @@ void op_delete() {
     goto exit_op_delete;
   }
 
-  if (voc_write_refused(fvar)) { /* 29 Sep 26 LSOLO 6, ruling 14 */
+  if (voc_write_refused(fvar) || global_write_refused(fvar)) { /* LSOLO 6 ruling 14; 30 Sep 26 LSOLO 12 ruling 33 */
     process.status = -ER_PERM;
     goto exit_op_delete;
   }
@@ -817,7 +884,7 @@ void op_write() {
     goto exit_op_write;
   }
 
-  if (voc_write_refused(fvar)) { /* 29 Sep 26 LSOLO 6, ruling 14 */
+  if (voc_write_refused(fvar) || global_write_refused(fvar)) { /* LSOLO 6 ruling 14; 30 Sep 26 LSOLO 12 ruling 33 */
     process.status = -ER_PERM;
     goto exit_op_write;
   }
@@ -955,7 +1022,8 @@ void op_writev() {
   {
     DESCRIPTOR *wv_fvar = e_stack - 3;
     k_get_file(wv_fvar);
-    if (voc_write_refused(wv_fvar->data.fvar)) {
+    if (voc_write_refused(wv_fvar->data.fvar) ||
+        global_write_refused(wv_fvar->data.fvar)) { /* 28 Sep 26 ruling 33 */
       process.status = -ER_PERM;
       k_dismiss();
       k_dismiss();

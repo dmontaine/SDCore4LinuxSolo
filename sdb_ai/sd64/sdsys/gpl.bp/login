@@ -824,8 +824,13 @@ require.password:
    end
 
 *  A $GLOBAL sign-in unlocks the administrator commands, as ADMIN does with it.
-*  (The window's K$GLOBAL.SESSION marker, ruling 33, is LSOLO 12.)
-   if pw.via = 'global' then void kernel(K$ADMINISTRATOR, 1)
+*  30 Sep 26 LSOLO 12 - ruling 33: it is ALSO marked as one (K$GLOBAL.SESSION),
+*  after the administrator flag that key requires.  Only such a session may
+*  change the global catalogue.
+   if pw.via = 'global' then
+      void kernel(K$ADMINISTRATOR, 1)
+      void kernel(K$GLOBAL.SESSION, 1)
+   end
    void kernel(K$AUDIT, 'LOGIN PASSWORD account=' : initial.account : ' via=' : pw.via)
    pw.ok = @true
    return

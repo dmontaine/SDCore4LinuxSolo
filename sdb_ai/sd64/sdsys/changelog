@@ -55,8 +55,34 @@ processor and the file system are the same.  What differs:
            sduser with that password and gets the administrator commands; the
            account password on the same login does not.  In managed mode the
            API is open to the network and ssh is required.  Standalone or
-           managed is chosen at install and fixed.  SET.PASSWORD GLOBAL is
-           refused until the server-side controls arrive.
+           managed is chosen at install and fixed.  SET.PASSWORD GLOBAL
+           changes the global password, and only a session signed in with it
+           may do so.
+
+30 Sep 26  THE SD CORE SERVER OWNS THE GLOBAL CATALOGUE AND THE DENY LIST.
+
+           In managed mode the global catalogue is the SD Core server's
+           programs, held as object code in GLOBAL.BP.OUT, which starts
+           empty.  Only a session signed in with the global password can add
+           to or remove from it, and SYNC.GLOBAL.CATALOG then makes the
+           catalogue match (each program appears as *NAME).  You cannot
+           change the global catalogue, ADMIN or not: CATALOG ... GLOBAL,
+           DELETE.CATALOG of a global name, COPY or ED into GLOBAL.BP.OUT and
+           a program's own write to it are all refused, and CATALOG LOCAL no
+           longer offers to remove a global entry of the same name.  This
+           closes a hole: ADMIN used to let you replace SD's own programs.
+
+           The installer's control file may list verbs (deny-verbs=) that the
+           user of the computer cannot run without ADMIN or the global
+           password.  Afterwards only the server changes the list, with
+           DENY.VERBS (ADD, REMOVE, SET, or bare to list it).  A verb is
+           denied by what it runs, so denying SH also denies !, and
+           DENY.VERBS says which others it took with it.  ADMIN, OFF, QUIT
+           and LO can never be denied.
+
+           What this does NOT do: SD enforces it, but the files are yours.
+           Anyone who can edit the files in ~/SDCoreSolo from outside SD can
+           change them, exactly as they can change any other file there.
 
 30 Sep 26  THE API, AND SSH STRAIGHT INTO SD.
 

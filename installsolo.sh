@@ -162,7 +162,10 @@ if [ -n "$control_file" ]; then
       *) warn "the control file has an item this installer does not know, ignored: $key" ;;
     esac
   done < "$control_file"
-  [ -z "$cf_deny" ] || warn "deny-verbs is in the control file but the deny list is not built yet (LSOLO 12): ignored"
+  # Ruling 34: verb names only (letters, digits, . $ _ - , and spaces); solo-stage.sh checks it again.
+  case "$cf_deny" in
+    *[!A-Za-z0-9.\$_,\ -]*) refuse "deny-verbs in the control file holds a character that cannot be in a verb name" ;;
+  esac
   [ -z "$cf_ssh_key" ] || [ -n "$ssh_key" ] || ssh_key="$cf_ssh_key"
   [ "$cf_match" != "yes" ] || ssh_match=1
   [ "$cf_linger" != "yes" ] || enable_linger=1
@@ -372,6 +375,7 @@ umask 077
 printf '%s\n' "$ACC_PW" > "$WORK/acc.pw"; st_args+=(--account-password-file "$WORK/acc.pw")
 printf '%s\n' "$ADM_PW" > "$WORK/adm.pw"; st_args+=(--admin-password-file "$WORK/adm.pw")
 if [ "$managed" -eq 1 ]; then printf '%s\n' "$GLB_PW" > "$WORK/glb.pw"; st_args+=(--global-password-file "$WORK/glb.pw"); fi
+if [ -n "$cf_deny" ]; then st_args+=(--deny-verbs "$cf_deny"); fi
 bash "$SRC/gplbld/solo-stage.sh" "${st_args[@]}" "$HOME_DIR" > "$WORK/stage.log" 2>&1 \
   || { tail -25 "$WORK/stage.log"; fail "the bootstrap (full log: $WORK/stage.log - removed when this script ends; re-run the failing step by hand from $SRC/gplbld/solo-stage.sh)"; }
 rm -f "$WORK/acc.pw" "$WORK/adm.pw" "$WORK/glb.pw"
