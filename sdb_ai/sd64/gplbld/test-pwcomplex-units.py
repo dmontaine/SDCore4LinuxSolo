@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
-"""Unit test for SD's password rule, SD Core for Linux.  Free - no install,
+"""Unit test for SD's password rule, SD Core for Linux Solo.  Free - no install,
 no sudo, no sd.
+
+29 Sep 2026, LSOLO 4: THE BASH COPY IS GONE.  gplbld/sd-elevate, which held the
+second implementation (the installer's sdsys prompt), was deleted with the
+multi-user machinery, so the legs that drove it (S, S1-S3) and the installer
+arm of the partition check (P) are removed.  What is left is the BASIC rule,
+A, B2, B2b, B3, P over gpl.bp, and Z.  The installer's own password prompts
+(LSOLO 9) must be put under a rule check when they are written; until then
+this test says nothing about them.  The text below still describes the
+two-implementation history.
 
 Written 19 Sep 2026, on the SD Core for Windows agent's mail of 14:30 the same
 day.  It took this tree's `pw_complex` case block verbatim and asked for two
@@ -58,7 +67,6 @@ ALLOW, REFUSE = "ALLOW", "REFUSE"
 HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.dirname(HERE)
 BASIC = os.path.join(SD64, "sdsys", "gpl.bp", "pw_complex")
-HELPER = os.path.join(HERE, "sd-elevate")
 
 
 # ---------------------------------------------------------------------------
@@ -222,76 +230,6 @@ def with_block(text, block):
 
 
 # ---------------------------------------------------------------------------
-# The bash, run for real.
-
-def helper_verdict(pw):
-    """The LIVE helper's own answer, through its documented door."""
-    p = subprocess.run(["bash", HELPER, "--dry-run", "pw-check"],
-                       input=pw + "\n", capture_output=True, text=True)
-    out = (p.stdout or "") + (p.stderr or "")
-    # Anchor on the wording the tool prints on the POSITIVE path, and refuse if
-    # the failure wording appears - not on the exit code alone.
-    if p.returncode == 0 and "meets the rule" in out:
-        return ALLOW
-    if p.returncode != 0 and "does not meet the rule" in out:
-        return REFUSE
-    refuse("sd-elevate --dry-run pw-check said neither thing (exit %d): %r"
-           % (p.returncode, out.strip()[:200]))
-
-
-BASH_FN = re.compile(r"^pw_complex\(\)\s*\{\n(?P<body>.*?)^\}\s*$", re.S | re.M)
-BASH_BRANCHES = re.compile(
-    r"^\s*(?:if|elif)\s+\(\(\s*(?P<cond>[^)]*?)\s*\)\);\s*then\s+(?P<act>\S+)\s*$", re.M)
-
-
-def bash_parts(text):
-    """Lift the branch list out of sd-elevate's pw_complex, or refuse."""
-    m = BASH_FN.search(text)
-    if not m:
-        refuse("sd-elevate: no 'pw_complex() { ... }' function")
-    body = m.group("body")
-    branches = [(b.group("cond"), b.group("act")) for b in BASH_BRANCHES.finditer(body)]
-    if len(branches) < 4:
-        refuse("sd-elevate: expected four class branches in pw_complex, found %d"
-               % len(branches))
-    if not re.search(r"^\s*else\s+return 1\s*$", body, re.M):
-        refuse("sd-elevate: pw_complex has no 'else return 1' catch-all")
-    return branches
-
-
-def bash_harness(branches, catch_all):
-    """A standalone script defining a pw_complex of the given branch order."""
-    lines = ["pw_complex() {",
-             "  local p=$1 i c lo=0 up=0 di=0 sy=0",
-             "  local LC_ALL=C",
-             "  (( ${#p} >= 8 )) || return 1",
-             "  for (( i = 0; i < ${#p}; i++ )); do",
-             "    printf -v c '%d' \"'${p:i:1}\""]
-    for n, (cond, act) in enumerate(branches):
-        kw = "if  " if n == 0 else "elif"
-        lines.append("    %s (( %s )); then %s" % (kw, cond, act))
-    lines.append("    else %s" % catch_all)
-    lines.append("    fi")
-    lines.append("  done")
-    lines.append("  (( lo && up && di && sy ))")
-    lines.append("}")
-    lines.append('pw_complex "$1" && { echo "meets the rule"; exit 0; }')
-    lines.append('echo "does not meet the rule"; exit 1')
-    return "\n".join(lines) + "\n"
-
-
-def run_harness(script, pw):
-    p = subprocess.run(["bash", "-c", script, "bash", pw],
-                       capture_output=True, text=True)
-    out = (p.stdout or "") + (p.stderr or "")
-    if "meets the rule" in out and "does not" not in out:
-        return ALLOW
-    if "does not meet the rule" in out:
-        return REFUSE
-    refuse("a bash mutant harness said neither thing: %r" % out.strip()[:200])
-
-
-# ---------------------------------------------------------------------------
 
 def main():
     passed = failed = 0
@@ -306,16 +244,13 @@ def main():
         if not ok:
             failures.append((tag, said))
 
-    for path in (BASIC, HELPER):
-        if not os.path.exists(path):
-            refuse("%s is missing - there is nothing to test" % path)
+    if not os.path.exists(BASIC):
+        refuse("%s is missing - there is nothing to test" % BASIC)
 
     basic_text = open(BASIC, "rb").read().decode("utf-8")
-    helper_text = open(HELPER, "rb").read().decode("utf-8")
 
     print("inputs, as used this run:")
     print("  BASIC    : %s" % BASIC)
-    print("  helper   : %s   (driven as: bash %s --dry-run pw-check)" % (HELPER, HELPER))
     print("  spec     : %d rows (%d ALLOW, %d REFUSE)"
           % (len(SPEC), sum(1 for r in SPEC if r[0] == ALLOW),
              sum(1 for r in SPEC if r[0] == REFUSE)))
@@ -327,10 +262,6 @@ def main():
     print("    required classes: %s" % ", ".join(required))
     for i, (_, _, src) in enumerate(arms, 1):
         print("    arm %d           : %s" % (i, src))
-    branches = bash_parts(helper_text)
-    print("  branches read out of sd-elevate's pw_complex:")
-    for i, (cond, act) in enumerate(branches, 1):
-        print("    branch %d        : (( %s )) -> %s" % (i, cond, act))
     print()
 
     # ---- A: the live BASIC, as the file states it.
@@ -342,28 +273,7 @@ def main():
         row("A %-6s basic " % expect, got == expect,
             "%-14s %s (said %s)" % (repr(pw)[:14], note, got))
 
-    # ---- S: the live helper, run for real.
-    print("S - sd-elevate pw_complex, run through --dry-run pw-check:")
-    for expect, pw, note in SPEC:
-        got = helper_verdict(pw)
-        n_allow += expect == ALLOW
-        n_refuse += expect == REFUSE
-        row("S %-6s bash  " % expect, got == expect,
-            "%-14s %s (said %s)" % (repr(pw)[:14], note, got))
-
-    # ---- S1: the extraction control.  Everything below drives a REBUILT
-    # ---- function rather than the helper itself, so the rebuild must first
-    # ---- agree with the helper on every row, or the mutants prove nothing
-    # ---- about the shipped code.
-    print("S1 - the extracted function, unmutated, must agree with the helper:")
-    live_script = bash_harness(branches, "return 1")
-    disagree = [pw for _, pw, _ in SPEC
-                if run_harness(live_script, pw) != helper_verdict(pw)]
-    row("S1 control    ", not disagree,
-        "rebuilt from the file's own branches; disagreements: %s"
-        % (", ".join(repr(d) for d in disagree) if disagree else "none"))
-
-    # ---- B2 / S2: THE ARM ORDER CANNOT LET A NON-PRINTABLE BYTE THROUGH.
+    # ---- B2: THE ARM ORDER CANNOT LET A NON-PRINTABLE BYTE THROUGH.
     # ---- Every permutation of the arms, not one chosen reordering.
     print("B2 - every permutation of the BASIC arms still refuses a non-printable byte:")
     nonprintable = [pw for expect, pw, note in SPEC
@@ -420,30 +330,6 @@ def main():
         "guard arm demoted past the catch-all: %r -> %s (ours: %s)"
         % (TAB_ROW, got, basic_verdict(model, TAB_ROW)))
 
-    # ---- S2 / S3: the same two, in bash, EXECUTED.
-    print("S2 - the helper's symbol branch moved to the front (executed):")
-    order = [i for i, (cond, _) in enumerate(branches) if "32" in cond and "126" in cond]
-    if len(order) != 1:
-        refuse("sd-elevate: could not identify exactly one 32..126 branch")
-    sy = order[0]
-    scrambled = [branches[sy]] + [b for i, b in enumerate(branches) if i != sy]
-    s2 = bash_harness(scrambled, "return 1")
-    n_mutant += 1
-    got_tab, got_good = run_harness(s2, TAB_ROW), run_harness(s2, GOOD_ROW)
-    row("S2 fails-closed", got_tab == REFUSE,
-        "%r still refused with the symbol branch first (said %s)" % (TAB_ROW, got_tab))
-    row("S2 liveness   ", got_good == REFUSE,
-        "%r now refused too, so the reordering really ran (said %s)" % (GOOD_ROW, got_good))
-
-    print("S3 - the old bash shape with its guard no longer first (executed):")
-    old_branches = [b for i, b in enumerate(branches) if i != sy]
-    s3 = bash_harness(old_branches, "sy=1")
-    n_mutant += 1
-    got = run_harness(s3, TAB_ROW)
-    row("S3 mutant     ", got == ALLOW,
-        "catch-all means symbol, guard not first: %r -> %s (ours: %s)"
-        % (TAB_ROW, got, helper_verdict(TAB_ROW)))
-
     # ---- P: THE PARTITION.  Every prompt that sets a password runs the rule.
     # ---- This is the regression no row about the rule itself can see: the
     # ---- rule can be perfect and simply not reached.
@@ -457,13 +343,13 @@ def main():
         body = open(path, "rb").read().decode("latin-1")
         if re.search(r"^\s*input\s+\S+\s+HIDDEN\s*$", body, re.M | re.I):
             prompts.append(("sdsys/gpl.bp/" + name, body, r"pw_complex\("))
-    installer = os.path.join(os.path.dirname(SD64), "..", "installsdai.sh")
-    installer = os.path.normpath(installer)
-    inst_body = open(installer, "rb").read().decode("latin-1")
-    if re.search(r"read\s+-r\s+-s", inst_body):
-        prompts.append(("installsdai.sh", inst_body, r"pw-check"))
-    if not prompts:
-        refuse("no password prompt was found anywhere - the partition check measured nothing")
+    partition_skipped = not prompts
+    if partition_skipped:
+        # LSOLO 4 deleted every password prompt (MODIFY.PASSWORD, CREATE.ACCOUNT)
+        # and LSOLO 6's SET.PASSWORD does not exist yet.  Said out loud, not
+        # passed silently; when a prompt exists again this leg must run.
+        print("  [SKIP] P  partition   | NO password prompt exists in gpl.bp "
+              "(LSOLO 6 adds SET.PASSWORD); this leg measured NOTHING")
     for where, body, needle in prompts:
         row("P  partition  ", re.search(needle, body) is not None,
             "%-28s prompts for a password and calls %s" % (where, needle.replace("\\", "")))
@@ -472,9 +358,8 @@ def main():
     # ---- reached the tree, every verdict above is void.
     print("Z - the live files are byte-identical after the mutants:")
     row("Z  untouched  ",
-        open(BASIC, "rb").read().decode("utf-8") == basic_text
-        and open(HELPER, "rb").read().decode("utf-8") == helper_text,
-        "gpl.bp/pw_complex and gplbld/sd-elevate unchanged on disk")
+        open(BASIC, "rb").read().decode("utf-8") == basic_text,
+        "gpl.bp/pw_complex unchanged on disk")
 
     print()
 
@@ -489,6 +374,8 @@ def main():
 
     print("%d passed, %d failed (%d ALLOW rows, %d REFUSE rows, %d mutants)"
           % (passed, failed, n_allow, n_refuse, n_mutant))
+    if partition_skipped:
+        print("SKIPPED: leg P (password-prompt partition) - no prompt in the tree yet")
 
     if failed:
         print("\nfailures:", file=sys.stderr)
