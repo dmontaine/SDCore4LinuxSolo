@@ -592,6 +592,21 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   run (LSOLO 6), not here.  The batch.permitted subroutine that followed this
 *   is deleted with it.
 
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 21: EVERY SESSION PROVES
+*   THE ACCOUNT PASSWORD - at the keyboard, over ssh and for a one-shot "sd
+*   <command>" alike.  Three exemptions, each for its own reason: mode 1 is the
+*   API (SCRAM, apisrvr), a phantom inherits its parent's login, and the
+*   internal door is the installer's.  require.password below has the rules,
+*   including the one that a one-shot command must never stop at a prompt.
+   if mode = 0 and not(is.phantom) and not(kernel(K$INTERNAL,-1)) then
+      one.shot = (trim(system(1026)) # '')
+      gosub require.password
+      if not(pw.ok) then
+         audit.reason = pw.why
+         goto terminate.connection
+      end
+   end
+
 * 11 Sep 26 dm - THE SUCCESS RECORD, mode 0 only: the update modes reach here
 *   too and are not sign-ons.
    if mode = 0 then void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
@@ -604,6 +619,117 @@ terminate.connection:
    sleep 2
 abort.login:
    return to abort.login
+
+*
+* ======================================================================
+* REQUIRE.PASSWORD  -  the session proves the account password.  Sets pw.ok,
+* and pw.why when it is false.  29 Sep 26 SD Core for Linux Solo, ruling 21;
+* SD Core Solo for Windows' routine of the same name, less its DPAPI file (here
+* a private file in clear - !SOLO_STORE_PW) and less the managed tree's
+* first-password prompt, which comes with the installer's control file
+* (LSOLO 9).
+*
+* WHICH PASSWORDS.  The account's own ($cred, keyed by the account name) or,
+* in managed mode, the global one ($GLOBAL) - the pair the API takes (ruling
+* 19).  The global password unlocks the administrator commands for the
+* session, as ADMIN does with it.
+*
+* WHERE IT COMES FROM, AND THE RULE THAT DECIDES IT:
+*   an interactive "sd" (no command)   asked for; three tries on a terminal,
+*                                      one on a pipe (a script's first line)
+*   a one-shot "sd <command>"          NEVER A PROMPT.  The kept password
+*                                      ($STORED) is tried first; then the
+*                                      input when that is not a terminal;
+*                                      refused at once when it is.
+*
+* NO RECORD TO CHECK AGAINST IS SAID PLAINLY, not reported as a wrong password:
+* the account has no password only if an install went wrong, and the way out
+* is to install again.  !CRED_VERIFY fails closed on it anyway.  The password
+* is never displayed, stored or logged; the outcome is audited.
+
+require.password:
+   pw.ok = @false
+   pw.why = ''
+   pw.via = ''
+   pw.interactive = not(one.shot)
+   pw.on.tty = (kernel(K$TTY,0) # '')
+
+   pw.has.acct = @false
+   pw.has.global = @false
+   openpath @sdsys:@ds:'$cred' to pw.cred.f then
+      read pw.rec from pw.cred.f, initial.account then pw.has.acct = @true
+      read pw.rec from pw.cred.f, '$GLOBAL' then pw.has.global = @true
+      close pw.cred.f
+   end
+   pw.rec = ''
+   if not(pw.has.acct or pw.has.global) then
+      display sysmsg(11020) ;* This account has no password - install SD Core for Linux Solo again...
+      pw.why = 'the account has no password'
+      return
+   end
+
+*  A ONE-SHOT TRIES THE KEPT PASSWORD FIRST.  $STORED in $cred is the account
+*  password (!SOLO_STORE_PW).  It counts only for THIS account and only if it
+*  still verifies; anything else - no record, a stale copy - falls through to
+*  the input exactly as before, silently, because a scheduled job with its
+*  password on the input must still work.  It proves the account password,
+*  never the global one, so it never unlocks ADMIN.
+   if not(pw.interactive) then
+      openpath @sdsys:@ds:'$cred' to pw.cred.f then
+         read pw.rec from pw.cred.f, '$STORED' else pw.rec = ''
+         close pw.cred.f
+      end
+      if pw.rec<1> = upcase(initial.account) and pw.rec<2> # '' then
+         pw.match = @false
+         call !CRED_VERIFY(initial.account, pw.rec<2>, pw.match)
+         if pw.match then pw.via = 'stored'
+      end
+      pw.rec = ''
+      if pw.via # '' then
+         void kernel(K$AUDIT, 'LOGIN PASSWORD account=' : initial.account : ' via=stored')
+         pw.ok = @true
+         return
+      end
+   end
+
+   if not(pw.interactive) and pw.on.tty then
+      display sysmsg(11017) ;* A command given on the sd command line needs the password on its input
+      pw.why = 'one-shot command with no password source'
+      return
+   end
+
+   if pw.interactive and pw.on.tty then pw.tries = 3 else pw.tries = 1
+   for pw.t = 1 to pw.tries
+      if pw.on.tty then display sysmsg(11018) : ' ' :  ;* Password:
+      input pw.text HIDDEN
+      if pw.on.tty then display
+      if pw.text # '' then
+         pw.match = @false
+         call !CRED_VERIFY(initial.account, pw.text, pw.match)
+         if pw.match then
+            pw.via = 'account'
+         end else
+            call !CRED_VERIFY('$GLOBAL', pw.text, pw.match)
+            if pw.match then pw.via = 'global'
+         end
+      end
+      pw.text = ''
+      if pw.via # '' then exit
+      display sysmsg(11019) ;* Wrong password
+   next pw.t
+
+   if pw.via = '' then
+      pw.why = 'wrong or missing account password'
+      void kernel(K$AUDIT, 'LOGIN REFUSED account=' : initial.account : ' - wrong or missing password')
+      return
+   end
+
+*  A $GLOBAL sign-in unlocks the administrator commands, as ADMIN does with it.
+*  (The window's K$GLOBAL.SESSION marker, ruling 33, is LSOLO 12.)
+   if pw.via = 'global' then void kernel(K$ADMINISTRATOR, 1)
+   void kernel(K$AUDIT, 'LOGIN PASSWORD account=' : initial.account : ' via=' : pw.via)
+   pw.ok = @true
+   return
 
 *
 * ======================================================================

@@ -336,14 +336,27 @@ def main():
     print("P - every password prompt in the tree applies the rule:")
     gplbp = os.path.join(SD64, "sdsys", "gpl.bp")
     prompts = []
+    verify_only = []
     for name in sorted(os.listdir(gplbp)):
         path = os.path.join(gplbp, name)
         if not os.path.isfile(path):
             continue
         body = open(path, "rb").read().decode("latin-1")
         if re.search(r"^\s*input\s+\S+\s+HIDDEN\s*$", body, re.M | re.I):
-            prompts.append(("sdsys/gpl.bp/" + name, body, r"pw_complex\("))
-    partition_skipped = not prompts
+            # A prompt that only VERIFIES a password (calls !CRED_VERIFY, never
+            # !CRED_SET) must NOT apply the rule: a password set before the
+            # rule, or by another port, would lock its owner out of login.
+            if "CRED_VERIFY" in body and "CRED_SET" not in body:
+                verify_only.append("sdsys/gpl.bp/" + name)
+            else:
+                prompts.append(("sdsys/gpl.bp/" + name, body, r"pw_complex\("))
+    for where in verify_only:
+        vbody = open(os.path.join(SD64, where), "rb").read().decode("latin-1")
+        # Applying the rule where a password is only checked is the defect: it
+        # would refuse a correct old password.  So the row goes red if it does.
+        row("P  verify-only", re.search(r"pw_complex\s*\(", vbody) is None,
+            "%-28s only verifies (CRED_VERIFY, no CRED_SET) and does not call pw_complex" % where)
+    partition_skipped = not prompts and not verify_only
     if partition_skipped:
         # LSOLO 4 deleted every password prompt (MODIFY.PASSWORD, CREATE.ACCOUNT)
         # and LSOLO 6's SET.PASSWORD does not exist yet.  Said out loud, not

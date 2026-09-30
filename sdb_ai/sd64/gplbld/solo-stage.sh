@@ -38,7 +38,24 @@ refuse() { echo "REFUSED: $*" >&2; exit 2; }
 fail()   { echo "FAILED at: $*" >&2; exit 1; }
 
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root; Solo never runs as root"
-[ "$#" -eq 1 ] || refuse "usage: bash $0 HOME_DIR"
+
+# Everything this creates - and everything sd creates while it runs from here -
+# is private to the user (files 0600, directories 0700): the tree is the user's
+# own, and $cred holds the kept account password in clear (!SOLO_STORE_PW).
+umask 077
+
+# --account-password-file FILE: the account password, one line, printable ASCII
+# (33-126).  For automation and tests; it goes to sd's INPUT, never a command
+# line.  Without it no password is set and every session is refused (11020).
+pwfile=""
+if [ "${1:-}" = "--account-password-file" ]; then
+  [ "$#" -ge 3 ] || refuse "usage: bash $0 [--account-password-file FILE] HOME_DIR"
+  pwfile="$2"
+  shift 2
+  [ -r "$pwfile" ] || refuse "cannot read the password file $pwfile"
+  [ -s "$pwfile" ] || refuse "the password file $pwfile is empty"
+fi
+[ "$#" -eq 1 ] || refuse "usage: bash $0 [--account-password-file FILE] HOME_DIR"
 H="$1"
 case "$H" in
   /*) ;;
@@ -64,7 +81,14 @@ cd "$sd64"
 cp -R sdsys/. "$H/"
 touch "$H/gcat/\$CPROC"        # fool sd's vm into thinking gcat is populated
 touch "$H/errlog"
+# The audit trail (K$AUDIT appends to it; it is not created on demand).  The
+# parent made it append-only with chattr +a, which needs root; Solo cannot, so
+# the user who owns the tree can edit it - say so in the docs.
+: > "$H/audit"
 mkdir -p "$H/user_accounts" "$H/group_accounts" "$H/gplbld"
+mkdir -p "$H/\$cred"           # the credential register: SCRAM verifiers, $STORED
+chmod 700 "$H/\$cred"
+echo "  credential register: $(stat -c '%U %a' "$H/\$cred")"
 
 # ---- programs and what the bootstrap compiles from.
 cp -R bin "$H/bin"
@@ -136,6 +160,23 @@ printf '%s\n' "$acct_out"
 acct_plain="$(printf '%s\n' "$acct_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 printf '%s\n' "$acct_plain" | grep -qE '^SOLO ACCOUNT READY sduser ' || fail "solo_account did not print 'SOLO ACCOUNT READY sduser'"
 [ -d "$H/user_accounts/sduser" ] || fail "solo_account said READY but $H/user_accounts/sduser is not there"
+
+if [ -n "$pwfile" ]; then
+  echo
+  echo "Setting the account password (cat $pwfile | $SD -internal RUN gpl.bp solo_password ACCOUNT sduser)"
+# A PIPE, NOT "< FILE": measured 29 Sep 2026, sd ends the session ("Process
+# terminated") at the first INPUT when its standard input is a redirected
+# regular file, and reads the same bytes from a pipe.
+  pw_out="$(cat "$pwfile" | "$SD" -internal RUN gpl.bp solo_password ACCOUNT sduser 2>&1)" || true
+  pw_plain="$(printf '%s\n' "$pw_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$pw_plain" | tail -3
+  printf '%s\n' "$pw_plain" | grep -qx 'SOLO PASSWORD SET ACCOUNT' || fail "solo_password did not print 'SOLO PASSWORD SET ACCOUNT'"
+  printf '%s\n' "$pw_plain" | grep -q 'solo_password:' && fail "solo_password said: $(printf '%s\n' "$pw_plain" | grep 'solo_password:' | head -1)"
+  echo "  credential register now holds: $(ls "$H/\$cred" | tr '\n' ' ')"
+else
+  echo
+  echo "NOTE: no --account-password-file, so NO PASSWORD IS SET and every session will be refused (11020)."
+fi
 
 echo
 echo "solo-stage: bootstrap passes 1-3, THIRD.COMPILE and the account completed in $H"

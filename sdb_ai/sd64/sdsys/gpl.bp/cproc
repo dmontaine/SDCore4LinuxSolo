@@ -357,8 +357,18 @@ restart.cproc:
 * rev 0.9.0 entered as root?   
 * if we run as root, and the root umask is usually 022, that will not work for us
    
-      if umask(002) then null
- 
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - 077, NOT 002.  The multi-user
+*   product made everything group-writable so the SD accounts' users could
+*   share files; Solo has one user, and the kept account password
+*   ($cred/$STORED, in clear - !SOLO_STORE_PW) was created 0664.  Everything a
+*   session creates is now private to the user.  (A directory of the user's own
+*   choosing is still theirs to chmod.)
+*   ***THE ARGUMENT IS DECIMAL.***  BASIC's umask() takes a decimal number, so
+*   the octal 077 is 63: umask(077) means decimal 77 = octal 0115, which
+*   MEASURED (strace, 29 Sep 2026) made directories 0662 and broke every
+*   CREATE.FILE with error 8208.  int.umask below prints it in octal.
+      if umask(63) then null
+
 * 09 Sep 26 dm - THE PRIVILEGE NOTICES ARE COLLECTED, NOT PRINTED, and they are
 *   displayed after $LOGIN has drawn the banner.  Owner, 9 Sep 26: printed here
 *   they land ABOVE the sign-on banner, "so it just looks like part of the
