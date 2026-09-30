@@ -31,15 +31,18 @@ def main():
     args = sys.argv[1:]
     env = dict(os.environ)
     timeout = 30.0
-    while args and args[0] in ("--env", "--timeout"):
+    argv_extra = []
+    while args and args[0] in ("--env", "--timeout", "--arg"):
         if args[0] == "--env":
             k, v = args[1].split("=", 1)
             env[k] = v
+        elif args[0] == "--arg":
+            argv_extra.append(args[1])   # an argument for the program, in order
         else:
             timeout = float(args[1])
         args = args[2:]
     if len(args) < 2:
-        print("usage: ptyrun.py [--env N=V] [--timeout S] SD STEP...", file=sys.stderr)
+        print("usage: ptyrun.py [--env N=V] [--timeout S] [--arg A]... PROGRAM STEP...", file=sys.stderr)
         return 3
     sd, steps = args[0], args[1:]
     # An SSH_CONNECTION set by the caller's own environment would silently turn a
@@ -51,7 +54,7 @@ def main():
     pid, fd = pty.fork()
     if pid == 0:
         try:
-            os.execve(sd, [sd], env)
+            os.execve(sd, [sd] + argv_extra, env)
         except OSError as e:
             os.write(2, ("ptyrun: cannot start %s: %s\n" % (sd, e)).encode())
             os._exit(127)
