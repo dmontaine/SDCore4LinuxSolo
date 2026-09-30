@@ -15,6 +15,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 29 Sep 26     SD Core for Linux Solo (LSOLO 6): saving into a VOC needs ADMIN
+*               (ruling 14, !voc_guard).
 * 22 Sep 26     find.editor's missing-editor message named "sudo apt install",
 *               unconditionally, in the multi-distribution restore of
 *               installsdai.sh (Arch, Fedora, RHEL, openSUSE besides Debian and
@@ -66,6 +68,8 @@ $catalog $EDIT
 
 $include syscom keys.h
 $include int$keys.h
+
+deffun voc_guard(f) calling '!voc_guard'
 
    q            = char(39)          ;* single quote, for the shell command line
    ds           = @ds
@@ -784,6 +788,13 @@ save.record.query:
    end
 
    if response # 'Y' then
+      error.text = 'Record not saved'
+      goto end.program
+   end
+
+*  29 Sep 26 SD Core for Linux Solo - LSOLO 6, ruling 14: saving into the VOC
+*  needs ADMIN (as in Solo for Windows, SOLO 5).
+   if not(voc_guard(input.file)) then
       error.text = 'Record not saved'
       goto end.program
    end

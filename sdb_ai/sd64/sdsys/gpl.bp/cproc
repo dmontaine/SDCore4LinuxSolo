@@ -1360,6 +1360,13 @@ stack.manipulation:
 * found" message.  It now takes 5043 and leaves, as .L does.  And each failed
 * readu now releases the id it locked - the upcase miss used to release
 * at.command, leaving the lock on upcase(at.command) held.
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 27: .D name NEEDS ADMIN,
+*   like .S name.  .D and .Dn above only edit this session's command stack and
+*   stay ungated.
+            if not(kernel(K$ADMINISTRATOR, -1)) then
+               display sysmsg(11008) ;* The VOC can only be changed after ADMIN
+               goto exit.stack.command
+            end
             at.command = trimf(trimb(at.command))
             readu voc.rec from voc, at.command else
                release voc, at.command
@@ -1505,6 +1512,15 @@ stack.manipulation:
             n = arg2
             arg2 = arg3
             arg3 = n
+         end
+
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 27 (Solo for Windows): .S
+*   name NEEDS ADMIN ("they change VOC"), narrowing ruling 14's exemption for a
+*   saved sentence.  Before any record is read or locked, with voc_guard's
+*   message (11008).
+         if not(kernel(K$ADMINISTRATOR, -1)) then
+            display sysmsg(11008) ;* The VOC can only be changed after ADMIN
+            goto exit.stack.command
          end
 
          readvu voc.rec from voc, arg1, 0 then
@@ -3208,6 +3224,13 @@ int.clearinput:
 * INT.CLEAR.LOCKS  -  CLEAR.LOCKS (Internal verb 26)
 
 int.clear.locks:
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35 (Solo for Windows): a
+*  maintenance verb, so ADMIN (or the global password) first.
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      display sysmsg(2001) ;* Command requires administrator privileges
+      @system.return.code = -ER$PERM
+      return
+   end
    call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
    if token.type # PARSER$END then      ;* Release specific task lock
       @system.return.code = -ER$ARGS
@@ -3245,6 +3268,13 @@ int.clear.locks:
 * INT.LOCK  -  LOCK (Internal verb 27)
 
 int.lock:
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35: ADMIN first, as
+*  CLEAR.LOCKS above.
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      display sysmsg(2001) ;* Command requires administrator privileges
+      @system.return.code = -ER$PERM
+      return
+   end
    @system.return.code = -ER$ARGS
 
    call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
@@ -3382,6 +3412,15 @@ int.logout:
 *   interactive form while the caller believed they had asked for the other.
 
 int.update.accounts:
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - a maintenance verb, so ADMIN (or
+*  the global password) first, like the others (ruling 12).  It lived in SDSYS,
+*  entered only by the administrator, until the one-account model moved it into
+*  the user's account.
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      display sysmsg(2001) ;* Command requires administrator privileges
+      @system.return.code = -ER$PERM
+      return
+   end
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
    upd.mode = 2
    begin case
@@ -3757,6 +3796,13 @@ run.exe:
 * INT.SET.DATE
 
 int.set.date:
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35: ADMIN first, as
+*  CLEAR.LOCKS above.
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      display sysmsg(2001) ;* Command requires administrator privileges
+      @system.return.code = -ER$PERM
+      return
+   end
    s = field(trim(@sentence), ' ', 2, 99999999)
    if s = '' then display 'Date required'
    else

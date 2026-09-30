@@ -60,6 +60,15 @@ $include parser.h
 
    call @parser(parser$get.token, token.type, param, keyword)
 
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35 (Solo for Windows): a
+*  maintenance verb, so ADMIN (or the global password) first - EXCEPT the two
+*  read-only displays the sign-on banner tells every session to type, "CONFIG
+*  GPL" and "CONFIG CONTRIB" (SOLO 21).  Every other form, including the bare
+*  listing and setting a parameter, needs ADMIN.  After the keyword is parsed.
+   if upcase(param) # 'GPL' and upcase(param) # 'CONTRIB' then
+      if not(kernel(K$ADMINISTRATOR, -1)) then stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
    begin case
       case upcase(param) = 'GPL' 		; gosub show.gpl
       case upcase(param) = 'CONTRIB' 	; gosub show.contrib

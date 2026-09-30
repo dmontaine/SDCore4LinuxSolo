@@ -47,15 +47,23 @@ umask 077
 # --account-password-file FILE: the account password, one line, printable ASCII
 # (33-126).  For automation and tests; it goes to sd's INPUT, never a command
 # line.  Without it no password is set and every session is refused (11020).
+# --admin-password-file FILE: the same for the administrator password (ADMIN).
+# Without it ADMIN answers 11007 and no administrator command can be unlocked.
 pwfile=""
-if [ "${1:-}" = "--account-password-file" ]; then
-  [ "$#" -ge 3 ] || refuse "usage: bash $0 [--account-password-file FILE] HOME_DIR"
-  pwfile="$2"
+adminfile=""
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] HOME_DIR"
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ]; do
+  [ "$#" -ge 3 ] || refuse "$usage"
+  f="$2"
+  [ -r "$f" ] || refuse "cannot read the password file $f"
+  [ -s "$f" ] || refuse "the password file $f is empty"
+  case "$1" in
+    --account-password-file) pwfile="$f" ;;
+    --admin-password-file)   adminfile="$f" ;;
+  esac
   shift 2
-  [ -r "$pwfile" ] || refuse "cannot read the password file $pwfile"
-  [ -s "$pwfile" ] || refuse "the password file $pwfile is empty"
-fi
-[ "$#" -eq 1 ] || refuse "usage: bash $0 [--account-password-file FILE] HOME_DIR"
+done
+[ "$#" -eq 1 ] || refuse "$usage"
 H="$1"
 case "$H" in
   /*) ;;
@@ -176,6 +184,19 @@ if [ -n "$pwfile" ]; then
 else
   echo
   echo "NOTE: no --account-password-file, so NO PASSWORD IS SET and every session will be refused (11020)."
+fi
+
+if [ -n "$adminfile" ]; then
+  echo
+  echo "Setting the administrator password (cat $adminfile | $SD -internal RUN gpl.bp solo_password ADMIN)"
+  ad_out="$(cat "$adminfile" | "$SD" -internal RUN gpl.bp solo_password ADMIN 2>&1)" || true
+  ad_plain="$(printf '%s\n' "$ad_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$ad_plain" | tail -3
+  printf '%s\n' "$ad_plain" | grep -qx 'SOLO PASSWORD SET ADMIN' || fail "solo_password did not print 'SOLO PASSWORD SET ADMIN'"
+  printf '%s\n' "$ad_plain" | grep -q 'solo_password:' && fail "solo_password said: $(printf '%s\n' "$ad_plain" | grep 'solo_password:' | head -1)"
+else
+  echo
+  echo "NOTE: no --admin-password-file, so ADMIN cannot be unlocked (11007)."
 fi
 
 echo

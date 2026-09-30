@@ -1,13 +1,13 @@
 #!/bin/bash
 # verify-solo.sh - does an SD Core for Linux Solo tree behave as ruled?
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo.sh HOME_DIR PASSWORD_FILE
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo.sh HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE
 #
 # No sudo.  Run as the person who owns the tree.  HOME_DIR is a tree that
-# solo-stage.sh built with --account-password-file PASSWORD_FILE and whose
-# daemon is running (solo-stage.sh leaves it running).  The Linux counterpart
-# of SD Core Solo for Windows' verify-solo.ps1, which has 19 legs; this has the
-# legs LSOLO 6 part 2 built and grows with it (LSOLO 10).
+# solo-stage.sh built with --account-password-file and --admin-password-file
+# (the same two files) and whose daemon is running (solo-stage.sh leaves it
+# running).  The Linux counterpart of SD Core Solo for Windows' verify-solo.ps1,
+# which has 19 legs; this has the legs LSOLO 6 built and grows with it (LSOLO 10).
 #
 # EVERY LEG PRINTS THE COMMAND IT RAN, WHAT IT SAW, AND WHAT IT EXPECTED, AND
 # ANCHORS ON THE SUCCESS WORDING - never on an exit code (sd exits 0 when the
@@ -19,8 +19,11 @@
 set -uo pipefail
 
 refuse() { echo "REFUSED: $*" >&2; exit 2; }
-[ "$#" -eq 2 ] || refuse "usage: bash $0 HOME_DIR PASSWORD_FILE"
-H="$1"; PWF="$2"
+[ "$#" -eq 3 ] || refuse "usage: bash $0 HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE"
+H="$1"; PWF="$2"; ADF="$3"
+[ -s "$ADF" ] || refuse "cannot read the administrator password file $ADF"
+ADMINPW="$(head -1 "$ADF")"
+[ -n "$ADMINPW" ] || refuse "the administrator password file's first line is empty"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
 [ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
@@ -78,7 +81,7 @@ else
 fi
 
 # ---- 5. a stale kept password falls back to the input; both outcomes.
-STORED="$H/\$cred/\$STORED"
+STORED="$H/\$cred/\$stored"    # lower case: a case-sensitive filesystem (see gpl.bp/admin)
 [ -f "$STORED" ] || refuse "$STORED is missing - the tree has no kept password to make stale"
 cp "$STORED" "$STORED.verify-solo.bak" || refuse "cannot back up $STORED"
 printf 'SDUSER\376Stale-Old-Pw-1!\n' > "$STORED"
@@ -114,10 +117,10 @@ fi
 
 # ---- 8. the password is nowhere in the audit trail or the error log.
 if [ -s "$H/audit" ]; then
-  if grep -q -F -- "$GOOD" "$H/audit" "$H/errlog" 2>/dev/null; then
-    leg "8 password not logged" "no occurrence in audit or errlog" 1 "FOUND in a log"
+  if grep -q -F -e "$GOOD" -e "$ADMINPW" "$H/audit" "$H/errlog" 2>/dev/null; then
+    leg "8 passwords not logged" "neither password occurs in audit or errlog" 1 "FOUND in a log"
   else
-    leg "8 password not logged" "no occurrence in audit or errlog" 0 "none in $(wc -l < "$H/audit") audit lines"
+    leg "8 passwords not logged" "neither password occurs in audit or errlog" 0 "none in $(wc -l < "$H/audit") audit lines"
   fi
 else
   refuse "the audit trail is empty - leg 8 would measure nothing"
@@ -137,6 +140,114 @@ if printf '%s\n' "$out" | grep -qx 'solo_password: nothing was stored.' && [ "$b
 else
   leg "9 a weak password is refused and nothing stored" "'nothing was stored', record unchanged, no success line" 1 "$(last "$out") / record $( [ "$before" = "$after" ] && echo unchanged || echo CHANGED )"
 fi
+
+# ======================================================================
+# The ADMIN gate (LSOLO 6 part 3).  sess LINES... feeds a session: the account
+# password first, then each line, then OFF; the output is stripped of screen
+# noise and the sign-on banner.
+
+sess() {
+  printf '%s\n' "$GOOD" "$@" OFF | timeout 120 "$SD" 2>&1 \
+    | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core, the'
+}
+NEEDS='Command requires administrator privileges'
+
+# ---- 10. a wrong administrator password is refused, and the session stays locked.
+out="$(sess ADMIN 'not-the-admin-password' LISTU)"
+if printf '%s\n' "$out" | grep -qx 'Wrong password - administrator commands stay locked' \
+   && printf '%s\n' "$out" | grep -qx "$NEEDS" \
+   && ! printf '%s\n' "$out" | grep -q 'Administrator commands unlocked'; then
+  leg "10 wrong ADMIN password refused" "'Wrong password...' then LISTU still refused" 0 "refused; still locked"
+else
+  leg "10 wrong ADMIN password refused" "'Wrong password...' then LISTU still refused" 1 "$(last "$out")"
+fi
+
+# ---- 11. the ACCOUNT password does not unlock ADMIN (two different secrets).
+out="$(sess ADMIN "$GOOD" LISTU)"
+if printf '%s\n' "$out" | grep -qx 'Wrong password - administrator commands stay locked' \
+   && ! printf '%s\n' "$out" | grep -q 'Administrator commands unlocked'; then
+  leg "11 account password does not unlock ADMIN" "'Wrong password...'" 0 "refused"
+else
+  leg "11 account password does not unlock ADMIN" "'Wrong password...'" 1 "$(last "$out")"
+fi
+
+# ---- 12. the maintenance verbs are refused without ADMIN - each on its own line.
+# Anchored per verb: the verb's echo line, then the refusal on the next line.
+bad=""
+for v in "LISTU" "CONFIG" "LIST.LOCKS" "LIST.READU" "LOCK 1" "CLEAR.LOCKS" "SET.DATE 1" "CLEAN.ACCOUNT" "UPDATE.ACCOUNTS"; do
+  o="$(sess "$v")"
+  printf '%s\n' "$o" | grep -qx "$NEEDS" || bad="$bad [$v: $(last "$o")]"
+done
+if [ -z "$bad" ]; then leg "12 maintenance verbs refused without ADMIN" "9 verbs each say '$NEEDS'" 0 "9 of 9"
+else leg "12 maintenance verbs refused without ADMIN" "9 verbs each say '$NEEDS'" 1 "$bad"; fi
+
+# ---- 13. CONFIG GPL needs no ADMIN (the sign-on banner tells every session to type it).
+out="$(sess 'CONFIG GPL')"
+if printf '%s\n' "$out" | grep -qx 'Most of SD is licensed under the GPL v3.0.' \
+   && ! printf '%s\n' "$out" | grep -qx "$NEEDS"; then
+  leg "13 CONFIG GPL needs no ADMIN" "the licence text, no refusal" 0 "shown"
+else
+  leg "13 CONFIG GPL needs no ADMIN" "the licence text, no refusal" 1 "$(last "$out")"
+fi
+
+# ---- 14. the right administrator password unlocks, LISTU then runs, ADMIN OFF locks.
+out="$(sess ADMIN "$ADMINPW" LISTU 'ADMIN OFF' LISTU)"
+n_refused="$(printf '%s\n' "$out" | grep -cx "$NEEDS")"
+if printf '%s\n' "$out" | grep -qx 'Administrator commands unlocked for this session' \
+   && printf '%s\n' "$out" | grep -q 'Username' \
+   && printf '%s\n' "$out" | grep -qx 'Administrator commands locked' \
+   && [ "$n_refused" -eq 1 ]; then
+  leg "14 ADMIN unlocks, ADMIN OFF locks" "unlocked, LISTU lists, locked, LISTU refused once" 0 "as expected"
+else
+  leg "14 ADMIN unlocks, ADMIN OFF locks" "unlocked, LISTU lists, locked, LISTU refused once" 1 "refusals=$n_refused; $(last "$out")"
+fi
+
+# ---- 15. direct VOC edits are refused without ADMIN and allowed with it.
+# 'who' is a real VOC record; 'zzcopy' is the scratch id, absent before and after.
+VOCMSG='The VOC can only be changed after ADMIN (the administrator password)'
+before="$(sess 'COUNT VOC' | grep -E 'record\(s\) counted')"
+[ -n "$before" ] || refuse "COUNT VOC printed no count - leg 15 would compare nothing"
+out="$(sess 'DELETE VOC who' 'COPY FROM VOC TO VOC who,zzcopy' 'CLEAR.FILE VOC' '.S zzsave 1' 'COUNT VOC')"
+n_msg="$(printf '%s\n' "$out" | grep -cx "$VOCMSG")"
+after="$(printf '%s\n' "$out" | grep -E 'record\(s\) counted')"
+out2="$(sess ADMIN "$ADMINPW" 'COPY FROM VOC TO VOC who,zzcopy' 'DELETE VOC zzcopy' 'COUNT VOC')"
+after2="$(printf '%s\n' "$out2" | grep -E 'record\(s\) counted')"
+if [ "$n_msg" -eq 4 ] && [ "$before" = "$after" ] \
+   && printf '%s\n' "$out2" | grep -qx '1 record(s) copied.' \
+   && printf '%s\n' "$out2" | grep -qx '1 record(s) deleted' && [ "$before" = "$after2" ]; then
+  leg "15 VOC edits need ADMIN" "4 refusals, VOC unchanged; with ADMIN a scratch copy and delete work" 0 "$n_msg refusals; $before"
+else
+  leg "15 VOC edits need ADMIN" "4 refusals, VOC unchanged; with ADMIN a scratch copy and delete work" 1 "refusals=$n_msg; before='$before' after='$after' after-admin='$after2'"
+fi
+
+# ---- 16. a user program's own WRITE to the VOC is refused in C without ADMIN.
+PROG="$H/user_accounts/sduser/bp/verify_t3"
+cat > "$PROG" <<'BASIC'
+   open 'voc' to v else display 'T3 cannot open voc' ; stop
+   write 'X' to v, 'zztest' on error
+      display 'T3 WRITE refused, status ' : status()
+      stop
+   end
+   display 'T3 WRITE done'
+   delete v, 'zztest' on error
+      display 'T3 DELETE refused, status ' : status()
+      stop
+   end
+   display 'T3 DELETE done'
+end
+BASIC
+comp="$(sess 'BASIC BP verify_t3')"
+printf '%s\n' "$comp" | grep -qx 'Compiled 1 program(s) with no errors' || refuse "leg 16's probe program did not compile: $(last "$comp")"
+o1="$(sess 'RUN BP verify_t3')"
+o2="$(sess ADMIN "$ADMINPW" 'RUN BP verify_t3')"
+if printf '%s\n' "$o1" | grep -qx 'T3 WRITE refused, status 3035' \
+   && printf '%s\n' "$o2" | grep -qx 'T3 WRITE done' && printf '%s\n' "$o2" | grep -qx 'T3 DELETE done'; then
+  leg "16 a program's own VOC write needs ADMIN" "refused (status 3035) without, done with" 0 "as expected"
+else
+  leg "16 a program's own VOC write needs ADMIN" "refused (status 3035) without, done with" 1 "without: $(last "$o1") / with: $(last "$o2")"
+fi
+rm -f "$PROG"
 
 echo
 echo "verify-solo: $pass passed, $fail failed, of $legs legs"

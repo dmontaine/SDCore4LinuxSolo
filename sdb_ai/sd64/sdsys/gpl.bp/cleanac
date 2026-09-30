@@ -47,10 +47,17 @@ $include keys.h
 $include syscom.h
 $include err.h
 $include parser.h
+$include int$keys.h
 
    parser = "!PARSER"
 
    @system.return.code = -ER$ARGS      ;* Preset for command format errors
+
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35 (Solo for Windows): a
+*  maintenance verb, so ADMIN (or the global password) first.  It lived in
+*  SDSYS, entered only by the administrator, until the one-account model moved
+*  it into the user's account with no check of its own.
+   if not(kernel(K$ADMINISTRATOR, -1)) then stop sysmsg(2001) ;* Command requires administrator privileges
 
 * ---------------  Step 1  -  Parse the command
 

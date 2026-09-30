@@ -346,7 +346,12 @@ def main():
             # A prompt that only VERIFIES a password (calls !CRED_VERIFY, never
             # !CRED_SET) must NOT apply the rule: a password set before the
             # rule, or by another port, would lock its owner out of login.
-            if "CRED_VERIFY" in body and "CRED_SET" not in body:
+            # CODE only: a comment that names !CRED_SET is not a call to it.
+            code = "\n".join(l for l in body.splitlines()
+                             if not l.lstrip().startswith("*"))
+            calls_verify = re.search(r"call\s+!CRED_VERIFY", code, re.I) is not None
+            calls_set = re.search(r"call\s+!CRED_SET", code, re.I) is not None
+            if calls_verify and not calls_set:
                 verify_only.append("sdsys/gpl.bp/" + name)
             else:
                 prompts.append(("sdsys/gpl.bp/" + name, body, r"pw_complex\("))

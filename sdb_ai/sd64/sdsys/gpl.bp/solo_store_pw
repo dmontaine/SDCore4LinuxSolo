@@ -82,7 +82,7 @@ $include err.h
    rec<1> = acc
    rec<2> = password
    write.ok = @true
-   write rec to cred.f, '$STORED' on error
+   write rec to cred.f, '$stored' on error
       write.ok = @false
    end
    close cred.f
@@ -97,7 +97,7 @@ $include err.h
 *  strings as numbers, so it would call "007" and "7" the same password.
    check = ''
    openpath @sdsys:@ds:'$cred' to chk.f then
-      read check from chk.f, '$STORED' else check = ''
+      read check from chk.f, '$stored' else check = ''
       close chk.f
    end
    same = (check<1> = acc and compare(check<2>, password) = 0)

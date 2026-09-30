@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - renaming records in a VOC needs
+*           ADMIN (ruling 14, !voc_guard), as in Solo for Windows.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -54,6 +56,7 @@ $include int$keys.h
 $include parser.h
 $include dictdict.h
 
+deffun voc_guard(f) calling '!voc_guard'
 
    parser = "!PARSER"
 
@@ -246,6 +249,14 @@ rename.records:
    if fileinfo(file, FL$READONLY) then
       @system.return.code = -ER$RDONLY
       stop sysmsg(1431) ;* File is read-only
+   end
+
+*  29 Sep 26 SD Core for Linux Solo - LSOLO 6, ruling 14: renaming records IN
+*  the VOC is a direct edit of it.  (Renaming a FILE, above, moves its VOC
+*  entry as a side effect of the command, like CREATE.FILE, and is not gated.)
+   if not(voc_guard(file)) then
+      @system.return.code = -ER$PERM
+      stop
    end
 
    if token.type = PARSER$END then stop sysmsg(2109) ;* Record name required

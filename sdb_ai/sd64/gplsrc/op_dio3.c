@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - voc_write_refused(): a user
+ *           program's own write, delete or clear of a VOC needs ADMIN (owner's
+ *           rulings 12 and 14), as in SD Core Solo for Windows (SOLO 5).
  * 10 Sep 26 dm  Parity audit: a WRITE with no lock held reports 10151, not
  *               1407's "disk may be full" (the port's fix; UPSTREAM_FIXES 20).
  *  9 Sep 26 Linux port - dir_read() added, the read half the directory code
@@ -101,6 +104,43 @@ Private int32_t t1_unmap_chunk(char *buff, int32_t bytes, bool last_chunk);
 Private bool valid_id(char *id, int16_t id_len);
 
 /* ======================================================================
+   voc_write_refused()  -  Is this a direct edit of a VOC without ADMIN?
+
+   29 Sep 26 SD Core for Linux Solo (LSOLO 6), owner's rulings 12 and 14 (Solo
+   for Windows, SOLO 5).  Editing the VOC needs the administrator password -
+   ADMIN, which sets USR_ADMIN.  The scope is DIRECT edits only (owner, 25 Sep
+   2026): a user's own program writing, deleting or clearing VOC records.  The
+   records SD writes itself as a side effect of ordinary commands -
+   CREATE.FILE's F-record, a saved sentence, $command.stack - come from
+   $internal programs, so HDR_INTERNAL lets them through.  ED, COPY, DELETE and
+   the full-screen editors are $internal too, and so check for themselves in
+   BASIC (gpl.bp/voc_guard).
+
+   A VOC is recognised by name: a dynamic file whose last path component is
+   "voc".  The caller's program flags are read BEFORE any k_recurse(), since
+   the recursive pcode is itself $internal (see op_writev()).            */
+
+Private bool voc_write_refused(FILE_VAR *fvar) {
+  char *path;
+  char *p;
+
+  if ((fvar == NULL) || (fvar->type != DYNAMIC_FILE))
+    return FALSE;
+  if (process.program.flags & HDR_INTERNAL)
+    return FALSE;
+  if (my_uptr->flags & USR_ADMIN)
+    return FALSE;
+
+  /* The file table is shared memory, hence volatile; the name cannot change
+     while this session holds the file open, so reading it plainly is safe. */
+  path = (char *)FPtr(fvar->file_id)->pathname;
+  p = strrchr(path, '/');
+  p = (p == NULL) ? path : p + 1;
+
+  return (stricmp(p, "voc") == 0);
+}
+
+/* ======================================================================
    op_clrfile()  -  Clear File                                            */
 
 void op_clrfile() {
@@ -147,6 +187,9 @@ void op_clrfile() {
 
   if (fvar->flags & FV_RDONLY)
     k_error(sysmsg(1403));
+
+  if (voc_write_refused(fvar)) /* 29 Sep 26 LSOLO 6, ruling 14 */
+    k_error(sysmsg(11008));
 
   {
     /* Get exclusive access to the file_lock entry in the file table. Because
@@ -325,6 +368,11 @@ void op_delete() {
   if (fvar->flags & FV_RDONLY) {
     process.status = -ER_RDONLY;
     log_permissions_error(fvar);
+    goto exit_op_delete;
+  }
+
+  if (voc_write_refused(fvar)) { /* 29 Sep 26 LSOLO 6, ruling 14 */
+    process.status = -ER_PERM;
     goto exit_op_delete;
   }
 
@@ -769,6 +817,11 @@ void op_write() {
     goto exit_op_write;
   }
 
+  if (voc_write_refused(fvar)) { /* 29 Sep 26 LSOLO 6, ruling 14 */
+    process.status = -ER_PERM;
+    goto exit_op_write;
+  }
+
   memcpy(lock_id, id, id_len);
 
   if (pcfg.must_lock || (txn_id != 0)) {
@@ -895,12 +948,31 @@ void op_writev() {
 
   process.status = 0;
 
+  /* 29 Sep 26 SD Core for Linux Solo (LSOLO 6), ruling 14.  Tested HERE, not
+     left to op_write(): the recursive pcode below is $internal, so by the time
+     it writes, the caller's program flags are gone.  A refusal drops the four
+     operands and reports like any failed WRITEV.                          */
+  {
+    DESCRIPTOR *wv_fvar = e_stack - 3;
+    k_get_file(wv_fvar);
+    if (voc_write_refused(wv_fvar->data.fvar)) {
+      process.status = -ER_PERM;
+      k_dismiss();
+      k_dismiss();
+      k_dismiss();
+      k_dismiss();
+      goto exit_op_writev;
+    }
+  }
+
   /* Push lock flag onto e-stack; zero for WRITEV, non-zero for WRITEVU */
 
   InitDescr(e_stack, INTEGER);
   (e_stack++)->data.value = op_flags & P_ULOCK;
 
   k_recurse(pcode_writev, 5); /* Execute recursive code */
+
+exit_op_writev:
 
   /* Set status code on stack */
 

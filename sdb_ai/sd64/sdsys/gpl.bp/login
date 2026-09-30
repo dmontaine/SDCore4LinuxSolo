@@ -658,7 +658,9 @@ require.password:
    pw.has.global = @false
    openpath @sdsys:@ds:'$cred' to pw.cred.f then
       read pw.rec from pw.cred.f, initial.account then pw.has.acct = @true
-      read pw.rec from pw.cred.f, '$GLOBAL' then pw.has.global = @true
+*     Record ids in $cred are LOWER CASE ($global, $stored): a case-sensitive
+*     filesystem, and !CRED_SET stores them that way (see admin).
+      read pw.rec from pw.cred.f, '$global' then pw.has.global = @true
       close pw.cred.f
    end
    pw.rec = ''
@@ -676,7 +678,7 @@ require.password:
 *  never the global one, so it never unlocks ADMIN.
    if not(pw.interactive) then
       openpath @sdsys:@ds:'$cred' to pw.cred.f then
-         read pw.rec from pw.cred.f, '$STORED' else pw.rec = ''
+         read pw.rec from pw.cred.f, '$stored' else pw.rec = ''
          close pw.cred.f
       end
       if pw.rec<1> = upcase(initial.account) and pw.rec<2> # '' then

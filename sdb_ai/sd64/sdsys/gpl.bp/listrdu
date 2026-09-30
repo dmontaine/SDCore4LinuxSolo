@@ -37,10 +37,15 @@ $catalog $listrdu
 $include parser.h
 $include err.h
 $include keys.h
+$include int$keys.h
 
    parser = "!PARSER"
 
    @system.return.code = -ER$ARGS      ;* Preset for command format errors
+
+*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35: a maintenance verb,
+*  so ADMIN (or the global password) first.
+   if not(kernel(K$ADMINISTRATOR, -1)) then stop sysmsg(2001) ;* Command requires administrator privileges
    lptr = -1
    show.waiters = @false
    detail = @false

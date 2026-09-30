@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - clearing a VOC needs ADMIN
+*           (ruling 14, !voc_guard), as in Solo for Windows.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -36,6 +38,8 @@ $catalog $clearfl
 $include parser.h
 $include syscom err.h
 $include syscom keys.h
+
+deffun voc_guard(f) calling '!voc_guard'
 
    prompt ""
    parser = "!PARSER"
@@ -88,6 +92,11 @@ $include syscom keys.h
    if fileinfo(file, FL$READONLY) then
       @system.return.code = -ER$RDONLY
       stop sysmsg(1431) ;* File is read-only
+   end
+
+   if not(voc_guard(file)) then           ;* 29 Sep 26 LSOLO 6, ruling 14
+      @system.return.code = -ER$PERM
+      stop
    end
 
    filelock file
