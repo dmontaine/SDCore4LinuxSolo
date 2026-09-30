@@ -199,6 +199,19 @@ else
   leg "S7 server identity is private" "sd-tls 700, api.pem 600" 1 "$mode_dir / $mode_key"
 fi
 
+# ---- S7b. the API can be CHANGED by running install again: open, then off, then local.
+# (A first version left the old listener behind: after "--api off" systemd still called the
+# removed socket unit active.)  Each step is judged by the listener itself.
+api_seen() { ss -ltn 2>/dev/null | awk -v p=":$PORT\$" '$4 ~ p {print $4}' | head -1; }
+bash "$SVC" install "$H" --api open --api-port "$PORT" >/dev/null 2>&1; sleep 1; a_open="$(api_seen)"
+bash "$SVC" install "$H" --api off >/dev/null 2>&1; sleep 1; a_off="$(api_seen)"; u_off="$(systemctl --user is-active sd-solo-api.socket 2>&1)"
+bash "$SVC" install "$H" --api local --api-port "$PORT" >/dev/null 2>&1; sleep 1; a_local="$(api_seen)"
+if [ "$a_open" = "0.0.0.0:$PORT" ] && [ -z "$a_off" ] && [ "$u_off" != "active" ] && [ "$a_local" = "127.0.0.1:$PORT" ]; then
+  leg "S7b re-running install changes the API" "open -> 0.0.0.0, off -> nothing listening and the unit not active, local -> 127.0.0.1" 0 "$a_open / none / $a_local"
+else
+  leg "S7b re-running install changes the API" "0.0.0.0:$PORT / nothing / 127.0.0.1:$PORT" 1 "open='$a_open' off='$a_off' unit-after-off='$u_off' local='$a_local'"
+fi
+
 # ---- S8. remove leaves nothing: files gone, daemon down, socket closed.
 rm_out="$(bash "$SVC" remove 2>&1 | strip | tail -1)"
 gone=0

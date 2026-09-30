@@ -132,6 +132,11 @@ ExecStop=$H/bin/sd -stop
 WantedBy=default.target
 UNIT
 
+# Re-running install to CHANGE the API (off, local, open, another port) must not leave the
+# old listener behind: stop and disable the socket unit before its file is rewritten or
+# removed (measured 30 Sep 26: after "--api off" systemd still reported the removed unit
+# "active", and a changed address was not applied until the unit was restarted).
+systemctl --user disable --now "$SOCKET" >/dev/null 2>&1 || true
 rm -f "$UNITDIR/$SOCKET" "$UNITDIR/$TEMPLATE"
 if [ "$api" != "off" ]; then
   if [ "$api" = "open" ]; then listen="0.0.0.0:$port"; else listen="127.0.0.1:$port"; fi

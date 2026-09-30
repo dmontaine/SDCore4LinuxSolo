@@ -1,2 +1,1 @@
-The SDSYS account is entered only by running SD as the sdsys OS user
-from a local session
+The SDSYS account is not entered in SD Core for Linux Solo - type ADMIN for the administrator commands
