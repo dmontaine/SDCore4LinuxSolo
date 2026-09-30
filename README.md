@@ -45,7 +45,7 @@ download. `bash ~/SDCoreSolo/tools/deletesolo.sh` removes it again, keeping your
 data if you ask.
 
 **Requirements:** a 64-bit Linux with a systemd user manager and one of the
-Debian/Ubuntu, Fedora/RHEL, openSUSE or Arch families; a user who can use `sudo`.
+Debian/Ubuntu, Fedora, openSUSE or Arch families (RHEL and its clones are not supported); a user who can use `sudo`.
 It cannot be installed on a computer that has the multi-user SD Core for Linux.
 
 ## What it is for

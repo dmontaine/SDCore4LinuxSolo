@@ -354,7 +354,10 @@ detect_distro() {
     ids=" ${ID:-} ${ID_LIKE:-} "
     case "$ids" in *" arch "*) is_arch=1 ;; esac
     case "$ids" in *" debian "*|*" ubuntu "*) is_debian=1 ;; esac
-    case "$ids" in *" fedora "*|*" rhel "*) is_fedora=1 ;; esac
+    # Fedora only (owner, 30 Sep 2026).  RHEL and its clones name "rhel" and also
+    # "fedora" in ID_LIKE, so they are turned away here, not matched by the fedora test.
+    case "$ids" in *" fedora "*) is_fedora=1 ;; esac
+    case "$ids" in *" rhel "*) [ "${ID:-}" = fedora ] || is_fedora=0 ;; esac
     case "$ids" in *" suse "*|*" opensuse"*|*" sles "*) is_suse=1 ;; esac
   fi
 }
@@ -369,7 +372,7 @@ install_packages() {
     sudo apt-get -y install $pk || fail "apt-get"
     sudo apt-get -y --ignore-missing install libcrypt-dev || true
   elif [ "$is_fedora" -eq 1 ]; then
-    say "Fedora or RHEL based: dnf"
+    say "Fedora based: dnf"
     local pk="git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl-devel python3-devel"
     [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
     # shellcheck disable=SC2086
@@ -387,7 +390,7 @@ install_packages() {
     # shellcheck disable=SC2086
     sudo pacman -Sy --noconfirm $pk || fail "pacman"
   else
-    refuse "this distribution could not be identified from /etc/os-release; supported: Debian, Ubuntu, Arch, Fedora, RHEL and openSUSE families"
+    refuse "this distribution could not be identified from /etc/os-release; supported: Debian, Ubuntu, Arch, Fedora and openSUSE families (not RHEL or its clones)"
   fi
 }
 say
