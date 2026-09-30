@@ -1,0 +1,168 @@
+#!/bin/bash
+#
+# SD Core for Linux Solo - delete script
+#   (c) 2026 Donald Montaine.  Released under the Blue Oak Model License 1.0.0,
+#   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
+#
+#   bash deletesolo.sh [--home DIR] [--keep-data | --delete-data] [--yes]
+#
+# Removes SD Core for Linux Solo for the user who runs it: the systemd user units,
+# the running daemon, the ~/.local/bin/sd link, the ssh key lines this product added,
+# the optional sshd_config.d block (sudo, only if it exists), and the installation
+# directory.  Run as YOUR OWN USER, never as root.
+#
+# YOUR DATA.  The account's files live in <home>/user_accounts/sduser.  --keep-data
+# moves that directory to ~/SDCoreSolo-data-<date> before anything is deleted;
+# --delete-data removes it with the rest.  Asked when neither is given.  The
+# passwords, the audit trail and the system files are always removed: a kept
+# user_accounts is data, not an installation, and a reinstall starts from a clean
+# tree.  (It cannot be re-attached to a new install by this script yet.)
+#
+# Linger is left as it is: it is a persistent setting of your account and other things
+# may rely on it.  A firewall rule the installer added is not removed; the script says so.
+#
+# The last line of a good run is "SOLO DELETE COMPLETE <home>".
+# EXIT: 0 done; 1 a step failed; 2 refused to start.
+
+set -uo pipefail
+
+RED='\033[0;31m'; YELLOW='\033[0;33m'; NC='\033[0m'
+say()  { printf '%s\n' "$*"; }
+warn() { printf '%b%s%b\n' "$YELLOW" "$*" "$NC"; }
+refuse() { printf '%bREFUSED: %s%b\n' "$RED" "$*" "$NC" >&2; exit 2; }
+fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
+
+[ "$(id -u)" -ne 0 ] || refuse "run this as your own user, not root"
+
+# ---- options
+H=""; data=""; assume_yes=0; from_copy=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --home)        [ "$#" -ge 2 ] || refuse "--home needs a directory"; H="$2"; shift 2 ;;
+    --keep-data)   data="keep"; shift ;;
+    --delete-data) data="delete"; shift ;;
+    --yes)         assume_yes=1; shift ;;
+    --from-copy)   from_copy=1; shift ;;
+    -h|--help)     sed -n '2,30p' "$0"; exit 0 ;;
+    *) refuse "unknown option: $1" ;;
+  esac
+done
+
+# ---- which tree.  Default: the tree this script sits in (<home>/tools/deletesolo.sh),
+# else ~/SDCoreSolo.
+if [ -z "$H" ]; then
+  self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [ -f "$self_dir/../.sdcoresolo" ]; then H="$(cd "$self_dir/.." && pwd)"; else H="$HOME/SDCoreSolo"; fi
+fi
+case "$H" in /*) ;; *) refuse "--home must be an absolute path (got '$H')" ;; esac
+[ -f "$H/.sdcoresolo" ] || refuse "$H is not an SD Core for Linux Solo tree (no .sdcoresolo marker); nothing was changed"
+# A last defence against a wrong path: never the home directory itself, "/" or a top-level directory.
+[ "$H" != "$HOME" ] && [ "$H" != "/" ] && [ "$(printf '%s' "$H" | tr -cd '/' | wc -c)" -ge 2 ] \
+  || refuse "$H is not a plausible install directory"
+
+# ---- do not delete the tree we are running from: run from a copy.
+if [ "$from_copy" -eq 0 ]; then
+  case "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/" in
+    "$H"/*)
+      tmp="$(mktemp -t deletesolo.XXXXXX)" || refuse "cannot make a temporary copy of this script"
+      cp "${BASH_SOURCE[0]}" "$tmp" || refuse "cannot copy this script to $tmp"
+      extra=()
+      [ -z "$data" ] || extra+=("--${data}-data")
+      [ "$assume_yes" -eq 0 ] || extra+=(--yes)
+      exec bash "$tmp" --home "$H" --from-copy "${extra[@]}"
+      ;;
+  esac
+fi
+
+interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
+
+say
+say "SD Core for Linux Solo - delete"
+say "  tree        : $H"
+say "  running as  : $(id -un)"
+[ -f "$H/.sdcore-install" ] && sed 's/^/  installed   : /' "$H/.sdcore-install" | head -3
+say
+
+AK="$HOME/.ssh/authorized_keys"
+FORCED="command=\"$H/bin/sd\",restrict,pty "
+n_keys=0
+[ -f "$AK" ] && n_keys="$(grep -cF -- "$FORCED" "$AK" 2>/dev/null || true)"
+DROPIN="/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
+link="$HOME/.local/bin/sd"
+link_ours=0
+[ -L "$link" ] && [ "$(readlink "$link")" = "$H/bin/sd" ] && link_ours=1
+
+say "This will remove:"
+say "  - the systemd user units (sd-solo.service, the API socket) and stop SD"
+say "  - the installation directory $H"
+[ "$link_ours" -eq 1 ] && say "  - the link $link"
+[ "${n_keys:-0}" -gt 0 ] && say "  - $n_keys ssh key line(s) in $AK that force sd (your other keys are untouched)"
+[ -f "$DROPIN" ] && say "  - $DROPIN (needs sudo)"
+say
+
+if [ -z "$data" ]; then
+  if [ "$interactive" -eq 1 ]; then
+    say "Your data is the account's files in $H/user_accounts/sduser."
+    read -r -p "Keep it (moved to ~/SDCoreSolo-data-<date>) or delete it? [keep/delete] " data < /dev/tty
+    case "$data" in keep|delete) ;; *) refuse "answer keep or delete (got '$data'); nothing was changed" ;; esac
+  else
+    refuse "say --keep-data or --delete-data (there is no terminal to ask on); nothing was changed"
+  fi
+fi
+if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
+  read -r -p "Continue? [y/N] " a < /dev/tty
+  case "$a" in y|Y|yes|YES) ;; *) refuse "cancelled by you; nothing was changed" ;; esac
+fi
+
+# ---- 1. the service and the daemon
+if [ -f "$H/tools/solo-service.sh" ]; then
+  bash "$H/tools/solo-service.sh" remove 2>&1 | tail -2
+else
+  systemctl --user disable --now sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
+  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service
+  systemctl --user daemon-reload 2>/dev/null || true
+fi
+"$H/bin/sd" -stop >/dev/null 2>&1 || true
+sleep 1
+if pgrep -u "$(id -u)" -f "$H/bin/" >/dev/null 2>&1; then
+  warn "processes are still running from $H; stopping them"
+  pkill -u "$(id -u)" -f "$H/bin/" 2>/dev/null || true
+  sleep 1
+fi
+
+# ---- 2. the link, the ssh lines, the sshd block
+[ "$link_ours" -eq 1 ] && rm -f "$link" && say "removed $link"
+if [ "${n_keys:-0}" -gt 0 ]; then
+  tmp="$(mktemp "$AK.XXXXXX")" || fail "mktemp"
+  removed=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in "$FORCED"*) removed=$((removed+1)) ;; *) printf '%s\n' "$line" >> "$tmp" ;; esac
+  done < "$AK"
+  chmod 600 "$tmp"; mv "$tmp" "$AK" || fail "replace $AK"
+  say "removed $removed ssh key line(s) from $AK"
+fi
+if [ -f "$DROPIN" ]; then
+  if [ -f "$H/tools/solo-ssh.sh" ]; then bash "$H/tools/solo-ssh.sh" match "$H" --remove || warn "the sshd block was NOT removed; remove $DROPIN as an administrator"
+  else warn "remove $DROPIN as an administrator (sudo rm, then reload sshd)"; fi
+fi
+
+# ---- 3. the data, then the tree
+if [ "$data" = "keep" ]; then
+  if [ -d "$H/user_accounts/sduser" ]; then
+    dest="$HOME/SDCoreSolo-data-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$dest" && mv "$H/user_accounts/sduser" "$dest/" || fail "moving your data to $dest"
+    chmod -R go-rwx "$dest"
+    say "your data is in $dest/sduser"
+  else
+    warn "there is no $H/user_accounts/sduser to keep"
+  fi
+fi
+rm -rf "$H" || fail "removing $H"
+[ ! -e "$H" ] || fail "$H is still there"
+say "removed $H"
+
+if command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -qE '^(4243|[0-9]+)/tcp .*ALLOW'; then
+  warn "ufw may still have a rule for the API port; list it with 'sudo ufw status' and remove it if you added it"
+fi
+say
+say "SOLO DELETE COMPLETE $H"

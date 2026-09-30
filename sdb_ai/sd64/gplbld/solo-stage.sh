@@ -113,6 +113,15 @@ cp -R gplobj "$H/gplobj"
 cp -R gplbld/FILES_DICTS "$H/gplbld/FILES_DICTS"
 cp -R terminfo "$H/terminfo"
 cp Makefile gpl.src terminfo.src "$H/"
+# The MICRO verb copies its SD BASIC syntax file from <sdsys>/microcfg on first use.
+cp -R gplbld/microcfg "$H/microcfg"
+# The scripts a user needs AFTER the install: stop/start the service, add an ssh key,
+# uninstall.  deletesolo.sh is at the repository root (beside the installer), two
+# levels above this tree's sd64; it is copied when it is there (an installed tree
+# built from a clone always has it).
+mkdir -p "$H/tools"
+cp gplbld/solo-service.sh gplbld/solo-ssh.sh "$H/tools/"
+[ -f ../../deletesolo.sh ] && cp ../../deletesolo.sh "$H/tools/deletesolo.sh"
 cp sd.conf "$H/sd.conf"
 : > "$H/.sdcoresolo"
 
