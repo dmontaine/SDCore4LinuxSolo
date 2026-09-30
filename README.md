@@ -14,9 +14,16 @@ them. It is the Linux counterpart of
 
 **Version LS1.1-1, not yet released.** It started on 29 September 2026 as a copy
 of SD Core for Linux L1.1-1. The one-account model, the passwords and ADMIN, the
-API login, the systemd user service, ssh into `sd` and the installer are built
-and have been run on one machine; the documentation, an in-place upgrade and the
-managed-mode server controls (global catalogue, denied commands) are not done.
+API login, the systemd user service, ssh into `sd`, the installer, the in-place
+upgrade (`bash installsolo.sh --upgrade`), the managed-mode server controls
+(global catalogue, denied commands) and the account password chosen at first
+login are built and have been run on one machine. The documentation is in the
+separate repository
+[SDCore4LinuxSoloDocs](https://github.com/dmontaine/SDCore4LinuxSoloDocs);
+[docs/SOLO_API.md](docs/SOLO_API.md) describes the API. **What has not been run,
+and is the owner's to run** (`sudo` paths, `loginctl enable-linger`, the
+`sshd_config.d` block, an install from the published branch) is listed in the
+documentation's page 19 and in `PROJECT_STATUS.md`.
 
 SD Core is English only: it has no support for other languages or locales.
 
