@@ -83,7 +83,9 @@ import time
 
 CURRENT, STALE, UNKNOWN = 0, 1, 2
 
-DEFAULT_SDSYS = "/usr/local/sdsys"
+# SD Core for Linux Solo (30 Sep 26): the install is one tree in the user's home
+# directory (installsolo.sh --home), and that directory IS the SDSYS directory.
+DEFAULT_SDSYS = os.path.expanduser("~/SDCoreSolo")
 STAMP_NAME = ".sdcore-install"
 
 
@@ -127,10 +129,18 @@ def read_stamp(path):
     out = {}
     for line in text.splitlines():
         line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+        if not line or line.startswith("#"):
             continue
-        k, v = line.split("=", 1)
+        # "key=value" (the multi-user installer) or "key value" (installsolo.sh).
+        if "=" in line:
+            k, v = line.split("=", 1)
+        elif " " in line:
+            k, v = line.split(None, 1)
+        else:
+            continue
         out[k.strip()] = v.strip()
+    if "date" in out and "installed" not in out:
+        out["installed"] = out["date"]
     return out or None
 
 

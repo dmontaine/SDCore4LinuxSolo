@@ -52,7 +52,7 @@ def touch(path, mtime=None):
 
 
 def build(tmp, *, dirty=False, pushed=True, stamp="head",
-          install_after_commit=True, built_current=True):
+          install_after_commit=True, built_current=True, solo_stamp=False):
     """Make a fixture repo + fake sdsys.  Returns (repo, sdsys)."""
     repo = os.path.join(tmp, "repo")
     sd64 = os.path.join(repo, "sdb_ai", "sd64")
@@ -111,8 +111,13 @@ def build(tmp, *, dirty=False, pushed=True, stamp="head",
         sha = head if stamp == "head" else stamp
         with open(os.path.join(sdsys, ".sdcore-install"), "w",
                   encoding="utf-8") as f:
-            f.write("commit=%s\nbranch=main\ninstalled=%s\n"
-                    % (sha, time.strftime("%Y-%m-%d %H:%M:%S")))
+            if solo_stamp:
+                # installsolo.sh's own format: "key value" lines.
+                f.write("commit %s\ndate %s\nmode standalone\n"
+                        % (sha, time.strftime("%Y-%m-%dT%H:%M:%S")))
+            else:
+                f.write("commit=%s\nbranch=main\ninstalled=%s\n"
+                        % (sha, time.strftime("%Y-%m-%d %H:%M:%S")))
 
     if dirty:
         touch(os.path.join(sd64, "gplsrc", "uncommitted.c"))
@@ -179,6 +184,10 @@ def main():
     # ---- the one that must say CURRENT.  Without it every other row could be
     # ---- satisfied by a guard that always says STALE.
     check("clean, pushed, stamp==HEAD, built", CURRENT, "current.")
+    # Solo's installsolo.sh writes "commit <sha>", not "commit=<sha>".
+    check("Solo-format stamp == HEAD", CURRENT, "current.", solo_stamp=True)
+    check("Solo-format stamp, another commit", STALE, "was built from",
+          stamp="0" * 40, solo_stamp=True)
 
     # ---- STALE, each for a DIFFERENT stated reason.
     check("uncommitted change", STALE, "uncommitted", dirty=True)
