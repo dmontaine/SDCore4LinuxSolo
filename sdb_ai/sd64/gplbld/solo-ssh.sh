@@ -138,7 +138,7 @@ fi
 user="$(id -un)"
 DROPIN="/etc/ssh/sshd_config.d/50-sd-solo-$user.conf"
 block="# SD Core for Linux Solo: every ssh login of $user lands in sd (no shell, no forwarding).
-# Written by $H/../gplbld/solo-ssh.sh; remove it with 'solo-ssh.sh match $H --remove'.
+# Written by $H/tools/solo-ssh.sh; remove it with 'bash $H/tools/solo-ssh.sh match $H --remove'.
 Match User $user
     ForceCommand $H/bin/sd
     DisableForwarding yes"
