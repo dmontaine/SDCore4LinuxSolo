@@ -408,6 +408,20 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    end case
 
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 9) - RULING 13: "sd -internal" IS
+*   CLOSED ON A DELIVERED SYSTEM AND OPENED, ONE SESSION AT A TIME, BY WHOEVER
+*   LEGITIMATELY STARTS ONE.  Ported from SD Core Solo for Windows' LOGIN
+*   (RELEASE_1.1 82).  An internal session is admitted only while a marker file
+*   $internal exists in the SDSYS directory and is fresh, and internal.gate
+*   DELETES it on admission - the consumer closes the window.  Mode 0 only:
+*   the update modes (2 to 4) return above and are not asked again.  "sd -i"
+*   (the bootstrap) never comes through LOGIN and is already closed on an
+*   installed system, because BBPROC refuses when gpl.bp.out/login exists.
+   if mode = 0 and kernel(K$INTERNAL,-1) then
+      gosub internal.gate
+      if not(gate.ok) then goto terminate.connection
+   end
+
 * 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
 *   port's LOGIN of 27 Aug 2026).  After the case and not in each arm, so a
 *   fourth arm cannot forget it.  Console and ssh both arrive here - an ssh
@@ -619,6 +633,87 @@ terminate.connection:
    sleep 2
 abort.login:
    return to abort.login
+
+*
+* ======================================================================
+* INTERNAL.GATE  -  may this internal session start?  Sets gate.ok.
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 9), ruling 13; SD Core Solo for
+* Windows' routine of the same name, RELEASE_1.1 82.
+*
+* THE RULE.  A marker file named $internal must exist in the SDSYS directory and
+* be at most gate.expiry seconds old.  It is DELETED here, before the decision,
+* so no path leaves the window open.  Whoever legitimately starts an internal
+* session - the installer's steps, the bootstrap, a verifier - writes ONE marker
+* immediately before it (gplbld/solo-stage.sh and installsolo.sh do).  A marker
+* written and never used authorises exactly one later session, for ten minutes.
+*
+* WHAT IT IS NOT.  A speed bump, not a boundary: the tree belongs to the user, who
+* can write the file by hand (and can edit the BASIC).  That is the owner's own
+* standard - "the developer mode switch is not a published feature, it has to be
+* discovered by looking at the source code, which is fine in an open source
+* product" - and this comment says so rather than pretending.
+*
+* AGE is measured on the filesystem's own clock: a scratch file is created and ITS
+* mtime read, because BASIC cannot ask for the current time in the same base as a
+* file's mtime.  OPENSEQ does not create a file; CREATE does (the Windows first
+* version assumed otherwise and admitted an 11-minute-old marker for ever).  If the
+* age cannot be measured it stays -1 and the marker is treated as fresh: expiry is
+* the weaker half, consumption is what closes the window.
+*
+* THE REFUSAL SAYS NOTHING ABOUT WHY: it leaves through terminate.connection, so
+* the operator sees "Connection terminated" and the audit trail carries the
+* reason.  EVERY USE IS AUDITED, admitted or refused, with the writer named on the
+* marker's first line (capped).  An admitted session ANNOUNCES itself (11040).
+
+internal.gate:
+   gate.ok = @false
+   gate.marker = @sdsys : @ds : '$internal'
+   gate.expiry = 600           ;* seconds
+   gate.writer = ''
+   gate.age = -1
+
+   if ospath(gate.marker, OS$EXISTS) then
+      gate.mtime = ospath(gate.marker, OS$DTM)
+
+      openseq gate.marker to gate.mf then
+         readseq gate.writer from gate.mf else gate.writer = ''
+         closeseq gate.mf
+      end else gate.writer = ''
+      gate.writer = trim(gate.writer[1, 80])
+
+      gate.stamp = @sdsys : @ds : '$internal.now'
+      void ospath(gate.stamp, OS$DELETE)
+      openseq gate.stamp to gate.sf else
+         create gate.sf else gate.sf = ''
+      end
+      if ospath(gate.stamp, OS$EXISTS) then
+         closeseq gate.sf
+         gate.now = ospath(gate.stamp, OS$DTM)
+         if gate.now > 0 and gate.mtime > 0 then gate.age = gate.now - gate.mtime
+      end
+      void ospath(gate.stamp, OS$DELETE)
+
+*     THE CONSUMER CLOSES THE WINDOW: delete before deciding.
+      void ospath(gate.marker, OS$DELETE)
+      if ospath(gate.marker, OS$EXISTS) then
+         audit.reason = 'the internal marker could not be consumed'
+      end else
+         if gate.age > gate.expiry then
+            audit.reason = 'the internal marker had expired'
+         end else
+            gate.ok = @true
+         end
+      end
+   end else
+      audit.reason = 'no internal marker'
+   end
+
+   audit.account = initial.account
+   if gate.ok then
+      void kernel(K$AUDIT, 'INTERNAL SESSION ADMITTED account=' : initial.account : ' writer=' : gate.writer : ' age=' : gate.age)
+      display sysmsg(11040, gate.writer) ;* Internal session admitted (opened by %1)
+   end
+   return
 
 *
 * ======================================================================

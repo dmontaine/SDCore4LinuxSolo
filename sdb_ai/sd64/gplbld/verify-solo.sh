@@ -132,6 +132,7 @@ fi
 CREDREC="$H/\$cred/sduser"
 [ -f "$CREDREC" ] || refuse "$CREDREC is missing - leg 9 would compare nothing"
 before="$(md5sum < "$CREDREC")"
+printf 'verify-solo pid=%s\n' "$$" > "$H/\$internal"     # the internal door is one-shot (ruling 13)
 out="$(printf 'weak\n' | timeout 60 "$SD" -internal RUN gpl.bp solo_password ACCOUNT sduser 2>&1 | strip)"
 after="$(md5sum < "$CREDREC")"
 if printf '%s\n' "$out" | grep -qx 'solo_password: nothing was stored.' && [ "$before" = "$after" ] \
@@ -320,6 +321,58 @@ if printf '%s\n' "$out" | grep -qx 'This computer is standalone - it has no glob
   leg "19 SET.PASSWORD GLOBAL is refused when standalone" "'This computer is standalone...'" 0 "refused"
 else
   leg "19 SET.PASSWORD GLOBAL is refused when standalone" "'This computer is standalone...'" 1 "$(last "$out")"
+fi
+
+# ======================================================================
+# THE INTERNAL DOOR (ruling 13, LSOLO 9): "sd -internal" is closed on a delivered
+# system and opened one session at a time by a marker file $internal, which LOGIN
+# deletes on admission and refuses when older than ten minutes.
+MARK="$H/\$internal"
+int_try() { timeout 90 "$SD" -internal WHO 2>&1 | strip; }
+audit_lines_before="$(wc -l < "$H/audit")"
+rm -f "$MARK"
+
+# ---- 20. no marker: refused, and it says nothing about why (it is not published).
+o="$(int_try)"
+if printf '%s\n' "$o" | grep -qx 'Connection terminated' && ! printf '%s\n' "$o" | grep -qE '^[0-9]+ sdsys$' \
+   && ! printf '%s\n' "$o" | grep -qi 'marker'; then
+  leg "20 sd -internal with no marker is refused" "'Connection terminated', no session, the screen does not name the marker" 0 "refused"
+else
+  leg "20 sd -internal with no marker is refused" "'Connection terminated', no session" 1 "$(printf '%s\n' "$o" | tail -2 | tr '\n' ' ')"
+fi
+
+# ---- 21. a fresh marker admits ONE session, announces itself, and is consumed.
+printf 'verify-solo pid=%s\n' "$$" > "$MARK"
+o1="$(int_try)"
+gone=0; [ -e "$MARK" ] && gone=1
+o2="$(int_try)"
+if printf '%s\n' "$o1" | grep -qx 'Internal session admitted (opened by verify-solo pid='"$$"')' \
+   && printf '%s\n' "$o1" | grep -qE '^[0-9]+ sdsys$' && [ "$gone" -eq 0 ] \
+   && printf '%s\n' "$o2" | grep -qx 'Connection terminated' && ! printf '%s\n' "$o2" | grep -qE '^[0-9]+ sdsys$'; then
+  leg "21 a marker admits one session and is consumed" "announced, WHO answers sdsys, marker gone, the next attempt refused" 0 "as expected"
+else
+  leg "21 a marker admits one session and is consumed" "announced; WHO sdsys; marker gone; next refused" 1 "first: $(printf '%s\n' "$o1" | grep -E 'admitted|sdsys' | tr '\n' ' ') marker-left=$gone second: $(last "$o2")"
+fi
+
+# ---- 22. a stale marker (older than ten minutes) is refused - and still consumed.
+printf 'verify-solo stale pid=%s\n' "$$" > "$MARK"
+touch -d '20 minutes ago' "$MARK" 2>/dev/null || refuse "touch -d is not available - leg 22 would measure nothing"
+o="$(int_try)"
+left=0; [ -e "$MARK" ] && left=1
+if printf '%s\n' "$o" | grep -qx 'Connection terminated' && ! printf '%s\n' "$o" | grep -qE '^[0-9]+ sdsys$' && [ "$left" -eq 0 ]; then
+  leg "22 a stale marker is refused" "'Connection terminated', no session, marker consumed" 0 "refused"
+else
+  leg "22 a stale marker is refused" "refused, no session, marker consumed" 1 "$(last "$o") marker-left=$left"
+fi
+
+# ---- 23. every use is audited: the admission, and both kinds of refusal.
+new_audit="$(tail -n +"$((audit_lines_before + 1))" "$H/audit")"
+if printf '%s\n' "$new_audit" | grep -q 'INTERNAL SESSION ADMITTED account=sdsys writer=verify-solo pid=' \
+   && printf '%s\n' "$new_audit" | grep -q 'reason=no internal marker' \
+   && printf '%s\n' "$new_audit" | grep -q 'reason=the internal marker had expired'; then
+  leg "23 the internal door is audited" "admitted, 'no internal marker', 'had expired'" 0 "3 kinds present"
+else
+  leg "23 the internal door is audited" "admitted, 'no internal marker', 'had expired'" 1 "$(printf '%s\n' "$new_audit" | grep -E 'INTERNAL|internal marker' | cut -c1-90 | tr '\n' '|')"
 fi
 
 echo

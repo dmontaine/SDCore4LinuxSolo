@@ -127,6 +127,14 @@ python3 gplbld/pcode_bld.py "$H"
 SD="$H/bin/sd"
 cd "$H"
 
+# THE INTERNAL DOOR IS ONE-SHOT (ruling 13): "sd -internal" is admitted only against a
+# fresh marker file $internal in the tree, which LOGIN deletes on admission.  So a
+# marker is written immediately before EVERY internal session - and only these.  sdi
+# is "sd -internal" with that marker; run_step does the same for any command it is
+# given that contains -internal.
+write_marker() { printf 'solo-stage pid=%s %s\n' "$$" "$(date -Is)" > "$H/\$internal"; }
+sdi() { write_marker; "$SD" -internal "$@"; }
+
 echo
 echo "Starting SD ($SD -start)"
 "$SD" -stop >/dev/null 2>&1 || true
@@ -143,6 +151,7 @@ run_step() {
   local o rc=0 plain badw
   echo
   echo "$label ($*)"
+  case " $* " in *" -internal "*) write_marker ;; esac
   o="$("$@" 2>&1)" || rc=$?
   printf '%s\n' "$o"
   plain="$(printf '%s\n' "$o" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
@@ -159,7 +168,7 @@ run_step "Bootstrap pass 2" "$SD" -internal SECOND.COMPILE
 # nobody but the installer lands in SDSYS.
 echo
 echo "Bootstrap pass 3 ($SD -internal RUN gpl.bp write_install_dicts NO.PAGE)"
-out="$("$SD" -internal RUN gpl.bp write_install_dicts NO.PAGE 2>&1)" || true
+out="$(sdi RUN gpl.bp write_install_dicts NO.PAGE 2>&1)" || true
 printf '%s\n' "$out"
 plain="$(printf '%s\n' "$out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 bad="$(printf '%s\n' "$plain" | grep -E 'ERROR OPENING|PROCESS ABORTED|READLIST EMPTY|NO DIRECTORY RECORDS FOUND|CANNOT READ TRANSFER_FILE|ERROR CANNOT OPEN|Invalid runfile|requires administrator' || true)"
@@ -171,7 +180,7 @@ run_step "Compiling C and I type dictionaries" "$SD" -internal THIRD.COMPILE
 
 echo
 echo "Creating the one account ($SD -internal RUN gpl.bp solo_account)"
-acct_out="$("$SD" -internal RUN gpl.bp solo_account 2>&1)" || true
+acct_out="$(sdi RUN gpl.bp solo_account 2>&1)" || true
 printf '%s\n' "$acct_out"
 acct_plain="$(printf '%s\n' "$acct_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 printf '%s\n' "$acct_plain" | grep -qE '^SOLO ACCOUNT READY sduser ' || fail "solo_account did not print 'SOLO ACCOUNT READY sduser'"
@@ -183,7 +192,7 @@ if [ -n "$pwfile" ]; then
 # A PIPE, NOT "< FILE": measured 29 Sep 2026, sd ends the session ("Process
 # terminated") at the first INPUT when its standard input is a redirected
 # regular file, and reads the same bytes from a pipe.
-  pw_out="$(cat "$pwfile" | "$SD" -internal RUN gpl.bp solo_password ACCOUNT sduser 2>&1)" || true
+  pw_out="$(write_marker; cat "$pwfile" | "$SD" -internal RUN gpl.bp solo_password ACCOUNT sduser 2>&1)" || true
   pw_plain="$(printf '%s\n' "$pw_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
   printf '%s\n' "$pw_plain" | tail -3
   printf '%s\n' "$pw_plain" | grep -qx 'SOLO PASSWORD SET ACCOUNT' || fail "solo_password did not print 'SOLO PASSWORD SET ACCOUNT'"
@@ -197,7 +206,7 @@ fi
 if [ -n "$adminfile" ]; then
   echo
   echo "Setting the administrator password (cat $adminfile | $SD -internal RUN gpl.bp solo_password ADMIN)"
-  ad_out="$(cat "$adminfile" | "$SD" -internal RUN gpl.bp solo_password ADMIN 2>&1)" || true
+  ad_out="$(write_marker; cat "$adminfile" | "$SD" -internal RUN gpl.bp solo_password ADMIN 2>&1)" || true
   ad_plain="$(printf '%s\n' "$ad_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
   printf '%s\n' "$ad_plain" | tail -3
   printf '%s\n' "$ad_plain" | grep -qx 'SOLO PASSWORD SET ADMIN' || fail "solo_password did not print 'SOLO PASSWORD SET ADMIN'"
@@ -210,7 +219,7 @@ fi
 if [ -n "$globalfile" ]; then
   echo
   echo "Setting the global password - MANAGED MODE (cat $globalfile | $SD -internal RUN gpl.bp solo_password GLOBAL)"
-  gl_out="$(cat "$globalfile" | "$SD" -internal RUN gpl.bp solo_password GLOBAL 2>&1)" || true
+  gl_out="$(write_marker; cat "$globalfile" | "$SD" -internal RUN gpl.bp solo_password GLOBAL 2>&1)" || true
   gl_plain="$(printf '%s\n' "$gl_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
   printf '%s\n' "$gl_plain" | tail -3
   printf '%s\n' "$gl_plain" | grep -qx 'SOLO PASSWORD SET GLOBAL' || fail "solo_password did not print 'SOLO PASSWORD SET GLOBAL'"
