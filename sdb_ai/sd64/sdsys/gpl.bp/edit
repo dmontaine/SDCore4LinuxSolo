@@ -15,6 +15,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 30 Sep 26     SD Core for Linux Solo (LSOLO 16): NANO is highlighted through an
+*               rc file (--rcfile) written per session - see place.syntax.
 * 29 Sep 26     SD Core for Linux Solo (LSOLO 6): saving into a VOC needs ADMIN
 *               (ruling 14, !voc_guard).
 * 22 Sep 26     find.editor's missing-editor message named "sudo apt install",
@@ -649,11 +651,29 @@ return
 * regenerated file reaches an existing user, and a user's own edits survive
 * until SD's genuinely moves on.  $HOME is left for the shell to expand.
 *
-* nano needs none of this: its syntax file is system-wide and the installer
-* places it.  DELIBERATELY SILENT AND IGNORED - a failure costs colour, not
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 16) - NANO gets its highlighting the
+* Solo way: the multi-user installer's system-wide /usr/share/nano/sdbasic.nanorc
+* is outside the home directory, so it does not exist here.  nano reads one rc
+* file named by --rcfile and that REPLACES /etc/nanorc and ~/.nanorc, so
+* nanocfg/mkrc.sh writes <sdsys>/nanocfg/sd.nanorc that includes whichever of
+* those exist and then SD's syntax, and editor.opts carries --rcfile to the
+* launch below.  Written before every session (it is a few lines) so it heals
+* after a move.  DELIBERATELY SILENT AND IGNORED - a failure costs colour, not
 * correctness, and must never stop somebody editing a record.
 * ---------------------------------------------------------------------------
 place.syntax:
+   editor.opts = ''
+   if editor.exe = 'nano' then
+      nano.master = @sdsys : '/nanocfg/sdbasic.nanorc'
+      nano.rc     = @sdsys : '/nanocfg/sd.nanorc'
+      nano.mkrc   = @sdsys : '/nanocfg/mkrc.sh'
+      if not(index(nano.master : nano.rc : nano.mkrc, q, 1)) then
+         os.execute 'sh "' : nano.mkrc : '" "' : nano.master : '" "' : nano.rc : '" 2>/dev/null'
+         os.execute 'test -r "' : nano.rc : '"'
+         if not(os.error()) then editor.opts = ' --rcfile=' : q : nano.rc : q
+      end
+      return
+   end
    if editor.exe # 'micro' then return
    syntax.master = @sdsys : '/microcfg/syntax/sdbasic.yaml'
    syntax.home   = '"$HOME/.config/micro/syntax"'
@@ -734,7 +754,7 @@ process.record:
    crt @(-1) : 'Editing ' : trim(dict.text : ' ' : in.file.name) : ' ' :
    crt in.record.name
 
-   os.execute q : editor.path : q : ' ' : q : os.file : q
+   os.execute q : editor.path : q : editor.opts : ' ' : q : os.file : q
    rc = os.error()
 
    crt @(-1) :

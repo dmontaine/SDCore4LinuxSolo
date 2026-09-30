@@ -5,7 +5,8 @@
 #   python3 ptyrun.py [--env NAME=VALUE]... [--timeout SECONDS] SD_BINARY STEP...
 #
 # A STEP is  expect:REGEX  (wait until the output so far matches; the match is
-# consumed)  or  send:TEXT  (type TEXT and Enter - a pty's Enter is CR).
+# consumed),  send:TEXT  (type TEXT and Enter - a pty's Enter is CR)  or
+# raw:BYTES  (type them as they are, \xNN decoded, no Enter).
 # Nothing is ever sent before its preceding expect matched: input typed AHEAD of
 # sd over a pty is discarded (measured 30 Sep 2026), so a script that sent early
 # would be measuring nothing.
@@ -109,6 +110,10 @@ def main():
             time.sleep(0.15)   # let sd reach its read before anything is typed
         elif kind == "send":
             os.write(fd, val.encode() + b"\r")
+        elif kind == "raw":
+            # Bytes as they are, no Enter: \xNN escapes are decoded, so raw:\x18 is Ctrl-X
+            # (what a full-screen editor is left with) and raw:n is the letter n.
+            os.write(fd, val.encode().decode("unicode_escape").encode("latin-1"))
         else:
             failed = "step %d: unknown step kind '%s'" % (i + 1, kind)
             break

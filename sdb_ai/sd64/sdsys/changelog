@@ -59,6 +59,16 @@ processor and the file system are the same.  What differs:
            changes the global password, and only a session signed in with it
            may do so.
 
+30 Sep 26  NANO NOW HIGHLIGHTS SD BASIC.
+
+           The NANO verb used to open nano with no colour: the highlighting file
+           the multiuser product puts in /usr/share/nano is outside your home
+           directory, so Solo never had it.  The verb now starts nano with its
+           own rc file, rewritten before every session from your /etc/nanorc,
+           ~/.nanorc and ~/.config/nano/nanorc plus SD's syntax, so your own
+           nano settings still apply.  It colours a program in a bp file and
+           nothing else, and running nano yourself is unchanged.
+
 30 Sep 26  SDCONNECTLOCAL IS GONE, AND TWO SPINS AT END OF INPUT ARE CLOSED.
 
            A client program that called SDConnectLocal used to hang for ever

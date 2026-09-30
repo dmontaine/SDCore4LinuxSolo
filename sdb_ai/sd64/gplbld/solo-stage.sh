@@ -143,7 +143,7 @@ if [ "$upgrade" -eq 1 ]; then
   # What is replaced is code and shipped system objects only.  Nothing below names
   # user_accounts, \$cred, audit, errlog, global.bp.out, solo.policy, sd.conf,
   # sd-tls or the account register's sduser file.
-  rm -rf "$H/bin" "$H/gplsrc" "$H/gplobj" "$H/terminfo" "$H/microcfg" "$H/gplbld/FILES_DICTS" "$H/tools"
+  rm -rf "$H/bin" "$H/gplsrc" "$H/gplobj" "$H/terminfo" "$H/microcfg" "$H/nanocfg" "$H/gplbld/FILES_DICTS" "$H/tools"
   # The bootstrap refuses a tree whose gpl.bp.out already holds LOGIN ("System
   # Already Installed?", bbproc) and re-creates SDSYS's own VOC, so the objects and
   # SDSYS's VOC - system files, rebuilt from the release's sources and templates -
@@ -183,6 +183,8 @@ cp -R terminfo "$H/terminfo"
 cp Makefile gpl.src terminfo.src "$H/"
 # The MICRO verb copies its SD BASIC syntax file from <sdsys>/microcfg on first use.
 cp -R gplbld/microcfg "$H/microcfg"
+# LSOLO 16: the NANO verb's syntax file and the script that writes its --rcfile.
+cp -R gplbld/nanocfg "$H/nanocfg"
 # The scripts a user needs AFTER the install: stop/start the service, add an ssh key,
 # uninstall.  deletesolo.sh is at the repository root (beside the installer), two
 # levels above this tree's sd64; it is copied when it is there (an installed tree
