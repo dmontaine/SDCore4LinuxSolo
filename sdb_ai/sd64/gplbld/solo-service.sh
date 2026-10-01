@@ -1,7 +1,7 @@
 #!/bin/bash
 # solo-service.sh - run SD Core for Linux Solo as the user's own systemd service.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh install HOME_DIR [--api off|local|open] [--api-port N]
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh install HOME_DIR [--api off|local|open]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh remove
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh status
 #
@@ -15,8 +15,15 @@
 #                          sd.service (its 13 Sep 26 note: "sd -start" forks a daemon
 #                          that forks again, and Type=forking makes systemd guess the
 #                          main PID and declare the service dead)
-#   sd-solo-api.socket     only with --api local|open: the API's listener, port 4243
-#                          unless --api-port; 127.0.0.1 for "local", 0.0.0.0 for "open"
+#   sd-solo-api.socket     only with --api local|open: the API's listener, port 4249;
+#                          127.0.0.1 for "local", 0.0.0.0 for "open"
+#
+# THE PORT IS 4249, FIXED (owner, 2 Oct 2026: "make ports 4247 and 4249 -- do not
+# allow adjustable ports"; was 4243, and --api-port moved it).  Both SD Core Solos use
+# 4249 and the full products 4247; OpenQM and ScarletDME use 4243, upstream SD 4245.
+# TEST HOOK, NOT A FEATURE: SDSOLO_TEST_API_PORT moves it, so the witnesses can run a
+# staged tree beside a live Solo.  Announced on every use; a real install never sets
+# it (the same rule as installsolo.sh's SDSOLO_REPO_URL).
 #   sd-solo-api@.service   one "sd -n -q" per connection (Accept=true)
 #
 # LINGER.  Without it the user manager - and SD with it - stops when the user's last
@@ -53,7 +60,7 @@ TEMPLATE="sd-solo-api@.service"
 cmd="${1:-}"
 case "$cmd" in
   install|remove|status) shift ;;
-  *) refuse "usage: bash $0 install HOME_DIR [--api off|local|open] [--api-port N] | remove | status" ;;
+  *) refuse "usage: bash $0 install HOME_DIR [--api off|local|open] | remove | status" ;;
 esac
 
 linger_state() { loginctl show-user "$USER" -p Linger --value 2>/dev/null || echo unknown; }
@@ -84,25 +91,28 @@ if [ "$cmd" = "remove" ]; then
 fi
 
 # ---- install
-[ "$#" -ge 1 ] || refuse "usage: bash $0 install HOME_DIR [--api off|local|open] [--api-port N]"
+[ "$#" -ge 1 ] || refuse "usage: bash $0 install HOME_DIR [--api off|local|open]"
 H="$1"; shift
 case "$H" in /*) ;; *) refuse "HOME_DIR must be an absolute path (got '$H')" ;; esac
 [ -x "$H/bin/sd" ]  || refuse "$H/bin/sd is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 case "$H" in *" "*|*"%"*|*'$'*) refuse "HOME_DIR contains a space, % or \$, which a unit file cannot carry safely: $H" ;; esac
 
-api="off"; port="4243"; want_linger="no"
+api="off"; port="4249"; want_linger="no"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --enable-linger) want_linger="yes"; shift ;;
     --api)      [ "$#" -ge 2 ] || refuse "--api needs off, local or open"; api="$2"; shift 2 ;;
-    --api-port) [ "$#" -ge 2 ] || refuse "--api-port needs a number"; port="$2"; shift 2 ;;
     *) refuse "unknown argument: $1" ;;
   esac
 done
 case "$api" in off|local|open) ;; *) refuse "--api must be off, local or open (got '$api')" ;; esac
-case "$port" in ''|*[!0-9]*) refuse "--api-port must be a number (got '$port')" ;; esac
-[ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || refuse "--api-port must be 1024-65535: a user cannot bind below 1024"
+if [ -n "${SDSOLO_TEST_API_PORT:-}" ]; then
+  port="$SDSOLO_TEST_API_PORT"
+  case "$port" in ''|*[!0-9]*) refuse "SDSOLO_TEST_API_PORT must be a number (got '$port')" ;; esac
+  [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || refuse "SDSOLO_TEST_API_PORT must be 1024-65535"
+  printf '\033[0;33m*** SDSOLO_TEST_API_PORT IS SET: the API port is %s, NOT 4249 (a test hook) ***\033[0m\n' "$port" >&2
+fi
 
 echo "solo-service inputs:"
 echo "  tree       : $H"

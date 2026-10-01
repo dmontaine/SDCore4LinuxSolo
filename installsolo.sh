@@ -24,8 +24,8 @@
 #   --account-password-file FILE  the account password, one line (for automation; delete the file)
 #   --admin-password-file FILE    the administrator password, one line
 #   --global-password-file FILE   the global password, one line (managed mode)
-#   --api off|local|open          the API listener (standalone only; managed is always open)
-#   --api-port N                  the API port, 1024-65535 (default 4243)
+#   --api off|local|open          the API listener (standalone only; managed is always open);
+#                                 always port 4249 - fixed, not an option (owner, 2 Oct 2026)
 #   --ssh-key FILE                a public key to add for ssh straight into sd
 #   --ssh-match                   also write the sshd_config.d block (needs sudo)
 #   --enable-linger               run "loginctl enable-linger" so SD survives sign-out
@@ -76,7 +76,10 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 HOME_DIR="$HOME/SDCoreSolo"
 control_file=""; managed=0
 acc_file=""; adm_file=""; glb_file=""
-api="" ; api_port="4243"
+# 02 Oct 26 - THE API PORT IS 4249, FIXED (owner, 2 Oct 2026: "make ports 4247 and 4249
+# -- do not allow adjustable ports").  --api-port is gone.  The witnesses' private
+# ports go through solo-service.sh's announced test hook, SDSOLO_TEST_API_PORT.
+api="" ; api_port="4249"
 ssh_key=""; ssh_match=0; enable_linger=0; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -87,7 +90,6 @@ while [ "$#" -gt 0 ]; do
     --admin-password-file)    [ "$#" -ge 2 ] || refuse "$1 needs a file"; adm_file="$2"; shift 2 ;;
     --global-password-file)    [ "$#" -ge 2 ] || refuse "$1 needs a file"; glb_file="$2"; managed=1; shift 2 ;;
     --api)                    [ "$#" -ge 2 ] || refuse "--api needs off, local or open"; api="$2"; shift 2 ;;
-    --api-port)               [ "$#" -ge 2 ] || refuse "--api-port needs a number"; api_port="$2"; shift 2 ;;
     --ssh-key)                [ "$#" -ge 2 ] || refuse "--ssh-key needs a public key file"; ssh_key="$2"; shift 2 ;;
     --ssh-match)              ssh_match=1; shift ;;
     --enable-linger)          enable_linger=1; shift ;;
@@ -102,8 +104,7 @@ done
 case "$HOME_DIR" in /*) ;; *) refuse "--home must be an absolute path (got '$HOME_DIR')" ;; esac
 case "$HOME_DIR" in *" "*|*'"'*|*"'"*|*'\'*|*'$'*|*'`'*|*'%'*) refuse "the install directory must not contain a space, quote, backslash, \$, backtick or %: $HOME_DIR" ;; esac
 case "$api" in ""|off|local|open) ;; *) refuse "--api must be off, local or open (got '$api')" ;; esac
-case "$api_port" in ''|*[!0-9]*) refuse "--api-port must be a number" ;; esac
-{ [ "$api_port" -ge 1024 ] && [ "$api_port" -le 65535 ]; } || refuse "--api-port must be 1024-65535: a user cannot bind below 1024"
+[ -z "${SDSOLO_TEST_API_PORT:-}" ] || api_port="$SDSOLO_TEST_API_PORT"   # the test hook (solo-service.sh announces it)
 
 interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
 
@@ -125,7 +126,8 @@ elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
 fi
 if [ -x /usr/local/sdsys/bin/sd ] || [ -e /etc/sd.conf ]; then
   refuse "the multi-user SD Core for Linux is installed on this computer (/usr/local/sdsys or /etc/sd.conf).
-  Solo cannot share a computer with it: both use the API port 4243 and the shared-memory name.
+  SD Core Solo is not installed beside it (the Solo install rule).  Since 2 Oct 2026 the two
+  have separate API ports and shared-memory keys, but the rule stands until it is changed.
   Uninstall it first (its deletesdai.sh)."
 fi
 [ "$upgrade" -eq 1 ] || { systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is already running for this user"; }
@@ -490,11 +492,32 @@ if [ "$upgrade" -eq 1 ]; then
   # The units name the tree by absolute path and the tree has not moved, so they are
   # kept; the daemon and the API socket are started again.
   if [ "$had_service" -eq 1 ]; then
+    # 02 Oct 26 - THE API PORT MOVES TO 4249 ON UPGRADE (owner, 2 Oct 2026; it was 4243,
+    # or whatever --api-port chose).  Only the port changes: the address - 127.0.0.1
+    # (local) or 0.0.0.0 (open) - is kept, so the API stays as local or as open as it was.
+    sock="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/sd-solo-api.socket"
+    if [ -f "$sock" ]; then
+      old_listen="$(sed -n 's/^ListenStream=//p' "$sock" | head -1)"
+      old_port="${old_listen##*:}"
+      if [ -n "$old_listen" ] && [ "$old_port" != "$api_port" ]; then
+        sed -i "s/^ListenStream=\(.*\):$old_port\$/ListenStream=\1:$api_port/" "$sock"
+        grep -q "^ListenStream=.*:$api_port\$" "$sock" || fail "moving the API listener from port $old_port to $api_port in $sock"
+        say "The API listener moves from port $old_port to $api_port (${old_listen%:*} kept)."
+        if [ "${old_listen%:*}" = "0.0.0.0" ] && command -v ufw >/dev/null 2>&1; then
+          if sudo -n ufw allow "$api_port/tcp" >/dev/null 2>&1; then
+            say "ufw: added 'allow $api_port/tcp'."
+          else
+            warn "the API is open to the network: allow TCP $api_port in the firewall (sudo ufw allow $api_port/tcp)"
+          fi
+          warn "a firewall rule for the old port $old_port may remain; remove it if nothing else uses it (sudo ufw delete allow $old_port/tcp)"
+        fi
+      fi
+    fi
     say
     say "Starting the systemd user service again."
     systemctl --user daemon-reload >/dev/null 2>&1 || true
     systemctl --user start sd-solo.service || fail "systemctl --user start sd-solo.service"
-    if [ -f "$HOME/.config/systemd/user/sd-solo-api.socket" ]; then systemctl --user start sd-solo-api.socket || fail "systemctl --user start sd-solo-api.socket"; fi
+    if [ -f "$sock" ]; then systemctl --user restart sd-solo-api.socket || fail "systemctl --user restart sd-solo-api.socket"; fi
     [ "$(systemctl --user is-active sd-solo.service)" = "active" ] || fail "sd-solo.service is not active after the upgrade"
     svc_state="sd-solo.service active"
   else
@@ -504,7 +527,7 @@ if [ "$upgrade" -eq 1 ]; then
 elif [ "$no_service" -eq 0 ]; then
   say
   say "Installing the systemd user service."
-  svc_args=(install "$HOME_DIR" --api "$api" --api-port "$api_port")
+  svc_args=(install "$HOME_DIR" --api "$api")
   [ "$enable_linger" -eq 1 ] && svc_args+=(--enable-linger)
   svc_out="$(bash "$HOME_DIR/tools/solo-service.sh" "${svc_args[@]}" 2>&1)" || { printf '%s\n' "$svc_out" | tail -15; fail "solo-service.sh install"; }
   printf '%s\n' "$svc_out" | tail -8
