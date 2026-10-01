@@ -1,4 +1,40 @@
-LS1.1-1 - not yet released
+LS1.1-2 - not yet released
+--------------
+Two additions for a computer that a managed SD Core server looks after.  Nothing changes
+on a standalone installation.
+
+30 Sep 26  A MANAGED SERVER CAN PUT ITS OWN SSH KEY ON THE CLIENT.
+
+           In managed mode the server signs in as sduser with the global
+           password, over the API and over ssh.  It knows only the client's
+           address, not the Linux user name that ssh needs, so over the API
+           it now asks the client to install its public key, and the client
+           answers with its Linux user name, its host name, the key's
+           fingerprint and its ssh host key's fingerprint.  After that the
+           server uses ssh with that key and the global password.  The same
+           request lists and removes the server's keys.  Only a session signed
+           in with the global password may use it; the account password and
+           ADMIN are refused.  The key can only start SD: no shell, no
+           forwarding.  At most four keys; your own ssh keys are never touched;
+           every use is audited, with the address it came from.  It does
+           nothing on a standalone installation (no global password exists
+           there).  Windows Solo answers the same request in the same words.
+
+30 Sep 26  THE CLIENT LIBRARY PINS THE SERVER'S CERTIFICATE.
+
+           The client library now remembers each server's TLS certificate
+           the first time it connects (in ~/.sdcore/known_servers, or the
+           file named by SD_KNOWN_SERVERS) and refuses, before sending
+           anything, a later connection to the same address and port that
+           presents a different one.  The message names both fingerprints and
+           the line to remove.  If a server is reinstalled it has a new
+           certificate, so remove its line and connect again.  The very first
+           connection is trusted, as with ssh.  This stops someone posing as
+           the server from collecting a login proof to crack offline.  A
+           store that cannot be used refuses the connection rather than
+           connecting unchecked.
+
+LS1.1-1
 --------------
 SD Core for Linux Solo is the single-user edition of SD Core for Linux L1.1-1, the
 release it was made from.  It is one person's SD, installed entirely in that
@@ -16,29 +52,6 @@ processor and the file system are the same.  What differs:
 
            Everything lives in ~/SDCoreSolo.  SD finds its own folder from
            where its program is, so the folder can be anywhere.
-
-30 Sep 26  A MANAGED SERVER CAN PUT ITS OWN SSH KEY ON THE CLIENT.
-
-           In managed mode the server signs in as sduser with the global
-           password, over the API and over ssh.  It knows only the client's
-           address, not the Linux user name that ssh needs, so over the API
-           it now asks the client to install its public key, and the client
-           answers with its Linux user name, its host name, the key's
-           fingerprint and its ssh host key's fingerprint.  After that the
-           server uses ssh with that key and the global password.  The same
-           request lists and removes the server's keys.  Only a session signed
-           in with the global password may use it; the account password and
-           ADMIN are refused.  The key can only start SD: no shell, no
-           forwarding.  At most four keys; your own ssh keys are never touched;
-           every use is audited.  It does nothing on a standalone installation
-           (no global password exists there).
-
-           The client library now remembers each server's TLS certificate
-           the first time it connects (in ~/.sdcore/known_servers) and
-           refuses, before sending anything, a later connection to the same
-           address that presents a different one.  If a server is reinstalled
-           you remove its line and connect again.  The very first connection
-           is trusted, as with ssh.
 
 30 Sep 26  EVERY SESSION ASKS FOR THE ACCOUNT PASSWORD.
 

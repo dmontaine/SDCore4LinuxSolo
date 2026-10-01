@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 30 Sep 26 SD Core for Linux Solo - SD_REV_STAMP LS1.1-2 (owner, 30 Sep 2026):
+ *           the managed server's ssh-key request (49) and certificate pinning.
  * 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - SD_REV_STAMP LS1.1-1: the product
  *           is SD Core for Linux Solo, its first release is LS1.1-1 (owner,
  *           29 Sep 2026: "SD Core for Linux Solo - LS1.1-1"), paired with the
@@ -92,7 +94,7 @@
 #define MAJOR_REV      1
 #define MINOR_REV      0
 #define BUILD          2
-#define SD_REV_STAMP   "LS1.1-1"
+#define SD_REV_STAMP   "LS1.1-2"
 
 #define SD_COPYRIGHT_YEAR "2007"
 
