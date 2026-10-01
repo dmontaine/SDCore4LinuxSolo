@@ -31,8 +31,14 @@ processor and the file system are the same.  What differs:
            ADMIN are refused.  The key can only start SD: no shell, no
            forwarding.  At most four keys; your own ssh keys are never touched;
            every use is audited.  It does nothing on a standalone installation
-           (no global password exists there), and it does not check the
-           client's TLS certificate - that is still to come.
+           (no global password exists there).
+
+           The client library now remembers each server's TLS certificate
+           the first time it connects (in ~/.sdcore/known_servers) and
+           refuses, before sending anything, a later connection to the same
+           address that presents a different one.  If a server is reinstalled
+           you remove its line and connect again.  The very first connection
+           is trusted, as with ssh.
 
 30 Sep 26  EVERY SESSION ASKS FOR THE ACCOUNT PASSWORD.
 
