@@ -225,7 +225,7 @@ fi
 
 # ---- K11. the audit trail has every verb and no key text.
 aud="$H/audit"
-if grep -q 'API SSHKEY ADD ADDED fp=' "$aud" && grep -q 'API SSHKEY REMOVE REMOVED' "$aud" && grep -q 'API SSHKEY ADD REFUSED - CAP' "$aud" \
+if grep -q 'API SSHKEY ADD ADDED fp=.* peer=127\.0\.0\.1$' "$aud" && grep -q 'API SSHKEY REMOVE REMOVED' "$aud" && grep -q 'API SSHKEY ADD REFUSED - CAP' "$aud" \
    && grep -q 'API SSHKEY REFUSED - not a global session' "$aud" && ! grep -q 'AAAAC3NzaC1lZDI1NTE5' "$aud"; then
   leg "K11 audit" "ADDED, REMOVED, CAP and not-a-global-session lines, and no key text" 0 "$(grep -c 'API SSHKEY' "$aud") SSHKEY lines"
 else

@@ -1968,14 +1968,14 @@ vb.mark.mapping:
 * password and ADMIN are refused 11041.  The key never reaches a command line: it is
 * written to a file and tools/solo-ssh.sh reads it, answering KEY=value lines in
 * another file; that script alone edits authorized_keys, recognises its own lines by
-* the forced command, and caps them at four.  Every verb is audited.  The peer's
-* address is NOT in the audit line: the TLS relay does not pass it to sd.
+* the forced command, and caps them at four.  Every verb is audited, with the peer's
+* address (system(42)).
 * ======================================================================
 vb.sshkey:
 if not(kernel(K$GLOBAL.SESSION, -1)) then
    server.error = SV$ERROR
    error.msg = sysmsg(11041) ;* Only the SD Core server may manage ssh keys
-   void kernel(K$AUDIT, 'API SSHKEY REFUSED - not a global session')
+   void kernel(K$AUDIT, 'API SSHKEY REFUSED - not a global session peer=' : system(42))
    return
 end
 
@@ -2059,20 +2059,20 @@ if ssh.err # '' or ssh.result = '' then
       case 1                    ; error.msg = sysmsg(11042, 'the request could not be carried out')
    end case
    if ssh.err = '' then ssh.err = 'NO ANSWER from tools/solo-ssh.sh'
-   void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - ' : ssh.err)
+   void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - ' : ssh.err : ' peer=' : system(42))
    return
 end
 
 begin case
    case ssh.verb = 'ADD'
       response = ssh.user : @fm : ssh.host : @fm : ssh.fp : @fm : ssh.result : @fm : ssh.hostfp
-      void kernel(K$AUDIT, 'API SSHKEY ADD ' : ssh.result : ' fp=' : ssh.fp : ' user=' : ssh.user)
+      void kernel(K$AUDIT, 'API SSHKEY ADD ' : ssh.result : ' fp=' : ssh.fp : ' user=' : ssh.user : ' peer=' : system(42))
    case ssh.verb = 'REMOVE'
       response = ssh.result : @fm : ssh.left
-      void kernel(K$AUDIT, 'API SSHKEY REMOVE ' : ssh.result : ' remaining=' : ssh.left)
+      void kernel(K$AUDIT, 'API SSHKEY REMOVE ' : ssh.result : ' remaining=' : ssh.left : ' peer=' : system(42))
    case 1
       response = ssh.fps
-      void kernel(K$AUDIT, 'API SSHKEY LIST ' : dcount(ssh.fps, @fm) : ' key(s)')
+      void kernel(K$AUDIT, 'API SSHKEY LIST ' : dcount(ssh.fps, @fm) : ' key(s) peer=' : system(42))
 end case
 return
 
