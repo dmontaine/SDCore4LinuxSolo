@@ -117,7 +117,11 @@ if [ "$full" -eq 1 ]; then
   [ "$(stat -c '%a' "$H")" = "700" ] || { ok=0; why="$why home-mode;"; }
   [ "$(stat -c '%a' "$H/\$cred")" = "700" ] || { ok=0; why="$why cred-mode;"; }
   [ "$(systemctl --user is-active sd-solo.service)" = "active" ] || { ok=0; why="$why service;"; }
-  [ -L "$HOME/.local/bin/sd" ] && [ "$(readlink "$HOME/.local/bin/sd")" = "$H/bin/sd" ] || { ok=0; why="$why link;"; }
+  # 02 Oct 26 - THE COMMAND NAMES: sd-solo is a link to this tree's binary, and sd is this product's
+  # launcher (a file with the marker line, executable, naming this tree's binary) - not a link.
+  [ -L "$HOME/.local/bin/sd-solo" ] && [ "$(readlink "$HOME/.local/bin/sd-solo")" = "$H/bin/sd" ] || { ok=0; why="$why sd-solo-link;"; }
+  [ -f "$HOME/.local/bin/sd" ] && [ ! -L "$HOME/.local/bin/sd" ] && [ -x "$HOME/.local/bin/sd" ] \
+    && grep -qF 'SD Core for Linux Solo launcher.' "$HOME/.local/bin/sd" && grep -qF "'$H/bin/sd'" "$HOME/.local/bin/sd" || { ok=0; why="$why sd-launcher;"; }
   [ "$ok" -eq 1 ] && leg "F2 what the installer promised" "self-checks ran; stamp is HEAD; clone and marker gone; modes 700; service active; link" 0 "all" || leg "F2 what the installer promised" "self-checks; stamp; clone/marker gone; modes; service; link" 1 "$why"
   # F3 the installed tree passes its own witness
   if [ -f "$here/verify-solo.sh" ]; then
@@ -169,7 +173,8 @@ if [ "$full" -eq 1 ]; then
   kept="$(printf '%s\n' "$dout" | sed -n 's/^your data is in \(.*\)\/sduser$/\1/p')"
   left=0
   [ -e "$H" ] && left=1
-  [ -e "$HOME/.local/bin/sd" ] && left=1
+  [ -e "$HOME/.local/bin/sd" ] || [ -L "$HOME/.local/bin/sd" ] && left=1
+  [ -e "$HOME/.local/bin/sd-solo" ] || [ -L "$HOME/.local/bin/sd-solo" ] && left=1
   systemctl --user is-active sd-solo.service >/dev/null 2>&1 && left=1
   ss -ltn 2>/dev/null | grep -q ':14244 ' && left=1
   if printf '%s\n' "$dout" | grep -qx "SOLO DELETE COMPLETE $H" && [ "$left" -eq 0 ] && [ -n "$kept" ] && [ "$(cat "$kept/sduser/keepme.txt" 2>/dev/null)" = "kept data" ]; then

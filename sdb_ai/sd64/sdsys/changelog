@@ -1,8 +1,38 @@
 LS1.1-3 - not yet released
 --------------
 Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
-own shared-memory keys and its own API port.  The same changes are in all
-four SD Core products.
+own shared-memory keys and API port, and command names that let it be
+installed beside SD Core.  The same changes are in all four SD Core products.
+
+02 Oct 26  SD CORE SOLO CAN BE INSTALLED ON THE SAME COMPUTER AS SD CORE, AND
+           THE COMMAND YOU TYPE SAYS WHICH ONE YOU GET.
+
+           The installer no longer refuses a computer that has SD Core (the
+           multi-user product) installed.  It makes two commands in
+           ~/.local/bin: sd-solo, which always starts SD Core Solo, and sd,
+           which starts SD Core when SD Core is installed on the computer and
+           SD Core Solo otherwise.  SD Core's installer makes sd-full, and its
+           sd, for SD Core.  So a person who has both gets SD Core from plain
+           sd, and a person who has only SD Core Solo gets SD Core Solo.  SD
+           Core for Windows works the same way.  installsolo.sh --upgrade
+           changes an existing installation's sd from a link to the new
+           launcher and adds sd-solo; deletesolo.sh removes only the commands
+           it made, and leaves a file of your own named sd alone.
+
+           WHY: with their own shared-memory keys and API ports (see the
+           entries below), nothing but the installer's refusal stopped the two
+           running together, and whichever came first on your PATH answered
+           sd, which is the wrong way to choose.  Your ~/.local/bin comes
+           before /usr/local/bin, so a plain link here would always have won.
+
+           WHAT THIS DOES NOT DO: it does not change what ssh starts (each ssh
+           route names its own program), and it has not been tried with both
+           products installed on one computer.  A person who is both the Solo
+           user and a member of SD Core's sdusers group, connecting over ssh,
+           may get either one, depending on the order of the two sshd
+           settings.  If a file of your own named sd or sd-solo is already in
+           ~/.local/bin, the installer leaves it alone and says so; run
+           SD Core Solo by its full path or by sd-solo.
 
 02 Oct 26  THE SD API NOW LISTENS ON PORT 4249 (IT WAS 4243).
 
@@ -29,8 +59,7 @@ four SD Core products.
            another database may be using that port.
 
            WHAT THIS DOES NOT DO: it does not move the multi-user product,
-           which uses 4247, or make the installer accept a computer that has
-           the multi-user SD Core installed.
+           which uses 4247.
 
 02 Oct 26  YOUR ACCOUNT CAN BE BACKED UP AND RESTORED: BACKUP.ACCOUNT,
            RESTORE.ACCOUNT AND SETTINGS.REPORT.
@@ -75,11 +104,11 @@ four SD Core products.
            them could run on a computer.  It now has its own pair
            (0x53434C11 and 0x53434C12).
 
-           WHAT THIS DOES NOT DO: its installer still refuses a computer that
-           has the multi-user SD Core installed.  (The API ports are separate
-           too now - see the entry above.)  An SD Core Solo started by an
-           older release is stopped by that release when you upgrade, as
-           before.
+           WHAT THIS DOES NOT DO: it does not change how an SD Core Solo
+           started by an older release is stopped when you upgrade: that
+           release stops it, as before.  (The API ports are separate too now,
+           and the installer accepts a computer that has SD Core - see the
+           entries above.)
 
 LS1.1-2 - not yet released
 --------------

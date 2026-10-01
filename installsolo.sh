@@ -16,6 +16,12 @@
 # port you asked for, the optional sshd_config.d block, and "loginctl enable-linger".
 # Everything else is done as you, in your own home.  Nothing is written outside it.
 #
+# THE COMMAND NAMES (owner, 2 Oct 2026; the same result as SD Core for Windows' ruling of
+# 1 Oct).  It makes ~/.local/bin/sd-solo, which always starts this SD Core Solo, and
+# ~/.local/bin/sd, which starts the multi-user SD Core for Linux when that is installed on
+# this computer and this SD Core Solo otherwise.  (The multi-user installer makes sd-full.)
+# Until 2 Oct 2026 this script refused a computer that had the multi-user product.
+#
 # OPTIONS (all optional; the script asks for anything it needs that it was not given)
 #   --home DIR                    install here instead of ~/SDCoreSolo
 #   --control-file FILE           answers for a MANAGED install (see sd-solo-setup.conf.sample);
@@ -131,12 +137,9 @@ if [ "$upgrade" -eq 1 ]; then
 elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
   refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree; this script will not use it"
 fi
-if [ -x /usr/local/sdsys/bin/sd ] || [ -e /etc/sd.conf ]; then
-  refuse "the multi-user SD Core for Linux is installed on this computer (/usr/local/sdsys or /etc/sd.conf).
-  SD Core Solo is not installed beside it (the Solo install rule).  Since 2 Oct 2026 the two
-  have separate API ports and shared-memory keys, but the rule stands until it is changed.
-  Uninstall it first (its deletesdai.sh)."
-fi
+# 02 Oct 26 - THE MULTI-USER PRODUCT NO LONGER BLOCKS THIS INSTALL (owner, 2 Oct 2026: yes to
+# installing both).  The two have separate API ports (4247 / 4249) and shared-memory keys, and
+# the command names below say which one you start.
 [ "$upgrade" -eq 1 ] || { systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is already running for this user"; }
 command -v systemctl >/dev/null || refuse "systemctl is required (a systemd user manager)"
 [ -d "/run/user/$(id -u)" ] || warn "no /run/user/$(id -u): the systemd user manager may not be running in this shell"
@@ -484,14 +487,50 @@ fi
 # The stage leaves its own daemon running; the service takes over below.
 "$HOME_DIR/bin/sd" -stop >/dev/null 2>&1 || true
 
-# ---------------------------------------------------------------- sd on the PATH
-mkdir -p "$HOME/.local/bin"
-if [ -e "$HOME/.local/bin/sd" ] && [ ! -L "$HOME/.local/bin/sd" ]; then
-  warn "$HOME/.local/bin/sd exists and is not a link; left alone (run SD as $HOME_DIR/bin/sd)"
-else
-  ln -sfn "$HOME_DIR/bin/sd" "$HOME/.local/bin/sd"
-  case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not on your PATH; add it (or run $HOME_DIR/bin/sd)" ;; esac
-fi
+# ---------------------------------------------------------------- the command names
+# 02 Oct 26 (owner, 2 Oct 2026; the same result as SD Core for Windows' ruling of 1 Oct):
+#   sd-solo  always starts THIS SD Core Solo: a link to its binary;
+#   sd       starts the multi-user SD Core for Linux when it is installed on this computer and
+#            this SD Core Solo otherwise.  A small launcher and not a link, because the user's
+#            ~/.local/bin comes before /usr/local/bin on PATH, so a link here would always win;
+#   sd-full  is the multi-user SD Core's own (its installer makes it) and is never made here.
+# The two functions between the markers are run by gplbld/test-launcher-units.py, which cuts
+# them out of this file by those marker lines: keep the lines, and keep the code between them
+# free of anything that needs the rest of the installer except warn() and $HOME.
+# BEGIN command_names
+write_launcher() {   # write_launcher FILE SOLO_SD FULL_SD
+  local f="$1" solo="$2" full="$3"
+  cat > "$f" <<LAUNCHER
+#!/bin/sh
+# SD Core for Linux Solo launcher.  installsolo.sh writes this file on every install and
+# upgrade; do not edit it.
+#   sd       the multi-user SD Core for Linux if it is installed on this computer, else this SD Core Solo
+#   sd-solo  always this SD Core Solo
+#   sd-full  always the multi-user SD Core (made by its installer)
+if [ -x '$full' ]; then exec '$full' "\$@"; fi
+exec '$solo' "\$@"
+LAUNCHER
+}
+install_command_names() {   # install_command_names TREE FULL_SD
+  local tree="$1" full="$2" bindir="$HOME/.local/bin" tmpl
+  mkdir -p "$bindir"
+  if [ -e "$bindir/sd-solo" ] && [ ! -L "$bindir/sd-solo" ]; then
+    warn "$bindir/sd-solo exists and is not a link; left alone (run SD Core Solo as $tree/bin/sd)"
+  else
+    ln -sfn "$tree/bin/sd" "$bindir/sd-solo"
+  fi
+  if [ -e "$bindir/sd" ] && [ ! -L "$bindir/sd" ] && ! grep -qF 'SD Core for Linux Solo launcher.' "$bindir/sd" 2>/dev/null; then
+    warn "$bindir/sd exists and is neither a link nor this product's launcher; left alone (run SD Core Solo as sd-solo)"
+  else
+    tmpl="$(mktemp "$bindir/.sd-launcher.XXXXXX")"
+    write_launcher "$tmpl" "$tree/bin/sd" "$full"
+    chmod 755 "$tmpl"
+    mv -f "$tmpl" "$bindir/sd"
+  fi
+}
+# END command_names
+install_command_names "$HOME_DIR" /usr/local/sdsys/bin/sd
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not on your PATH; add it (or run $HOME_DIR/bin/sd)" ;; esac
 
 # ---------------------------------------------------------------- the service, ssh, firewall
 svc_state="not installed"
@@ -603,9 +642,14 @@ else
 fi
 say "  home          : $HOME_DIR      (mode: $mode_name)"
 if [ "$first_login" -eq 1 ]; then
-  say "  start a session: sd            (at THIS computer's keyboard: it asks you to choose the account password)"
+  say "  start a session: sd-solo       (at THIS computer's keyboard: it asks you to choose the account password)"
 else
-  say "  start a session: sd            (the account is sduser; it asks for the account password)"
+  say "  start a session: sd-solo       (the account is sduser; it asks for the account password)"
+fi
+if [ -x /usr/local/sdsys/bin/sd ]; then
+  say "  command names : the multi-user SD Core is installed here, so plain sd starts IT; sd-solo starts this one"
+else
+  say "  command names : sd and sd-solo both start this one; once the multi-user SD Core is installed, plain sd starts that one"
 fi
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
 say "  service       : ${svc_state:-not installed}"

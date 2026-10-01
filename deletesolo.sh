@@ -7,7 +7,7 @@
 #   bash deletesolo.sh [--home DIR] [--keep-data | --delete-data] [--yes]
 #
 # Removes SD Core for Linux Solo for the user who runs it: the systemd user units,
-# the running daemon, the ~/.local/bin/sd link, the ssh key lines this product added,
+# the running daemon, the ~/.local/bin/sd and sd-solo commands, the ssh key lines this product added,
 # the optional sshd_config.d block (sudo, only if it exists), and the installation
 # directory.  Run as YOUR OWN USER, never as root.
 #
@@ -88,14 +88,28 @@ FORCED="command=\"$H/bin/sd\",restrict,pty "
 n_keys=0
 [ -f "$AK" ] && n_keys="$(grep -cF -- "$FORCED" "$AK" 2>/dev/null || true)"
 DROPIN="/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
+# 02 Oct 26 - THE COMMAND NAMES (owner, 2 Oct 2026).  "sd" is this product's launcher (or, from an
+# older install, a link to this tree) and "sd-solo" a link to this tree.  Each is removed only when
+# it is this tree's: a launcher is recognised by its marker line AND by naming this tree's binary,
+# so a file of yours, another tree's launcher or a link elsewhere is never touched.
+# (gplbld/test-launcher-units.py cuts the lines between the markers out of this file and runs them.)
+# BEGIN link_detect
 link="$HOME/.local/bin/sd"
-link_ours=0
-[ -L "$link" ] && [ "$(readlink "$link")" = "$H/bin/sd" ] && link_ours=1
+solo_link="$HOME/.local/bin/sd-solo"
+link_ours=0; solo_link_ours=0
+if [ -L "$link" ]; then
+  [ "$(readlink "$link")" = "$H/bin/sd" ] && link_ours=1
+elif [ -f "$link" ] && grep -qF 'SD Core for Linux Solo launcher.' "$link" 2>/dev/null && grep -qF "'$H/bin/sd'" "$link" 2>/dev/null; then
+  link_ours=1
+fi
+[ -L "$solo_link" ] && [ "$(readlink "$solo_link")" = "$H/bin/sd" ] && solo_link_ours=1
+# END link_detect
 
 say "This will remove:"
 say "  - the systemd user units (sd-solo.service, the API socket) and stop SD"
 say "  - the installation directory $H"
-[ "$link_ours" -eq 1 ] && say "  - the link $link"
+[ "$link_ours" -eq 1 ] && say "  - the command $link"
+[ "$solo_link_ours" -eq 1 ] && say "  - the link $solo_link"
 [ "${n_keys:-0}" -gt 0 ] && say "  - $n_keys ssh key line(s) in $AK that force sd (your other keys are untouched)"
 [ -f "$DROPIN" ] && say "  - $DROPIN (needs sudo)"
 say
@@ -132,6 +146,7 @@ fi
 
 # ---- 2. the link, the ssh lines, the sshd block
 [ "$link_ours" -eq 1 ] && rm -f "$link" && say "removed $link"
+[ "$solo_link_ours" -eq 1 ] && rm -f "$solo_link" && say "removed $solo_link"
 if [ "${n_keys:-0}" -gt 0 ]; then
   tmp="$(mktemp "$AK.XXXXXX")" || fail "mktemp"
   removed=0
