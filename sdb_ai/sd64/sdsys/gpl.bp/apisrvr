@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 30 Sep 26 SD Core for Linux Solo (LSOLO 19) - request 49 (SrvrSshKey): the master
+*           installs, removes and lists its ssh key; global session only; messages
+*           11041 and 11042 (Windows 12036 and 12037, same texts).
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - request 25 (SDConnectLocal) is
 *           refused (message 11021): it sends no password, ruling 21 requires
 *           one (Windows Solo bd59940).
@@ -347,6 +350,7 @@ loop
    vb.mark.mapping,   ;*  46   Enable/disable mark mapping
    vb.scram.first,    ;*  47   SCRAM client-first
    vb.scram.final,    ;*  48   SCRAM client-final
+   vb.sshkey,         ;*  49   Manage the ssh keys of the master (global session only)
    vb.illegal.action
 
    st = status()
@@ -1948,6 +1952,129 @@ vb.mark.mapping:
                                                                      mark.mapping files(fno), oconv(cmnd[3,2], 'ISL')
 
                                                                      return
+
+* ======================================================================
+* SrvrSshKey  -  request 49, the master's ssh key (LSOLO 19)
+*
+* In:  verb, FM, argument.  ADD key | REMOVE fingerprint | LIST.
+* Out: ADD    user FM host FM key fingerprint FM ADDED|PRESENT FM sshd host-key fingerprint
+*      REMOVE REMOVED|ABSENT FM Solo lines left      LIST  one fingerprint per field
+*
+* Owner, 30 Sep 2026 (managed mode: the master logs in over ssh as sduser with the
+* global password and knows only the IP): the master asks the client to install its
+* public key, and the reply names the OS user, so ssh can then name it.  Agreed with
+* Windows Solo, which builds the same request and reply (mailbox, 30 Sep).  ONLY A
+* GLOBAL SESSION (K$GLOBAL.SESSION, set at request 48 by a global proof): the account
+* password and ADMIN are refused 11041.  The key never reaches a command line: it is
+* written to a file and tools/solo-ssh.sh reads it, answering KEY=value lines in
+* another file; that script alone edits authorized_keys, recognises its own lines by
+* the forced command, and caps them at four.  Every verb is audited.  The peer's
+* address is NOT in the audit line: the TLS relay does not pass it to sd.
+* ======================================================================
+vb.sshkey:
+if not(kernel(K$GLOBAL.SESSION, -1)) then
+   server.error = SV$ERROR
+   error.msg = sysmsg(11041) ;* Only the SD Core server may manage ssh keys
+   void kernel(K$AUDIT, 'API SSHKEY REFUSED - not a global session')
+   return
+end
+
+ssh.verb = upcase(trim(cmnd<1>))
+ssh.arg = cmnd<2>
+if ssh.verb # 'ADD' and ssh.verb # 'REMOVE' and ssh.verb # 'LIST' then
+   server.error = SV$ERROR
+   error.msg = sysmsg(11042, 'unknown request, use ADD, REMOVE or LIST') ;* The ssh key request was refused: %1
+   return
+end
+
+if ssh.verb # 'LIST' then
+   ssh.bad = (ssh.arg = '' or len(ssh.arg) > 4096)
+   if not(ssh.bad) then
+      for ssh.i = 1 to len(ssh.arg)
+         ssh.c = seq(ssh.arg[ssh.i, 1])
+         if ssh.c < 32 or ssh.c > 126 then ssh.bad = @true ; exit
+      next ssh.i
+   end
+   if ssh.bad then
+      server.error = SV$ERROR
+      error.msg = sysmsg(11042, 'the key or fingerprint is not valid') ;* The ssh key request was refused: %1
+      void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - the argument is empty, too long or not printable ASCII')
+      return
+   end
+end
+
+ssh.base = @sdsys : '/ssh-api.' : @userno
+ssh.in = ssh.base : '.in'
+ssh.out = ssh.base : '.out'
+os.execute 'rm -f "' : ssh.in : '" "' : ssh.out : '"'
+if ssh.verb # 'LIST' then
+   openseq ssh.in to ssh.f else
+      create ssh.f else
+         server.error = SV$ERROR
+         error.msg = sysmsg(11042, 'the request could not be carried out') ;* The ssh key request was refused: %1
+         void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - cannot create the key file')
+         return
+      end
+   end
+   writeseq ssh.arg to ssh.f else null
+   closeseq ssh.f
+end
+
+ssh.sub = 'api-' : downcase(ssh.verb)
+ssh.cmd = 'sh "' : @sdsys : '/tools/solo-ssh.sh" ' : ssh.sub : ' "' : @sdsys : '"'
+if ssh.verb # 'LIST' then ssh.cmd := ' "' : ssh.in : '"'
+os.execute ssh.cmd : ' > "' : ssh.out : '" 2>/dev/null'
+
+ssh.user = '' ; ssh.host = '' ; ssh.fp = '' ; ssh.hostfp = '' ; ssh.result = ''
+ssh.fps = '' ; ssh.left = '' ; ssh.err = ''
+openseq ssh.out to ssh.f then
+   loop
+      readseq ssh.line from ssh.f else exit
+      ssh.eq = index(ssh.line, '=', 1)
+      if ssh.eq > 1 then
+         ssh.k = ssh.line[1, ssh.eq - 1]
+         ssh.v = trim(ssh.line[ssh.eq + 1, 9999])
+         begin case
+            case ssh.k = 'USER'     ; ssh.user = ssh.v
+            case ssh.k = 'HOST'     ; ssh.host = ssh.v
+            case ssh.k = 'HOSTFP'   ; ssh.hostfp = ssh.v
+            case ssh.k = 'FP'
+               if ssh.verb = 'LIST' then ssh.fps<-1> = ssh.v else ssh.fp = ssh.v
+            case ssh.k = 'REMAINING'; ssh.left = ssh.v
+            case ssh.k = 'RESULT'   ; ssh.result = ssh.v
+            case ssh.k = 'ERROR'    ; ssh.err = ssh.v
+         end case
+      end
+   repeat
+   closeseq ssh.f
+end
+os.execute 'rm -f "' : ssh.in : '" "' : ssh.out : '"'
+
+if ssh.err # '' or ssh.result = '' then
+   ssh.code = field(ssh.err, ' ', 1)
+   server.error = SV$ERROR
+   begin case
+      case ssh.code = 'INVALID' ; error.msg = sysmsg(11042, 'the key or fingerprint is not valid')
+      case ssh.code = 'CAP'     ; error.msg = sysmsg(11042, 'four Solo ssh keys are already installed')
+      case 1                    ; error.msg = sysmsg(11042, 'the request could not be carried out')
+   end case
+   if ssh.err = '' then ssh.err = 'NO ANSWER from tools/solo-ssh.sh'
+   void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - ' : ssh.err)
+   return
+end
+
+begin case
+   case ssh.verb = 'ADD'
+      response = ssh.user : @fm : ssh.host : @fm : ssh.fp : @fm : ssh.result : @fm : ssh.hostfp
+      void kernel(K$AUDIT, 'API SSHKEY ADD ' : ssh.result : ' fp=' : ssh.fp : ' user=' : ssh.user)
+   case ssh.verb = 'REMOVE'
+      response = ssh.result : @fm : ssh.left
+      void kernel(K$AUDIT, 'API SSHKEY REMOVE ' : ssh.result : ' remaining=' : ssh.left)
+   case 1
+      response = ssh.fps
+      void kernel(K$AUDIT, 'API SSHKEY LIST ' : dcount(ssh.fps, @fm) : ' key(s)')
+end case
+return
 
                                                                      * ======================================================================
 check.file:

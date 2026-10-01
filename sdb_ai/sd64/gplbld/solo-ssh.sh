@@ -44,8 +44,8 @@ fail()   { echo "FAILED at: $*" >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root; the key route edits the user's own authorized_keys"
 cmd="${1:-}"
 case "$cmd" in
-  key-add|key-remove|key-list|match) shift ;;
-  *) refuse "usage: bash $0 key-add|key-remove|key-list|match HOME_DIR ..." ;;
+  key-add|key-remove|key-list|match|api-add|api-remove|api-list) shift ;;
+  *) refuse "usage: bash $0 key-add|key-remove|key-list|match|api-add|api-remove|api-list HOME_DIR ..." ;;
 esac
 [ "$#" -ge 1 ] || refuse "HOME_DIR is required"
 H="$1"; shift
@@ -56,6 +56,14 @@ case "$H" in /*) ;; *) refuse "HOME_DIR must be an absolute path (got '$H')" ;; 
 case "$H" in *" "*|*'"'*|*"'"*|*'\'*|*'$'*|*'`'*) refuse "HOME_DIR contains a space, quote, backslash, \$ or backtick, which an ssh option or config line cannot carry safely: $H" ;; esac
 
 AK="$HOME/.ssh/authorized_keys"
+# TEST HOOK (LSOLO 19): the API request that installs the master's key runs this script
+# from a session the witness cannot hand an --authorized-keys argument to, so the
+# witness names a scratch file in the environment.  Said on the output, so a run that
+# used it cannot be mistaken for one that wrote the real file.
+if [ -n "${SDSOLO_AUTHORIZED_KEYS:-}" ]; then
+  AK="$SDSOLO_AUTHORIZED_KEYS"
+  case "$cmd" in api-*) echo "NOTE=test hook SDSOLO_AUTHORIZED_KEYS is in use" ;; esac
+fi
 FORCED="command=\"$H/bin/sd\",restrict,pty"
 pubfile=""
 mode=""
@@ -70,6 +78,88 @@ while [ "$#" -gt 0 ]; do
 done
 
 is_ours() { case "$1" in "$FORCED "*) return 0 ;; *) return 1 ;; esac; }
+
+# ---- api-add / api-remove / api-list: what API request 49 runs (LSOLO 19).
+# The master installs its public key through the API; APISRVR (a global session only)
+# calls these with the key in a file and reads the answer from stdout as KEY=value
+# lines, so nothing the master sent is ever placed in a command line.  A refusal is
+# "ERROR=<CODE> text" on stdout with exit 0: the answer is in the output, as for
+# the success lines.  Same line recognition as key-add: only a line carrying THIS
+# tree's forced command is ever listed, counted or removed.
+if [ "$cmd" = "api-add" ] || [ "$cmd" = "api-remove" ] || [ "$cmd" = "api-list" ]; then
+  MAXKEYS=4
+  err() { echo "ERROR=$*"; exit 0; }
+  command -v ssh-keygen >/dev/null || err "FAILED ssh-keygen is not installed"
+  work="$(mktemp -d)" || err "FAILED mktemp"
+  trap 'rm -rf "$work"' EXIT
+  fp_of() { ssh-keygen -l -f "$1" 2>/dev/null | awk '{print $2}' | head -1; }
+  line_fp() { printf '%s\n' "$1" > "$work/k.pub"; fp_of "$work/k.pub"; }
+  count_ours() {
+    local n=0 l
+    [ -f "$AK" ] || { echo 0; return; }
+    while IFS= read -r l || [ -n "$l" ]; do is_ours "$l" && n=$((n+1)); done < "$AK"
+    echo "$n"
+  }
+  case "$cmd" in
+  api-list)
+    if [ -f "$AK" ]; then
+      while IFS= read -r l || [ -n "$l" ]; do
+        is_ours "$l" || continue
+        echo "FP=$(line_fp "${l#"$FORCED "}")"
+      done < "$AK"
+    fi
+    echo "RESULT=LISTED"
+    ;;
+  api-add)
+    [ -n "$pubfile" ] && [ -r "$pubfile" ] || err "INVALID there is no key"
+    [ "$(wc -l < "$pubfile")" -le 1 ] || err "INVALID the key has more than one line"
+    key="$(head -1 "$pubfile" | tr -d '\r')"
+    case "$key" in ssh-*|ecdsa-*|sk-*) ;; *) err "INVALID the key does not start ssh-, ecdsa- or sk-" ;; esac
+    case "$key" in *'"'*|*'\'*) err "INVALID the key contains a quote or backslash" ;; esac
+    fp="$(line_fp "$key")"
+    [ -n "$fp" ] || err "INVALID ssh-keygen does not accept the key"
+    newline="$FORCED $key"
+    if [ -f "$AK" ] && grep -qxF -- "$newline" "$AK"; then
+      state=PRESENT
+    else
+      n="$(count_ours)"
+      [ "$n" -lt "$MAXKEYS" ] || err "CAP there are already $n Solo ssh keys"
+      mkdir -p "$(dirname "$AK")" || err "FAILED mkdir $(dirname "$AK")"
+      chmod 700 "$(dirname "$AK")" 2>/dev/null || true
+      if [ -s "$AK" ] && [ "$(tail -c1 "$AK" | od -An -c | tr -d ' ')" != '\n' ]; then echo >> "$AK"; fi
+      printf '%s\n' "$newline" >> "$AK" || err "FAILED append to $AK"
+      chmod 600 "$AK" 2>/dev/null || true
+      grep -qxF -- "$newline" "$AK" || err "FAILED the line is not in $AK after the append"
+      state=ADDED
+    fi
+    echo "USER=$(id -un)"
+    echo "HOST=$(hostname)"
+    echo "FP=$fp"
+    echo "HOSTFP=$(fp_of /etc/ssh/ssh_host_ed25519_key.pub)"
+    echo "RESULT=$state"
+    ;;
+  api-remove)
+    # The fingerprint comes in a FILE, like the key for api-add, so nothing the master
+    # sent is ever part of a command line.
+    [ -n "$pubfile" ] && [ -r "$pubfile" ] || err "INVALID there is no fingerprint"
+    want="$(head -1 "$pubfile" | tr -d '\r')"
+    case "$want" in SHA256:*) ;; *) err "INVALID the fingerprint must start SHA256:" ;; esac
+    case "${want#SHA256:}" in ""|*[!A-Za-z0-9+/=]*) err "INVALID the fingerprint has characters a fingerprint cannot" ;; esac
+    removed=0
+    if [ -f "$AK" ]; then
+      tmp="$(mktemp "$AK.XXXXXX")" || err "FAILED mktemp beside $AK"
+      while IFS= read -r l || [ -n "$l" ]; do
+        if is_ours "$l" && [ "$(line_fp "${l#"$FORCED "}")" = "$want" ]; then removed=$((removed+1)); else printf '%s\n' "$l" >> "$tmp"; fi
+      done < "$AK"
+      if [ "$removed" -gt 0 ]; then chmod 600 "$tmp"; mv "$tmp" "$AK" || { rm -f "$tmp"; err "FAILED replace $AK"; }
+      else rm -f "$tmp"; fi
+    fi
+    echo "REMAINING=$(count_ours)"
+    if [ "$removed" -gt 0 ]; then echo "RESULT=REMOVED"; else echo "RESULT=ABSENT"; fi
+    ;;
+  esac
+  exit 0
+fi
 
 if [ "$cmd" = "key-list" ]; then
   echo "authorized_keys : $AK"

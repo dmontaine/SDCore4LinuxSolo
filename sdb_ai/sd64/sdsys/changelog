@@ -17,6 +17,23 @@ processor and the file system are the same.  What differs:
            Everything lives in ~/SDCoreSolo.  SD finds its own folder from
            where its program is, so the folder can be anywhere.
 
+30 Sep 26  A MANAGED SERVER CAN PUT ITS OWN SSH KEY ON THE CLIENT.
+
+           In managed mode the server signs in as sduser with the global
+           password, over the API and over ssh.  It knows only the client's
+           address, not the Linux user name that ssh needs, so over the API
+           it now asks the client to install its public key, and the client
+           answers with its Linux user name, its host name, the key's
+           fingerprint and its ssh host key's fingerprint.  After that the
+           server uses ssh with that key and the global password.  The same
+           request lists and removes the server's keys.  Only a session signed
+           in with the global password may use it; the account password and
+           ADMIN are refused.  The key can only start SD: no shell, no
+           forwarding.  At most four keys; your own ssh keys are never touched;
+           every use is audited.  It does nothing on a standalone installation
+           (no global password exists there), and it does not check the
+           client's TLS certificate - that is still to come.
+
 30 Sep 26  EVERY SESSION ASKS FOR THE ACCOUNT PASSWORD.
 
            At the keyboard, over ssh, through the API and for a one-shot

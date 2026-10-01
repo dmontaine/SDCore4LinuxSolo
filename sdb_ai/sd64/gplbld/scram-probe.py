@@ -106,6 +106,8 @@ REQ_QUIT = 1
 REQ_GETERROR = 2
 REQ_ACCOUNT = 3
 REQ_EXECUTE = 21
+REQ_SSHKEY = 49      # LSOLO 19: SrvrSshKey, verb FM argument
+FM = "�"        # the server's field mark (byte 0xFE) as this client decodes it
 REQ_LOGIN = 24
 REQ_SCRAM_FIRST = 47
 REQ_SCRAM_FINAL = 48
@@ -450,6 +452,21 @@ def after_login(sock, a):
         say("pausing %gs before the commands" % a.pause)
         time.sleep(a.pause)
 
+    for item in a.sshkey:
+        verb, _, arg = item.partition("=")
+        body = verb.encode("utf-8") + (b"\xfe" + arg.encode("utf-8") if arg != "" else b"")
+        say("> request 49 %s%s" % (verb, " <argument of %d bytes>" % len(arg) if arg else ""))
+        err, _, out = request(sock, REQ_SSHKEY, body)
+        say("  (server_error %d)" % err)
+        if err != 0:
+            _, _, detail = request(sock, REQ_GETERROR, "")
+            say("ssh-key %s: REFUSED: %s" % (verb, detail or out))
+        else:
+            fields = out.split(FM) if out else []
+            say("ssh-key %s: OK, %d field(s)" % (verb, len(fields)))
+            for n, f in enumerate(fields, 1):
+                say("| field %d: %s" % (n, f))
+
     for cmd in a.commands:
         say("> %s" % cmd)
         err, _, out = request(sock, REQ_EXECUTE, cmd)
@@ -549,6 +566,9 @@ def main(argv):
                       help="c= with one bit of the binding flipped (must be refused)")
     mode.add_argument("--replay", action="store_true",
                       help="replay a captured client-final on a new connection (must be refused)")
+    ap.add_argument("--sshkey", action="append", default=[], metavar="VERB[=ARGUMENT]",
+                    help="LSOLO 19: send request 49 (ADD=<public key line>, REMOVE=<SHA256:...>, "
+                         "LIST) after login; may be given more than once, runs before COMMANDs")
     ap.add_argument("commands", nargs="*")
     a = ap.parse_args(argv)
 
