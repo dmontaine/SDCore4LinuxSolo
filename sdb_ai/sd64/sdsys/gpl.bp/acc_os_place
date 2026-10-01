@@ -1,0 +1,24 @@
+* ACC_OS_PLACE
+* SD Core for Linux Solo: not used - Solo restores at the next start.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 02 Oct 26 dm Written for S.50 / LSOLO 20 so the shared name exists in every
+*              product.  RESTORE.ACCOUNT never calls it on Solo: the one
+*              account is the session's own, so the staged tree is put in
+*              place by sd-accarchive swap at the next start (sysseg.c
+*              apply_pending_restore; agreed 2026-10-02T1000).
+* END-HISTORY
+*
+* START-CODE
+
+$internal
+subroutine acc_os_place(acc.name, staged.path, target.path, err)
+$catalog !acc_os_place
+
+   err = 11050:@vm:acc.name   ;* Solo restores at the next start, not in place
+   return
+
+end
+
+* END-CODE

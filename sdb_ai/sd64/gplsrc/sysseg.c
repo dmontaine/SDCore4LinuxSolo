@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Oct 26 dm  S.50 (LSOLO 20): start_sd() applies a waiting own-account
+ *               restore (apply_pending_restore) before the segment exists.
  * 13 Sep 26 dm  The startup command runs in the sdsys account, its lower-case
  *               name (plan M: account names are lower case).
  * 11 Sep 26 dm  start_sd() rotates the audit trail, as the port's does
@@ -55,8 +57,10 @@ void UnlockSemaphore(int semno);
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/stat.h>
 
 void dump_config(void);
+Private void apply_pending_restore(void);
 
 Private bool create_shared_segment(int32_t bytes,
                                    struct CONFIG* cfg,
@@ -340,6 +344,60 @@ void unbind_sysseg() {
 }
 
 /* ======================================================================
+   apply_pending_restore()  -  02 Oct 26 S.50 (LSOLO 20).  RESTORE.ACCOUNT
+   cannot replace the one account from inside a session of it, so it stages
+   the tree and writes <home>/.sdrestore.pending.  This is the one moment no
+   session can exist: sd -start (the service) and sd -restart both come here
+   before the shared segment is made.  Agreed with SD Core Solo for Windows
+   (mail 2026-10-02T1000/1045; Windows hooks its start_sd() the same way).
+
+   The swap itself is "sd-accarchive swap", which checks the marker, moves the
+   account aside to <home>/.sdrestore.previous, moves the staged tree in, logs
+   every step to <home>/sdrestore.log and rolls back on any failure.  Here:
+   never while a segment exists (SD running means sessions may be in the
+   account - the restore waits for a real start); never with a quote in the
+   path, which the shell command cannot carry; and SD starts whatever the swap
+   says - a failed swap has already put the account back.                  */
+
+Private void apply_pending_restore(void) {
+  char home[MAX_PATHNAME_LEN + 1];
+  char marker[MAX_PATHNAME_LEN + 32];
+  char cmd[(2 * MAX_PATHNAME_LEN) + 64];
+  struct stat st;
+  int rc;
+
+  if (!GetHomePath(home, sizeof(home)))
+    return;
+  if (snprintf(marker, sizeof(marker), "%s/.sdrestore.pending", home) >=
+      (int)sizeof(marker))
+    return;
+  if (stat(marker, &st) != 0)
+    return; /* nothing pending: the normal case */
+
+  if (shmget(SD_SHM_KEY, 0, 0666) != -1) {
+    fprintf(stderr, "A restore is waiting (%s), but SD is already running.\n"
+                    "Stop SD, then start it, to put the restore in place.\n",
+            marker);
+    return;
+  }
+  if (strchr(home, '\'') != NULL) {
+    fprintf(stderr, "A restore is waiting, but %s holds a quote; it was not "
+                    "applied.\n", home);
+    return;
+  }
+  if (snprintf(cmd, sizeof(cmd), "python3 '%s/bin/sd-accarchive' swap '%s'",
+               home, marker) >= (int)sizeof(cmd))
+    return;
+
+  fflush(stdout);
+  rc = system(cmd);
+  if (rc != 0)
+    fprintf(stderr, "The waiting restore was NOT applied (status %d); SD starts "
+                    "on the account as it was.  See %s/sdrestore.log\n",
+            rc, home);
+}
+
+/* ======================================================================
    start_sd()                                                             */
 
 bool start_sd() {
@@ -347,6 +405,8 @@ bool start_sd() {
   int cpid;
   int i;
   char path[MAX_PATHNAME_LEN + 1];
+
+  apply_pending_restore();
 
   if (!bind_sysseg(TRUE, errmsg)) {
     fprintf(stderr, "%s\n", errmsg);

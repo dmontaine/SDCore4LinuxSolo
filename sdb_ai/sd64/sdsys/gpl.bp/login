@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - the login hold (13002) while a
+*           backup or restore runs; !acc_hold decides.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 14) - Windows Solo SOLO 18: a managed
 *           account with no password yet sets its first one at the console
 *           (set.first.password; messages 11025-11027, 11036, 11037).
@@ -323,6 +325,16 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   session with no register record still stops below, at the register read,
 *   and every session that is not internal proves the account password (still
 *   to be built - LSOLO 6).
+* 02 Oct 26 SD Core for Linux Solo (LSOLO 20, S.50) - THE LOGIN HOLD.  While
+*   BACKUP.ACCOUNT or RESTORE.ACCOUNT runs, a new session is refused with a
+*   message until it finishes (the owner's ruling, 1 Oct 2026, for all four
+*   products).  !acc_hold ignores a hold whose holder session has gone.
+     call !acc_hold('TEST', hold.info, hold.err)
+     if hold.err # '' then
+        display sysmsg(hold.err<1,1>, hold.err<1,2>, hold.err<1,3>)
+        audit.reason = 'a backup or restore is running'
+        goto terminate.connection
+     end
   end
 
 * 13 Sep 26 dm - CASE INVERSION IS NO LONGER TURNED ON HERE.  This line set it,

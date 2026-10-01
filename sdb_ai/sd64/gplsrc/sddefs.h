@@ -22,6 +22,7 @@
  * 06 Aug 24 mab define sdext max arg
  * 15 Sep 26 dm - SD_CONFIG_ENV / SD_CONFIG_DEFAULT, one pair for both sides.
  * 29 Sep 26 SD Core for Linux Solo - SD_CONFIG_DEFAULT removed; see inipath.c
+ * 02 Oct 26 SD Core for Linux Solo - SD_SHM_KEY / SD_SEM_KEY 0x53434C11/12.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -82,11 +83,20 @@
 
 #define MakeDirectory(path) mkdir(path, 0777)
 
-#define SD_SHM_KEY 0x716d0301
-#define SD_SEM_KEY 0x716d0302
-/* To allow the SD  and other versions based on the same code 
- * base tocoexist, SD has changed the third byte from 01 to 03          
- */
+/* 02 Oct 26 dm - A KEY PAIR PER SD CORE PRODUCT (owner, 2 Oct 2026, in the SD
+ * Core for Linux session: "choose new shared memory segments for each of the
+ * four versions so that they can run concurrently ... not the same as the
+ * segment chosen upstream").  All four kept upstream SD's 0x716d0301/02, so
+ * Solo could not run beside the multi-user SD (CLAUDE.md's old warning).  SD
+ * Core's own family, agreed across the four products (mail 2026-10-02T1245):
+ * 0x5343 ("SC"), "L"/"W", 0x full / 1x Solo -
+ *   Linux 0x53434C01/02   Linux Solo 0x53434C11/12
+ *   Windows 0x53435701/02 Windows Solo 0x53435711/12
+ * An instance still running under the old key must be stopped by its own
+ * binary first: solo-stage.sh's upgrade does (it runs the installed sd -stop
+ * before it copies anything). */
+#define SD_SHM_KEY 0x53434C11
+#define SD_SEM_KEY 0x53434C12
 
 #define RelinquishTimeslice sched_yield()
 

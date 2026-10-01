@@ -77,8 +77,11 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.dirname(HERE)
 LIVE_SYS = "/usr/local/sdsys"
-LIVE_KEYS = ("0x716d0301", "0x716d0302")
-BOX_KEYS = ("0x716d0901", "0x716d0902")
+# 02 Oct 26 - SD Core's own key family (gplsrc/sddefs.h); ipcs prints lower case.
+#   Solo's live pair is 0x53434C11/12, its sandbox 0x53434CA1/A2 (the
+#   multi-user SD Core for Linux uses 0x53434C01/02 and 0x53434C91/92).
+LIVE_KEYS = ("0x53434c11", "0x53434c12")
+BOX_KEYS = ("0x53434ca1", "0x53434ca2")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 PASS = FAIL = 0
@@ -111,7 +114,8 @@ def sh(cmd, **kw):
 
 def ipcs_keys():
     out = sh(["ipcs", "-m", "-s"]).stdout
-    return sorted(set(re.findall(r"0x716d0[0-9]0[12]", out)))
+    # Both families: SD Core's 0x5343xxxx and the inherited 0x716d0x0x.
+    return sorted(set(k.lower() for k in re.findall(r"0x(?:5343[0-9a-f]{4}|716d0[0-9]0[12])", out, re.I)))
 
 
 def replace_once(path, old, new, label):
@@ -132,8 +136,8 @@ def replace_once(path, old, new, label):
 # control would silently pass.
 
 SANDBOX_PATCHES = [
-    ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x716d0301", "#define SD_SHM_KEY 0x716d0901", "sandbox shm key"),
-    ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x716d0302", "#define SD_SEM_KEY 0x716d0902", "sandbox sem key"),
+    ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x53434C11", "#define SD_SHM_KEY 0x53434CA1", "sandbox shm key"),
+    ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x53434C12", "#define SD_SEM_KEY 0x53434CA2", "sandbox sem key"),
     ("gplsrc/sd.c",
      '  if (geteuid() != 0) {\n    fprintf(stderr, "Command requires administrator privileges\\n");\n    exit(1);\n  }\n',
      '  fprintf(stderr, "sd: SANDBOX BUILD - check_admin stubbed\\n");\n',

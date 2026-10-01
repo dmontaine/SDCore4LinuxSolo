@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - vb.scram.first refuses a new API
+*           session (13002) while a backup or restore runs.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 19) - request 49 (SrvrSshKey): the master
 *           installs, removes and lists its ssh key; global session only; messages
 *           11041 and 11042 (Windows 12036 and 12037, same texts).
@@ -1097,6 +1099,18 @@ vb.scram.first:
                end
 
                scram.stage = 0        ;* a restart abandons any exchange in flight
+
+* 02 Oct 26 SD Core for Linux Solo (LSOLO 20, S.50) - THE LOGIN HOLD: no new API
+*   session while BACKUP.ACCOUNT or RESTORE.ACCOUNT runs, as LOGIN refuses one.
+*   Before any credential is looked at.  (vb.local.login is dead code here,
+*   LSOLO 17, so it gets no copy of this check.)
+               call !acc_hold('TEST', hold.info, hold.err)
+               if hold.err # '' then
+                  scram.refuse.reason = 'a backup or restore is running'
+                  abort.message = sysmsg(hold.err<1,1>, hold.err<1,2>, hold.err<1,3>)
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
 
 * 15 Sep 26 dm - S.19: THE GS2 HEADER FOLLOWS THE TRANSPORT; THE CLIENT DOES NOT
 *   CHOOSE IT.  Every socket connection is TLS (gplsrc/sd_tlssrv.c) and must

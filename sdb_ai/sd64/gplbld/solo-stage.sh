@@ -191,6 +191,11 @@ cp -R gplbld/nanocfg "$H/nanocfg"
 # built from a clone always has it).
 mkdir -p "$H/tools"
 cp gplbld/solo-service.sh gplbld/solo-ssh.sh "$H/tools/"
+# 02 Oct 26 - LSOLO 20 (S.50): BACKUP.ACCOUNT / RESTORE.ACCOUNT's archive tool, in
+# bin beside sd, which runs it: the helpers name <sysdir>/bin/sd-accarchive and
+# start_sd() runs "sd-accarchive swap" to put a waiting restore in place.
+cp gplbld/sd-accarchive "$H/bin/sd-accarchive"
+chmod 0755 "$H/bin/sd-accarchive"
 [ -f ../../deletesolo.sh ] && cp ../../deletesolo.sh "$H/tools/deletesolo.sh"
 [ "$upgrade" -eq 1 ] && [ -f "$H/sd.conf" ] || cp sd.conf "$H/sd.conf"   # an upgrade keeps the user's
 : > "$H/.sdcoresolo"

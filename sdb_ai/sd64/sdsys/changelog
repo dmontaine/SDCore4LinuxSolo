@@ -1,3 +1,57 @@
+LS1.1-3 - not yet released
+--------------
+Changes since LS1.1-2.  Backup and restore of the account, and SD Core Solo's
+own shared-memory keys.  The same changes are in all four SD Core products.
+
+02 Oct 26  YOUR ACCOUNT CAN BE BACKED UP AND RESTORED: BACKUP.ACCOUNT,
+           RESTORE.ACCOUNT AND SETTINGS.REPORT.
+
+           After ADMIN, BACKUP.ACCOUNT ALL TO directory writes one zip file,
+           named for the computer and the time, holding the account's files
+           and a plain-text description of it.  RESTORE.ACCOUNT archive ALL
+           puts the account back, on this computer or another one - a backup
+           from another person's SD Core Solo replaces this account's data,
+           so it says what will be replaced and asks first.
+           SETTINGS.REPORT [directory] writes, or shows, a plain-text record
+           of the settings (sd.conf, the policy, the mode, the API and ssh,
+           the service) to keep for reference.
+
+           A restore of the account you are using cannot happen while SD is
+           running, so RESTORE.ACCOUNT checks the archive, prepares it, and
+           says so; the restore happens the next time SD starts
+           (systemctl --user restart sd-solo.service, or sd -stop then
+           sd -start).  The account as it was is kept beside it, in
+           .sdrestore.previous, until the next restore, and every step is
+           written to sdrestore.log in the SD Core Solo folder.  A backup or
+           restore starts only when no other session is logged in, and no
+           one can log in - at the terminal, over ssh or through the API -
+           until it has finished.  Every backup is checked as it is made, and
+           one that does not match the account is deleted.
+
+           WHY: there was no way to back up SD Core Solo or move it to
+           another computer.  A backup made here restores on SD Core Solo for
+           Windows, and the other way round.
+
+           WHAT THIS DOES NOT DO: it carries no password.  It does not back up
+           SD's own system files or the settings (SETTINGS.REPORT records
+           those, for reference only).  It does not follow symbolic links in
+           the account; any it finds are named and left out.  A Solo backup
+           restores only to SD Core Solo, not to the multi-user SD Core.
+
+02 Oct 26  SD CORE SOLO HAS ITS OWN SHARED-MEMORY KEYS.
+
+           Every running SD keeps its user table and locks in shared memory,
+           found through two fixed numbers.  SD Core Solo used the same two as
+           the multi-user SD Core and the SD it was built from, so only one of
+           them could run on a computer.  It now has its own pair
+           (0x53434C11 and 0x53434C12).
+
+           WHAT THIS DOES NOT DO: SD Core Solo's API still uses port 4243, the
+           same as the multi-user product, and its installer still refuses a
+           computer that has the multi-user SD Core installed.  An SD Core
+           Solo started by an older release is stopped by that release when
+           you upgrade, as before.
+
 LS1.1-2 - not yet released
 --------------
 Two additions for a computer that a managed SD Core server looks after.  Nothing changes

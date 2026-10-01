@@ -1,0 +1,52 @@
+* ACC_OS_INFO
+* What the operating system knows about the account, as manifest lines.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 02 Oct 26 dm Written for S.50 / LSOLO 20 (shared signature, mail
+*              2026-10-01T1030 / 1115 / 2026-10-02T1000 / 1045).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_os_info(acc.name, acc.rec, info, err)
+*
+*    acc.name ''  - the system keys: product (linux-solo), host,
+*                   accounts.root, sd.version, and restart - the command that
+*                   puts a waiting restore in place (Solo only).
+*    acc.name set - type: USER and os.user: the Linux user.  Nothing else:
+*                   in Solo ssh and the API are on or off for the whole
+*                   installation, not per account, so no route.*, os.group or
+*                   members is written (agreed 2026-10-02T1000).
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_os_info(acc.name, acc.rec, info, err)
+$catalog !acc_os_info
+
+$include int$keys.h
+
+   info = ''
+   err = ''
+
+   if acc.name = '' then
+      usr = config('USRDIR')
+      if usr = '' then usr = @sdsys:@ds:'user_accounts'
+      info<-1> = 'product: linux-solo'
+      info<-1> = 'host: ':downcase(field(@hostname, '.', 1))
+      info<-1> = 'accounts.root: ':field(usr, @ds, 1, dcount(usr, @ds) - 1)
+      info<-1> = 'sd.version: ':system(1012)
+      info<-1> = 'restart: systemctl --user restart sd-solo.service (or: sd -stop, then sd -start)'
+      return
+   end
+
+   info<-1> = 'type: USER'
+   info<-1> = 'os.user: ':kernel(K$USERNAME, 0)
+   return
+
+end
+
+* END-CODE

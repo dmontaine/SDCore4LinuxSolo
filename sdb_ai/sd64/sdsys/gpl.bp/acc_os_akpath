@@ -1,0 +1,22 @@
+* ACC_OS_AKPATH
+* SD Core for Linux Solo: not used - Solo restores at the next start.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 02 Oct 26 dm Written for S.50 / LSOLO 20 so the shared name exists in every
+*              product.  RESTORE.ACCOUNT calls it only after acc_os_place,
+*              which Solo never reaches.
+* END-HISTORY
+*
+* START-CODE
+
+$internal
+subroutine acc_os_akpath(data.path, ak.path, err)
+$catalog !acc_os_akpath
+
+   err = 11050:@vm:data.path   ;* Solo restores at the next start, not in place
+   return
+
+end
+
+* END-CODE

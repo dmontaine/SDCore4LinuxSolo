@@ -1,0 +1,169 @@
+* ACC_ARCHIVE
+* The archive step of BACKUP.ACCOUNT / RESTORE.ACCOUNT, SD Core for Linux Solo.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 02 Oct 26 dm Written for S.50 / LSOLO 20.  The name and signature are shared
+*              by all four SD Core products (mail 2026-10-01T1030); this body
+*              is Linux Solo's.  The multi-user product packs as root through
+*              sd-elevate; Solo has no root and its user owns the whole tree,
+*              so every step here runs <home>/bin/sd-accarchive directly.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_archive(mode, zip.path, entries, counts, err)
+*
+*    CREATE   entries: one per field, <archive name> VM <source path>; the one
+*             entry not under "accounts/" is the manifest FILE, fed on stdin.
+*             zip.path must not exist.  counts: files VM bytes VM dirs of what
+*             was WRITTEN, one per field in entry order.
+*    EXTRACT  entries<1>: a target directory that must not exist.  counts: one
+*             per account, files VM bytes VM dirs VM name.
+*    err      '' or the message number then its arguments (value marks).
+*
+*    Anything the archiver skipped (a symlink, a device) is named on the
+*    terminal (11049).  A path holding a single quote is refused (11043).
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_archive(mode, zip.path, entries, counts, err)
+$catalog !acc_archive
+
+$include int$keys.h
+
+   err = ''
+   counts = ''
+   mode = upcase(mode)
+   archiver = "python3 '":@sdsys:@ds:"bin":@ds:"sd-accarchive'"
+
+   if index(zip.path:@sdsys, "'", 1) then
+      err = 11043:@vm:zip.path ;* contains a single quote
+      return
+   end
+
+   begin case
+      case mode = 'CREATE'
+         gosub create.archive
+      case mode = 'EXTRACT'
+         gosub extract.archive
+      case 1
+         err = 2018:@vm:mode   ;* Unexpected token (xx)
+   end case
+   return
+
+* ======================================================================
+create.archive:
+   if ospath(zip.path, OS$EXISTS) then
+      err = 11046:@vm:zip.path  ;* already exists; a backup never overwrites
+      return
+   end
+
+   manifest.src = ''
+   pairs = ''
+   n = dcount(entries, @fm)
+   for i = 1 to n
+      aname = entries<i,1>
+      src = entries<i,2>
+      if index(src:aname, "'", 1) then
+         err = 11043:@vm:src
+         return
+      end
+      if aname[1,9] = 'accounts/' then
+         pairs := " '" : aname[10,999] : "=" : src : "'"
+      end else
+         if manifest.src # '' then
+            err = 2018:@vm:aname   ;* exactly one file, the manifest
+            return
+         end
+         manifest.src = src
+      end
+   next i
+   if manifest.src = '' or pairs = '' then
+      err = 11045:@vm:zip.path:@vm:'':@vm:'no manifest or no account to pack'
+      return
+   end
+
+   log.path = zip.path:'.log'
+   cmd = archiver:' pack':pairs
+   cmd := " < '":manifest.src:"' > '":zip.path:"' 2> '":log.path:"'"
+   os.execute cmd
+   stat = os.error()
+
+   log.lines = ''
+   openseq log.path to log.f then
+      loop
+         readseq line from log.f else exit
+         log.lines<-1> = line
+      repeat
+      closeseq log.f
+   end
+   void ospath(log.path, OS$DELETE)
+
+   nl = dcount(log.lines, @fm)
+   for j = 1 to nl
+      if log.lines<j>[1,8] = 'SKIPPED ' then
+         crt sysmsg(11049, log.lines<j>[9,999]) ;* Not in the backup: %1
+      end
+   next j
+
+   if stat # 0 then
+      void ospath(zip.path, OS$DELETE)
+      err = 11045:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', log.lines)
+      return
+   end
+
+* The counts of what was WRITTEN, in entry order.
+   for i = 1 to n
+      aname = entries<i,1>
+      found = @false
+      for j = 1 to nl
+         line = log.lines<j>
+         begin case
+            case aname[1,9] = 'accounts/' and field(line, ' ', 1) = 'COUNT' and field(line, ' ', 2) = aname[10,999]
+               counts<i> = field(line, ' ', 3):@vm:field(line, ' ', 4):@vm:field(line, ' ', 5)
+               found = @true
+            case aname[1,9] # 'accounts/' and field(line, ' ', 1) = 'MANIFEST'
+               counts<i> = 1:@vm:field(line, ' ', 2):@vm:0
+               found = @true
+         end case
+         if found then exit
+      next j
+      if not(found) then
+         void ospath(zip.path, OS$DELETE)
+         err = 11048:@vm:aname ;* The archive tool did not report %1
+         return
+      end
+   next i
+   return
+
+* ======================================================================
+extract.archive:
+   target = entries<1>
+   if target = '' or index(target, "'", 1) then
+      err = 11043:@vm:target
+      return
+   end
+   out = ''
+   os.execute archiver:" extract '":zip.path:"' '":target:"' 2>&1" capturing out
+   stat = os.error()
+   if stat # 0 then
+      err = 11047:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      return
+   end
+   n = dcount(out, @fm)
+   for j = 1 to n
+      line = out<j>
+      if field(line, ' ', 1) = 'COUNT' then
+         counts<-1> = field(line, ' ', 3):@vm:field(line, ' ', 4):@vm:field(line, ' ', 5):@vm:field(line, ' ', 2)
+      end
+   next j
+   if counts = '' then err = 11048:@vm:zip.path
+   return
+
+end
+
+* END-CODE
