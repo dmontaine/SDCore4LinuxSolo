@@ -62,7 +62,7 @@ echo "verify-solo-sshkey inputs:"
 echo "  tree       : $H  (managed)"
 echo "  binary     : $SD  ($(stat -c '%y' "$SD" | cut -c1-19))"
 echo "  authorized_keys used by request 49: $AK (scratch; the real ~/.ssh is not touched)"
-echo "  API        : 127.0.0.1:$PORT   private sshd: 127.0.0.1:$SSHPORT"
+echo "  API        : 127.0.0.1:$PORT (SDSOLO_TEST_API_PORT=$PORT; the product's port is 4249)   private sshd: 127.0.0.1:$SSHPORT"
 echo "  running as : $(id -un) (uid $(id -u))"
 
 pass=0; fail=0; legs=0
@@ -81,7 +81,8 @@ ours() { grep -cF -- "$FORCED " "$AK"; }
 
 "$SD" -stop >/dev/null 2>&1
 systemctl --user set-environment "SDSOLO_AUTHORIZED_KEYS=$AK" || refuse "cannot set the user manager's environment"
-out="$(bash "$SVC" install "$H" --api local --api-port "$PORT" 2>&1 | strip | grep -E '^SOLO SERVICE READY' | tail -1)"
+# LSOLO 23: there is no --api-port; the private port goes through the announced test hook.
+out="$(SDSOLO_TEST_API_PORT="$PORT" bash "$SVC" install "$H" --api local 2>&1 | strip | grep -E '^SOLO SERVICE READY' | tail -1)"
 [ -n "$out" ] || refuse "solo-service.sh install did not say READY"
 echo "  service    : $out"
 

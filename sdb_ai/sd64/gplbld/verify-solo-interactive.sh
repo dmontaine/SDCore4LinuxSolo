@@ -50,7 +50,10 @@ echo "  running as : $(id -un) (uid $(id -u))"
 pass=0; fail=0; legs=0
 leg() { legs=$((legs+1)); if [ "$3" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1 | $2"; else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi; }
 strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
-IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages --arg --api-port --arg 14245 "$INSTALL" "$@"; }
+# LSOLO 23: there is no --api-port; the private port goes through the installer's announced test
+# hook, which ptyrun.py hands on in its environment.
+export SDSOLO_TEST_API_PORT=14245
+IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages "$INSTALL" "$@"; }
 
 # The answers, in the installer's order.  Each send waits for its prompt.
 answers() {   # answers CONTINUE-ANSWER

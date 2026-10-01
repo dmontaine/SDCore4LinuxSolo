@@ -30,6 +30,9 @@
  *     linuxsdclilib repo (validated bounds/lengths, partial-I/O handling,
  *     desync abandonment, max-record enforcement, SV_EMSG_PAIR/SV_ECONTXT);
  *     SDConnect default port set to 4243 to conform to SD Core for Windows.
+ * 02 Oct 26 dm SDConnect default port 4249 (owner: SD Core Solo 4249, the full
+ *     products 4247, fixed - so every SD Core product runs beside OpenQM,
+ *     ScarletDME and upstream SD).
  * 14 Sep 26 dm SDConnect: the password is no longer capped at the user name's
  *     length, and an empty user name or password is refused, conforming to
  *     the Windows port (S.14).  The same change is made in linuxsdclilib.
@@ -3700,7 +3703,9 @@ Private bool OpenSocket(char* host, int16_t port) {
   unsigned int n1, n2, n3, n4;
 
   if (port < 0)
-    port = 4243;   /* 10 Sep 26 dm - SD Core API port, conforming to the Windows port (was 4245) */
+    port = 4249;   /* 02 Oct 26 dm - SD Core Solo's API port, fixed (owner, 2 Oct 2026); was
+                      4243 (OpenQM's / ScarletDME's), before that 4245 (upstream SD's).  The
+                      full SD Core products are 4247: name it to reach one of them. */
 
   if ((sscanf(host, "%u.%u.%u.%u", &n1, &n2, &n3, &n4) == 4) && (n1 <= 255) &&
       (n2 <= 255) && (n3 <= 255) && (n4 <= 255)) {

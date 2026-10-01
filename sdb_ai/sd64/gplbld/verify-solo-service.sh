@@ -33,18 +33,23 @@ SVC="$here/solo-service.sh"
 [ -f "$SVC" ] || refuse "$SVC is missing"
 SD="$H/bin/sd"
 PORT=14243
+# LSOLO 23 (owner, 2 Oct 2026): the API port is 4249 and cannot be moved - there is no
+# --api-port.  Every leg but S7c runs on this private port through solo-service.sh's announced
+# TEST HOOK, so the witness can run beside a live Solo; S7c measures the real port.
+export SDSOLO_TEST_API_PORT="$PORT"
 UNITDIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 command -v systemctl >/dev/null || refuse "systemctl is not available"
 for u in sd-solo.service sd-solo-api.socket sd-solo-api@.service; do
   [ -e "$UNITDIR/$u" ] && refuse "$UNITDIR/$u already exists - another Solo service is installed; remove it first (this run would overwrite it)"
 done
 ss -ltn 2>/dev/null | grep -q ":$PORT " && refuse "port $PORT is already in use"
+ss -ltn 2>/dev/null | grep -q ":4249 " && refuse "port 4249 is already in use - S7c installs on the real port and would have nothing to measure"
 
 echo "verify-solo-service inputs:"
 echo "  tree       : $H"
 echo "  script     : $SVC"
 echo "  unit dir   : $UNITDIR"
-echo "  api port   : $PORT (127.0.0.1)"
+echo "  api port   : $PORT (127.0.0.1), SDSOLO_TEST_API_PORT=$PORT exported (the product's port is 4249; S7c runs without the hook)"
 echo "  linger     : $(loginctl show-user "$USER" -p Linger --value 2>/dev/null) (never changed here)"
 echo "  running as : $(id -un) (uid $(id -u))"
 
@@ -64,7 +69,7 @@ trap cleanup EXIT
 "$SD" -stop >/dev/null 2>&1
 
 # ---- S1. install says READY with the daemon active and the API local.
-out="$(bash "$SVC" install "$H" --api local --api-port "$PORT" 2>&1)"
+out="$(bash "$SVC" install "$H" --api local 2>&1)"
 last="$(printf '%s\n' "$out" | strip | grep -E '^SOLO SERVICE READY' | tail -1)"
 case "$last" in
   "SOLO SERVICE READY daemon=active api=local linger="*) leg "S1 install" "'SOLO SERVICE READY daemon=active api=local linger=...'" 0 "$last" ;;
@@ -248,13 +253,37 @@ fi
 # (A first version left the old listener behind: after "--api off" systemd still called the
 # removed socket unit active.)  Each step is judged by the listener itself.
 api_seen() { ss -ltn 2>/dev/null | awk -v p=":$PORT\$" '$4 ~ p {print $4}' | head -1; }
-bash "$SVC" install "$H" --api open --api-port "$PORT" >/dev/null 2>&1; sleep 1; a_open="$(api_seen)"
+bash "$SVC" install "$H" --api open >/dev/null 2>&1; sleep 1; a_open="$(api_seen)"
 bash "$SVC" install "$H" --api off >/dev/null 2>&1; sleep 1; a_off="$(api_seen)"; u_off="$(systemctl --user is-active sd-solo-api.socket 2>&1)"
-bash "$SVC" install "$H" --api local --api-port "$PORT" >/dev/null 2>&1; sleep 1; a_local="$(api_seen)"
+bash "$SVC" install "$H" --api local >/dev/null 2>&1; sleep 1; a_local="$(api_seen)"
 if [ "$a_open" = "0.0.0.0:$PORT" ] && [ -z "$a_off" ] && [ "$u_off" != "active" ] && [ "$a_local" = "127.0.0.1:$PORT" ]; then
   leg "S7b re-running install changes the API" "open -> 0.0.0.0, off -> nothing listening and the unit not active, local -> 127.0.0.1" 0 "$a_open / none / $a_local"
 else
   leg "S7b re-running install changes the API" "0.0.0.0:$PORT / nothing / 127.0.0.1:$PORT" 1 "open='$a_open' off='$a_off' unit-after-off='$u_off' local='$a_local'"
+fi
+
+# ---- S7c. THE PORT IS 4249 AND CANNOT BE MOVED (LSOLO 23; owner, 2 Oct 2026: "do not allow
+# adjustable ports").  Two measurements, both on what the tool printed or the system showed:
+# (1) --api-port is refused as an unknown argument, before it touches anything; (2) with the
+# test hook UNSET, the listener it makes is 127.0.0.1:4249 - in the unit file AND in ss.
+# The hook is put back after, so S8 and the rest still judge the private port.
+ap_out="$(bash "$SVC" install "$H" --api local --api-port 14999 2>&1 | strip)"
+ap_refused=0; printf '%s\n' "$ap_out" | grep -q '^REFUSED: unknown argument: --api-port$' && ap_refused=1
+ap_moved=0; ss -ltn 2>/dev/null | grep -q ":14999 " && ap_moved=1
+real_out="$(env -u SDSOLO_TEST_API_PORT bash "$SVC" install "$H" --api local 2>&1 | strip)"
+real_ready="$(printf '%s\n' "$real_out" | grep -E '^SOLO SERVICE READY' | tail -1)"
+real_hook="$(printf '%s\n' "$real_out" | grep -c 'SDSOLO_TEST_API_PORT IS SET')"
+real_unit=0; grep -qF "ListenStream=127.0.0.1:4249" "$UNITDIR/sd-solo-api.socket" && real_unit=1
+sleep 1
+real_ss="$(ss -ltn 2>/dev/null | awk '$4 ~ /:4249$/ {print $4}' | head -1)"
+bash "$SVC" install "$H" --api local >/dev/null 2>&1; sleep 1     # back to the private port
+back_4249="$(ss -ltn 2>/dev/null | awk '$4 ~ /:4249$/ {print $4}' | head -1)"
+case "$real_ready" in "SOLO SERVICE READY daemon=active api=local linger="*) real_ok=1 ;; *) real_ok=0 ;; esac
+if [ $ap_refused -eq 1 ] && [ $ap_moved -eq 0 ] && [ $real_ok -eq 1 ] && [ "$real_hook" -eq 0 ] \
+   && [ $real_unit -eq 1 ] && [ "$real_ss" = "127.0.0.1:4249" ] && [ -z "$back_4249" ]; then
+  leg "S7c the port is 4249 and fixed" "'--api-port' refused ('unknown argument'); no hook -> unit says 127.0.0.1:4249 and ss shows it; gone again after the hooked reinstall" 0 "refused; listener $real_ss"
+else
+  leg "S7c the port is 4249 and fixed" "'--api-port' refused; no hook -> 127.0.0.1:4249 in the unit and in ss" 1 "api-port-refused=$ap_refused 14999-listening=$ap_moved ready='$real_ready' hook-announced=$real_hook unit-has-4249=$real_unit ss='$real_ss' 4249-after-restore='$back_4249'"
 fi
 
 # ---- S8. remove leaves nothing: files gone, daemon down, socket closed.

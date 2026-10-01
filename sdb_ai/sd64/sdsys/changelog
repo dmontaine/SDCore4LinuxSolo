@@ -1,7 +1,36 @@
 LS1.1-3 - not yet released
 --------------
-Changes since LS1.1-2.  Backup and restore of the account, and SD Core Solo's
-own shared-memory keys.  The same changes are in all four SD Core products.
+Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
+own shared-memory keys and its own API port.  The same changes are in all
+four SD Core products.
+
+02 Oct 26  THE SD API NOW LISTENS ON PORT 4249 (IT WAS 4243).
+
+           Programs that connect to SD Core Solo through its API - the client
+           library, the BASIC client, and the examples - now use port 4249
+           unless they name another.  The installer's API question, the
+           firewall rule it adds, and the service's listener all use 4249.
+           The port is fixed: --api-port is gone, and nothing else moves it.
+
+           WHY: 4243 is the port OpenQM and ScarletDME use, and the original
+           SD uses 4245.  SD Core's full products use 4247 and SD Core Solo
+           uses 4249, so each can run on the same computer as the others.
+           The server certificate a client remembers is kept for the host AND
+           the port, so a computer that reaches both a full product and a Solo
+           keeps one record for each.
+
+           WHAT YOU MAY NEED TO DO: a client program that named port 4243
+           must name 4249 (or name no port, and take the new default).
+           installsolo.sh --upgrade moves an existing installation's listener
+           to 4249, keeping its address (this computer only, or the network),
+           and adds the firewall rule when the API is open to the network if
+           it can (otherwise it tells you the command).  An old rule for 4243
+           may remain; deletesolo.sh names it and does not remove it, because
+           another database may be using that port.
+
+           WHAT THIS DOES NOT DO: it does not move the multi-user product,
+           which uses 4247, or make the installer accept a computer that has
+           the multi-user SD Core installed.
 
 02 Oct 26  YOUR ACCOUNT CAN BE BACKED UP AND RESTORED: BACKUP.ACCOUNT,
            RESTORE.ACCOUNT AND SETTINGS.REPORT.
@@ -46,11 +75,11 @@ own shared-memory keys.  The same changes are in all four SD Core products.
            them could run on a computer.  It now has its own pair
            (0x53434C11 and 0x53434C12).
 
-           WHAT THIS DOES NOT DO: SD Core Solo's API still uses port 4243, the
-           same as the multi-user product, and its installer still refuses a
-           computer that has the multi-user SD Core installed.  An SD Core
-           Solo started by an older release is stopped by that release when
-           you upgrade, as before.
+           WHAT THIS DOES NOT DO: its installer still refuses a computer that
+           has the multi-user SD Core installed.  (The API ports are separate
+           too now - see the entry above.)  An SD Core Solo started by an
+           older release is stopped by that release when you upgrade, as
+           before.
 
 LS1.1-2 - not yet released
 --------------

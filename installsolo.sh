@@ -104,7 +104,14 @@ done
 case "$HOME_DIR" in /*) ;; *) refuse "--home must be an absolute path (got '$HOME_DIR')" ;; esac
 case "$HOME_DIR" in *" "*|*'"'*|*"'"*|*'\'*|*'$'*|*'`'*|*'%'*) refuse "the install directory must not contain a space, quote, backslash, \$, backtick or %: $HOME_DIR" ;; esac
 case "$api" in ""|off|local|open) ;; *) refuse "--api must be off, local or open (got '$api')" ;; esac
-[ -z "${SDSOLO_TEST_API_PORT:-}" ] || api_port="$SDSOLO_TEST_API_PORT"   # the test hook (solo-service.sh announces it)
+# The test hook, validated here as solo-service.sh validates it, because $api_port goes into
+# a sed and a ufw command below, and announced on every use like SDSOLO_REPO_URL.
+if [ -n "${SDSOLO_TEST_API_PORT:-}" ]; then
+  case "$SDSOLO_TEST_API_PORT" in *[!0-9]*) refuse "SDSOLO_TEST_API_PORT must be a number (got '$SDSOLO_TEST_API_PORT')" ;; esac
+  { [ "$SDSOLO_TEST_API_PORT" -ge 1024 ] && [ "$SDSOLO_TEST_API_PORT" -le 65535 ]; } 2>/dev/null || refuse "SDSOLO_TEST_API_PORT must be 1024-65535"
+  api_port="$SDSOLO_TEST_API_PORT"
+  printf '\033[0;33m*** SDSOLO_TEST_API_PORT IS SET: the API port is %s, NOT 4249 (a test hook) ***\033[0m\n' "$api_port" >&2
+fi
 
 interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
 

@@ -512,7 +512,7 @@ int main(int argc, char* argv[]) {
     /* P1: first use. */
     ppid = start_server(dir, 3000, &pfd);
     pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
-    rc = pc != NULL ? sd_tls_client_pin(pc, "Server.Example", 4243, perr, sizeof(perr)) : -1;
+    rc = pc != NULL ? sd_tls_client_pin(pc, "Server.Example", 4249, perr, sizeof(perr)) : -1;
     snprintf(detail, sizeof(detail), "returned %d", rc);
     check("P1 first use is recorded (SD_TLS_PIN_NEW)", rc == SD_TLS_PIN_NEW, detail);
     if (pc != NULL)
@@ -522,7 +522,7 @@ int main(int argc, char* argv[]) {
 
     /* P2: what was written is the host in lower case and the SAME fingerprint the
        earlier sessions computed independently, in a file only the owner can use. */
-    snprintf(want_line, sizeof(want_line), "server.example:4243 %s\n", hex_a);
+    snprintf(want_line, sizeof(want_line), "server.example:4249 %s\n", hex_a);
     nread = 0;
     buf[0] = '\0';
     sf = fopen(store, "r");
@@ -531,7 +531,7 @@ int main(int argc, char* argv[]) {
       buf[nread] = '\0';
       fclose(sf);
     }
-    check("P2 the store holds 'server.example:4243 <the certificate's SHA-256>'",
+    check("P2 the store holds 'server.example:4249 <the certificate's SHA-256>'",
           strcmp(buf, want_line) == 0, buf);
     check("P3 the store is mode 0600",
           stat(store, &pst) == 0 && (pst.st_mode & 0777) == 0600, "");
@@ -539,7 +539,7 @@ int main(int argc, char* argv[]) {
     /* P4: second use of the same certificate, written in another case. */
     ppid = start_server(dir, 3000, &pfd);
     pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
-    rc = pc != NULL ? sd_tls_client_pin(pc, "SERVER.example", 4243, perr, sizeof(perr)) : -1;
+    rc = pc != NULL ? sd_tls_client_pin(pc, "SERVER.example", 4249, perr, sizeof(perr)) : -1;
     snprintf(detail, sizeof(detail), "returned %d", rc);
     check("P4 the same certificate matches (SD_TLS_PIN_MATCH), host case ignored",
           rc == SD_TLS_PIN_MATCH, detail);
@@ -548,16 +548,32 @@ int main(int argc, char* argv[]) {
     close(pfd);
     (void)wait_exit(ppid, 5000);
 
-    /* P5: another port is another server: pinned afresh, the first line kept. */
+    /* P5: another port is another server: pinned afresh, the first line kept.  The two ports
+       are the two SD Core API ports - a Solo's 4249 (P1-P4) and the full products' 4247 - so
+       one host that runs both keeps two pins (LSOLO 23; owner, 2 Oct 2026: "certificate pin
+       keyed by host and port"). */
     ppid = start_server(dir, 3000, &pfd);
     pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
-    rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4244, perr, sizeof(perr)) : -1;
+    rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4247, perr, sizeof(perr)) : -1;
     snprintf(detail, sizeof(detail), "returned %d", rc);
     check("P5 another port is pinned separately (SD_TLS_PIN_NEW)", rc == SD_TLS_PIN_NEW, detail);
     if (pc != NULL)
       sd_tls_client_end(pc);
     close(pfd);
     (void)wait_exit(ppid, 5000);
+
+    /* P5b: the store holds ONE LINE PER host:port - the 4249 line P1 wrote, untouched, and a
+       4247 line after it - not one line for the host. */
+    snprintf(want_line, sizeof(want_line), "server.example:4249 %s\nserver.example:4247 %s\n", hex_a, hex_a);
+    nread = 0;
+    buf[0] = '\0';
+    sf = fopen(store, "r");
+    if (sf != NULL) {
+      nread = fread(buf, 1, sizeof(buf) - 1, sf);
+      buf[nread] = '\0';
+      fclose(sf);
+    }
+    check("P5b one host, ports 4249 and 4247: two lines, two pins", strcmp(buf, want_line) == 0, buf);
 
     /* P6: THE CONTROL.  The server's identity is replaced - what a man in the
        middle, or a reinstall, looks like to the client.  The connection to the
@@ -583,13 +599,13 @@ int main(int argc, char* argv[]) {
         (void)sd_tls_client_peer_sha256(pc, new_fp);
       for (j = 0; j < 32; j++)
         snprintf(hex_new + 2 * j, 3, "%02x", new_fp[j]);
-      rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4243, perr, sizeof(perr)) : -1;
+      rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4249, perr, sizeof(perr)) : -1;
       snprintf(detail, sizeof(detail), "returned %d: %.120s", rc, perr);
       check("P6 a replaced certificate is REFUSED (SD_TLS_PIN_FAILED)",
             pc != NULL && rc == SD_TLS_PIN_FAILED && strcmp(hex_new, hex_a) != 0, detail);
       check("P7 the refusal says it has changed, names old and new, and the line to remove",
             strstr(perr, "HAS CHANGED") != NULL && strstr(perr, hex_a) != NULL &&
-                strstr(perr, hex_new) != NULL && strstr(perr, "remove the line for server.example:4243") != NULL,
+                strstr(perr, hex_new) != NULL && strstr(perr, "remove the line for server.example:4249") != NULL,
             perr);
       sf = fopen(store, "r");
       nread = sf != NULL ? fread(after, 1, sizeof(after) - 1, sf) : 0;
@@ -611,14 +627,14 @@ int main(int argc, char* argv[]) {
     }
     ppid = start_server(dir, 3000, &pfd);
     pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
-    rc = pc != NULL ? sd_tls_client_pin(pc, "new.example", 4243, perr, sizeof(perr)) : -1;
+    rc = pc != NULL ? sd_tls_client_pin(pc, "new.example", 4249, perr, sizeof(perr)) : -1;
     sf = fopen(store, "r");
     nread = sf != NULL ? fread(buf, 1, sizeof(buf) - 1, sf) : 0;
     buf[nread] = '\0';
     if (sf != NULL)
       fclose(sf);
     check("P9 an unterminated last line is kept and the new pin starts on its own line",
-          rc == SD_TLS_PIN_NEW && strncmp(buf, "old.example:1 00\nnew.example:4243 ", 33) == 0, buf);
+          rc == SD_TLS_PIN_NEW && strncmp(buf, "old.example:1 00\nnew.example:4249 ", 33) == 0, buf);
     if (pc != NULL)
       sd_tls_client_end(pc);
     close(pfd);
@@ -632,7 +648,7 @@ int main(int argc, char* argv[]) {
       (void)setenv("SD_KNOWN_SERVERS", bad, 1);
       ppid = start_server(dir, 3000, &pfd);
       pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
-      rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4243, perr, sizeof(perr)) : -1;
+      rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4249, perr, sizeof(perr)) : -1;
       snprintf(detail, sizeof(detail), "returned %d: %.100s", rc, perr);
       check("P10 an unusable store refuses (SD_TLS_PIN_FAILED), it does not connect unpinned",
             rc == SD_TLS_PIN_FAILED && strstr(perr, "cannot open") != NULL, detail);

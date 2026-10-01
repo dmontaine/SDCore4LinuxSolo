@@ -50,7 +50,7 @@ echo "verify-solo-pin inputs:"
 echo "  tree       : $H"
 echo "  library    : $(cd "$(dirname "$LIB")" && pwd)/$(basename "$LIB")  ($(stat -c '%y' "$LIB" | cut -c1-19))"
 echo "  pin store  : $STORE (scratch)"
-echo "  API        : 127.0.0.1:$PORT"
+echo "  API        : 127.0.0.1:$PORT  (SDSOLO_TEST_API_PORT=$PORT; the product's port is 4249)"
 echo "  running as : $(id -un) (uid $(id -u))"
 
 pass=0; fail=0; legs=0
@@ -62,7 +62,8 @@ leg() {
 }
 
 "$H/bin/sd" -stop >/dev/null 2>&1
-out="$(bash "$SVC" install "$H" --api local --api-port "$PORT" 2>&1 | strip | grep -E '^SOLO SERVICE READY' | tail -1)"
+# LSOLO 23: there is no --api-port; the private port goes through the announced test hook.
+out="$(SDSOLO_TEST_API_PORT="$PORT" bash "$SVC" install "$H" --api local 2>&1 | strip | grep -E '^SOLO SERVICE READY' | tail -1)"
 [ -n "$out" ] || refuse "solo-service.sh install did not say READY"
 echo "  service    : $out"
 

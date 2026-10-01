@@ -162,7 +162,7 @@ bool start_connection(int unused) {
            authenticates by SCRAM (APISRVR requests 47/48) exactly as a TCP one
            does.  NOT a group gate: the socket is srw-rw-rw- root:sdusers
            (measured 14 Sep 26, SocketGroup without SocketMode), so any local
-           user reaches it, as any reaches 127.0.0.1:4243.  The socket is kept
+           user reaches it, as any reaches 127.0.0.1:4249.  The socket is kept
            - an ssh -L tunnel reaches it.                                      */
         /* 19 Sep 26 dm - AND THE PEER'S CREDENTIAL IS READ AGAIN, AS A CHECK
            AND NEVER AS AN AUTHENTICATION - which is the distinction S.18 was
@@ -199,9 +199,10 @@ bool start_connection(int unused) {
         /* 10 Sep 26 dm - accept TCP, but for the API server ONLY, deliberately
            reversing the 2024-02-19 "AF_UNIX only" restriction for that one path.
            The API server authenticates the connection by SCRAM (APISRVR
-           requests 47/48).  The listener binds 127.0.0.1:4243 by default;
-           installsdai.sh opens it to 0.0.0.0:4243 and the firewall only on
-           "Allow API access".  A non-API TCP connection is still refused.
+           requests 47/48).  The listener binds 127.0.0.1:4249 by default
+           (4243 before 2 Oct 26 - the owner fixed SD Core's ports then);
+           installsolo.sh opens it to 0.0.0.0:4249 and the firewall only on
+           "--api open".  A non-API TCP connection is still refused.
 
            14 Sep 26 dm - S.17: ip_addr/port_no are now the PEER's, from
            getpeername(), as the Windows port's are.  They were the listener's

@@ -75,7 +75,10 @@ refusal() {
 
 # ---- R1-R6: refusals, all before the download.
 refusal "R1 a weak account password"        "does not meet the rule"        "$W/h1" --account-password-file "$W/weak.pw" --admin-password-file "$W/adm.pw"
-refusal "R2 an API port below 1024"         "must be 1024-65535"            "$W/h2" --api-port 80 --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw"
+# LSOLO 23: --api-port is gone (owner, 2 Oct 2026: no adjustable ports).  R2 is the test hook's
+# own range check; R2b is the option's absence.
+SDSOLO_TEST_API_PORT=80 refusal "R2 a test-hook API port below 1024" "must be 1024-65535" "$W/h2" --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw"
+refusal "R2b --api-port is not an option"   "unknown option: --api-port"   "$W/h2b" --api-port 14244 --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw"
 mkdir -p "$W/h3" && echo x > "$W/h3/somefile"
 refusal "R3 a directory that is not empty"  "exists and is not empty"       "$W/h3" --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw"
 refusal "R4 no password and no terminal"    "no terminal to ask on"          "$W/h4"
@@ -86,17 +89,18 @@ refusal "R8 --upgrade with nothing installed" "there is no SD Core for Linux Sol
 refusal "R9 --upgrade of a tree the installer did not make" "has no .sdcore-install record" "$W/h6" --upgrade
 mkdir -p "$W/h8" && : > "$W/h8/.sdcoresolo" && echo "commit x" > "$W/h8/.sdcore-install"
 refusal "R10 --upgrade takes no password option" "keeps the mode, passwords, API and ssh settings" "$W/h8" --upgrade --account-password-file "$W/acc.pw"
-absent=0; for d in h1 h2 h4 h5 h7; do [ -e "$W/$d" ] && absent=1; done
+absent=0; for d in h1 h2 h2b h4 h5 h7; do [ -e "$W/$d" ] && absent=1; done
 [ "$absent" -eq 0 ] && leg "R7 a refusal creates nothing" "h1, h2, h4 and h5 do not exist" 0 "none created" || leg "R7 a refusal creates nothing" "h1, h2, h4, h5 do not exist" 1 "one was created"
 
 if [ "$full" -eq 1 ]; then
   command -v systemctl >/dev/null || refuse "systemctl is required for --full"
   systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is already running for this user; --full would collide with it"
   ss -ltn 2>/dev/null | grep -q ':14244 ' && refuse "port 14244 is in use"
+  export SDSOLO_TEST_API_PORT=14244   # the installer's announced test hook; there is no --api-port (LSOLO 23)
   ls -d "$HOME/.sdsolotmp" >/dev/null 2>&1 && refuse "$HOME/.sdsolotmp exists; remove it (a previous install may have been interrupted)"
   H="$W/inst"
   echo "  (full install into $H - a download, a build and a bootstrap; about three minutes)"
-  out="$(timeout 900 bash "$INSTALL" --home "$H" --skip-packages --yes --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw" --api local --api-port 14244 2>&1 | strip)"
+  out="$(timeout 900 bash "$INSTALL" --home "$H" --skip-packages --yes --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw" --api local 2>&1 | strip)"
   if printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H"; then
     leg "F1 install" "'SOLO INSTALL COMPLETE <home>'" 0 "complete"
   else
@@ -185,7 +189,7 @@ admin-password=$(head -1 "$W/adm.pw")
 global-password=$(head -1 "$W/glb.pw")
 deny-verbs=DATE
 CTL
-  out="$(timeout 900 bash "$INSTALL" --home "$H2" --skip-packages --yes --control-file "$W/ctl.conf" --api-port 14244 2>&1 < /dev/null | strip)"
+  out="$(timeout 900 bash "$INSTALL" --home "$H2" --skip-packages --yes --control-file "$W/ctl.conf" 2>&1 < /dev/null | strip)"
   if printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H2" && printf '%s\n' "$out" | grep -q 'The account password is not asked for' \
      && [ -f "$H2/\$cred/\$global" ] && [ ! -e "$H2/\$cred/sduser" ] && [ "$(sed -n 's/^mode //p' "$H2/.sdcore-install")" = "managed" ]; then
     leg "F5 a control-file install sets no account password" "COMPLETE, 'not asked for', \$cred/\$global and no \$cred/sduser, mode managed" 0 "complete"

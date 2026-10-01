@@ -21,9 +21,12 @@ and 48, and nothing else. Request 24 (cleartext) is refused, and request 25
 | The identity | `~/SDCoreSolo/sd-tls/api.pem` (private key and self-signed certificate), made on the first connection. The directory must be 0700 and the file 0600 and owned by the user, or the relay refuses to start |
 | Pinning (LSOLO 19) | The client library (`sd_tls_client_pin()`, called by `SDConnect` after the handshake and before any login byte) records the SHA-256 of the server's whole certificate for `host:port` the first time it connects, in `$SD_KNOWN_SERVERS` or `~/.sdcore/known_servers` (0600, one `host:port <64 hex>` line per server, host in lower case). A later connection that presents another certificate is refused with a message that names both fingerprints and the line to remove; a store that cannot be used refuses too. **Trust on first use:** a man in the middle present at the very first connection is pinned instead of the server, as with ssh's `known_hosts`. A reinstalled server has a new certificate and needs its line removed. Checked by `gplbld/test-tls-relay.py` group P (10 checks) and `gplbld/verify-solo-pin.sh` (5 legs: the pin equals the SHA-256 openssl computes, a replaced identity is refused with no login started, removing the line re-pins) |
 
-`local` binds `127.0.0.1`, `open` binds `0.0.0.0`; the port is 4243 unless
-`--api-port`. **Changing any of it is `tools/solo-service.sh install` again**, which
-stops the old listener first (verified: open → off → local).
+`local` binds `127.0.0.1`, `open` binds `0.0.0.0`; the port is **4249 and cannot be
+changed** (owner, 2 Oct 2026: no adjustable ports). 4243 is OpenQM's and ScarletDME's,
+4245 upstream SD's and 4247 the full SD Core products', so a Solo, a full product and
+those databases can all run on one computer. **Changing the address is
+`tools/solo-service.sh install` again**, which stops the old listener first
+(verified: open → off → local). A client that named 4243 must name 4249.
 
 ## The login
 

@@ -161,8 +161,17 @@ rm -rf "$H" || fail "removing $H"
 [ ! -e "$H" ] || fail "$H is still there"
 say "removed $H"
 
-if command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -qE '^(4243|[0-9]+)/tcp .*ALLOW'; then
-  warn "ufw may still have a rule for the API port; list it with 'sudo ufw status' and remove it if you added it"
+# 02 Oct 26 - the API port is 4249, fixed (owner, 2 Oct 2026).  Its rule is reported, not
+# removed (the installer added it with your sudo); 4243 is OpenQM's and ScarletDME's port, so a
+# rule for it is only mentioned: it may belong to another database.
+if command -v ufw >/dev/null 2>&1; then
+  ufw_rules="$(sudo -n ufw status 2>/dev/null)"
+  if printf '%s\n' "$ufw_rules" | grep -qE '^4249/tcp .*ALLOW'; then
+    warn "ufw still allows TCP 4249, this product's API port; if the installer added it, remove it with 'sudo ufw delete allow 4249/tcp'"
+  fi
+  if printf '%s\n' "$ufw_rules" | grep -qE '^4243/tcp .*ALLOW'; then
+    warn "ufw allows TCP 4243: that is OpenQM's and ScarletDME's port, not this product's, so it was left alone"
+  fi
 fi
 say
 say "SOLO DELETE COMPLETE $H"
