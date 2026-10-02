@@ -4,6 +4,27 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+02 Oct 26  A RESTORED ACCOUNT KEEPS ITS DIRECTORY PERMISSIONS.
+
+           RESTORE.ACCOUNT used to create every directory of the restored
+           account readable and writable by its group (mode 775), whatever
+           the directory's mode had been when BACKUP.ACCOUNT saved it, so
+           the account's directories, which are private (700), came back
+           open to its group.  The backup always recorded each directory's
+           mode; the restore now applies it, as it already did for files.
+           The owner always keeps full access, and permission for everyone
+           else to write is not restored.  (SD Core Solo's own directory
+           stayed private throughout, so nobody else could reach them.)
+
+           WHY: found on the first restore run on a real installation, where
+           every directory of the account changed from 700 to 775.
+
+           WHAT THIS DOES NOT DO: it does not repair an account that was
+           already restored the old way; restore it again from the same
+           backup.  A backup made by SD Core Solo for Windows carries no
+           Unix permissions, so the directories of an account restored from
+           one stay 775, as before.
+
 02 Oct 26  BACKUP.ACCOUNT AND RESTORE.ACCOUNT NEED NO ACCOUNT NAME.
 
            SD Core Solo has one account, so BACKUP.ACCOUNT and
