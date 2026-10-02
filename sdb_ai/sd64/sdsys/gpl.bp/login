@@ -663,7 +663,7 @@ abort.login:
 * be at most gate.expiry seconds old.  It is DELETED here, before the decision,
 * so no path leaves the window open.  Whoever legitimately starts an internal
 * session - the installer's steps, the bootstrap, a verifier - writes ONE marker
-* immediately before it (gplbld/solo-stage.sh and installsolo.sh do).  A marker
+* immediately before it (gplbld/solo-stage.sh and installsdsolo.sh do).  A marker
 * written and never used authorises exactly one later session, for ten minutes.
 *
 * WHAT IT IS NOT.  A speed bump, not a boundary: the tree belongs to the user, who

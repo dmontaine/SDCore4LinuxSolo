@@ -15,7 +15,7 @@ them. It is the Linux counterpart of
 **Version LS1.1-2, not yet released.** It started on 29 September 2026 as a copy
 of SD Core for Linux L1.1-1. The one-account model, the passwords and ADMIN, the
 API login, the systemd user service, ssh into `sd`, the installer, the in-place
-upgrade (`bash installsolo.sh --upgrade`), the managed-mode server controls
+upgrade (`bash installsdsolo.sh --upgrade`), the managed-mode server controls
 (global catalogue, denied commands) and the account password chosen at first
 login are built and have been run on one machine. LS1.1-2 adds, for a managed
 installation, the API request that lets the server install its own ssh key
@@ -37,14 +37,14 @@ the build packages, to open a firewall port you asked for, to write the optional
 `sshd_config.d` block and to enable linger.
 
 ```sh
-bash installsolo.sh          # asks its questions; --help lists the options
+bash installsdsolo.sh          # asks its questions; --help lists the options
 ```
 
 It downloads the source (the `main` branch of this repository) into a temporary
 directory under your home, builds it there, installs into `~/SDCoreSolo`, sets your
 passwords, starts SD as your own systemd service and deletes the download. The
 script can be carried on a USB stick; it needs the network for the packages and the
-download. `bash ~/SDCoreSolo/tools/deletesolo.sh` removes it again, keeping your
+download. `bash ~/SDCoreSolo/tools/deletesdsolo.sh` removes it again, keeping your
 data if you ask.
 
 **Requirements:** a 64-bit Linux with a systemd user manager and one of the

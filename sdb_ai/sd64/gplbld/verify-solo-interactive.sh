@@ -5,7 +5,7 @@
 #
 # No sudo.  Run as an ordinary user with a clean git tree (the installer builds the
 # COMMITTED head of this repository, as verify-solo-install.sh does).  It drives
-# installsolo.sh through ptyrun.py exactly as a person at a keyboard would: the mode
+# installsdsolo.sh through ptyrun.py exactly as a person at a keyboard would: the mode
 # question, a weak account password (refused, asked again), a confirmation that does not
 # match (asked again), the administrator password, the API question, ssh, linger and
 # "Continue?".  First a run answered "n" at "Continue?", which must change nothing; then
@@ -21,7 +21,7 @@ refuse() { echo "REFUSED: $*" >&2; exit 2; }
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$here/../../.." && pwd)"
-INSTALL="$REPO/installsolo.sh"
+INSTALL="$REPO/installsdsolo.sh"
 [ -f "$INSTALL" ] || refuse "$INSTALL is missing"
 command -v python3 >/dev/null || refuse "python3 is required"
 git -C "$REPO" diff --quiet && git -C "$REPO" diff --cached --quiet || refuse "the working tree has uncommitted changes; the installer would install HEAD, not them"
@@ -32,7 +32,7 @@ ss -ltn 2>/dev/null | grep -q ':14245 ' && refuse "port 14245 is in use"
 W="$(mktemp -d)"; chmod 700 "$W"
 H="$W/inst"
 cleanup() {
-  [ -f "$H/tools/deletesolo.sh" ] && bash "$H/tools/deletesolo.sh" --delete-data --yes >/dev/null 2>&1
+  [ -f "$H/tools/deletesdsolo.sh" ] && bash "$H/tools/deletesdsolo.sh" --delete-data --yes >/dev/null 2>&1
   rm -rf "$W"
 }
 trap cleanup EXIT

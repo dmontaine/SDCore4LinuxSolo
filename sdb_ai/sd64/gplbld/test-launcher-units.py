@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# test-launcher-units.py - the command names installsolo.sh makes (owner, 2 Oct 2026).
+# test-launcher-units.py - the command names installsdsolo.sh makes (owner, 2 Oct 2026).
 #
 #   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-launcher-units.py
 #   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-launcher-units.py --selftest
 #
-# No sudo, no install, no sd.  It CUTS the shipped code out of installsolo.sh - the lines
+# No sudo, no install, no sd.  It CUTS the shipped code out of installsdsolo.sh - the lines
 # between "# BEGIN command_names" and "# END command_names" - and runs it with the
 # installer's own bash in a scratch HOME, then RUNS the launcher it wrote against two fake
 # programs, one standing for SD Core Solo and one for the multi-user SD Core.  What it
@@ -24,8 +24,8 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-INSTALLER = os.path.normpath(os.path.join(HERE, "..", "..", "..", "installsolo.sh"))
-DELETER = os.path.normpath(os.path.join(HERE, "..", "..", "..", "deletesolo.sh"))
+INSTALLER = os.path.normpath(os.path.join(HERE, "..", "..", "..", "installsdsolo.sh"))
+DELETER = os.path.normpath(os.path.join(HERE, "..", "..", "..", "deletesdsolo.sh"))
 BEGIN = "# BEGIN command_names"
 END = "# END command_names"
 DBEGIN = "# BEGIN link_detect"
@@ -224,7 +224,7 @@ class Suite:
 
         self.suite_delete()
 
-    # deletesolo.sh: which of the two commands is THIS tree's to remove.  The block it cuts out
+    # deletesdsolo.sh: which of the two commands is THIS tree's to remove.  The block it cuts out
     # sets link_ours (sd) and solo_link_ours (sd-solo) from $HOME and $H.
     def detect(self, home, tree):
         script = 'set -uo pipefail\nHOME=%s\nH=%s\n%s\necho "$link_ours $solo_link_ours"\n' % (

@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify-solo-install.sh - does installsolo.sh / deletesolo.sh do what they say?
+# verify-solo-install.sh - does installsdsolo.sh / deletesdsolo.sh do what they say?
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-install.sh [--full]
 #
@@ -33,8 +33,8 @@ full=0
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$here" rev-parse --show-toplevel 2>/dev/null)" || refuse "this is not inside a git checkout"
-INSTALL="$REPO/installsolo.sh"; DELETE="$REPO/deletesolo.sh"
-[ -f "$INSTALL" ] && [ -f "$DELETE" ] || refuse "installsolo.sh or deletesolo.sh is missing from $REPO"
+INSTALL="$REPO/installsdsolo.sh"; DELETE="$REPO/deletesdsolo.sh"
+[ -f "$INSTALL" ] && [ -f "$DELETE" ] || refuse "installsdsolo.sh or deletesdsolo.sh is missing from $REPO"
 [ -z "$(git -C "$REPO" status --porcelain --untracked-files=no)" ] || refuse "the working tree has uncommitted changes; the installer installs the committed HEAD, so commit first"
 export SDSOLO_REPO_URL="file://$REPO"
 COMMIT="$(git -C "$REPO" rev-parse HEAD)"
@@ -169,7 +169,7 @@ if [ "$full" -eq 1 ]; then
   rm -rf "$H".before-upgrade-*
   # F4 uninstall, keeping the data, from the tree's own copy of the script
   echo "kept data" > "$H/user_accounts/sduser/keepme.txt"
-  dout="$(bash "$H/tools/deletesolo.sh" --keep-data --yes 2>&1 | strip)"
+  dout="$(bash "$H/tools/deletesdsolo.sh" --keep-data --yes 2>&1 | strip)"
   kept="$(printf '%s\n' "$dout" | sed -n 's/^your data is in \(.*\)\/sduser$/\1/p')"
   left=0
   [ -e "$H" ] && left=1
@@ -210,7 +210,7 @@ CTL
     else
       leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; DATE on the list" 1 "$(printf '%s\n' "$g" | tail -2 | tr '\n' '|')"
     fi
-    dout2="$(bash "$H2/tools/deletesolo.sh" --delete-data --yes 2>&1 | strip)"
+    dout2="$(bash "$H2/tools/deletesdsolo.sh" --delete-data --yes 2>&1 | strip)"
     if printf '%s\n' "$dout2" | grep -qx "SOLO DELETE COMPLETE $H2" && [ ! -e "$H2" ] && ! systemctl --user is-active sd-solo.service >/dev/null 2>&1; then
       leg "F5c the control-file install is removed" "'SOLO DELETE COMPLETE', no tree, no service" 0 "removed"
     else

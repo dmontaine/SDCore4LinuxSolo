@@ -201,7 +201,7 @@ bool start_connection(int unused) {
            The API server authenticates the connection by SCRAM (APISRVR
            requests 47/48).  The listener binds 127.0.0.1:4249 by default
            (4243 before 2 Oct 26 - the owner fixed SD Core's ports then);
-           installsolo.sh opens it to 0.0.0.0:4249 and the firewall only on
+           installsdsolo.sh opens it to 0.0.0.0:4249 and the firewall only on
            "--api open".  A non-API TCP connection is still refused.
 
            14 Sep 26 dm - S.17: ip_addr/port_no are now the PEER's, from

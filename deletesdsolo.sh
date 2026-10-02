@@ -4,7 +4,7 @@
 #   (c) 2026 Donald Montaine.  Released under the Blue Oak Model License 1.0.0,
 #   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
 #
-#   bash deletesolo.sh [--home DIR] [--keep-data | --delete-data] [--yes]
+#   bash deletesdsolo.sh [--home DIR] [--keep-data | --delete-data] [--yes]
 #
 # Removes SD Core for Linux Solo for the user who runs it: the systemd user units,
 # the running daemon, the ~/.local/bin/sd and sd-solo commands, the ssh key lines this product added,
@@ -48,7 +48,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-# ---- which tree.  Default: the tree this script sits in (<home>/tools/deletesolo.sh),
+# ---- which tree.  Default: the tree this script sits in (<home>/tools/deletesdsolo.sh),
 # else ~/SDCoreSolo.
 if [ -z "$H" ]; then
   self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,7 +64,7 @@ case "$H" in /*) ;; *) refuse "--home must be an absolute path (got '$H')" ;; es
 if [ "$from_copy" -eq 0 ]; then
   case "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/" in
     "$H"/*)
-      tmp="$(mktemp -t deletesolo.XXXXXX)" || refuse "cannot make a temporary copy of this script"
+      tmp="$(mktemp -t deletesdsolo.XXXXXX)" || refuse "cannot make a temporary copy of this script"
       cp "${BASH_SOURCE[0]}" "$tmp" || refuse "cannot copy this script to $tmp"
       extra=()
       [ -z "$data" ] || extra+=("--${data}-data")

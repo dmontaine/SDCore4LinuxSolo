@@ -4,6 +4,16 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+02 Oct 26  THE INSTALLER AND UNINSTALLER HAVE NEW NAMES.
+
+           installsolo.sh is now installsdsolo.sh, and deletesolo.sh is now
+           deletesdsolo.sh.  They do exactly what they did before; only the
+           file names changed.  SD Core's are installsdcore.sh and
+           deletesdcore.sh.  Entries below that name the old files mean
+           these.
+
+           WHAT THIS DOES NOT DO: it does not touch an installed Solo.
+
 02 Oct 26  SD CORE SOLO CAN BE INSTALLED ON THE SAME COMPUTER AS SD CORE, AND
            THE COMMAND YOU TYPE SAYS WHICH ONE YOU GET.
 

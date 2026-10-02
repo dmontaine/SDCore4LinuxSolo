@@ -112,7 +112,7 @@ def build(tmp, *, dirty=False, pushed=True, stamp="head",
         with open(os.path.join(sdsys, ".sdcore-install"), "w",
                   encoding="utf-8") as f:
             if solo_stamp:
-                # installsolo.sh's own format: "key value" lines.
+                # installsdsolo.sh's own format: "key value" lines.
                 f.write("commit %s\ndate %s\nmode standalone\n"
                         % (sha, time.strftime("%Y-%m-%dT%H:%M:%S")))
             else:
@@ -184,7 +184,7 @@ def main():
     # ---- the one that must say CURRENT.  Without it every other row could be
     # ---- satisfied by a guard that always says STALE.
     check("clean, pushed, stamp==HEAD, built", CURRENT, "current.")
-    # Solo's installsolo.sh writes "commit <sha>", not "commit=<sha>".
+    # Solo's installsdsolo.sh writes "commit <sha>", not "commit=<sha>".
     check("Solo-format stamp == HEAD", CURRENT, "current.", solo_stamp=True)
     check("Solo-format stamp, another commit", STALE, "was built from",
           stamp="0" * 40, solo_stamp=True)

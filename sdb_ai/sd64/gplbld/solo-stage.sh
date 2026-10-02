@@ -186,7 +186,7 @@ cp -R gplbld/microcfg "$H/microcfg"
 # LSOLO 16: the NANO verb's syntax file and the script that writes its --rcfile.
 cp -R gplbld/nanocfg "$H/nanocfg"
 # The scripts a user needs AFTER the install: stop/start the service, add an ssh key,
-# uninstall.  deletesolo.sh is at the repository root (beside the installer), two
+# uninstall.  deletesdsolo.sh is at the repository root (beside the installer), two
 # levels above this tree's sd64; it is copied when it is there (an installed tree
 # built from a clone always has it).
 mkdir -p "$H/tools"
@@ -196,7 +196,7 @@ cp gplbld/solo-service.sh gplbld/solo-ssh.sh "$H/tools/"
 # start_sd() runs "sd-accarchive swap" to put a waiting restore in place.
 cp gplbld/sd-accarchive "$H/bin/sd-accarchive"
 chmod 0755 "$H/bin/sd-accarchive"
-[ -f ../../deletesolo.sh ] && cp ../../deletesolo.sh "$H/tools/deletesolo.sh"
+[ -f ../../deletesdsolo.sh ] && cp ../../deletesdsolo.sh "$H/tools/deletesdsolo.sh"
 [ "$upgrade" -eq 1 ] && [ -f "$H/sd.conf" ] || cp sd.conf "$H/sd.conf"   # an upgrade keeps the user's
 : > "$H/.sdcoresolo"
 

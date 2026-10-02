@@ -2,9 +2,9 @@
 #
 # To use it, copy this file, fill in the answers, and give it to the installer:
 #
-#     bash installsolo.sh --control-file /path/to/sd-solo-setup.conf
+#     bash installsdsolo.sh --control-file /path/to/sd-solo-setup.conf
 #
-# It can live on a USB stick beside installsolo.sh, so one stick initialises
+# It can live on a USB stick beside installsdsolo.sh, so one stick initialises
 # several computers.  Without the file the installer asks every question itself.
 #
 # It is for MANAGED MODE ONLY.  Its presence makes the install a managed

@@ -84,7 +84,7 @@ import time
 CURRENT, STALE, UNKNOWN = 0, 1, 2
 
 # SD Core for Linux Solo (30 Sep 26): the install is one tree in the user's home
-# directory (installsolo.sh --home), and that directory IS the SDSYS directory.
+# directory (installsdsolo.sh --home), and that directory IS the SDSYS directory.
 DEFAULT_SDSYS = os.path.expanduser("~/SDCoreSolo")
 STAMP_NAME = ".sdcore-install"
 
@@ -131,7 +131,7 @@ def read_stamp(path):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        # "key=value" (the multi-user installer) or "key value" (installsolo.sh).
+        # "key=value" (the multi-user installer) or "key value" (installsdsolo.sh).
         if "=" in line:
             k, v = line.split("=", 1)
         elif " " in line:
@@ -282,7 +282,7 @@ def main():
             note("CANNOT ANSWER: the install is newer than HEAD's commit, but "
                  "without a stamp there is nothing that says WHICH commit it "
                  "was built from - a newer mtime is not evidence.")
-            note("  Re-install once; installsolo.sh writes the stamp now.")
+            note("  Re-install once; installsdsolo.sh writes the stamp now.")
             return finish(UNKNOWN)
 
     # --------------------------------------------- D. is bin/sd even rebuilt?

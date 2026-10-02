@@ -23,7 +23,7 @@
 # 4249 and the full products 4247; OpenQM and ScarletDME use 4243, upstream SD 4245.
 # TEST HOOK, NOT A FEATURE: SDSOLO_TEST_API_PORT moves it, so the witnesses can run a
 # staged tree beside a live Solo.  Announced on every use; a real install never sets
-# it (the same rule as installsolo.sh's SDSOLO_REPO_URL).
+# it (the same rule as installsdsolo.sh's SDSOLO_REPO_URL).
 #   sd-solo-api@.service   one "sd -n -q" per connection (Accept=true)
 #
 # LINGER.  Without it the user manager - and SD with it - stops when the user's last

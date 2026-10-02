@@ -4,7 +4,7 @@
 #   (c) 2026 Donald Montaine.  Released under the Blue Oak Model License 1.0.0,
 #   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
 #
-#   bash installsolo.sh [options]        run it as YOUR OWN USER, never as root
+#   bash installsdsolo.sh [options]        run it as YOUR OWN USER, never as root
 #
 # WHAT IT DOES.  Downloads the source of SD Core for Linux Solo (the main branch of
 # github.com/dmontaine/SDCore4LinuxSolo) into a TEMPORARY directory under your home,
@@ -127,11 +127,11 @@ if [ -f "$HOME_DIR/.sdcoresolo" ] && [ "$upgrade" -eq 0 ]; then
   To bring it up to the current release, keeping your account, data and passwords:
       bash $0 --upgrade --home $HOME_DIR
   To remove it instead (your data can be kept):
-      bash $HOME_DIR/tools/deletesolo.sh"
+      bash $HOME_DIR/tools/deletesdsolo.sh"
 fi
 if [ "$upgrade" -eq 1 ]; then
   [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core for Linux Solo in $HOME_DIR to upgrade (no .sdcoresolo marker)"
-  [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsolo.sh; upgrade it by hand or reinstall"
+  [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsdsolo.sh; upgrade it by hand or reinstall"
   [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh_key" ] && [ "$managed" -eq 0 ] && [ "$ssh_match" -eq 0 ] && [ "$enable_linger" -eq 0 ] \
     || refuse "--upgrade keeps the mode, passwords, API and ssh settings as installed; it takes no password, control-file, --api, --ssh-key, --ssh-match, --enable-linger or --managed option"
 elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
@@ -502,7 +502,7 @@ write_launcher() {   # write_launcher FILE SOLO_SD FULL_SD
   local f="$1" solo="$2" full="$3"
   cat > "$f" <<LAUNCHER
 #!/bin/sh
-# SD Core for Linux Solo launcher.  installsolo.sh writes this file on every install and
+# SD Core for Linux Solo launcher.  installsdsolo.sh writes this file on every install and
 # upgrade; do not edit it.
 #   sd       the multi-user SD Core for Linux if it is installed on this computer, else this SD Core Solo
 #   sd-solo  always this SD Core Solo
@@ -654,7 +654,7 @@ fi
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
 say "  service       : ${svc_state:-not installed}"
 [ "$api" = "off" ] || say "  API           : $api, port $api_port (TLS 1.3, account password)"
-say "  uninstall     : bash $HOME_DIR/tools/deletesolo.sh"
+say "  uninstall     : bash $HOME_DIR/tools/deletesdsolo.sh"
 say "  the download in $CLONE_DIR is removed when this script ends"
 say
 if [ "$upgrade" -eq 1 ]; then say "SOLO UPGRADE COMPLETE $HOME_DIR"; else say "SOLO INSTALL COMPLETE $HOME_DIR"; fi
