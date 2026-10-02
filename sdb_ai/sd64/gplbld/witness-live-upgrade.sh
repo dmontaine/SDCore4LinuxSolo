@@ -52,13 +52,8 @@ notreached() { NOTREACHED=$((NOTREACHED+1)); say "  NOT REACHED  $1"; }
 need() { say "CANNOT RUN: $1"; exit 2; }
 
 # solo_pids - the pids of this user's processes whose executable is the Solo server
-solo_pids() {
-  local d p
-  for d in /proc/[0-9]*; do
-    p=${d#/proc/}
-    [ "$(stat -c %u "$d" 2>/dev/null)" = "$(id -u)" ] || continue
-    [ "$(readlink "$d/exe" 2>/dev/null)" = "$H/bin/sd-solo" ] && printf '%s\n' "$p"
-  done
+solo_pids() {   # one find, not a fork per process (the first version took over a minute a scan)
+  find /proc -maxdepth 2 -name exe -user "$(id -u)" -lname "$H/bin/sd-solo" 2>/dev/null | sed -n 's#^/proc/\([0-9][0-9]*\)/exe$#\1#p'
 }
 
 if [ "${SD_WITNESS_LOGGED:-}" != 1 ]; then
@@ -77,7 +72,11 @@ say "  user    : $(id -un) (uid $(id -u))   log: $LOG"
 command -v python3 >/dev/null && command -v ssh >/dev/null && command -v ssh-keygen >/dev/null || need "python3, ssh and ssh-keygen are required"
 [ "$(systemctl --user is-active sd-solo.service 2>/dev/null)" = active ] || need "sd-solo.service is not active"
 ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT " || ss -ltn 2>/dev/null | grep -q "0.0.0.0:$PORT " || need "nothing is listening on port $PORT (is the API on?)"
-PW="$(head -1 "$H/\$cred/\$stored")"
+# The record is two lines: the account name in capitals, then the password (login reads
+# pw.rec<1> = account, pw.rec<2> = password).  The first version read line 1 and every login failed.
+STORED_ACCT="$(sed -n 1p "$H/\$cred/\$stored")"
+[ "$STORED_ACCT" = SDUSER ] || need "the kept password record names '$STORED_ACCT', not SDUSER: not the format this script reads"
+PW="$(sed -n 2p "$H/\$cred/\$stored")"
 [ -n "$PW" ] || need "the kept password copy is empty"
 
 W="$(mktemp -d)"; chmod 700 "$W"
