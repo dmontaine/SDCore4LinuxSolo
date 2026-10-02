@@ -17,6 +17,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 * 
 * START-HISTORY:
+* 02 Oct 26 SD Core for Linux Solo - SD_REV_STAMP LS1.1-3 (owner, 2 Oct 2026: "version should be
+*           1.1-3 on both full and solo"); pairs with L1.1-3 and the Windows W1.1-3 / WS1.1-3.
 * 30 Sep 26 SD Core for Linux Solo - SD_REV_STAMP LS1.1-2 (owner, 30 Sep 2026):
 *           the managed server's ssh-key request (49) and certificate pinning.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - SD_REV_STAMP LS1.1-1: the product
@@ -94,7 +96,7 @@
 $define MAJOR.REV      1
 $define MINOR.REV      0
 $define BUILD          2
-$define SD.REV.STAMP   "LS1.1-2"
+$define SD.REV.STAMP   "LS1.1-3"
 
 $define SD.COPYRIGHT.YEAR "2007"
 
