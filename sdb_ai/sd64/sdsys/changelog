@@ -10,14 +10,16 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            RESTORE.ACCOUNT no longer ask you to name it: BACKUP.ACCOUNT on its
            own (or BACKUP.ACCOUNT TO directory) backs the account up, and
            RESTORE.ACCOUNT archive (or RESTORE.ACCOUNT LATEST) restores it.
+           With no name, the commands fill in the account's name, sduser, so
+           the backup is named for the account exactly as if you had typed it.
            ALL, and the account's name, are still accepted.
 
            WHY: there was nothing to choose between.
 
            WHAT THIS DOES NOT DO: SD Core, with many accounts, still wants a
            name or ALL.  Until SD Core for Windows' Solo takes the same
-           change, its backup commands still want ALL, and a backup made
-           either way restores on either.
+           change, its backup commands still want a name or ALL, and a backup
+           made either way restores on either.
 
 02 Oct 26  RESTORE.ACCOUNT LATEST: RESTORE THE MOST RECENT BACKUP WITHOUT
            NAMING IT.
@@ -25,7 +27,8 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            RESTORE.ACCOUNT LATEST (with the usual NO.QUERY) puts the word
            LATEST where the archive name goes.  SD looks in the directory
            saved by SET.BACKUP.DIRECTORY, picks the newest backup made on
-           this computer that was made with ALL, says which one it chose
+           this computer that holds your account (one made with a name, with
+           ALL, or with no name, which is the same as the name), says which one it chose
            ("The most recent backup is ..."), and restores from it as it
            would have if you had typed its name.  If there is none it says so
            and changes nothing.  The same command is in SD Core for Linux and
