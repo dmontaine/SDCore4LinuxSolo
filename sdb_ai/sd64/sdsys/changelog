@@ -4,6 +4,14 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+02 Oct 26  THE WINDOWS CLIENT LIBRARY EXAMPLE IS GONE.
+
+           examples/windows.c (a Visual Studio port of the C client library)
+           and gplsrc/sdclient.c (the Windows client DLL source, which this
+           product never built) are removed.  SD Core Solo for Windows has
+           its own client library.  The Python API example no longer has a
+           Windows library path.  Nothing installed changes.
+
 02 Oct 26  THE INSTALLER AND UNINSTALLER HAVE NEW NAMES.
 
            installsolo.sh is now installsdsolo.sh, and deletesolo.sh is now
