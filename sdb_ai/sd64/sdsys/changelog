@@ -22,6 +22,43 @@ installed beside SD Core.  The same changes are in all four SD Core products.
 
            WHAT THIS DOES NOT DO: it does not touch an installed Solo.
 
+02 Oct 26  SET.BACKUP.DIRECTORY: SAY WHERE BACKUPS GO ONCE.
+
+           After ADMIN, SET.BACKUP.DIRECTORY directory saves the directory
+           that BACKUP.ACCOUNT writes to and RESTORE.ACCOUNT reads from, so it
+           need not be typed on every command.  It creates the directory if it
+           is not there, checks that it can be written to, and keeps it in
+           sd.conf (BACKUPDIR=), where it takes effect at once - no restart.
+           On its own, SET.BACKUP.DIRECTORY shows the saved directory and
+           changes nothing.  BACKUP.ACCOUNT no longer needs TO: without it, it
+           uses the saved directory, and if none is saved it asks for one and
+           saves the answer exactly as SET.BACKUP.DIRECTORY would.
+           RESTORE.ACCOUNT does the same for an archive named without a
+           directory.  TO directory, or an archive name with a directory in
+           it, still works and changes nothing that is saved.
+
+           A backup made on SD Core for Windows is now read correctly
+           whichever kind of line ending its description file uses, and a
+           backup no longer prints "global.bp.out could not be read" - a Solo
+           account has no programs of its own to look for in the global
+           catalogue.
+
+           WHY: every backup and restore had to be given the same long path.
+           SD Core for Windows, and SD Core for Linux, have the same command.
+
+           WHAT THIS DOES NOT DO: the directory must be given as a full path;
+           a relative one is refused, because a setting that meant different
+           places depending on where you were when you typed it would be a
+           trap.  The path may hold only letters, digits and . _ @ + = , : / -
+           and a space, with no // and no . or .. part, and is refused with the
+           reason if it does not.  The directory is made readable by you only,
+           because a backup holds your account's files.  It does not move
+           backups you already have.
+
+           WHAT YOU MAY NEED TO DO: an earlier release refuses to start if
+           sd.conf holds a BACKUPDIR line, so take the line out before going
+           back to one.
+
 02 Oct 26  SD CORE SOLO CAN BE INSTALLED ON THE SAME COMPUTER AS SD CORE, AND
            THE COMMAND YOU TYPE SAYS WHICH ONE YOU GET.
 

@@ -1,0 +1,193 @@
+* ACC_OS_BAKDIR
+* The saved backup directory, SD Core for Linux Solo's half (SET.BACKUP.DIRECTORY).
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 02 Oct 26 dm Written for S.53 / LSOLO 25 (per-OS helper; signature agreed with SD
+*              Core for Windows by mail, 2026-10-02T2000 and T2030).  LINUX SOLO ONLY:
+*              the full product has its own file of this name (it needs a root step
+*              for /etc/sd.conf), and so has the Windows port.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_os_bakdir(mode, dir, err)
+*
+*    mode  GET  dir comes back as the saved directory, '' when none is saved.
+*          SET  dir goes in as the directory to save, and comes back as the full
+*               path.  It is created if necessary, proved writable and saved.
+*    err   '' on success, else a message number, @vm, then its arguments.
+*
+*    A relative path is refused with 13046 before anything is run: a saved
+*    setting that meant different places depending on the current directory
+*    would be a trap (agreed with Windows, 2026-10-02T2030).
+*
+*    SOLO DETAIL.  The setting is the line BACKUPDIR=<path> in sd.conf (SD_CONFIG,
+*    else <home>/sd.conf), read at each use, so a change needs no restart.  That
+*    file and the directory belong to the person who runs SD Core Solo, who is
+*    the only person involved, so nothing here needs more than their own
+*    permissions: the directory is made with mkdir -p (the last component mode
+*    0700, because a backup holds the account's files), proved writable by
+*    writing and removing a probe file, and the line is written with a temp file
+*    beside sd.conf renamed over it, the file's mode kept.  Wherever the person
+*    may create a directory, this can - the full product has the same reach
+*    through a root helper limited to a list of places (owner, 2 Oct 2026).
+*
+*    THE PATH IS CHECKED BEFORE IT REACHES A SHELL OR THE FILE, by the rules the full
+*    product's sd-elevate applies: at most 180 characters; letters, digits and
+*    . _ @ + = , : / - and a space only; no //, no . or .. component, no component
+*    that starts or ends with a space, no trailing / (one is dropped).  So a quote
+*    cannot leave the shell's quoting and a newline cannot add a second line to sd.conf.
+*
+*    SUCCESS IS MEASURED, NOT ASSUMED: after the rewrite the file is read again and
+*    the line must be there exactly once and equal to the path.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_os_bakdir(mode, dir, err)
+$catalog !acc_os_bakdir
+
+$include keys.h
+$include int$keys.h
+
+   err  = ''
+   md   = upcase(mode)
+   conf = env('SD_CONFIG')
+   if conf = '' then conf = @sdsys:@ds:'sd.conf'
+
+   begin case
+      case md = 'GET'
+         gosub read.conf
+         if err # '' then return
+         dir = saved
+         return
+
+      case md = 'SET'
+         d = trim(dir)
+         if d[1,1] # '/' then
+            err = 13046   ;* Give the full path of the backup directory
+            return
+         end
+         if len(d) > 1 and d[len(d),1] = '/' then d = d[1, len(d) - 1]
+         gosub check.path
+         if why # '' then
+            err = 11054:@vm:d:@vm:why
+            return
+         end
+         if index(conf, "'", 1) then
+            err = 11053:@vm:conf:' has a single quote in its name'
+            return
+         end
+
+*        Create it if it is not there, with this person's own permissions.
+         if not(ospath(d, OS$EXISTS)) then
+            out = ''
+            os.execute "mkdir -p -m 0700 '":d:"' 2>&1" capturing out
+            if not(ospath(d, OS$EXISTS)) then
+               err = 11051:@vm:d:@vm:convert(@fm, ' ', out)
+               return
+            end
+         end
+
+*        Prove it can be written to.
+         probe = d:'/.sd-probe.':@userno
+         openseq probe overwrite to pf else
+*           ELSE is taken for a file that did not exist (and is then created); only a status is a failure.
+            if status() then
+               err = 11052:@vm:d:@vm:'status ':status()
+               return
+            end
+         end
+         writeseq 'probe' to pf else null
+         closeseq pf
+         out = ''
+         os.execute "rm -f '":probe:"' 2>&1" capturing out
+
+*        Save it: every other line of sd.conf kept, the old BACKUPDIR line replaced, mode kept.
+         dq = char(34)
+         cmd = "f='":conf:"'; t=${f}.bd$$; "
+         cmd := "{ grep -v -E '^[[:space:]]*BACKUPDIR=' ":dq:"$f":dq:" || true; "
+         cmd := "printf 'BACKUPDIR=%s\n' '":d:"'; } > ":dq:"$t":dq:" "
+         cmd := "&& chmod --reference=":dq:"$f":dq:" ":dq:"$t":dq:" "
+         cmd := "&& mv -f ":dq:"$t":dq:" ":dq:"$f":dq:" 2>&1"
+         out = ''
+         os.execute cmd capturing out
+         stat = os.error()
+
+*        ... and read it back: exactly one BACKUPDIR line, equal to the path.
+         n = 0 ; last = ''
+         openseq conf to f then
+            loop
+               readseq line from f else exit
+               t = trim(line)
+               if t[1,10] = 'BACKUPDIR=' then
+                  n += 1
+                  last = trim(t[11,999])
+               end
+            repeat
+            closeseq f
+         end
+         if stat # 0 or n # 1 or last # d then
+            err = 11053:@vm:convert(@fm, ' ', out):' (the file holds ':n:' BACKUPDIR line(s))'
+            return
+         end
+         dir = d
+         return
+
+      case 1
+         err = 11053:@vm:'unknown mode ':mode
+         return
+   end case
+
+   return
+
+* read.conf - saved = the last BACKUPDIR= value in conf, '' when there is none.
+read.conf:
+   saved = ''
+   openseq conf to f then
+      loop
+         readseq line from f else exit
+         t = trim(line)
+         if t[1,10] = 'BACKUPDIR=' then saved = trim(t[11,999])   ;* the last one wins
+      repeat
+      closeseq f
+   end else
+      err = 11053:@vm:conf:' cannot be read (status ':status():')'
+   end
+   return
+
+* check.path - d in; why = '' when d may be saved, else the reason.
+check.path:
+   why = ''
+   ok.chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._@+=,:/ -'
+   begin case
+      case len(d) > 180
+         why = 'the path is longer than 180 characters'
+      case 1
+         i = 1
+         loop while i <= len(d) and why = '' do
+            if not(index(ok.chars, d[i,1], 1)) then
+               why = 'the path may hold only letters, digits and . _ @ + = , : / - and a space'
+            end
+            i += 1
+         repeat
+   end case
+   if why = '' then
+      p = d:'/'
+      begin case
+         case index(p, '//', 1)
+            why = 'the path has an empty component (//)'
+         case index(p, '/./', 1) or index(p, '/../', 1)
+            why = 'the path has a . or .. component'
+         case index(p, ' /', 1) or index(p, '/ ', 1)
+            why = 'the path has a component that starts or ends with a space'
+      end case
+   end
+   return
+
+end
+
+* END-CODE
