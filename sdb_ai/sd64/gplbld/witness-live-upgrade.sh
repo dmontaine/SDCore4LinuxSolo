@@ -136,7 +136,10 @@ else
     SSHO="-o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o PreferredAuthentications=publickey -o UserKnownHostsFile=$W/kh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
     say "  > ssh -tt $SSHO -i $KEY 127.0.0.1   (the password is typed after SD asks for it; WHO and OFF follow)"
     before="$(solo_pids | tr '\n' ' ')"
-    ( sleep 3; printf '%s\n' "$PW"; sleep 6; printf 'WHO\nOFF\n'; sleep 1 ) | timeout 60 ssh -tt $SSHO -i "$KEY" "$(id -un)@127.0.0.1" > "$W/ssh1.out" 2>&1 &
+    # A terminal's Enter is CR, not LF: SD reads the password and the commands in raw mode, where an
+    # LF is just another character.  The first two runs sent LF, so the 10 password characters, WHO and
+    # OFF were all taken as ONE password (16 stars on the screen) and nothing was ever submitted.
+    ( sleep 3; printf '%s\r' "$PW"; sleep 6; printf 'WHO\rOFF\r'; sleep 1 ) | timeout 60 ssh -tt $SSHO -i "$KEY" "$(id -un)@127.0.0.1" > "$W/ssh1.out" 2>&1 &
     SPID=$!
     sleep 6
     during=""
