@@ -28,13 +28,13 @@ GOOD="$(head -1 "$PWF")"; GLOBALPW="$(head -1 "$GLF")"
 [ -n "$GOOD" ] && [ -n "$GLOBALPW" ] || refuse "a password file's first line is empty"
 [ "$GOOD" != "$GLOBALPW" ] || refuse "the account and global passwords are the same - the legs could not tell them apart"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
-[ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 [ -f "$H/\$cred/\$global" ] || refuse "$H is standalone (no \$cred/\$global) - this needs managed mode"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SSHTOOL="$here/solo-ssh.sh"
 [ -f "$SSHTOOL" ] || refuse "$SSHTOOL is missing"
-SD="$H/bin/sd"
+SD="$H/bin/sd-solo"
 SSHD=/usr/sbin/sshd
 [ -x "$SSHD" ] || refuse "$SSHD is not installed"
 for t in ssh ssh-keygen; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
@@ -104,7 +104,7 @@ M30='The denied verbs can only be listed or changed by the SD Core server'
 
 # ---- G1. the key route is installed, and the line is the forced command.
 o="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" --authorized-keys "$AKF" 2>&1)"
-want="command=\"$H/bin/sd\",restrict,pty $(cat "$W/sdkey.pub")"
+want="command=\"$H/bin/sd-solo\",restrict,pty $(cat "$W/sdkey.pub")"
 if printf '%s\n' "$o" | grep -q '^SOLO SSH KEY ADDED' && grep -qxF -- "$want" "$AKF"; then
   leg "G1 key-add" "SOLO SSH KEY ADDED and the forced-command line is in the file" 0 "$(printf '%s\n' "$o" | tail -1)"
 else

@@ -27,7 +27,7 @@ H="$1"; PWF="$2"
 [ -s "$PWF" ] || refuse "cannot read the password file $PWF"
 GOOD="$(head -1 "$PWF")"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
-[ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB="$here/../bin/sdclilib.so"
@@ -43,7 +43,7 @@ systemctl --user is-active --quiet sd-solo.service && refuse "a Solo service is 
 
 W="$(mktemp -d)" || refuse "mktemp"; chmod 700 "$W"
 STORE="$W/known_servers"
-cleanup() { bash "$SVC" remove >/dev/null 2>&1; "$H/bin/sd" -stop >/dev/null 2>&1; rm -rf "$W"; }
+cleanup() { bash "$SVC" remove >/dev/null 2>&1; "$H/bin/sd-solo" -stop >/dev/null 2>&1; rm -rf "$W"; }
 trap cleanup EXIT
 
 echo "verify-solo-pin inputs:"
@@ -61,7 +61,7 @@ leg() {
   else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi
 }
 
-"$H/bin/sd" -stop >/dev/null 2>&1
+"$H/bin/sd-solo" -stop >/dev/null 2>&1
 # LSOLO 23: there is no --api-port; the private port goes through the announced test hook.
 out="$(SDSOLO_TEST_API_PORT="$PORT" bash "$SVC" install "$H" --api local 2>&1 | strip | grep -E '^SOLO SERVICE READY' | tail -1)"
 [ -n "$out" ] || refuse "solo-service.sh install did not say READY"

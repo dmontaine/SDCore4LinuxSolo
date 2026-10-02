@@ -464,7 +464,7 @@ bool start_sd() {
         close(i);
       daemon(1, 1);
       /* converted to snprintf() -gwb 22Feb20 */
-      if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sysseg->sysdir) >=
+      if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/" SD_SERVER_NAME, sysseg->sysdir) >=
           (MAX_PATHNAME_LEN + 1)) {
         fprintf(stderr, "Overflowed file/pathname length in start_sd()!\n");
         return FALSE;

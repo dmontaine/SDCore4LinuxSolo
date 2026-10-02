@@ -29,7 +29,7 @@ for f in "$PWF" "$GLF"; do [ -s "$f" ] || refuse "cannot read the password file 
 GOOD="$(head -1 "$PWF")"; GLOBALPW="$(head -1 "$GLF")"
 [ -n "$GOOD" ] && [ -n "$GLOBALPW" ] && [ "$GOOD" != "$GLOBALPW" ] || refuse "the password files must hold two different non-empty passwords"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
-[ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 [ -f "$H/\$cred/\$global" ] || refuse "$H is standalone - request 49 needs managed mode"
 [ -f "$H/tools/solo-ssh.sh" ] || refuse "$H/tools/solo-ssh.sh is missing - the tree predates LSOLO 19"
@@ -38,7 +38,7 @@ SVC="$here/solo-service.sh"; PROBE="$here/scram-probe.py"
 [ -f "$SVC" ] && [ -f "$PROBE" ] || refuse "solo-service.sh or scram-probe.py is missing"
 for t in ssh ssh-keygen python3 systemctl; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
 SSHD=/usr/sbin/sshd; [ -x "$SSHD" ] || refuse "$SSHD is not installed"
-SD="$H/bin/sd"
+SD="$H/bin/sd-solo"
 PORT=14244; SSHPORT=12224
 ss -ltn 2>/dev/null | grep -qE ":($PORT|$SSHPORT) " && refuse "port $PORT or $SSHPORT is already in use"
 # The units have one fixed name per user, so installing this tree's REPLACES an installed
@@ -76,7 +76,7 @@ leg() {
 for k in a b c d e plain; do ssh-keygen -q -t ed25519 -N '' -f "$W/$k" || refuse "ssh-keygen $k"; done
 cp "$W/plain.pub" "$AK"                      # the user's own line, which must survive everything
 fp_of() { ssh-keygen -l -f "$1" | awk '{print $2}'; }
-FORCED="command=\"$H/bin/sd\",restrict,pty"
+FORCED="command=\"$H/bin/sd-solo\",restrict,pty"
 ours() { grep -cF -- "$FORCED " "$AK"; }
 
 "$SD" -stop >/dev/null 2>&1

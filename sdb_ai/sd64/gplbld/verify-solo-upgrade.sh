@@ -12,7 +12,7 @@
 #
 # KEPT (compared byte for byte before and after): the account's files, the
 # credential register, sd.conf, the deny list, an object in GLOBAL.BP.OUT and the
-# audit trail's old lines.  REPLACED: bin/sd, gplsrc, and the tree's own
+# audit trail's old lines.  REPLACED: bin/sd-solo, gplsrc, and the tree's own
 # system objects (a marker file planted in each is gone).  WORKS AFTER: the
 # account password, the administrator password, the global password, the
 # catalogue entry still resolves, verify-solo-global.sh passes.
@@ -25,12 +25,12 @@ refuse() { echo "REFUSED: $*" >&2; exit 2; }
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sd64="$(dirname "$here")"
-[ -x "$sd64/bin/sd" ] || refuse "$sd64/bin/sd is not built - run make first"
+[ -x "$sd64/bin/sd-solo" ] || refuse "$sd64/bin/sd-solo is not built - run make first"
 systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is running for this user; its daemon would collide with this test's"
 
 W="$(mktemp -d)"; chmod 700 "$W"
 H="$W/tree"
-cleanup() { [ -x "$H/bin/sd" ] && "$H/bin/sd" -stop >/dev/null 2>&1; rm -rf "$W" "$W".* 2>/dev/null; }
+cleanup() { [ -x "$H/bin/sd-solo" ] && "$H/bin/sd-solo" -stop >/dev/null 2>&1; rm -rf "$W" "$W".* 2>/dev/null; }
 trap cleanup EXIT
 umask 077
 
@@ -40,7 +40,7 @@ printf 'Glob-Up-Test-4713!\n'  > "$W/c.pw"
 ACC="$(head -1 "$W/a.pw")"; ADM="$(head -1 "$W/b.pw")"; GLB="$(head -1 "$W/c.pw")"
 
 echo "verify-solo-upgrade inputs:"
-echo "  source tree : $sd64  (bin/sd $(stat -c '%y' "$sd64/bin/sd" | cut -c1-19))"
+echo "  source tree : $sd64  (bin/sd-solo $(stat -c '%y' "$sd64/bin/sd-solo" | cut -c1-19))"
 echo "  scratch     : $W"
 echo "  running as  : $(id -un) (uid $(id -u))"
 
@@ -48,13 +48,13 @@ pass=0; fail=0; legs=0
 leg() { legs=$((legs+1)); if [ "$3" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1 | $2"; else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi; }
 strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
 clean() { strip | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the'; }
-sess() { local pw="$1"; shift; printf '%s\n' "$pw" "$@" OFF | timeout 120 "$H/bin/sd" 2>&1 | clean; }
+sess() { local pw="$1"; shift; printf '%s\n' "$pw" "$@" OFF | timeout 120 "$H/bin/sd-solo" 2>&1 | clean; }
 
 echo
 echo "staging a managed tree with a deny list ..."
 bash "$sd64/gplbld/solo-stage.sh" --account-password-file "$W/a.pw" --admin-password-file "$W/b.pw" \
      --global-password-file "$W/c.pw" --deny-verbs DATE "$H" > "$W/stage.log" 2>&1 || { tail -15 "$W/stage.log"; refuse "the first stage failed"; }
-"$H/bin/sd" -stop >/dev/null 2>&1
+"$H/bin/sd-solo" -stop >/dev/null 2>&1
 
 # ---- data of every kind the upgrade must not touch.
 echo "keep me" > "$H/user_accounts/sduser/keepme.txt"
@@ -75,14 +75,14 @@ cat > "$H/user_accounts/sduser/bp/zzgcall" <<'BASIC'
       CRT 'GCALL=':X
    END
 BASIC
-"$H/bin/sd" -start >/dev/null 2>&1
+"$H/bin/sd-solo" -start >/dev/null 2>&1
 o="$(sess "$ACC" 'BASIC BP zzup zzgsub zzgcall')"
 printf '%s\n' "$o" | grep -q 'Compiled 3 program(s) with no errors' || { printf '%s\n' "$o" | tail -5; refuse "the probe programs did not compile"; }
 o="$(sess "$GLB" 'COPY FROM BP.OUT TO GLOBAL.BP.OUT zzgsub' SYNC.GLOBAL.CATALOG)"
 printf '%s\n' "$o" | grep -qx 'SYNC GLOBAL CATALOG DONE 1 catalogued 0 removed 0 refused' || { printf '%s\n' "$o" | tail -5; refuse "could not put a program in GLOBAL.BP.OUT"; }
 o="$(sess "$ACC" 'CREATE.FILE ZZDATA DYNAMIC' 'WRITE-not-a-verb')"
 sess "$ACC" 'ED VOC ZZREC' >/dev/null 2>&1 || true
-"$H/bin/sd" -stop >/dev/null 2>&1
+"$H/bin/sd-solo" -stop >/dev/null 2>&1
 
 # a line appended to sd.conf, and a marker in each place the upgrade replaces
 echo "# kept by verify-solo-upgrade" >> "$H/sd.conf"
@@ -127,14 +127,14 @@ fi
 # ---- 4. what must be replaced is replaced.
 gone=0
 for f in "$H/gplsrc/ZZ_MARKER" "$H/bin/ZZ_MARKER" "$H/tools/ZZ_MARKER"; do [ -e "$f" ] && gone=1; done
-if [ "$gone" -eq 0 ] && [ "$H/bin/sd" -nt "$W/a.pw" ] && cmp -s "$H/bin/sd" "$sd64/bin/sd"; then
-  leg "4 code is replaced" "the planted markers are gone and bin/sd is the source tree's" 0 "replaced"
+if [ "$gone" -eq 0 ] && [ "$H/bin/sd-solo" -nt "$W/a.pw" ] && cmp -s "$H/bin/sd-solo" "$sd64/bin/sd-solo"; then
+  leg "4 code is replaced" "the planted markers are gone and bin/sd-solo is the source tree's" 0 "replaced"
 else
-  leg "4 code is replaced" "markers gone, bin/sd identical to the source tree's" 1 "markers-left=$gone"
+  leg "4 code is replaced" "markers gone, bin/sd-solo identical to the source tree's" 1 "markers-left=$gone"
 fi
 
 # ---- 5. every password still works, on the new code.
-"$H/bin/sd" -start >/dev/null 2>&1
+"$H/bin/sd-solo" -start >/dev/null 2>&1
 o1="$(sess "$ACC" WHERE)"; o2="$(sess "$ACC" ADMIN "$ADM" LISTU)"; o3="$(sess "$GLB" WHERE)"
 if printf '%s\n' "$o1" | grep -q 'user_accounts/sduser' && printf '%s\n' "$o2" | grep -qx 'Administrator commands unlocked for this session' \
    && printf '%s\n' "$o3" | grep -q 'user_accounts/sduser'; then
@@ -160,14 +160,14 @@ if [ "$(printf '%s\n' "$o" | grep -cx 'Command requires administrator privileges
 else
   leg "7 the deny list survived" "DATE refused without ADMIN" 1 "$(printf '%s\n' "$o" | tail -2 | tr '\n' '|')"
 fi
-"$H/bin/sd" -stop >/dev/null 2>&1
+"$H/bin/sd-solo" -stop >/dev/null 2>&1
 
 # ---- 8. the witness for the server controls passes on the upgraded tree - after the
 # probe program is taken out of GLOBAL.BP.OUT again (it starts from an empty one).
-"$H/bin/sd" -start >/dev/null 2>&1
+"$H/bin/sd-solo" -start >/dev/null 2>&1
 sess "$GLB" 'DELETE GLOBAL.BP.OUT zzgsub' SYNC.GLOBAL.CATALOG >/dev/null
 v="$(bash "$here/verify-solo-global.sh" "$H" "$W/a.pw" "$W/b.pw" "$W/c.pw" 2>&1 | strip | grep -E 'verify-solo-global:|\[FAIL\]|REFUSED')"
-"$H/bin/sd" -stop >/dev/null 2>&1
+"$H/bin/sd-solo" -stop >/dev/null 2>&1
 case "$v" in
   *", 0 failed,"*) leg "8 verify-solo-global.sh on the upgraded tree" "0 failed" 0 "$(printf '%s\n' "$v" | tail -1)" ;;
   *) leg "8 verify-solo-global.sh on the upgraded tree" "0 failed " 1 "$(printf '%s\n' "$v" | head -3 | tr '\n' '|')" ;;

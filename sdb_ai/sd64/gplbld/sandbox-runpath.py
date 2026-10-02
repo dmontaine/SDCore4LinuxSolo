@@ -110,17 +110,17 @@ def main():
         for rel, old, new, label in sbx.SANDBOX_PATCHES:
             sbx.replace_once(os.path.join(ctl, rel), old, new, label)
         p = sbx.sh(["make"], cwd=ctl)
-        if p.returncode != 0 or not os.path.exists(os.path.join(ctl, "bin", "sd")):
+        if p.returncode != 0 or not os.path.exists(os.path.join(ctl, "bin", "sd-solo")):
             say(p.stdout[-2000:] + p.stderr[-2000:])
             die("sandbox-runpath: CANNOT RUN - make failed for the control")
-        say("    make exit 0, control bin/sd built")
+        say("    make exit 0, control bin/sd-solo built")
 
         say("\n=== 2. the sandbox system and account")
         shutil.copytree(sbx.LIVE_SYS, box.sys, ignore=shutil.ignore_patterns("$cred", "audit", "dumps"))
         os.makedirs(os.path.join(box.sys, "$cred"))
         os.makedirs(os.path.join(box.sys, "dumps"))
         open(os.path.join(box.sys, "audit"), "w").close()
-        for b in ("sd", "sdlnxd"):
+        for b in ("sd-solo", "sdlnxd"):
             shutil.copy2(os.path.join(root, "new", "bin", b), os.path.join(box.sys, "bin", b))
         shutil.copytree(live_acct, box.acct, ignore=shutil.ignore_patterns("stacks"))
         reg = os.path.join(box.sys, "accounts")
@@ -156,7 +156,7 @@ def main():
             f.write(voc_writer("zzmid.out", mid))   # RUN ZZMID reads zzmid.out
         with open(os.path.join(bp, "zzw2"), "w") as f:
             f.write(voc_writer("zzlong.out", long_))
-        out = box.session(os.path.join(box.sys, "bin", "sd"),
+        out = box.session(os.path.join(box.sys, "bin", "sd-solo"),
                           ["BASIC BP ZZRP ZZW1 ZZW2", "RUN BP zzw1", "RUN BP zzw2"])
         ck("S1 the three programs compiled", "Compiled 3 program(s) with no errors" in out)
         ck("S2 both VOC pointers were written", "ZZW wrote zzmid.out" in out and "ZZW wrote zzlong.out" in out)
@@ -174,7 +174,7 @@ def main():
 
         say("\n=== 3. R1: the new build, %d characters, twice" % mid_len)
         box.stop(); box.start()
-        out = box.session(os.path.join(box.sys, "bin", "sd"), ["RUN ZZMID zzrp", "RUN ZZMID zzrp"])
+        out = box.session(os.path.join(box.sys, "bin", "sd-solo"), ["RUN ZZMID zzrp", "RUN ZZMID zzrp"])
         show(out)
         ck("R1 the program ran from a %d-character path" % mid_len, out.count("ZZRP RAN") >= 1)
         ck("R1b and ran again from the cache path (two markers)", out.count("ZZRP RAN") == 2,
@@ -183,14 +183,14 @@ def main():
 
         say("\n=== 4. R2: the control, same path")
         box.stop(); box.start()
-        out = box.session(os.path.join(ctl, "bin", "sd"), ["RUN ZZMID zzrp"])
+        out = box.session(os.path.join(ctl, "bin", "sd-solo"), ["RUN ZZMID zzrp"])
         show(out)
         ck("R2 the old code refuses it with 10918 naming 128",
            "Runfile pathname is longer than 128 characters" in out and "ZZRP RAN" not in out)
 
         say("\n=== 5. R3: the new build, %d characters" % long_len)
         box.stop(); box.start()
-        out = box.session(os.path.join(box.sys, "bin", "sd"), ["RUN ZZLONG " + long_rec, "WHO"])
+        out = box.session(os.path.join(box.sys, "bin", "sd-solo"), ["RUN ZZLONG " + long_rec, "WHO"])
         show(out)
         # MEASURED 29 Sep 26: CPROC reads the record from the file (readv)
         # BEFORE it calls RUN, and op_readv refuses a path over 255 with

@@ -12,7 +12,7 @@
 # needs sudo and is what lets a PASSWORD login land in sd too.
 #
 # THE KEY ROUTE.  key-add appends the public key with the options
-#     command="<HOME_DIR>/bin/sd",restrict,pty
+#     command="<HOME_DIR>/bin/sd-solo",restrict,pty
 # so that key gets sd - at the account-password prompt, ruling 21 - and nothing
 # else: no shell, no scp or sftp (they receive sd instead of their server), and
 # "restrict" turns off every forwarding and agent facility; "pty" gives sd the
@@ -25,7 +25,7 @@
 # THE MATCH ROUTE.  "match" prints (default), applies (--apply) or removes
 # (--remove) /etc/ssh/sshd_config.d/50-sd-solo-<user>.conf:
 #     Match User <user>
-#         ForceCommand <HOME_DIR>/bin/sd
+#         ForceCommand <HOME_DIR>/bin/sd-solo
 #         DisableForwarding yes
 # so EVERY ssh login of the user - key or password - lands in sd, and the user has
 # no shell over ssh at all.  It needs sudo and it changes the machine's sshd, so it
@@ -50,7 +50,7 @@ esac
 [ "$#" -ge 1 ] || refuse "HOME_DIR is required"
 H="$1"; shift
 case "$H" in /*) ;; *) refuse "HOME_DIR must be an absolute path (got '$H')" ;; esac
-[ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 # A path that would break an authorized_keys option or an sshd_config line.
 case "$H" in *" "*|*'"'*|*"'"*|*'\'*|*'$'*|*'`'*) refuse "HOME_DIR contains a space, quote, backslash, \$ or backtick, which an ssh option or config line cannot carry safely: $H" ;; esac
@@ -64,7 +64,7 @@ if [ -n "${SDSOLO_AUTHORIZED_KEYS:-}" ]; then
   AK="$SDSOLO_AUTHORIZED_KEYS"
   case "$cmd" in api-*) echo "NOTE=test hook SDSOLO_AUTHORIZED_KEYS is in use" ;; esac
 fi
-FORCED="command=\"$H/bin/sd\",restrict,pty"
+FORCED="command=\"$H/bin/sd-solo\",restrict,pty"
 pubfile=""
 mode=""
 while [ "$#" -gt 0 ]; do
@@ -230,7 +230,7 @@ DROPIN="/etc/ssh/sshd_config.d/50-sd-solo-$user.conf"
 block="# SD Core for Linux Solo: every ssh login of $user lands in sd (no shell, no forwarding).
 # Written by $H/tools/solo-ssh.sh; remove it with 'bash $H/tools/solo-ssh.sh match $H --remove'.
 Match User $user
-    ForceCommand $H/bin/sd
+    ForceCommand $H/bin/sd-solo
     DisableForwarding yes"
 
 case "$mode" in
@@ -261,6 +261,9 @@ case "$mode" in
       fail "sshd -t"
     fi
     sudo systemctl reload ssh 2>/dev/null || sudo systemctl reload sshd || fail "reload sshd"
+    # 02 Oct 26 - the compatibility link installsdsolo.sh --upgrade leaves at bin/sd while an
+    # OLD drop-in still names it; the drop-in now names sd-solo, so the link is not needed.
+    if [ -L "$H/bin/sd" ] && [ "$(readlink "$H/bin/sd")" = "sd-solo" ]; then rm -f "$H/bin/sd"; echo "removed the compatibility link $H/bin/sd"; fi
     echo "SOLO SSH MATCH APPLIED $DROPIN"
     ;;
   remove)
@@ -268,6 +271,7 @@ case "$mode" in
     SSHD="$(command -v sshd || echo /usr/sbin/sshd)"
     sudo "$SSHD" -t || fail "sshd -t after removing $DROPIN"
     sudo systemctl reload ssh 2>/dev/null || sudo systemctl reload sshd || fail "reload sshd"
+    if [ -L "$H/bin/sd" ] && [ "$(readlink "$H/bin/sd")" = "sd-solo" ]; then rm -f "$H/bin/sd"; echo "removed the compatibility link $H/bin/sd"; fi
     echo "SOLO SSH MATCH REMOVED $DROPIN"
     ;;
 esac

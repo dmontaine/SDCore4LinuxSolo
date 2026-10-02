@@ -16,11 +16,13 @@
 # port you asked for, the optional sshd_config.d block, and "loginctl enable-linger".
 # Everything else is done as you, in your own home.  Nothing is written outside it.
 #
-# THE COMMAND NAMES (owner, 2 Oct 2026; the same result as SD Core for Windows' ruling of
-# 1 Oct).  It makes ~/.local/bin/sd-solo, which always starts this SD Core Solo, and
-# ~/.local/bin/sd, which starts the multi-user SD Core for Linux when that is installed on
-# this computer and this SD Core Solo otherwise.  (The multi-user installer makes sd-full.)
-# Until 2 Oct 2026 this script refused a computer that had the multi-user product.
+# THE COMMAND NAMES (owner, 1 Oct 2026: "sd = full version, sd-solo = solo version, both
+# windows and linux, just rename the solo exe to sd-solo").  The server is installed as
+# <tree>/bin/sd-solo and ~/.local/bin/sd-solo links to it; plain "sd" is the multi-user SD
+# Core's and this script never makes it.  An upgrade of a tree installed before this removes the
+# old ~/.local/bin/sd (a link or this product's launcher) and moves the unit files and
+# authorized_keys lines to the new name.  Until 2 Oct 2026 this script refused a computer that
+# had the multi-user product; it no longer does.
 #
 # OPTIONS (all optional; the script asks for anything it needs that it was not given)
 #   --home DIR                    install here instead of ~/SDCoreSolo
@@ -431,7 +433,7 @@ SRC="$CLONE_DIR/sdb_ai/sd64"
 echo '#include <Python.h>' > "$SRC/gplsrc/sdext_python_inc.h"
 say "Building (this takes a minute)."
 ( cd "$SRC" && make -B >"$WORK/make.log" 2>&1 ) || { tail -20 "$WORK/make.log"; fail "make"; }
-[ -x "$SRC/bin/sd" ] || fail "the build reported success but bin/sd is missing"
+[ -x "$SRC/bin/sd-solo" ] || fail "the build reported success but bin/sd-solo is missing"
 say "Build complete."
 
 # ---------------------------------------------------------------- stage and bootstrap
@@ -485,52 +487,77 @@ chmod 600 "$HOME_DIR/.sdcore-install"
 fi
 
 # The stage leaves its own daemon running; the service takes over below.
-"$HOME_DIR/bin/sd" -stop >/dev/null 2>&1 || true
+"$HOME_DIR/bin/sd-solo" -stop >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------- the command names
-# 02 Oct 26 (owner, 2 Oct 2026; the same result as SD Core for Windows' ruling of 1 Oct):
-#   sd-solo  always starts THIS SD Core Solo: a link to its binary;
-#   sd       starts the multi-user SD Core for Linux when it is installed on this computer and
-#            this SD Core Solo otherwise.  A small launcher and not a link, because the user's
-#            ~/.local/bin comes before /usr/local/bin on PATH, so a link here would always win;
-#   sd-full  is the multi-user SD Core's own (its installer makes it) and is never made here.
-# The two functions between the markers are run by gplbld/test-launcher-units.py, which cuts
-# them out of this file by those marker lines: keep the lines, and keep the code between them
+# 02 Oct 26 (owner, 1 Oct 2026, relayed in Windows' mails 2026-10-02T2400 and T2445):
+#   sd-solo  always starts THIS SD Core Solo: a link to <tree>/bin/sd-solo;
+#   sd       is the multi-user SD Core's own name and is never made here.  An EARLIER release
+#            made ~/.local/bin/sd as a link to <tree>/bin/sd or as a launcher; an upgrade removes
+#            it when it is ours (a link to this tree's old bin/sd, or a file carrying the
+#            launcher's marker line) and leaves any other file called sd alone.
+# The function between the markers is run by gplbld/test-launcher-units.py, which cuts it
+# out of this file by those marker lines: keep the lines, and keep the code between them
 # free of anything that needs the rest of the installer except warn() and $HOME.
 # BEGIN command_names
-write_launcher() {   # write_launcher FILE SOLO_SD FULL_SD
-  local f="$1" solo="$2" full="$3"
-  cat > "$f" <<LAUNCHER
-#!/bin/sh
-# SD Core for Linux Solo launcher.  installsdsolo.sh writes this file on every install and
-# upgrade; do not edit it.
-#   sd       the multi-user SD Core for Linux if it is installed on this computer, else this SD Core Solo
-#   sd-solo  always this SD Core Solo
-#   sd-full  always the multi-user SD Core (made by its installer)
-if [ -x '$full' ]; then exec '$full' "\$@"; fi
-exec '$solo' "\$@"
-LAUNCHER
-}
-install_command_names() {   # install_command_names TREE FULL_SD
-  local tree="$1" full="$2" bindir="$HOME/.local/bin" tmpl
+install_command_names() {   # install_command_names TREE
+  local tree="$1" bindir="$HOME/.local/bin" old
   mkdir -p "$bindir"
   if [ -e "$bindir/sd-solo" ] && [ ! -L "$bindir/sd-solo" ]; then
-    warn "$bindir/sd-solo exists and is not a link; left alone (run SD Core Solo as $tree/bin/sd)"
+    warn "$bindir/sd-solo exists and is not a link; left alone (run SD Core Solo as $tree/bin/sd-solo)"
   else
-    ln -sfn "$tree/bin/sd" "$bindir/sd-solo"
+    ln -sfn "$tree/bin/sd-solo" "$bindir/sd-solo"
   fi
-  if [ -e "$bindir/sd" ] && [ ! -L "$bindir/sd" ] && ! grep -qF 'SD Core for Linux Solo launcher.' "$bindir/sd" 2>/dev/null; then
-    warn "$bindir/sd exists and is neither a link nor this product's launcher; left alone (run SD Core Solo as sd-solo)"
-  else
-    tmpl="$(mktemp "$bindir/.sd-launcher.XXXXXX")"
-    write_launcher "$tmpl" "$tree/bin/sd" "$full"
-    chmod 755 "$tmpl"
-    mv -f "$tmpl" "$bindir/sd"
-  fi
+  old="$bindir/sd"
+  if [ -L "$old" ]; then
+    if [ "$(readlink "$old")" = "$tree/bin/sd" ]; then rm -f "$old"; printf 'removed the old %s (a link to %s)\n' "$old" "$tree/bin/sd"; fi
+  elif [ -f "$old" ] && grep -qF 'SD Core for Linux Solo launcher.' "$old" 2>/dev/null; then
+    rm -f "$old"; printf 'removed the old %s (this product'"'"'s launcher)\n' "$old"
+  fi   # anything else called sd is not this product's: left alone, and not complained about
 }
 # END command_names
-install_command_names "$HOME_DIR" /usr/local/sdsys/bin/sd
-case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not on your PATH; add it (or run $HOME_DIR/bin/sd)" ;; esac
+install_command_names "$HOME_DIR"
+
+# THE UPGRADE OF A TREE INSTALLED BEFORE THE RENAME.  The server's file name changed, so three
+# places that named it by file name move too (Windows' cycle caught the same gap: a stop by
+# the new name stops nothing on an old install).  Each is a no-op on a tree installed since.
+# The function between the markers is run by gplbld/test-soloexe-units.py (it needs say(), warn()
+# and fail(), and nothing else of the installer): keep the lines, and keep its arguments.
+# BEGIN upgrade_rename
+migrate_server_name() {   # migrate_server_name HOME_DIR UNITDIR AUTHORIZED_KEYS DROPIN
+  local home_dir="$1" unitdir="$2" ak="$3" dropin="$4" esc u oldf aktmp
+  # 1. the systemd user units: ExecStart=<tree>/bin/sd -start, ExecStop=..., ExecStart=... -n -q
+  esc="$(printf '%s' "$home_dir" | sed 's/[][\.*^$#&/]/\\&/g')"
+  for u in "$unitdir/sd-solo.service" "$unitdir/sd-solo-api@.service"; do
+    [ -f "$u" ] || continue
+    if grep -q "^Exec[A-Za-z]*=$esc/bin/sd " "$u"; then
+      sed -i "s#^\\(Exec[A-Za-z]*=\\)$esc/bin/sd #\\1$home_dir/bin/sd-solo #" "$u"
+      grep -q "^Exec[A-Za-z]*=$esc/bin/sd " "$u" && fail "moving $u to the new server name"
+      say "systemd: $(basename "$u") now runs $home_dir/bin/sd-solo."
+    fi
+  done
+  # 2. the forced command on every ssh key line this product added
+  oldf="command=\"$home_dir/bin/sd\",restrict,pty "
+  if [ -f "$ak" ] && grep -qF -- "$oldf" "$ak"; then
+    aktmp="$(mktemp "$ak.XXXXXX")" || fail "mktemp beside $ak"
+    awk -v old="$oldf" -v new="command=\"$home_dir/bin/sd-solo\",restrict,pty " \
+        'index($0, old) == 1 { $0 = new substr($0, length(old) + 1) } { print }' "$ak" > "$aktmp" \
+      && chmod --reference="$ak" "$aktmp" && mv -f "$aktmp" "$ak" || { rm -f "$aktmp"; fail "moving the forced command in $ak"; }
+    say "ssh: the forced command in $ak now names $home_dir/bin/sd-solo."
+  fi
+  # 3. the sshd drop-in is root's; it keeps working through a link until it is re-applied
+  if [ -f "$dropin" ] && grep -qxF "    ForceCommand $home_dir/bin/sd" "$dropin" 2>/dev/null; then
+    ln -sfn sd-solo "$home_dir/bin/sd"
+    warn "$dropin still names $home_dir/bin/sd; a link keeps ssh working until you re-apply it: bash $home_dir/tools/solo-ssh.sh match $home_dir --apply  (needs sudo; it also removes the link)"
+  fi
+  return 0
+}
+# END upgrade_rename
+if [ "$upgrade" -eq 1 ]; then
+  migrate_server_name "$HOME_DIR" "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user" "$HOME/.ssh/authorized_keys" \
+    "/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
+fi
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not on your PATH; add it (or run $HOME_DIR/bin/sd-solo)" ;; esac
 
 # ---------------------------------------------------------------- the service, ssh, firewall
 svc_state="not installed"
@@ -567,8 +594,8 @@ if [ "$upgrade" -eq 1 ]; then
     [ "$(systemctl --user is-active sd-solo.service)" = "active" ] || fail "sd-solo.service is not active after the upgrade"
     svc_state="sd-solo.service active"
   else
-    say "There was no service; starting SD directly ($HOME_DIR/bin/sd -start)."
-    "$HOME_DIR/bin/sd" -start >/dev/null 2>&1 || true
+    say "There was no service; starting SD directly ($HOME_DIR/bin/sd-solo -start)."
+    "$HOME_DIR/bin/sd-solo" -start >/dev/null 2>&1 || true
   fi
 elif [ "$no_service" -eq 0 ]; then
   say
@@ -580,8 +607,8 @@ elif [ "$no_service" -eq 0 ]; then
   svc_state="$(printf '%s\n' "$svc_out" | grep '^SOLO SERVICE READY' | tail -1)"
   [ -n "$svc_state" ] || fail "solo-service.sh did not print 'SOLO SERVICE READY'"
 else
-  say "Not installing the service (--no-service).  Start SD with: $HOME_DIR/bin/sd -start"
-  "$HOME_DIR/bin/sd" -start >/dev/null 2>&1 || true
+  say "Not installing the service (--no-service).  Start SD with: $HOME_DIR/bin/sd-solo -start"
+  "$HOME_DIR/bin/sd-solo" -start >/dev/null 2>&1 || true
 fi
 
 if [ "$ssh_wanted" -eq 1 ]; then
@@ -609,13 +636,13 @@ say
 say "Checking the install."
 if [ "$upgrade" -eq 1 ]; then
   # No password is known here; a one-shot command uses the copy SD keeps for it.
-  chk="$(echo "" | timeout 60 "$HOME_DIR/bin/sd" WHO 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  chk="$(echo "" | timeout 60 "$HOME_DIR/bin/sd-solo" WHO 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 elif [ "$first_login" -eq 1 ]; then
   # There is no account password yet; the global password (which this installer
   # has) opens the same account, and that is what the check can prove.
-  chk="$(printf '%s\nWHO\nOFF\n' "$GLB_PW" | timeout 60 "$HOME_DIR/bin/sd" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  chk="$(printf '%s\nWHO\nOFF\n' "$GLB_PW" | timeout 60 "$HOME_DIR/bin/sd-solo" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 else
-  chk="$(printf '%s\nWHO\nOFF\n' "$ACC_PW" | timeout 60 "$HOME_DIR/bin/sd" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  chk="$(printf '%s\nWHO\nOFF\n' "$ACC_PW" | timeout 60 "$HOME_DIR/bin/sd-solo" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 fi
 printf '%s\n' "$chk" | grep -qE '^[0-9]+ sduser$' || { printf '%s\n' "$chk" | tail -5; fail "a session as sduser did not work"; }
 say "  a session as sduser works"
@@ -623,7 +650,7 @@ rm -f "$HOME_DIR/\$internal"
 # stdin is /dev/null: "timeout" runs its command in a BACKGROUND process group, and an sd
 # that meets the terminal there is stopped by SIGTTIN - which hung this check for ever
 # whenever the installer was run from a real terminal (found by verify-solo-interactive.sh).
-gate="$(timeout 60 "$HOME_DIR/bin/sd" -internal WHO </dev/null 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+gate="$(timeout 60 "$HOME_DIR/bin/sd-solo" -internal WHO </dev/null 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 if printf '%s\n' "$gate" | grep -qE '^[0-9]+ sdsys$'; then fail "sd -internal was admitted with no marker: the internal door is OPEN"; fi
 printf '%s\n' "$gate" | grep -qx 'Connection terminated' || fail "sd -internal did not end with 'Connection terminated'"
 [ ! -e "$HOME_DIR/\$internal" ] || fail "a marker file was left in $HOME_DIR"
@@ -646,11 +673,7 @@ if [ "$first_login" -eq 1 ]; then
 else
   say "  start a session: sd-solo       (the account is sduser; it asks for the account password)"
 fi
-if [ -x /usr/local/sdsys/bin/sd ]; then
-  say "  command names : the multi-user SD Core is installed here, so plain sd starts IT; sd-solo starts this one"
-else
-  say "  command names : sd and sd-solo both start this one; once the multi-user SD Core is installed, plain sd starts that one"
-fi
+say "  command name  : sd-solo starts this one (plain sd is the multi-user SD Core's, if it is installed)"
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
 say "  service       : ${svc_state:-not installed}"
 [ "$api" = "off" ] || say "  API           : $api, port $api_port (TLS 1.3, account password)"

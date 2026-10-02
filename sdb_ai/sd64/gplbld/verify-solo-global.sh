@@ -21,10 +21,10 @@ for f in "$PWF" "$ADF" "$GLF"; do [ -s "$f" ] || refuse "cannot read the passwor
 GOOD="$(head -1 "$PWF")"; ADMINPW="$(head -1 "$ADF")"; GLOBALPW="$(head -1 "$GLF")"
 [ -n "$GOOD" ] && [ -n "$ADMINPW" ] && [ -n "$GLOBALPW" ] || refuse "a password file's first line is empty"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
-[ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 [ -f "$H/\$cred/\$global" ] || refuse "$H is standalone (no \$cred/\$global) - these legs need managed mode"
-SD="$H/bin/sd"
+SD="$H/bin/sd-solo"
 cd "$H" || refuse "cannot enter $H"
 
 echo "verify-solo-global inputs:"

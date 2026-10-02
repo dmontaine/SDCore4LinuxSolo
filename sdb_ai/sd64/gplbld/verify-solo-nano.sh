@@ -20,7 +20,7 @@ refuse() { echo "REFUSED: $*" >&2; exit 2; }
 H="$1"; PWF="$2"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
-[ -x "$H/bin/sd" ] && [ -f "$H/.sdcoresolo" ] || refuse "$H is not a built Solo tree"
+[ -x "$H/bin/sd-solo" ] && [ -f "$H/.sdcoresolo" ] || refuse "$H is not a built Solo tree"
 [ -s "$PWF" ] || refuse "cannot read $PWF"
 [ -f "$H/nanocfg/mkrc.sh" ] || refuse "$H has no nanocfg/mkrc.sh - the tree predates LSOLO 16"
 NANO="$(command -v nano)" || refuse "nano is not installed"
@@ -52,7 +52,7 @@ fi
 
 # ---- 2. the NANO verb writes the rc and starts nano with it, with no rc error on the screen.
 rm -f "$H/nanocfg/sd.nanorc"
-t="$(python3 "$here/ptyrun.py" --timeout 25 "$H/bin/sd" expect:'Password:' send:"$GOOD" expect:'^:|:' send:'nano bp zzverifynano' \
+t="$(python3 "$here/ptyrun.py" --timeout 25 "$H/bin/sd-solo" expect:'Password:' send:"$GOOD" expect:'^:|:' send:'nano bp zzverifynano' \
      expect:'Read 0 lines|New Buffer' raw:'\x18' expect:'editor was given|:' send:'OFF' 2>&1)"
 rc2=$?
 if [ "$rc2" -eq 0 ] && [ -s "$H/nanocfg/sd.nanorc" ] && ! printf '%s\n' "$t" | grep -qi 'Mistakes in\|Error in\|Unknown syntax'; then

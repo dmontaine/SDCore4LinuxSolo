@@ -23,14 +23,14 @@ refuse() { echo "REFUSED: $*" >&2; exit 2; }
 [ "$#" -eq 2 ] || refuse "usage: bash $0 HOME_DIR ACCOUNT_PASSWORD_FILE"
 H="$1"; PWF="$2"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
-[ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 [ -s "$PWF" ] || refuse "cannot read the password file $PWF"
 GOOD="$(head -1 "$PWF")"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SSHTOOL="$here/solo-ssh.sh"
 [ -f "$SSHTOOL" ] || refuse "$SSHTOOL is missing"
-SD="$H/bin/sd"
+SD="$H/bin/sd-solo"
 SSHD=/usr/sbin/sshd
 [ -x "$SSHD" ] || refuse "$SSHD is not installed"
 for t in ssh ssh-keygen scp; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
@@ -114,7 +114,7 @@ ssh_feed() { local key="$1"; shift; feed "$@" | timeout 60 ssh "${SSHO[@]}" -i "
 o1="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" --authorized-keys "$AKF" 2>&1)"
 o2="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" --authorized-keys "$AKF" 2>&1)"
 n="$(bash "$SSHTOOL" key-list "$H" --authorized-keys "$AKF" | grep -x 'SOLO SSH KEYS 1')"
-want="command=\"$H/bin/sd\",restrict,pty $(cat "$W/sdkey.pub")"
+want="command=\"$H/bin/sd-solo\",restrict,pty $(cat "$W/sdkey.pub")"
 if printf '%s\n' "$o1" | grep -q '^SOLO SSH KEY ADDED' && printf '%s\n' "$o2" | grep -q 'already present' \
    && [ -n "$n" ] && grep -qxF -- "$want" "$AKF"; then
   leg "K1 key-add" "adds exactly one forced-command line, twice is once" 0 "$n"
@@ -188,7 +188,7 @@ fi
 # ---- M1/M2. the Match route: its text, and that sshd accepts it (never applied).
 mo="$(bash "$SSHTOOL" match "$H" 2>&1)"
 if printf '%s\n' "$mo" | grep -q "^    Match User $(id -un)$" \
-   && printf '%s\n' "$mo" | grep -q "^        ForceCommand $H/bin/sd$" \
+   && printf '%s\n' "$mo" | grep -q "^        ForceCommand $H/bin/sd-solo$" \
    && printf '%s\n' "$mo" | grep -q '^        DisableForwarding yes$' \
    && printf '%s\n' "$mo" | grep -qx 'SOLO SSH MATCH PRINTED'; then
   leg "M1 match prints the block" "Match User, ForceCommand, DisableForwarding" 0 "printed"
@@ -197,7 +197,7 @@ else
 fi
 { cat "$W/sshd_config"; printf '%s\n' "$mo" | sed -n '/^Match User /,/^        DisableForwarding/p' ; } > "$W/sshd_config.match" 2>/dev/null
 # the printed block is indented four spaces under "contents:"; rebuild it plainly.
-{ cat "$W/sshd_config"; echo "Match User $(id -un)"; echo "    ForceCommand $H/bin/sd"; echo "    DisableForwarding yes"; } > "$W/sshd_config.match"
+{ cat "$W/sshd_config"; echo "Match User $(id -un)"; echo "    ForceCommand $H/bin/sd-solo"; echo "    DisableForwarding yes"; } > "$W/sshd_config.match"
 if "$SSHD" -t -f "$W/sshd_config.match" >"$W/t.out" 2>&1; then
   leg "M2 sshd accepts the block" "sshd -t exits 0 on the configuration with the block" 0 "sshd -t clean"
 else

@@ -102,7 +102,7 @@ sd: ARCH :=
 sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(ARCH) -fPIE $(EXTRA_C_FLAGS)
 sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd terminfo
 	@echo Linking $@
-	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd
+	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd-solo
 
 # 15 Sep 26 dm - S.19: the client libraries speak TLS (sd_tls.c), compiled
 #   position-independent as its own object; sd links the ordinary sd_tls.o.
@@ -207,5 +207,5 @@ check-includes:
 clean:
 	@echo Cleaning build files
 	@$(RM) -f $(GPLOBJ)*.o
-	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd
+	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sd-solo $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd
 	@$(RM) -Rf $(TERMINFO)

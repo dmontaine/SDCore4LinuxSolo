@@ -344,14 +344,14 @@ class Box:
         return out
 
     def start(self):
-        binary = os.path.join(self.sys, "bin", "sd")
+        binary = os.path.join(self.sys, "bin", "sd-solo")
         with open(os.path.join(self.root, "start.log"), "w") as log:
             subprocess.run([binary, "-start"], stdout=log, stderr=log, env=self.env())
         time.sleep(1)
         self.kill_daemons()
 
     def stop(self):
-        binary = os.path.join(self.sys, "bin", "sd")
+        binary = os.path.join(self.sys, "bin", "sd-solo")
         with open(os.path.join(self.root, "stop.log"), "w") as log:
             subprocess.run([binary, "-stop"], stdout=log, stderr=log, env=self.env())
         self.kill_daemons()
@@ -377,10 +377,10 @@ def build(tree_dir, patches):
     for rel, old, new, label in patches:
         replace_once(os.path.join(tree_dir, rel), old, new, label)
     p = sh(["make"], cwd=tree_dir)
-    if p.returncode != 0 or not os.path.exists(os.path.join(tree_dir, "bin", "sd")):
+    if p.returncode != 0 or not os.path.exists(os.path.join(tree_dir, "bin", "sd-solo")):
         say(p.stdout[-2000:] + p.stderr[-2000:])
         die("sandbox-txnfail: CANNOT RUN - make failed in %s" % tree_dir)
-    say("    make exit 0, bin/sd built")
+    say("    make exit 0, bin/sd-solo built")
 
 
 def main():
@@ -421,7 +421,7 @@ def main():
         os.makedirs(os.path.join(box.sys, "$cred"))
         os.makedirs(os.path.join(box.sys, "dumps"))
         open(os.path.join(box.sys, "audit"), "w").close()
-        for b in ("sd", "sdlnxd"):
+        for b in ("sd-solo", "sdlnxd"):
             shutil.copy2(os.path.join(root, "fixed", "bin", b), os.path.join(box.sys, "bin", b))
         shutil.copytree(live_acct, box.acct, ignore=shutil.ignore_patterns("stacks"))
         reg = os.path.join(box.sys, "accounts")
@@ -441,9 +441,9 @@ def main():
         ck("S0 the sandbox has its own keys and the live keys are untouched",
            all(k in after for k in BOX_KEYS) and all((k in after) == (k in before) for k in LIVE_KEYS))
 
-        fixed = os.path.join(box.sys, "bin", "sd")
-        mutA = os.path.join(root, "mutA", "bin", "sd")
-        mutB = os.path.join(root, "mutB", "bin", "sd")
+        fixed = os.path.join(box.sys, "bin", "sd-solo")
+        mutA = os.path.join(root, "mutA", "bin", "sd-solo")
+        mutB = os.path.join(root, "mutB", "bin", "sd-solo")
         bp = os.path.join(box.acct, "bp")
         for name, src in PROBES.items():
             with open(os.path.join(bp, name), "w") as f:

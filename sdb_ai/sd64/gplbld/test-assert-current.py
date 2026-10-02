@@ -99,13 +99,13 @@ def build(tmp, *, dirty=False, pushed=True, stamp="head",
     for dirpath, _, names in os.walk(os.path.join(sd64, "gplsrc")):
         for n in names:
             src_t = max(src_t, os.lstat(os.path.join(dirpath, n)).st_mtime)
-    touch(os.path.join(sd64, "bin", "sd"),
+    touch(os.path.join(sd64, "bin", "sd-solo"),
           src_t + 60 if built_current else src_t - 60)
 
     # the fake installed tree
     sdsys = os.path.join(tmp, "sdsys")
     inst_t = commit_t + 120 if install_after_commit else commit_t - 120
-    touch(os.path.join(sdsys, "bin", "sd"), inst_t)
+    touch(os.path.join(sdsys, "bin", "sd-solo"), inst_t)
 
     if stamp is not None:
         sha = head if stamp == "head" else stamp
@@ -224,8 +224,8 @@ def main():
     tmp = tempfile.mkdtemp(prefix="sdac-")
     try:
         repo, sdsys = build(tmp)
-        os.remove(os.path.join(sdsys, "bin", "sd"))
-        check_raw("sdsys with no bin/sd", UNKNOWN, "is this an sd system",
+        os.remove(os.path.join(sdsys, "bin", "sd-solo"))
+        check_raw("sdsys with no bin/sd-solo", UNKNOWN, "is this an sd system",
                   repo, sdsys)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

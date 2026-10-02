@@ -94,7 +94,7 @@ fi
 [ "$#" -ge 1 ] || refuse "usage: bash $0 install HOME_DIR [--api off|local|open]"
 H="$1"; shift
 case "$H" in /*) ;; *) refuse "HOME_DIR must be an absolute path (got '$H')" ;; esac
-[ -x "$H/bin/sd" ]  || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ]  || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 case "$H" in *" "*|*"%"*|*'$'*) refuse "HOME_DIR contains a space, % or \$, which a unit file cannot carry safely: $H" ;; esac
 
@@ -124,7 +124,7 @@ mkdir -p "$UNITDIR" || fail "mkdir $UNITDIR"
 
 # A daemon this tree's own binary started earlier (solo-stage.sh leaves one running)
 # would make the unit's "sd -start" fail ("already up"), so stop THAT one first.
-"$H/bin/sd" -stop >/dev/null 2>&1 || true
+"$H/bin/sd-solo" -stop >/dev/null 2>&1 || true
 
 cat > "$UNITDIR/$DAEMON" <<UNIT
 [Unit]
@@ -135,8 +135,8 @@ Documentation=file://$H/sd.conf
 Type=oneshot
 RemainAfterExit=yes
 UMask=0077
-ExecStart=$H/bin/sd -start
-ExecStop=$H/bin/sd -stop
+ExecStart=$H/bin/sd-solo -start
+ExecStop=$H/bin/sd-solo -stop
 
 [Install]
 WantedBy=default.target
@@ -169,7 +169,7 @@ After=$DAEMON
 
 [Service]
 UMask=0077
-ExecStart=$H/bin/sd -n -q
+ExecStart=$H/bin/sd-solo -n -q
 StandardInput=socket
 UNIT
 fi

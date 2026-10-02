@@ -84,14 +84,18 @@ say "  running as  : $(id -un)"
 say
 
 AK="$HOME/.ssh/authorized_keys"
-FORCED="command=\"$H/bin/sd\",restrict,pty "
+FORCED="command=\"$H/bin/sd-solo\",restrict,pty "
+FORCED_OLD="command=\"$H/bin/sd\",restrict,pty "   # lines an install before the 2 Oct 26 rename wrote
 n_keys=0
-[ -f "$AK" ] && n_keys="$(grep -cF -- "$FORCED" "$AK" 2>/dev/null || true)"
+[ -f "$AK" ] && n_keys="$(grep -cF -e "$FORCED" -e "$FORCED_OLD" "$AK" 2>/dev/null || true)"
 DROPIN="/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
-# 02 Oct 26 - THE COMMAND NAMES (owner, 2 Oct 2026).  "sd" is this product's launcher (or, from an
-# older install, a link to this tree) and "sd-solo" a link to this tree.  Each is removed only when
-# it is this tree's: a launcher is recognised by its marker line AND by naming this tree's binary,
-# so a file of yours, another tree's launcher or a link elsewhere is never touched.
+# 02 Oct 26 - THE COMMAND NAMES (owner, 1 Oct 2026).  "sd-solo" is a link to this tree's
+# bin/sd-solo.  "sd" is NOT this product's name any more, but an install before the rename made
+# ~/.local/bin/sd (a link to this tree's old bin/sd, or a launcher naming it), and an upgrade
+# that did not run leaves it.  Each is removed only when it is this tree's: a launcher is
+# recognised by its marker line AND by naming this tree's old binary, so a file of yours,
+# another tree's launcher or a link elsewhere is never touched.  The link to the NEW name
+# is also recognised when it points at the OLD one.
 # (gplbld/test-launcher-units.py cuts the lines between the markers out of this file and runs them.)
 # BEGIN link_detect
 link="$HOME/.local/bin/sd"
@@ -102,7 +106,9 @@ if [ -L "$link" ]; then
 elif [ -f "$link" ] && grep -qF 'SD Core for Linux Solo launcher.' "$link" 2>/dev/null && grep -qF "'$H/bin/sd'" "$link" 2>/dev/null; then
   link_ours=1
 fi
-[ -L "$solo_link" ] && [ "$(readlink "$solo_link")" = "$H/bin/sd" ] && solo_link_ours=1
+if [ -L "$solo_link" ]; then
+  case "$(readlink "$solo_link")" in "$H/bin/sd-solo"|"$H/bin/sd") solo_link_ours=1 ;; esac
+fi
 # END link_detect
 
 say "This will remove:"
@@ -136,7 +142,9 @@ else
   rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service
   systemctl --user daemon-reload 2>/dev/null || true
 fi
-"$H/bin/sd" -stop >/dev/null 2>&1 || true
+for n in sd-solo sd; do   # the new name, then an old install's
+  if [ -x "$H/bin/$n" ]; then "$H/bin/$n" -stop >/dev/null 2>&1 || true; fi
+done
 sleep 1
 if pgrep -u "$(id -u)" -f "$H/bin/" >/dev/null 2>&1; then
   warn "processes are still running from $H; stopping them"
@@ -151,7 +159,7 @@ if [ "${n_keys:-0}" -gt 0 ]; then
   tmp="$(mktemp "$AK.XXXXXX")" || fail "mktemp"
   removed=0
   while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in "$FORCED"*) removed=$((removed+1)) ;; *) printf '%s\n' "$line" >> "$tmp" ;; esac
+    case "$line" in "$FORCED"*|"$FORCED_OLD"*) removed=$((removed+1)) ;; *) printf '%s\n' "$line" >> "$tmp" ;; esac
   done < "$AK"
   chmod 600 "$tmp"; mv "$tmp" "$AK" || fail "replace $AK"
   say "removed $removed ssh key line(s) from $AK"

@@ -126,17 +126,17 @@ def main():
         for rel, old, new, label in sbx.SANDBOX_PATCHES:
             sbx.replace_once(os.path.join(ctl, rel), old, new, label)
         p = sbx.sh(["make"], cwd=ctl)
-        if p.returncode != 0 or not os.path.exists(os.path.join(ctl, "bin", "sd")):
+        if p.returncode != 0 or not os.path.exists(os.path.join(ctl, "bin", "sd-solo")):
             say(p.stdout[-2000:] + p.stderr[-2000:])
             die("sandbox-english: CANNOT RUN - make failed for the control")
-        say("    make exit 0, control bin/sd built")
+        say("    make exit 0, control bin/sd-solo built")
 
         say("\n=== 2. the sandbox system and account")
         shutil.copytree(sbx.LIVE_SYS, box.sys, ignore=shutil.ignore_patterns("$cred", "audit", "dumps"))
         os.makedirs(os.path.join(box.sys, "$cred"))
         os.makedirs(os.path.join(box.sys, "dumps"))
         open(os.path.join(box.sys, "audit"), "w").close()
-        for b in ("sd", "sdlnxd"):
+        for b in ("sd-solo", "sdlnxd"):
             shutil.copy2(os.path.join(root, "new", "bin", b), os.path.join(box.sys, "bin", b))
         shutil.copytree(live_acct, box.acct, ignore=shutil.ignore_patterns("stacks"))
         reg = os.path.join(box.sys, "accounts")
@@ -156,13 +156,13 @@ def main():
         ck("S0 the sandbox has its own keys and the live keys are untouched",
            all(k in after for k in sbx.BOX_KEYS) and all((k in after) == (k in before) for k in sbx.LIVE_KEYS))
 
-        new = os.path.join(box.sys, "bin", "sd")
+        new = os.path.join(box.sys, "bin", "sd-solo")
         with open(os.path.join(box.acct, "bp", "zzeng"), "w") as f:
             f.write(PROBE)
         out = box.session(new, ["BASIC BP ZZENG", "CATALOG BP zzeng LOCAL"])
         ck("S1 the probe compiled", "Compiled 1 program(s) with no errors" in out)
 
-        for label, binary in (("new", new), ("control", os.path.join(ctl, "bin", "sd"))):
+        for label, binary in (("new", new), ("control", os.path.join(ctl, "bin", "sd-solo"))):
             say("\n=== 3. %s: %s" % (label, os.path.relpath(binary, root)))
             box.stop(); box.start()
             out = box.session(binary, ["ZZENG", "ZZNOVERB"])

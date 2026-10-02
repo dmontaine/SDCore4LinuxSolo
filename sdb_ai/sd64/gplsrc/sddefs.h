@@ -144,6 +144,15 @@
  */
 #define SD_CONFIG_ENV     "SD_CONFIG"
 
+/* 02 Oct 26 SD Core for Linux Solo - THE SERVER'S FILE NAME (owner, 1 Oct 2026, in chat:
+ * "sd = full version, sd-solo = solo version, both windows and linux, just rename the solo
+ * exe to sd-solo").  Everything in this tree that starts the server by file name builds the
+ * path from this - op_kernel.c (phantoms), sysseg.c (start_sd), sdlnxd.c (the cleanup tick)
+ * and sdclilib.c (the local connect) - so the name lives in one place.  The Makefile's output
+ * name and the scripts under gplbld/ and the installer carry it as text; gplbld/
+ * test-soloexe-units.py checks that none of them still says bin/sd. */
+#define SD_SERVER_NAME    "sd-solo"
+
 /* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE ONE ACCOUNT, and every
  * session's user name (kernel.c init_kernel), whatever the Linux user is
  * called.  Owner's ruling 29 for Solo for Windows: "the name of the single

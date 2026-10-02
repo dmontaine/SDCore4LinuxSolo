@@ -25,13 +25,13 @@ refuse() { echo "REFUSED: $*" >&2; exit 2; }
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sd64="$(dirname "$here")"
-[ -x "$sd64/bin/sd" ] || refuse "$sd64/bin/sd is not built - run make first"
+[ -x "$sd64/bin/sd-solo" ] || refuse "$sd64/bin/sd-solo is not built - run make first"
 command -v python3 >/dev/null || refuse "python3 is required"
 systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is running for this user; its daemon would collide with this test's"
 
 W="$(mktemp -d)"; chmod 700 "$W"
 H="$W/tree"
-cleanup() { [ -x "$H/bin/sd" ] && "$H/bin/sd" -stop >/dev/null 2>&1; rm -rf "$W"; }
+cleanup() { [ -x "$H/bin/sd-solo" ] && "$H/bin/sd-solo" -stop >/dev/null 2>&1; rm -rf "$W"; }
 trap cleanup EXIT
 umask 077
 
@@ -40,7 +40,7 @@ NEWPW='First-Fl-Test-4714!'; WEAK='weak'
 printf '%s\n' "$ADM" > "$W/b.pw"; printf '%s\n' "$GLB" > "$W/c.pw"
 
 echo "verify-solo-firstlogin inputs:"
-echo "  source tree : $sd64  (bin/sd $(stat -c '%y' "$sd64/bin/sd" | cut -c1-19))"
+echo "  source tree : $sd64  (bin/sd-solo $(stat -c '%y' "$sd64/bin/sd-solo" | cut -c1-19))"
 echo "  scratch     : $W"
 echo "  running as  : $(id -un) (uid $(id -u))"
 
@@ -48,9 +48,9 @@ pass=0; fail=0; legs=0
 leg() { legs=$((legs+1)); if [ "$3" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1 | $2"; else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi; }
 strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
 clean() { strip | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the'; }
-piped() { local pw="$1"; shift; printf '%s\n' "$pw" "$@" OFF | timeout 60 "$H/bin/sd" 2>&1 | clean; }
+piped() { local pw="$1"; shift; printf '%s\n' "$pw" "$@" OFF | timeout 60 "$H/bin/sd-solo" 2>&1 | clean; }
 PRENV=()
-PR() { python3 "$here/ptyrun.py" --timeout 25 ${PRENV[@]+"${PRENV[@]}"} "$H/bin/sd" "$@"; }
+PR() { python3 "$here/ptyrun.py" --timeout 25 ${PRENV[@]+"${PRENV[@]}"} "$H/bin/sd-solo" "$@"; }
 
 echo
 echo "staging a managed tree WITH NO account password ..."
@@ -126,7 +126,7 @@ fi
 
 # ---- 5. afterwards: the new password, the global password and a one-shot all work; the salt is shared.
 o1="$(piped "$NEWPW" WHO)"; o2="$(piped "$GLB" WHO)"
-o3="$(echo "" | timeout 60 "$H/bin/sd" WHO 2>&1 | clean)"
+o3="$(echo "" | timeout 60 "$H/bin/sd-solo" WHO 2>&1 | clean)"
 o4="$(piped "$WEAK" WHO)"
 s_acc="$(sed -n 3p "$H/\$cred/sduser")"; s_glb="$(sed -n 3p "$H/\$cred/\$global")"
 if printf '%s\n' "$o1" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o2" | grep -qE '^[0-9]+ sduser$' \

@@ -101,8 +101,8 @@ else
 fi
 
 # ---- 3. what the person typed is what was installed.
-chk() { printf '%s\n' "$1" WHO OFF | timeout 60 "$H/bin/sd" 2>&1 | strip; }
-o1="$(chk "$ACC")"; o2="$(printf '%s\n' "$ACC" ADMIN "$ADM" LISTU OFF | timeout 60 "$H/bin/sd" 2>&1 | strip)"; o3="$(chk "$OTHER")"
+chk() { printf '%s\n' "$1" WHO OFF | timeout 60 "$H/bin/sd-solo" 2>&1 | strip; }
+o1="$(chk "$ACC")"; o2="$(printf '%s\n' "$ACC" ADMIN "$ADM" LISTU OFF | timeout 60 "$H/bin/sd-solo" 2>&1 | strip)"; o3="$(chk "$OTHER")"
 if printf '%s\n' "$o1" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o2" | grep -qx 'Administrator commands unlocked for this session' \
    && ! printf '%s\n' "$o3" | grep -qE '^[0-9]+ sduser$'; then
   leg "3 the typed passwords are the installed ones" "the account and administrator passwords work; the mismatched one does not" 0 "as typed"

@@ -794,7 +794,7 @@ void op_phantom() {
 
     daemon(1, 1);
     /* converted to snprintf() -gwb 22Feb20 */
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
+    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/" SD_SERVER_NAME, sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should also be logged with more detail */
       k_error("Overflowed path/filename length in op_phantom()!");
       goto exit_op_phantom;

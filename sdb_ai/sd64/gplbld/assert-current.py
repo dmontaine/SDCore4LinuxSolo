@@ -246,7 +246,7 @@ def main():
     # ------------------------------------------- C. what did the install run?
     stamp_path = os.path.join(sdsys, STAMP_NAME)
     stamp = read_stamp(stamp_path)
-    installed_bin = os.path.join(sdsys, "bin", "sd")
+    installed_bin = os.path.join(sdsys, "bin", "sd-solo")   # the server's file name (2 Oct 26)
     try:
         inst_t = os.lstat(installed_bin).st_mtime
     except OSError:
@@ -289,7 +289,7 @@ def main():
     # The port's check A2, and it is about a different tree: bin/sd is what you
     # compile BASIC against and what "make" produces, not what is installed.
     # A C edit that was never compiled reached a commit in the port this way.
-    built = os.path.join(sd64, "bin", "sd")
+    built = os.path.join(sd64, "bin", "sd-solo")
     src, src_t = newest(os.path.join(sd64, "gplsrc"))
     if src is None:
         note("CANNOT ANSWER: no source files under gplsrc")
@@ -297,16 +297,16 @@ def main():
     try:
         built_t = os.lstat(built).st_mtime
     except OSError:
-        bad("no bin/sd - run make.  (This is the tree you compile against, "
+        bad("no bin/sd-solo - run make.  (This is the tree you compile against, "
             "not the installed one.)")
         stale = True
     else:
         if built_t < src_t:
-            bad("bin/sd (%s) is older than %s (%s) - run make."
+            bad("bin/sd-solo (%s) is older than %s (%s) - run make."
                 % (when(built_t), os.path.relpath(src, sd64), when(src_t)))
             stale = True
         else:
-            note("  D bin/sd %s newer than newest gplsrc file %s"
+            note("  D bin/sd-solo %s newer than newest gplsrc file %s"
                  % (when(built_t), when(src_t)))
 
     if stale:

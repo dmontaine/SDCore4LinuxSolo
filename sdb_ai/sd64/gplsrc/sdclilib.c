@@ -1228,7 +1228,7 @@ int DLLEntry SDConnectLocal(char* account) {
   cpid = fork();
   if (cpid == 0) /* Child process */
   {
-    sprintf(path, "%s/bin/sd", sysdir());
+    sprintf(path, "%s/bin/" SD_SERVER_NAME, sysdir());
     sprintf(option, "-C%d!%d", session[session_idx].RxPipe[1],
             session[session_idx].TxPipe[0]);
     execl(path, path, "-Q", option, NULL);

@@ -24,14 +24,14 @@ H="$1"; PWF="$2"; ADF="${3:-}"; GLF="${4:-}"
 [ -z "$GLF" ] || [ -s "$GLF" ] || refuse "cannot read the global password file $GLF"
 [ -z "$GLF" ] || [ -n "$ADF" ] || refuse "a global password file needs the administrator password file before it"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
-[ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there"
+[ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 [ -s "$PWF" ] || refuse "cannot read the password file $PWF"
 GOOD="$(head -1 "$PWF")"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SVC="$here/solo-service.sh"
 [ -f "$SVC" ] || refuse "$SVC is missing"
-SD="$H/bin/sd"
+SD="$H/bin/sd-solo"
 PORT=14243
 # LSOLO 23 (owner, 2 Oct 2026): the API port is 4249 and cannot be moved - there is no
 # --api-port.  Every leg but S7c runs on this private port through solo-service.sh's announced
@@ -77,9 +77,9 @@ case "$last" in
 esac
 
 # ---- S2. the unit files name THIS tree and no other path.
-if grep -qF "ExecStart=$H/bin/sd -start" "$UNITDIR/sd-solo.service" \
-   && grep -qF "ExecStop=$H/bin/sd -stop" "$UNITDIR/sd-solo.service" \
-   && grep -qF "ExecStart=$H/bin/sd -n -q" "$UNITDIR/sd-solo-api@.service" \
+if grep -qF "ExecStart=$H/bin/sd-solo -start" "$UNITDIR/sd-solo.service" \
+   && grep -qF "ExecStop=$H/bin/sd-solo -stop" "$UNITDIR/sd-solo.service" \
+   && grep -qF "ExecStart=$H/bin/sd-solo -n -q" "$UNITDIR/sd-solo-api@.service" \
    && grep -qF "ListenStream=127.0.0.1:$PORT" "$UNITDIR/sd-solo-api.socket" \
    && ! grep -rqE '/usr/local|/etc/sd|sdsys' "$UNITDIR/sd-solo.service" "$UNITDIR/sd-solo-api@.service" "$UNITDIR/sd-solo-api.socket"; then
   leg "S2 unit files" "name this tree; no /usr/local, /etc/sd or sdsys" 0 "as expected"
@@ -124,7 +124,7 @@ fi
 
 # ---- S6g. the live TLS relay is confined and the sd session it serves is not (LSOLO 18).
 # A connection is held open (stdin of s_client is a sleep), every process running this tree's
-# bin/sd is read from /proc, and the ones with Seccomp 2 + NoNewPrivs 1 are the relays.
+# bin/sd-solo is read from /proc, and the ones with Seccomp 2 + NoNewPrivs 1 are the relays.
 if command -v openssl >/dev/null && ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT "; then
   ( sleep 6 | timeout 10 openssl s_client -connect 127.0.0.1:$PORT -tls1_3 >/dev/null 2>&1 ) &
   hold=$!

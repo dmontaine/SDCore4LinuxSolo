@@ -16,8 +16,8 @@
 # here yet.
 #
 # LAYOUT.  HOME_DIR is both the Solo home and the SDSYS directory (the C code
-# finds <sysdir>/bin/sd and <sysdir>/bin/pcode - see gplsrc/config.c):
-#   HOME_DIR/bin/sd ...           programs, and bin/pcode built below
+# finds <sysdir>/bin/sd-solo and <sysdir>/bin/pcode - see gplsrc/config.c):
+#   HOME_DIR/bin/sd-solo ...           programs, and bin/pcode built below
 #   HOME_DIR/sd.conf              beside bin's parent, found by inipath.c
 #   HOME_DIR/.sdcoresolo          the marker inipath.c insists on
 #   HOME_DIR/user_accounts/       the account folders
@@ -101,12 +101,13 @@ esac
 if [ "$upgrade" -eq 1 ]; then
   [ -z "$pwfile$adminfile$globalfile$denyverbs" ] || refuse "--upgrade takes no password file and no --deny-verbs: the credentials and the deny list are kept as they are"
   [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not an SD Core for Linux Solo tree, nothing to upgrade"
-  [ -x "$H/bin/sd" ] || refuse "$H/bin/sd is not there - the tree is damaged; reinstall"
+  # 02 Oct 26 - the server's file name is sd-solo; a tree installed before that still has bin/sd.
+  [ -x "$H/bin/sd-solo" ] || [ -x "$H/bin/sd" ] || refuse "$H/bin/sd-solo is not there (nor the old bin/sd) - the tree is damaged; reinstall"
   [ -d "$H/user_accounts/sduser" ] || refuse "$H/user_accounts/sduser is not there - the tree is damaged; reinstall"
 elif [ -e "$H" ] && [ -n "$(ls -A "$H" 2>/dev/null)" ]; then
   refuse "$H exists and is not empty; remove it yourself (this script never deletes)"
 fi
-for f in bin/sd bin/sdlnxd bin/sdtic sdsys gplbld/bbcmp.py gplbld/pcode_bld.py sd.conf; do
+for f in bin/sd-solo bin/sdlnxd bin/sdtic sdsys gplbld/bbcmp.py gplbld/pcode_bld.py sd.conf; do
   [ -e "$sd64/$f" ] || refuse "$sd64/$f is missing - run make in $sd64 first"
 done
 command -v python3 >/dev/null || refuse "python3 is required"
@@ -124,8 +125,11 @@ if [ "$upgrade" -eq 1 ]; then
   # bootstrap can leave SDSYS's own files half-replaced, and only a whole copy
   # puts that right.  It is kept after a good upgrade too (the installer says
   # where); the user deletes it.
-  echo "stopping the running SD ($H/bin/sd -stop)"
-  "$H/bin/sd" -stop >/dev/null 2>&1 || true
+  # stop_any stops with whichever name the tree has: sd-solo, or bin/sd on a tree installed
+  # before the rename (the new name alone would stop nothing and leave the daemon running).
+  stop_any() { local n; for n in sd-solo sd; do if [ -x "$H/bin/$n" ]; then "$H/bin/$n" -stop >/dev/null 2>&1 || true; fi; done; return 0; }
+  echo "stopping the running SD ($H/bin/sd-solo -stop, or the old $H/bin/sd -stop)"
+  stop_any
   sleep 1
   if [ -e "$H/\$internal" ]; then rm -f "$H/\$internal"; fi
   UPGRADE_BACKUP="$H.before-upgrade-$(date +%Y%m%d%H%M%S)"
@@ -135,7 +139,7 @@ if [ "$upgrade" -eq 1 ]; then
   put_back() {
     if [ "$upgrade_ok" -eq 0 ] && [ -n "$UPGRADE_BACKUP" ] && [ -d "$UPGRADE_BACKUP" ]; then
       echo "UPGRADE FAILED - putting the tree back from $UPGRADE_BACKUP" >&2
-      "$H/bin/sd" -stop >/dev/null 2>&1 || true
+      stop_any
       rm -rf "$H" && mv "$UPGRADE_BACKUP" "$H" && echo "the tree is as it was before the upgrade" >&2
     fi
   }
@@ -208,7 +212,7 @@ python3 gplbld/bbcmp.py "$H" gpl.bp/pathtkn gpl.bp.out/pathtkn
 python3 gplbld/pcode_bld.py "$H"
 [ -s "$H/bin/pcode" ] || fail "pcode_bld.py wrote no $H/bin/pcode"
 
-SD="$H/bin/sd"
+SD="$H/bin/sd-solo"
 cd "$H"
 
 # THE INTERNAL DOOR IS ONE-SHOT (ruling 13): "sd -internal" is admitted only against a

@@ -117,11 +117,14 @@ if [ "$full" -eq 1 ]; then
   [ "$(stat -c '%a' "$H")" = "700" ] || { ok=0; why="$why home-mode;"; }
   [ "$(stat -c '%a' "$H/\$cred")" = "700" ] || { ok=0; why="$why cred-mode;"; }
   [ "$(systemctl --user is-active sd-solo.service)" = "active" ] || { ok=0; why="$why service;"; }
-  # 02 Oct 26 - THE COMMAND NAMES: sd-solo is a link to this tree's binary, and sd is this product's
-  # launcher (a file with the marker line, executable, naming this tree's binary) - not a link.
-  [ -L "$HOME/.local/bin/sd-solo" ] && [ "$(readlink "$HOME/.local/bin/sd-solo")" = "$H/bin/sd" ] || { ok=0; why="$why sd-solo-link;"; }
-  [ -f "$HOME/.local/bin/sd" ] && [ ! -L "$HOME/.local/bin/sd" ] && [ -x "$HOME/.local/bin/sd" ] \
-    && grep -qF 'SD Core for Linux Solo launcher.' "$HOME/.local/bin/sd" && grep -qF "'$H/bin/sd'" "$HOME/.local/bin/sd" || { ok=0; why="$why sd-launcher;"; }
+  # 02 Oct 26 - THE COMMAND NAMES: sd-solo is a link to this tree's binary, and this product makes
+  # no plain sd (a file of the user's own called sd is theirs; a link to this tree's old bin/sd, or
+  # a launcher carrying the marker line, would be this product's and must not be there).
+  [ -L "$HOME/.local/bin/sd-solo" ] && [ "$(readlink "$HOME/.local/bin/sd-solo")" = "$H/bin/sd-solo" ] || { ok=0; why="$why sd-solo-link;"; }
+  [ -x "$H/bin/sd-solo" ] || { ok=0; why="$why no-sd-solo-exe;"; }
+  [ ! -e "$H/bin/sd" ] && [ ! -L "$H/bin/sd" ] || { ok=0; why="$why old-bin-sd-left;"; }
+  if [ -L "$HOME/.local/bin/sd" ]; then case "$(readlink "$HOME/.local/bin/sd")" in "$H/bin/"*) ok=0; why="$why sd-link-ours;" ;; esac; fi
+  if [ -f "$HOME/.local/bin/sd" ] && grep -qF 'SD Core for Linux Solo launcher.' "$HOME/.local/bin/sd" 2>/dev/null; then ok=0; why="$why sd-launcher-left;"; fi
   [ "$ok" -eq 1 ] && leg "F2 what the installer promised" "self-checks ran; stamp is HEAD; clone and marker gone; modes 700; service active; link" 0 "all" || leg "F2 what the installer promised" "self-checks; stamp; clone/marker gone; modes; service; link" 1 "$why"
   # F3 the installed tree passes its own witness
   if [ -f "$here/verify-solo.sh" ]; then
@@ -201,9 +204,9 @@ CTL
   else
     leg "F5 a control-file install sets no account password" "COMPLETE, no \$cred/sduser, mode managed" 1 "$(printf '%s\n' "$out" | tail -5 | tr '\n' ' ')"
   fi
-  if [ -x "$H2/bin/sd" ]; then
-    g="$(printf '%s\nWHO\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd" 2>&1 | strip)"
-    d="$(printf '%s\nDATE\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd" 2>&1 | strip)"
+  if [ -x "$H2/bin/sd-solo" ]; then
+    g="$(printf '%s\nWHO\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd-solo" 2>&1 | strip)"
+    d="$(printf '%s\nDATE\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd-solo" 2>&1 | strip)"
     if printf '%s\n' "$g" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$d" | grep -qE '[0-9]{4} +[0-9]+:[0-9]{2}(am|pm)' \
        && [ "$(grep -cx DATE "$H2/solo.policy/denied.verbs" 2>/dev/null)" -eq 1 ]; then
       leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; solo.policy lists DATE" 0 "as expected"

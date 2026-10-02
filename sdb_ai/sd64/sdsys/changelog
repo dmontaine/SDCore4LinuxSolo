@@ -26,31 +26,36 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            THE COMMAND YOU TYPE SAYS WHICH ONE YOU GET.
 
            The installer no longer refuses a computer that has SD Core (the
-           multi-user product) installed.  It makes two commands in
-           ~/.local/bin: sd-solo, which always starts SD Core Solo, and sd,
-           which starts SD Core when SD Core is installed on the computer and
-           SD Core Solo otherwise.  SD Core's installer makes sd-full, and its
-           sd, for SD Core.  So a person who has both gets SD Core from plain
-           sd, and a person who has only SD Core Solo gets SD Core Solo.  SD
-           Core for Windows works the same way.  installsolo.sh --upgrade
-           changes an existing installation's sd from a link to the new
-           launcher and adds sd-solo; deletesolo.sh removes only the commands
-           it made, and leaves a file of your own named sd alone.
+           multi-user product) installed.  SD Core Solo is started by
+           sd-solo, and only by sd-solo: the server itself is now installed
+           as bin/sd-solo in your SD Core Solo folder, and ~/.local/bin/sd-solo
+           links to it.  Plain sd is SD Core's, so a person who has both gets
+           SD Core from sd and SD Core Solo from sd-solo.  SD Core for
+           Windows works the same way.
+
+           installsdsolo.sh --upgrade moves an existing installation over: it
+           stops the server by its old name, removes the old ~/.local/bin/sd
+           (a link, or the launcher an earlier test build made) when it is
+           this installation's, moves the systemd user units and the ssh key
+           lines it added to the new name, and, if an sshd drop-in written by
+           an earlier release still names the old file, leaves a link at
+           bin/sd until you re-apply it (the installer prints the command; it
+           needs sudo, and it removes the link).  deletesdsolo.sh removes only
+           what this installation made, old or new, and leaves a file of your
+           own named sd alone.
 
            WHY: with their own shared-memory keys and API ports (see the
            entries below), nothing but the installer's refusal stopped the two
            running together, and whichever came first on your PATH answered
-           sd, which is the wrong way to choose.  Your ~/.local/bin comes
-           before /usr/local/bin, so a plain link here would always have won.
+           sd, which is the wrong way to choose.
 
-           WHAT THIS DOES NOT DO: it does not change what ssh starts (each ssh
-           route names its own program), and it has not been tried with both
-           products installed on one computer.  A person who is both the Solo
-           user and a member of SD Core's sdusers group, connecting over ssh,
-           may get either one, depending on the order of the two sshd
-           settings.  If a file of your own named sd or sd-solo is already in
-           ~/.local/bin, the installer leaves it alone and says so; run
-           SD Core Solo by its full path or by sd-solo.
+           WHAT THIS DOES NOT DO: it does not change which one ssh starts for
+           someone who is both the Solo user and a member of SD Core's
+           sdusers group, and that combination has not been tried.  A
+           program of your own that starts SD Core Solo by the file name
+           bin/sd must now say bin/sd-solo.  If a file of your own named
+           sd-solo is already in ~/.local/bin, the installer leaves it alone
+           and says so; run SD Core Solo by its full path.
 
 02 Oct 26  THE SD API NOW LISTENS ON PORT 4249 (IT WAS 4243).
 

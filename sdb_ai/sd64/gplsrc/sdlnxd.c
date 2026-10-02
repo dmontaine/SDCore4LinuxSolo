@@ -157,9 +157,9 @@ void check_lost_users() {
             sysseg->sysdir);
       }
     system(cmd); */
-    if (snprintf(cmd, sizeof(cmd), "'%s/bin/sd' -cleanup", sysseg->sysdir) >= (int)sizeof(cmd)) {
+    if (snprintf(cmd, sizeof(cmd), "'%s/bin/" SD_SERVER_NAME "' -cleanup", sysseg->sysdir) >= (int)sizeof(cmd)) {
         printf(
-            "Overflowed path/filename buffer. Cleanup not run for:\n%s/bin/sd "
+            "Overflowed path/filename buffer. Cleanup not run for:\n%s/bin/" SD_SERVER_NAME " "
             "-cleanup",
             sysseg->sysdir);
       } else {
