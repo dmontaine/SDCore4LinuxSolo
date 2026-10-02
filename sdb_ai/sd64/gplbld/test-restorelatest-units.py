@@ -146,7 +146,13 @@ check("ALL takes only zips made with all", "lat.ok = (lat.what = 'all')" in bloc
 check("it says which zip it chose (13048) and refuses when none (13047)",
       "sysmsg(13048" in block and "sysmsg(13047" in block)
 check("the unpack still checks the manifest (nothing changed by the name alone)", "13013" in src)
-check("message 13016 shows both LATEST forms", "RESTORE.ACCOUNT LATEST name" in m16 and "RESTORE.ACCOUNT LATEST ALL" in m16)
+# LINUX SOLO DIVERGES FROM THE SHARED FILE (2 Oct 2026, owner: Solo has one account, so no name
+# and no ALL is needed): 13016 shows "RESTORE.ACCOUNT LATEST {NO.QUERY}" instead of the two named forms,
+# and restorea and backupa treat no name as the account.
+ONE = "if not(all) and names = '' then all = @true"
+check("message 13016 shows the LATEST form", "RESTORE.ACCOUNT LATEST" in m16)
+check("SOLO: restorea takes no name as the one account (all = @true)", ONE in src)
+check("SOLO: backupa takes no name as the one account (all = @true)", ONE in (read("gpl.bp", "backupa") or ""))
 check("message 13047 and 13048 exist with their placeholders", "%1" in m47 and "%2" in m47 and "%1" in m48)
 check("the bare-name branch is kept for everything but LATEST", "end else" in src and "if index(zip.path, '/', 1) = 0" in src)
 

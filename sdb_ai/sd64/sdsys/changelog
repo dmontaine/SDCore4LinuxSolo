@@ -4,10 +4,25 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+02 Oct 26  BACKUP.ACCOUNT AND RESTORE.ACCOUNT NEED NO ACCOUNT NAME.
+
+           SD Core Solo has one account, so BACKUP.ACCOUNT and
+           RESTORE.ACCOUNT no longer ask you to name it: BACKUP.ACCOUNT on its
+           own (or BACKUP.ACCOUNT TO directory) backs the account up, and
+           RESTORE.ACCOUNT archive (or RESTORE.ACCOUNT LATEST) restores it.
+           ALL, and the account's name, are still accepted.
+
+           WHY: there was nothing to choose between.
+
+           WHAT THIS DOES NOT DO: SD Core, with many accounts, still wants a
+           name or ALL.  Until SD Core for Windows' Solo takes the same
+           change, its backup commands still want ALL, and a backup made
+           either way restores on either.
+
 02 Oct 26  RESTORE.ACCOUNT LATEST: RESTORE THE MOST RECENT BACKUP WITHOUT
            NAMING IT.
 
-           RESTORE.ACCOUNT LATEST ALL (with the usual NO.QUERY) puts the word
+           RESTORE.ACCOUNT LATEST (with the usual NO.QUERY) puts the word
            LATEST where the archive name goes.  SD looks in the directory
            saved by SET.BACKUP.DIRECTORY, picks the newest backup made on
            this computer that was made with ALL, says which one it chose
