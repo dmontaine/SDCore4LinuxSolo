@@ -4,6 +4,27 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+02 Oct 26  RESTORE.ACCOUNT LATEST: RESTORE THE MOST RECENT BACKUP WITHOUT
+           NAMING IT.
+
+           RESTORE.ACCOUNT LATEST ALL (with the usual NO.QUERY) puts the word
+           LATEST where the archive name goes.  SD looks in the directory
+           saved by SET.BACKUP.DIRECTORY, picks the newest backup made on
+           this computer that was made with ALL, says which one it chose
+           ("The most recent backup is ..."), and restores from it as it
+           would have if you had typed its name.  If there is none it says so
+           and changes nothing.  The same command is in SD Core for Linux and
+           SD Core for Windows.
+
+           WHY: a backup's name holds the computer, the accounts and the
+           time, which is a lot to type when you only want the last one.
+
+           WHAT THIS DOES NOT DO: it chooses from the file names alone, and
+           the backup it chooses is checked against its own contents before
+           anything is changed.  It never picks a backup made on another
+           computer.  As always, restoring the account you are using waits
+           for the next time SD starts.
+
 02 Oct 26  THE WINDOWS CLIENT LIBRARY EXAMPLE IS GONE.
 
            examples/windows.c (a Visual Studio port of the C client library)

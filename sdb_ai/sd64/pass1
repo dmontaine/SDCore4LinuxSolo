@@ -1,52 +1,1455 @@
-* _WRITEV
-* WRITEV statement recursive code
-* Copyright (c) 1994, Ladybridge Systems, All Rights Reserved
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 3, or (at your option)
-* any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-*
+* BACKUPA
+* BACKUP.ACCOUNT verb (S.50).
+* Copyright (c) String Database
 *
 * START-HISTORY:
-* 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+* 01 Oct 26 dm Written for S.50 (owner's request of 30 Sep 2026, rulings of
+*              1 Oct; part of 1.1-3 on all four products).  SHARED WITH SD CORE
+*              FOR WINDOWS BYTE FOR BYTE: everything the OS decides is behind
+*              the per-OS helpers (!acc_archive, !acc_tree_count, !acc_os_info),
+*              agreed by mail 2026-09-30T2359 to 2026-10-01T1210.
+* 02 Oct 26 Windows  TO is optional: without it the directory saved by
+*              SET.BACKUP.DIRECTORY is used (!acc_bakdir), asked for and saved
+*              when there is none.  Owner's ruling, 1 Oct 2026; PROPOSED TO
+*              SD CORE FOR LINUX (mail 2026-10-02T2000), who agreed the
+*              behaviour in 2026-10-02T2030 and will take this file.
 * END-HISTORY
 *
-*
 * START-DESCRIPTION:
+*
+*    BACKUP.ACCOUNT name [name ...] [TO directory]
+*    BACKUP.ACCOUNT ALL [TO directory]
+*
+*    TO is a one-off and changes nothing that is saved.  Without it the
+*    directory saved by SET.BACKUP.DIRECTORY is used.
+*
+*    Writes SD-<host>-<accounts>-<yyyymmdd-hhmmss>.zip in the directory: the
+*    manifest (accbak.h) and each account's tree.  An administrator verb.
+*
+*    OWNER'S RULINGS (1 Oct 2026): it runs only once every other session has
+*    logged out, and LOGIN refuses new sessions while it runs (!acc_hold).
+*    SDSYS is not backed up; SETTINGS.REPORT records the system's settings.
+*    No credential is carried: $cred is not in an account's tree.
+*
+*    THE INSTRUMENT.  Each account is counted BEFORE the pack and the counts go
+*    in the manifest; the archiver reports what it WROTE; any difference
+*    deletes the zip and says which account and by how much (13007).
+*
+*    GLOBALLY CATALOGUED PROGRAMS (ruling 2).  A gcat entry belongs to an
+*    account when one of the account's object files (a VOC F-pointer whose
+*    data path ends ".out") holds an object with the same compile time and the
+*    same code up to its first symbol/line table, with object_size, both table
+*    offsets and program_name masked (CATALOG rewrites those; agreed with
+*    Windows 2026-10-01T0115).  Each match becomes a "gcat:" line, which
+*    RESTORE.ACCOUNT re-catalogues.
+*
+*    WHAT IT DOES NOT DO.  It does not back up SDSYS, the configuration or any
+*    credential; it does not follow a symlink inside an account (the archiver
+*    skips and names it); an object recompiled after it was catalogued no
+*    longer matches, and its gcat entry is left out (SETTINGS.REPORT lists it).
 *
 * END-DESCRIPTION
 *
 * START-CODE
 
+program $backup.account
 
-subroutine writev(string, file, id, field.no, retain.lock)
+* >>>>>>>>>>>> include file: /tmp/claude-1000/-home-don-Projects-SDCore4Linux/64710478-c62e-4e12-b6ee-1175f423127d/scratchpad/solo-bbcmp/sys/syscom/keys.h
+$define MAX.ID.LEN            63
+$define FL$OPEN           0  ;* Check if variable is an open file
+$define FL$VOCNAME        1  ;* Get VOC name by which file was opened
+$define FL$PATH           2  ;* Get pathname of file
+$define FL$TYPE           3  ;* Return file type
+$define FL$TYPE.SH        1  ;* SH file
+$define FL$TYPE.DH        3  ;* DH file
+$define FL$TYPE.DIR       4  ;* Directory file
+$define FL$TYPE.SEQ       5  ;* Sequential file
+$define FL$MODULUS        5  ;* Get file modulus
+$define FL$MINMOD         6  ;* Get mimimum modulus value for file
+$define FL$GRPSIZE        7  ;* Get group size
+$define FL$LARGEREC       8  ;* Get large record size
+$define FL$MERGE          9  ;* Get merge load percentage
+$define FL$SPLIT         10  ;* Get split load percentage
+$define FL$LOAD          11  ;* Get current load percentage
+$define FL$AK            13  ;* File has AK indices?
+$define FL$LINE          14  ;* Get number of next line to read or write
+$define FL$LOADBYTES   1000  ;* Get current load bytes
+$define FL$READONLY    1001  ;* Read only file?
+$define FL$TRIGGER     1002  ;* Get trigger function name
+$define FL$PHYSBYTES   1003  ;* File size, excluding indices
+$define FL$VERSION     1004  ;* File version
+$define FL$STATS.QUERY 1005  ;* File statistics enabled?
+$define FL$SEQPOS      1006  ;* File position for sequential file
+$define FL$TRG.MODES   1007  ;* Trigger modes
+$define FL$TRG.PRE.WRITE    1
+$define FL$TRG.PRE.DELETE   2
+$define FL$TRG.POST.WRITE   4
+$define FL$TRG.POST.DELETE  8
+$define FL$TRG.READ        16
+$define FL$TRG.PRE.CLEAR   32
+$define FL$TRG.POST.CLEAR  64
+$define FL$NOCASE      1008  ;* File uses case insensitive ids?
+$define FL$FILENO      1009  ;* Get internal file number
+$define FL$JNL.FNO     1010  ;* Get journalling file no, zero if none
+$define FL$AKPATH      1011  ;* Get AK subfile relocation pathname
+$define FL$ID          1012  ;* Id of last record read */
+$define FL$STATUS      1013  ;* STATUS dynamic array
+$define FL$MARK.MAPPING 1014 ;* Mark mapping enabled?
+$define FL$RECORD.COUNT 1015 ;* Record count (approximate)
+$define FL$PRI.BYTES   1016  ;* Physical size of primary subfile
+$define FL$OVF.BYTES   1017  ;* Physical size of overflow subfile
+$define FL$NO.RESIZE   1018  ;* Resizing inhibited?
+$define FL$UPDATE      1019  ;* File update counter
+$define FL$ENCRYPTED   1020  ;* File uses encryption
+$define FL$HOLDERS     1021  ;* Sessions holding this file open
+$define LPTR$WIDTH               1
+$define LPTR$LINES               2
+$define LPTR$TOP.MARGIN          3
+$define LPTR$BOTTOM.MARGIN       4
+$define LPTR$LEFT.MARGIN         5
+$define LPTR$DATA.LINES          6
+$define LPTR$HEADING.LINES       7
+$define LPTR$FOOTING.LINES       8
+$define LPTR$MODE                9
+$define LPTR$NAME               10
+$define LPTR$FLAGS              11
+$define LPTR$FLG.PS         0x0002   ;* Emulated PostScript printer
+$define LPTR$FLG.NFMT       0x0004   ;* Suppress all formatting
+$define LPTR$FLG.NEXT       0x0008   ;* SETPTR NEXT options
+$define LPTR$FLG.RAW        0x0010   ;* Use raw mode APIs (Windows)
+$define LPTR$FLG.KEEP.OPEN  0x0020   ;* Do not close on PRINTER CLOSE
+$define LPTR$FLG.LAND       0x0040   ;* Landscape mode
+$define LPTR$LINE.NO            12
+$define LPTR$PAGE.NO            13
+$define LPTR$LINES.LEFT         14
+$define LPTR$COPIES             15
+$define LPTR$BANNER             16
+$define LPTR$HIGH.PRINT.UNIT   255     ;* Highest available print unit number
+$define LOCK$OTHER.FILELOCK  -3
+$define LOCK$OTHER.READU     -2
+$define LOCK$OTHER.READL     -1
+$define LOCK$NO.LOCK          0
+$define LOCK$MY.READL         1
+$define LOCK$MY.READU         2
+$define LOCK$MY.FILELOCK      3
+$define SL$ACTIVE       1  ;* Check if select list is active
+$define IK$SLACTIVE     1  ;* Check if select list is active
+$define SL$COUNT        3  ;* Fetch number of entries in select list
+$define IK$SLCOUNT      3  ;* Fetch number of entries in select list
+$define IT$CS          -1  ;* Clear screen
+$define IT$CAH         -2  ;* Cursor home
+$define IT$CLEOS       -3  ;* Clear to end of screen
+$define IT$CLEOL       -4  ;* Clear to end of line
+$define IT$SBLINK      -5  ;* Start flashing text
+$define IT$EBLINK      -6  ;* End flashing text
+$define IT$CUB         -9  ;* Backspace one char (or count given in arg 2)
+$define IT$CUU        -10  ;* Cursor up one line (or count given in arg 2)
+$define IT$SHALF      -11  ;* Start half brightness
+$define IT$EHALF      -12  ;* End half brightness
+$define IT$SREV       -13  ;* Start reverse video
+$define IT$EREV       -14  ;* End reverse video
+$define IT$SUL        -15  ;* Start underline
+$define IT$EUL        -16  ;* End underline
+$define IT$IL         -17  ;* Insert line (or as count in arg 2)
+$define IT$DL         -18  ;* Delete line (or as count in arg 2)
+$define IT$ICH        -19  ;* Insert character (or as count in arg 2)
+$define IT$DCH        -22  ;* Delete character (or as count in arg 2)
+$define IT$AUXON      -23  ;* Auxillary print mode on
+$define IT$AUXOFF     -24  ;* Auxillary print mode off
+$define IT$E80        -29  ;* Set 80 column mode
+$define IT$E132       -30  ;* Set 132 column mode
+$define IT$RIC        -31  ;* Reset inhibit cursor
+$define IT$SIC        -32  ;* Set inhibit cursor
+$define IT$CUD        -33  ;* Cursor down one line (or as count in arg 2)
+$define IT$CUF        -34  ;* Cursor right one column (or as count in arg 2)
+$define IT$FGC        -37  ;* Set foreground colour
+$define IT$FCOLOR     -37  ;* Set foreground colour
+$define IT$BGC        -38  ;* Set background colour
+$define IT$BCOLOR     -38  ;* Set background colour
+$define IT$SLT        -54  ;* Set line truncate
+$define IT$RLT        -55  ;* Reset line truncate
+$define IT$SBOLD      -58  ;* Start bold
+$define IT$EBOLD      -59  ;* End bold
+$define IT$ACMD       -108 ;* Asynchronous command prefix
+$define IT$SCMD       -109 ;* Synchronous command prefix
+$define IT$STYLUS     -250 ;* Enable/disable PDA stylus
+$define IT$KEYS       -251 ;* Enable/disable PDA keyboard display
+$define IT$BLACK                 0
+$define IT$BLUE                  1
+$define IT$GREEN                 2
+$define IT$CYAN                  3
+$define IT$RED                   4
+$define IT$MAGENTA               5
+$define IT$BROWN                 6
+$define IT$WHITE                 7
+$define IT$GREY                  8
+$define IT$BRIGHT.BLUE           9
+$define IT$BRIGHT.GREEN         10
+$define IT$BRIGHT.CYAN          11
+$define IT$BRIGHT.RED           12
+$define IT$BRIGHT.MAGENTA       13
+$define IT$YELLOW               14
+$define IT$BRIGHT.WHITE         15
+$define PU$DEFINED               0
+$define PU$MODE                  1
+$define PU$WIDTH                 2
+$define PU$LENGTH                3
+$define PU$TOPMARGIN             4
+$define PU$BOTMARGIN             5
+$define PU$LEFTMARGIN            6
+$define PU$SPOOLFLAGS            7
+$define PU$FLG.PS             0x00000002   ;* Emulated PostScript printer
+$define PU$FLG.NFMT           0x00000004   ;* Suppress all formatting
+$define PU$FLG.NEXT           0x00000008   ;* SETPTR NEXT options
+$define PU$FLG.RAW            0x00000010   ;* Use raw mode APIs (Windows)
+$define PU$FLG.KEEP.OPEN      0x00000020   ;* Do not close on PRINTER CLOSE
+$define PU$FLG.LAND           0x00000040   ;* Landscape mode
+$define PU$FLG.PCL            0x00002000   ;* PCL printer
+$define PU$FLG.DUPLEX.LONG    0x00004000   ;* Duplex, long edge binding
+$define PU$FLG.DUPLEX.SHORT   0x00008000   ;* Duplex, short edge binding
+$define PU$FORM                  9
+$define PU$BANNER               10
+$define PU$LOCATION             11
+$define PU$COPIES               12
+$define PU$PAGENUMBER           15
+$define PU$LINESLEFT          1002
+$define PU$HEADERLINES        1003
+$define PU$FOOTERLINES        1004
+$define PU$DATALINES          1005
+$define PU$OPTIONS            1006
+$define PU$PREFIX             1007
+$define PU$SPOOLER            1008
+$define PU$OVERLAY            1009
+$define PU$CPI                1010
+$define PU$PAPER.SIZE         1011
+$define PU$LPI                1012
+$define PU$WEIGHT             1013
+$define PU$SYMBOL.SET         1014
+$define PU$STYLE              1015
+$define PU$NEWLINE            1016
+$define PU$PRINTER.NAME       1017
+$define PU$FILE.NAME          1018
+$define PU$LINENO             2000
+$define NLS$CURRENCY             1
+$define NLS$THOUSANDS            2
+$define NLS$DECIMAL              3
+$define PP$PORT                  1    ;* Port number
+$define PP$BAUD.RATE             2    ;* Baud rate
+$define PP$CHECK.PARITY          3    ;* 1 = enable, 0 = disable
+$define PP$PARITY.MODE           4    ;* 0=None, 1=Odd, 2=Even, 3=Mark, 4=Space */
+$define PP$BYTE.SIZE             5    :* Bits per byte
+$define PP$STOP.BITS             6    ;* 0=One, 1= One and a half, 2 = Two
+$define SKT$BLOCKING             1    ;* Blocking mode
+$define SKT$NON.BLOCKING         2    ;* Non-blocking mode
+$define SKT$STREAM               0x00000000
+$define SKT$DGRM                 0x00000100
+$define SKT$TCP                  0x00000000
+$define SKT$UDP                  0x00010000
+$define SKT$ICMP                 0x00020000
+$define SKT$TLS                  0x01000000
+$define SKT$INFO.OPEN            0    ;* Is this a socket variable?
+$define SKT$INFO.TYPE            1    ;* What sort of socket is this?
+$define SKT$INFO.TYPE.SERVER     1    ;* From CREATE.SERVER.SOCKET()
+$define SKT$INFO.TYPE.INCOMING   2    ;* From ACCEPT.SOCKET.CONNECTION()
+$define SKT$INFO.TYPE.OUTGOING   3    ;* From OPEN.SOCKET()
+$define SKT$INFO.PORT            2    ;* Port number
+$define SKT$INFO.IP.ADDR         3    ;* IP address
+$define SKT$INFO.BLOCKING        4    ;* Blocking mode?
+$define SKT$INFO.NO.DELAY        5    ;* Nagle algorithm disabled?
+$define SKT$INFO.KEEP.ALIVE      6    ;* Keep alive enabled?
+$define SKT$INFO.FAMILY          7    ;* Socket address family
+$define SKT$INFO.TLS.CBIND       8    ;* SCRAM c= for this TLS session
+$define SKT$INFO.FAMILY.IPV4     1    ;* Socket address family IPV4
+$define SKT$INFO.FAMILY.IPV6     2    ;* Socket address family IPV6
+$define OI$ISOBJ                 0    ;* Is descriptor an object
+$define OI$CLASS                 1    ;* Class name
+$define ACC$PATH         1     ;* Account pathname
+$define ACC$DESCR        2     ;* Account description
+$define ACC$GROUP        3     ;* lINUX group for this Account
+$define ACC$SUSPENDED   5     ;* suspension flag: blank or SUSPENDED
+$define ACC$PRIOR.TIER   6     ;* retired with the tier model (18 Sep 26);
+deffun parse.pathname.tokens(path) calling "!PATHTKN"
+$define SD_ENCODEHX     201  ;* encode passed string as Hex String
+$define SD_ENCODE64     202  ;* encode as Base64
+$define SDEXT_TestIt      1  ;* Function Test
+$define SD_SALT         100  ; sd_encrypt_sodium sd_salt function
+$define SD_KEYFROMPW    101  ;* sd_encrypt_sodium sd_KeyFromPW function
+$define SD_EUID_SET     102  ;* set current process's euid egid to that of user
+$define SD_EUID_RESTORE 103  ;* set current process's euid egid to what it was on entry to sd
+$define SD_SHA256       104  ;* sd_scram sha256, 1 arg
+$define SD_HMACSHA256   105  ;* sd_scram hmac-sha256: base64 key, TEXT msg
+$define SD_PBKDF2       106  ;* sd_scram pbkdf2, 4 args: pw, salt, iter, len
+$define SD_RANDBYTES    107  ;* sd_scram random bytes, 1 arg: count
+$define SD_XORBYTES     108  ;* sd_scram xor, 2 args, equal lengths
+$define SD_CTEQUAL      109  ;* sd_scram constant-time compare, 2 args
+$define SD_TLS_CBIND    110  ;* sd_tlssrv channel binding, 0 args
+$define  SD_Obj_Unkn         0  ;* Unknown python object type
+$define  SD_Obj_Str          1  ;* String (Unicode) python object type
+$define  SD_Obj_List         2  ;* List python object type
+$define  SD_Obj_Dict         3  ;* Dictionary  python object type
+$define  SD_Obj_Long         4  ;* Long (int)  python object type
+$define  SD_Obj_Float        5  ;* Float (floating point)  python object type
+$define SD_PyInit        2000  ;* initialize the python interpreter
+$define SD_PyFinal       2001  ;* Finalize the python interpreter
+$define SD_IsPyInit      2002  ;* Is python interpreter initialized
+$define SD_PyRunStr      2010  ;* Take the string in qmBasic variable VAL and run in python interpreter
+$define SD_PyRunFile     2011  ;* Take the file and path defined in qmBasic variable VAL and run in python interpreter
+$define SD_PyGetAtt      2100  ;* Return the (string) value of python attribute defined in qmBasic variable VAL
+$define SD_PyDictCrte    2200  ;* Creaete new dictionary for sd
+$define SD_PyDictClr     2201  ;* Clear  dictionary Keys and Values, (Name remains in global dictionary) for sd
+$define SD_PyDictVset    2202  ;* set dictionary key : value
+$define SD_PyDictVget    2203  ;* get value of dictionary item key
+$define SD_PyDictIDel    2204  ;* delete item (key / value) from dictionary
+$define SD_PyDictKeys    2205  ;* get dictionay keys as tab separated string
+$define SD_PyDictValues  2206  ;* get dictionay values as fld mrk separated string
+$define SD_PYStrSet      2210  ;* create and or set string
+$define SD_PYStrGet      2211  ;* Get string */
+$define SD_PYDelObj      2215  ;* Delete Python Object
+$define SD_PyObjLen      2216  ;* get object length (return err overflow > 32bits)
+$define SD_PyObjType     2217  ;* get object type
+$define SD_PyListCrte    2220  ;* create list object
+$define SD_PyListGet     2221  ;* get list items as tab separated string
+$define SD_PyListAppd    2222  ;* append object to list
+$define SD_PyListClr     2223  ;* clear list object
+$define SYS$PTR_ON        1  ;*   Printer on?
+$define SYS$PTR_WIDTH     2  ;*   Default print unit page width
+$define SYS$PTR_DEPTH     3  ;*   Default print unit page depth
+$define SYS$PTR_LNS_REM   4  ;*   Default print unit lines remaining on page
+$define SYS$PTR_PAGE_NBR  5  ;*   Default print unit page number
+$define SYS$PTR_LINE_NBR  6  ;*   Default print unit line number
+$define SYS$TERM_TYPE     7  ;*   @TERM.TYPE
+$define SYS$CPU_TIME      9  ;*   CPU time (mS)
+$define SYS$DAT_Q_ACTIVE 10  ;*   DATA queue active?
+$define SYS$SEl_0_ACTIVE 11  ;*   Select list 0 active?
+$define SYS$TIME         12  ;*   Time (same as TIME())
+$define SYS$USER_NBR     18  ;*   User number
+$define SYS$BREAK_ENABLE 23  ;*   Break key enabled?
+$define SYS$ECHO_ENABLE  24  ;*   Echo enabled?
+$define SYS$IS_PHANTOM   25  ;*   Phantom process?
+$define SYS$PROMPT_CHAR  26  ;*   Prompt character
+$define SYS$UNX_UID      27  ;*   UID
+$define SYS$UNX_EUID     28  ;*   EUID
+$define SYS$UNX_GID      29  ;*   GID
+$define SYS$UNX_EGID     30  ;*   EGID
+$define SYS$LIC_NBR      31  ;*   Licence number
+$define SYS$SDSYS_PATH   32  ;*   System directory pathname
+$define SYS$TEMP_PATH    38  ;*   Temporary directory pathname
+$define SYS$CLIENT_IP    42  ;*   Client IP address
+$define SYS$WIN_OS       91  ;*   Windows? (see also 1006)
+$define SYS$IS_CAPTURE  1000  ;*   CAPTURING in effect?
+$define SYS$IS_INV_CASE 1001  ;*   Case inversion on?
+$define SYS$CALL_STACK  1002  ;*   Call stack
+$define SYS$OPEN_FILES  1003  ;*   Return list of open files
+$define SYS$PEAK_FILES  1004  ;*   Peak number of open files
+$define SYS$INT_TIME    1005  ;*   Internal time equivalent to DATE()      $define SYS$ 86400 + TIME()
+$define SYS$WIN_NT_OS   1006  ;*   Windows NT style (NT, 2000, XP)?
+$define SYS$TRANS_NBR   1007  ;*   Transaction number, zero if none
+$define SYS$TRANS_LEVEL 1008  ;*   Transaction level, zero if none
+$define SYS$IS_BIG_END  1009  ;*   Returns 1 on big endian system, 0 on little endian system
+$define SYS$PLAT_NAME   1010  ;*   Platform name
+$define SYS$CONFIG_PATH 1011  ;*   sd.ini or sdconfig file pathname
+$define SYS$SD_VERSION  1012  ;*   SD version number
+$define SYS$USER_LIMIT  1013  ;*   User limit (excluding phantom pool)
+$define SYS$USER_LMT_PH 1014  ;*   User limit (including phantom pool)
+$define SYS$HOST_NAME   1015  ;*   Computer name
+$define SYS$USRS_AVAIL  1016  ;*   Number of available users
+$define SYS$IP_PORT     1017  ;*   Port number for tcp/ip connection
+$define SYS$DEV_LIC_LMT 1018  ;*   Device licensing ip address limit
+$define SYS$DEV_LIC_CNT 1019  ;*   Device licensing current ip address count
+$define SYS$TIME_MS     1020  ;*   Time of day in milliseconds
+$define SYS$CLLCT_MAP   1021  ;*   Get collation map name
+$define SYS$CLL_MAP_USR 1022  ;*   Get collation map (user format)
+$define SYS$CLL_MAP_SYS 1023  ;*   Get collation map (internal format)
+$define SYS$CUR_DIR     1024  ;*   Current directory on entry to SD
+$define SYS$ENVIR_VARS  1025  ;*   Environment variables
+$define SYS$CMD_LINE    1026  ;*   Command text from "sd xxx"
+$define SYS$TTY_NAME    1027  ;*   Port name for serial connection
+$define SYS$SYS_ID      1028  ;*   System id code for system specific licences
+$define SYS$SUB_DEPTH   1029  ;*   Internal subroutine depth
+$define SYS$LOGIN_TIME  1030  ;*   Login time as date      $define SYS$ 86400 + time
+$define SYS$OS_PID      1031  ;*   Operating system process id
+$define SYS$BRK_PT_FLG  1032  ;*   Test and clear break pending flag
+$define SYS$SYS_TYPE    9010  ;*   Return "SD"
+$define SYS$MAX_STR     9011  ;*   Return MAX_STRING_SIZE - max string / record length
+* >>>>>>>>>>>> include file: /tmp/claude-1000/-home-don-Projects-SDCore4Linux/64710478-c62e-4e12-b6ee-1175f423127d/scratchpad/solo-bbcmp/sys/gpl.bp/int$keys.h
+$define MAX.CALL.NAME.LEN     63
+$define MAX.TRIGGER.NAME.LEN  32
+$define MAX.USERNAME.LEN      32
+$define MAX.PATHNAME.LEN     255
+$define MAX.ACCOUNT.NAME.LEN  32
+$define MIN.WIDTH           20
+$define DEFAULT.WIDTH      120
+$define MAX.WIDTH        32767
+$define MIN.DEPTH           10
+$define DEFAULT.DEPTH       36
+$define MAX.DEPTH        32767
+$define DH.VERSION             2  ;* Current file version
+$define IN$FIELD.MODE      0x00000001  ;* INPUT.FIELD
+$define IN$UPCASE          0x00000002  ;* Force input to uppercase
+$define IN$DISPLAY         0x00000010  ;* Display existing field value
+$define IN$NOCRLF          0x00000020  ;* Suppress CR/LF (underscore used)
+$define IN$NOLF            0x00000040  ;* Suppress LF after CR (colon used)
+$define IN$NOT.DATA        0x00000080  ;* Do not use DATA queue
+$define IN$MASK            0x00000100  ;* INPUT @ with format mask
+$define IN$ERR.DISPLAYED   0x00000200  ;* Error is currently displayed (see op_tio.c)
+$define IN$PASSWORD        0x00000400  ;* Do password style masking of input
+$define IN$TIMEOUT         0x00000800  ;* Timeout present on e-stack
+$define IN$THENELSE        0x00001000  ;* THEN/ELSE clause(s) present
+$define IN$OVERLAY         0x00002000  ;* Start in overlay mode
+$define IN$EDIT            0x00004000  ;* Start in edit mode, don't clear on data
+$define IN$APPEND          0x00008000  ;* Append (used with IN$EDIT)
+$define IN$PANNING         0x00010000  ;* Panning input field
+$define IN$NO.ECHO.DATA    0x00020000  ;* Supress echo on input from DATA statements.
+$define IN$NO.CASE.INVERT  0x00040000  ;* Disable PTERM CASE inversion for the input session
+$define K$INTERNAL         0       ;* Set/clear internal mode
+$define K$SECURE           1       ;* Secure system (login required)?
+$define K$LPTRHIGH         2       ;* @LPTRHIGH
+$define K$LPTRWIDE         3       ;* @LPTRWIDE
+$define K$PAGINATE         4       ;* Pagination active?
+$define K$FLAGS            5       ;* Check/return header flags
+$define K$DATE.FORMAT      6       ;* European date format?
+$define K$CRTHIGH          7       ;* @CRTHIGH
+$define K$CRTWIDE          8       ;* @CRTWIDE
+$define K$SET.DATE         9       ;* Set current date
+$define K$IS.PHANTOM      10       ;* Phantom process?
+$define K$TERM.TYPE       11       ;* Terminal type name
+$define K$USERNAME        12       ;* User name
+$define K$DATE.CONV       13       ;* Set default date conversion
+$define K$PPID            14       ;* Get parent process id
+$define K$USERS           15       ;* User id/ip_addr list
+$define K$USERS.UID     1       ;* User id (value position in field)
+$define K$USERS.PID     2       ;* Process id
+$define K$USERS.IP      3       ;* IP address
+$define K$USERS.FLAGS   4       ;* Process flags
+$define K$USERS.PUID    5       ;* Parent process id for phantom
+$define K$USERS.UNAME   6       ;* User login name
+$define K$USERS.DEV     7       ;* TTY name
+$define K$USERS.LOGIN   8       ;* Login time
+$define K$CONFIG.DATA     16       ;* Configuration data
+$define K$LICENCE         17       ;* Validate licence data
+$define K$INIPATH         18       ;* Get ini file pathname
+$define K$MONITOR         19       ;* Report/Set/Clear pc monitor mode
+$define K$FORCED.ACCOUNT  20       ;* Force entry to named account unless set in $LOGINS
+$define K$SDNET           21       ;* Get/set SDNet status flag
+$define K$CPROC.LEVEL     22       ;* Get/set command processor level
+$define K$HELP            23       ;* Invoke help system
+$define K$SUPPRESS.COMO   24       ;* Suppress como file output
+$define K$IS.SDVBSRVR     25       ;* SDVbSrvr process?
+$define K$ADMINISTRATOR   26       ;* Get/set administrator rights
+$define K$FILESTATS       27       ;* Global file statistics
+$define K$TTY             28       ;* Get terminal device name
+$define K$GET.OPTIONS     29       ;* Get option flags
+$define K$SET.OPTIONS     30       ;* Set option flags
+$define K$PRIVATE.CATALOGUE 31     ;* Set private catalogue directory
+$define K$SYS.ID          32       ;* Get system id
+$define K$CLEANUP         33       ;* Remove defunct users
+$define K$OBJKEY          34       ;* Object action key
+$define K$COMMAND.OPTIONS 35       ;* SD command line option flag bit positions
+$define CMD.APPLY.LICENCE  0x0001  ;* -L Apply new licnce
+$define CMD.QUERY.ACCOUNT  0x0002  ;* -A Query account on entry
+$define CMD.INSTALL        0x0004  ;* -I Completing install
+$define CMD.QUIET          0x0008  ;* -QUIET - Suppress copyright/licence
+$define CMD.PERSONAL       0x0010  ;* -IP Completing personal install
+$define CMD.STDOUT         0x0020  ;* -STDOUT
+$define CMD.FLASH          0x0040  ;* -F option
+$define K$CASE.SENSITIVE  36       ;* REMOVE.TOKEN() case sensitive in TKN.NAME
+$define K$PACKAGE.DATA    37       ;* Get package licence data
+$define K$HSM             39       ;* Hot spot monitor
+$define K$COLLATION       40       ;* Set collation map
+$define K$GET.SDNET.CONNECTIONS  41 ;* Get details of open SDNet connections
+$define K$JNL             42       ;* Journalling functions
+$define K$INVALIDATE.OBJECT  43    ;* Invalidate object cache
+$define K$MESSAGE         44       ;* Enable/disable message reception
+$define K$SET.EXIT.CAUSE  45       ;* Set k_exit_cause value
+$define K$COLLATION.NAME  46       ;* Set collation name
+$define K$AK.COLLATION    47       ;* Select/deselect AK collation map
+$define K$EXIT.STATUS     48       ;* Set/retrieve exit status
+$define K$CASE.MAP        49       ;* Set upper/lower case pairing
+$define K$AUTOLOGOUT      50       ;* Set/retrieve autologout period
+$define K$MAP.DIR.IDS     51       ;* Enable/disable dir file id mapping
+$define K$IN.GROUP        52       ;* Is user in named group?
+$define K$BREAK.HANDLER   53       ;* Define break handler
+$define K$SETUID          54       ;* NIX authorisation
+$define K$SETGID          55       ;* NIX authorisation
+$define K$RUNEXE          56       ;* Run executable
+$define K$AUDIT           57       ;* Append a record to the audit trail
+$define K$SET.USERNAME    60       ;* Set the session user name ($internal)
+$define K$ASSUME.USER     61       ;* Become the authenticated user ($internal)
+$define K$LOGIN.UID      65       ;* Session's loginuid belongs to user?
+$define K$REAL.USER       90       ;* Real person behind the session
+$define K$GLOBAL.SESSION   69      ;* Signed in with $GLOBAL ($internal to set)
+$define PT$BREAK           1       ;* Trap break character as break?
+$define PT$INVERT          2       ;* Case inversion
+$define PT$BRKCH           3       ;* Set break character
+$define PT$ONEWLINE        4       ;* Set output newline mode
+$define PT$INEWLINE        5       ;* Set input newline mode
+$define PT$BINARY.IN       6       ;* Telnet binary mode, client -> server
+$define PT$BINARY.OUT      7       ;* Telnet binary mode, server -> client
+$define PT$TELNET          8       ;* Recognise TN_IAC on input?
+$define OS$PATHNAME        0       ;* Test if valid filename
+$define OS$FILENAME        1       ;* Test if valid pathname
+$define OS$EXISTS          2       ;* Test if file exists
+$define OS$UNIQUE          3       ;* Make a unique file name
+$define OS$FULLPATH        4       ;* Return full DOS file name
+$define OS$DELETE          5       ;* Delete file
+$define OS$CWD             6       ;* Get current working directory
+$define OS$DTM             7       ;* Get date/time modified
+$define OS$FLUSH.CACHE     8       ;* Flush DH file cache
+$define OS$CD              9       ;* Change working directory
+$define OS$MAPPED.NAME    10       ;* Map a directory file name
+#define OS$OPEN           11       ;* Check if file is open by pathanme
+$define OS$DIR            12       ;* Return content of directory
+$define OS$MKDIR          13       ;* Create a directory
+$define OS$MKPATH         14       ;* Create a directory path
+$define OS$CHOWN        100       ;* Chown on file / directory
+$define DHE.RECORD.NOT.FOUND     401       ;* Record not found (read, select, etc)
+$define K$LOGOUT           3               ;* LOGOUT of phantom process
+$define K$EXIT.ABORT       3
+$define USR$PHANTOM      0x0001    ;* Process is a phantom
+$define USR$LOGOUT       0x0002    ;* Logout in progress
+$define USR$SDVBSRVR     0x0004    ;* SDVbSrvr process
+$define USR$ADMIN        0x0008    ;* Administrator privileges
+$define USR$SDNET        0x0010    ;* SDNet process (USR$SDVBSRVR also set)
+$define USR$CHGPHANT     0x0020    ;* Chargeable phantom
+$define USR$MSG.OFF      0x0040    ;* Messge reception disabled
+$define USR$GLOBAL       0x0100    ;* Signed in with $GLOBAL (ruling 33)
+$define EVT$LOGOUT       0x0001    ;* Forced logout - immediate termination
+$define EVT$STATUS       0x0002    ;* Return status dump
+$define EVT$UNLOAD       0x0004    ;* Unload inactive cached object code
+$define EVT$BREAK        0x0008    ;* Clear break inhibit counter
+$define EVT$HSM.ON       0x0010    ;* Enable HSM
+$define EVT$HSM.DUMP     0x0020    ;* Return HSM data
+$define EVT$PDUMP        0x0040    ;* Force process dump
+$define EVT$FLUSH.CACHE  0x0080    ;* Flush DH cache
+$define EVT$JNL.SWITCH   0x0100    ;* Switch journal file
+$define EVT$TERMINATE    0x0200    ;* Forced logout - graceful termination
+$define EVT$MESSAGE      0x0400    ;* Send immediate message
+$define P$LOCKED      2
+$define P$LLOCK       4
+$define P$ULOCK       8
+$define P$READONLY   16
+$define P$PICKREAD   32
+$define BT.RIGHT.ALIGNED 1
+$define BT.DESCENDING    2
+$define BT.UNIQUE        4
+$define BT.DATA          8
+$define FL$EXCLUSIVE   10000    ;* Set exclusive file access
+$define FL$FLAGS       10001    ;* Fetch file flags
+$define FL$FLAGS.NORESIZE   0x00000008   ;* Case insensitive ids
+$define FL$FLAGS.NOCASE     0x00000010   ;* Case insensitive ids
+$define FL$FLAGS.TRUSTED    0x00000020   ;* Access requires trusted program
+$define FL$FLAGS.TRIGGER    0x00010000   ;* File has trigger
+$define FL$FLAGS.AK         0x00020000   ;* File has AK indices
+$define FL$FLAGS.RDONLY     0x00040000   ;* Read only
+$define FL$FLAGS.UPDATED    0x00080000   ;* Written since opened
+$define FL$STATS.ON    10002
+$define FL$STATS.OFF   10003
+$define FL$STATS       10004
+$define FL$STATS.RESET           1
+$define FL$STATS.OPENS           2
+$define FL$STATS.READS           3
+$define FL$STATS.WRITES          4
+$define FL$STATS.DELETES         5
+$define FL$STATS.CLEARS          6
+$define FL$STATS.SELECTS         7
+$define FL$STATS.SPLITS          8
+$define FL$STATS.MERGES          9
+$define FL$STATS.AKREADS        10
+$define FL$STATS.AKWRITES       11
+$define FL$STATS.AKDELETES      12
+$define FL$SETRDONLY   10005           ;* Make file read only (cannot reverse)
+$define LGN$LAST.ACCOUNT     1    ;* Last account name
+$define LGN$DATE             2    ;* Date of last login
+$define LGN$TIME             3    ;* Time of last login
+$define LGN$PASSWORD         4    ;* Encrypted password
+$define LGN$FORCE.ACCOUNT    5    ;* Forced account name
+$define LGN$ADMIN            6    ;* Administrator?
+$define LGN$MIN              7    ;* Minimum password length
+$define LGN$OWNER            8    ;* Owner's name etc
+$define LGN$VALID.ACCOUNTS   9    ;* Valid accounts, blank = unrestricted
+$define LGN$BANNED.ACCOUNTS 10    ;* Banned accounts
+$define CRED$VERSION         1    ;* Record format version, currently 2
+$define CRED$MECH            2    ;* Mechanism name, informational
+$define CRED$SALT            3    ;* Salt, base64
+$define CRED$ITER            4    ;* PBKDF2 iteration count
+$define CRED$STOREDKEY       5    ;* SHA256(ClientKey), base64
+$define CRED$SERVERKEY       6    ;* HMAC(SaltedPassword,"Server Key"), b64
+$define SCRAM$CRED.VERSION   2    ;* Value written to CRED$VERSION
+$define SCRAM$ITERATIONS 600000   ;* PBKDF2 cost for a new password
+$define SCRAM$KEY.LEN       32    ;* SaltedPassword length, = SHA-256
+$define SCRAM$MIN.ITER    4096    ;* Floor on a server's i=
+$define SCRAM$MAX.ITER 10000000   ;* Ceiling on a server's i=
+$define V$UNASSIGNED    0
+$define V$ADDR          1
+$define V$INTEGER       2
+$define V$FLOATNUM      3
+$define V$SUBR          4
+$define V$STRING        5
+$define V$FILE.REF      6
+$define V$ARRAY         7
+$define AH$PICK.STYLE  0x0001  ;* Pick style matrix
+$define AH$AUTO.DELETE 0x0002  ;* Self-deleting common block
+$define V$COMMON        8
+$define V$IMAGE         9
+$define V$BTREE        10
+$define V$SELLIST      11
+$define V$PMATRIX      12
+$define V$SOCK         13
+$define V$LOCALVARS    14
+$define V$OBJ          15
+$define V$OBJCD        16
+$define V$OBJCDX       17
+$define V$PERSISTENT   18
+$define OPT.UNASS.WARNING        0 ;* Treat unassigned variable as warning
+$define OPT.QUERY.DEBUG          1 ;* QPROC debugging (restricted)
+$define OPT.PICK.WILDCARD        2 ;* QPROC supports Pick wildcards
+$define OPT.QUAL.DISPLAY         3 ;* QPROC supports qualified display clauses
+$define OPT.PICK.BREAKPOINT      4 ;* QPROC Pick placement of breakpoint text
+$define OPT.WITH.IMPLIES.OR      5 ;* QPROC Pick WITH ... (OR) WITH ...
+$define OPT.DUMP.ON.ERROR        6 ;* Dump process on error
+$define OPT.DIV.ZERO.WARNING     7 ;* Treat divide by zero as warning
+$define OPT.NON.NUMERIC.WARNING  8 ;* Treat non-numeric as warning
+$define OPT.ASSOC.UNASSOC.MV     9 ;* Associate unassociated MV fields
+$define OPT.PICK.BREAKPOINT.U   10 ;* QPROC Use Pick meaning of U breakpoint
+$define OPT.NO.USER.ABORTS      11 ;* Suppress user options to abort
+$define OPT.RUN.NO.PAGE         12 ;* RUN/DEBUG defaults to NO.PAGE
+$define OPT.SHOW.STACK.ON.ERROR 13 ;* Show stack on error
+$define OPT.CRDB.UPCASE         14 ;* Show CR/DB in OCONV MD in uppercase?
+$define OPT.AMPM.UPCASE         15 ;* Show AM/PM in OCONV MTH in uppercase?
+$define OPT.PICK.NULL           16 ;* Return null for null data in ML, MR and FMT()
+$define OPT.PICK.GRAND.TOTAL    17 ;* GRAND.TOTAL text on same line as values
+$define OPT.SUPPRESS.ABORT.MSG  18 ;* Suppress program details on abort
+$define OPT.DEBUG.REBIND.KEYS   19 ;* Rebind AccuTerm keys on entry to debugger
+$define OPT.ED.NO.QUERY.FD      20 ;* Don't ask for confirmation on FD command in ED
+$define OPT.NO.SEL.LIST.QUERY   21 ;* Don't query use of select list
+$define OPT.CHAIN.KEEP.COMMON   22 ;* Keep unnamed common on CHAIN
+$define OPT.SELECT.KEEP.CASE    23 ;* Keep case in Windows dir file select
+$define OPT.CREATE.FILE.CASE    24 ;* Keep operating system file name case in CREATE.FILE
+$define OPT.PICK.EXPLODE        25 ;* Pick style processing of single value item in BY.EXP
+$define OPT.INHERIT             26 ;* Phantom inherits options
+$define OPT.QUERY.NO.CASE       27 ;* Case insensitive query processor selection operators
+$define OPT.LOCKBEEP            28 ;* Beep on wait for record lock
+$define OPT.PICK.IMPLIED.EQ     29 ;* Implied EQ between field and literal in query
+$define OPT.QUERY.PRIORITY.AND  30 ;* AND has priority over OR operator in query processor
+$define OPT.NO.DATE.WRAPPING    31 ;* Don't roll overlarge day number into next month
+$define OPT.PROC.A              32 ;* Treat Proc A command as in D3
+$define MKI$CREATE               1 ;* Create indices
+$define MKI$BUILD                2 ;* Build indices
+$define MKI$NO.NULLS             4 ;* NO.NULLS (for create mode)
+$define MKI$NO.CASE              8 ;* NO.CASE (for create mode)
+$define FC$SET.JNL.FNO           1 ;* Set jnl_fno in file header
+$define FC$KILL.JNL              2 ;* Disable journalling on open file
+$define FC$SET.AKPATH            3 ;* Set akpath element of file header
+$define FC$NON.TXN               4 ;* Set open file as non-transactional
+$define FC$SPLIT.MERGE           5 ;* Force split/merge
+$define FC$NO.RESIZE             6 ;* Set DHF_NO_RESIZE flag
+$define READ.ONLY.AT.VARS 'ABORT.CODE,ANS,CRTHIGH,CRTWIDE,DATE,DAY,GID,HOSTNAME,IP.ADDR,LEVEL,LOGNAME,LPTRHIGH,LPTRWIDE,MONTH,PARASENTENCE,PATH,PIB,POB,SDSYS,SELECTED,SIB,SOB,TERM.TYPE,TIME,TTY,UID,USER,USERNO,USER.NO,WHO,YEAR,YEAR4'
+* >>>>>>>>>>>> include file: /tmp/claude-1000/-home-don-Projects-SDCore4Linux/64710478-c62e-4e12-b6ee-1175f423127d/scratchpad/solo-bbcmp/sys/syscom/parser.h
+$define KW$FILLER           0
+$define KW$DICT             1
+$define KW$DATA             2
+$define KW$DIRECTORY        3
+$define KW$DYNAMIC          4
+$define KW$ALL              5
+$define KW$GROUP.SIZE       6
+$define KW$LARGE.RECORD     7
+$define KW$MINIMUM.MODULUS  8
+$define KW$SPLIT.LOAD       9
+$define KW$MERGE.LOAD      10
+$define KW$TO              11
+$define KW$FROM            12
+$define KW$REPORTING       13
+$define KW$DELETING        14
+$define KW$UPDATING        15
+$define KW$OVERWRITING     16
+$define KW$NO.PAGE         17
+$define KW$LPTR            18
+$define KW$ON              19
+$define KW$OFF             20
+$define KW$WITH            21
+$define KW$EVERY           22
+$define KW$AND             23
+$define KW$OR              24
+$define KW$LOW.REL.OP      25    ;* Start of relational operators
+$define KW$EQ              25
+$define KW$NE              26
+$define KW$LT              27
+$define KW$LE              28
+$define KW$GE              29
+$define KW$GT              30
+$define KW$LIKE            31
+$define KW$UNLIKE          32
+$define KW$SAID            33
+$define KW$HIGH.REL.OP     31    ;* End of relational operators
+$define KW$CHANGED         34
+$define KW$FORCE           35
+$define KW$CLOSE           36
+$define KW$FILE            37
+$define KW$WIDTH           38
+$define KW$LINES           39
+$define KW$TOP.MARGIN      40
+$define KW$BOTTOM.MARGIN   41
+$define KW$LEFT.MARGIN     42
+$define KW$RESET           43
+$define KW$QUERY           44
+$define KW$LOCAL           45
+$define KW$PATHNAME        46
+$define KW$CRT             47
+$define KW$COUNT.SUP       48
+$define KW$UNION           49
+$define KW$INTERSECTION    50
+$define KW$DIFFERENCE      51
+$define KW$LISTING         52
+$define KW$DEBUGGING       53
+$define KW$NO.WAIT         54
+$define KW$VERTICALLY      55
+$define KW$BY              56
+$define KW$COL.HDG         57
+$define KW$FMT             58
+$define KW$HEADING         59
+$define KW$AS              60
+$define KW$ID.SUP          61
+$define KW$COL.SPACES      62
+$define KW$NOXREF          63
+$define KW$CONV            64
+$define KW$SAMPLE          65
+$define KW$SAMPLED         66
+$define KW$BY.DSND         67
+$define KW$NO              68
+$define KW$EVAL            69
+$define KW$DBL.SPC         70
+$define KW$AVERAGE         71
+$define KW$BREAK.ON        72
+$define KW$BREAK.SUP       73
+$define KW$CALC            74
+$define KW$COL.HDR.SUPP    75
+$define KW$COL.SUP         76
+$define KW$DET.SUP         77
+$define KW$ENUMERATE       78
+$define KW$FOOTING         79
+$define KW$GRAND.TOTAL     80
+$define KW$HDR.SUP         81
+$define KW$ID.ONLY         82
+$define KW$MAX             83
+$define KW$MIN             84
+$define KW$NEW.PAGE        85
+$define KW$NO.SPLIT        86
+$define KW$PERCENTAGE      87
+$define KW$SAVING          88
+$define KW$TOTAL           89
+$define KW$UNIQUE          90
+$define KW$NO.NULLS        91
+$define KW$SINGLE.VALUE    92
+$define KW$MULTI.VALUE     93
+$define KW$BRIEF           94
+$define KW$NO.CASE         95
+$define KW$VERIFY.SUP      96
+$define KW$WAIT            97
+$define KW$EXCLUSIVE       98
+$define KW$CREATING        99
+$define KW$USING          100
+$define KW$INQUIRING      101
+$define KW$GLOBAL         102
+$define KW$REQUIRE.SELECT 103
+$define KW$DEFAULT        104
+$define KW$AT             105
+$define KW$POSTSCRIPT     106
+$define KW$USER           107
+$define KW$FILELOCK       108
+$define KW$WHEN           109
+$define KW$PROMPT         110
+$define KW$BREAK          111
+$define KW$CASE           112
+$define KW$INVERT         113
+$define KW$NOINVERT       114
+$define KW$DISPLAY        115
+$define KW$STATISTICS     116
+$define KW$INFORM         117
+$define KW$NO.MATCH       118
+$define KW$ALL.MATCH      119
+$define KW$COUNT          120
+$define KW$VERIFY         121
+$define KW$BY.EXP         122
+$define KW$BY.EXP.DSND    123
+$define KW$PAN            124
+$define KW$SCROLL         125
+$define KW$ASSOC          126
+$define KW$ASSOC.WITH     127
+$define KW$DISPLAY.LIKE   128
+$define KW$NFMT           129
+$define KW$NEXT           130
+$define KW$RAW            131
+$define KW$LABEL          132
+$define KW$NO.DEFAULT     133
+$define KW$CURRENCY       134
+$define KW$THOUSANDS      135
+$define KW$DECIMAL        136
+$define KW$DETAIL         137
+$define KW$REQUIRE.INDEX  138
+$define KW$NO.INDEX       139
+$define KW$LEVEL          140
+$define KW$CLEAR          141
+$define KW$GDI            142
+$define KW$DELIMITER      143
+$define KW$TASKLOCK       144
+$define KW$COPIES         145
+$define KW$BANNER         146
+$define KW$NO.QUERY       147
+$define KW$BETWEEN        148
+$define KW$VERSION        149
+$define KW$NODEFAULT      150
+$define KW$PORTRAIT       151
+$define KW$LANDSCAPE      152
+$define KW$LNUM           153
+$define KW$KEEP.OPEN      155
+$define KW$BAUD           156
+$define KW$BITS           157
+$define KW$PARITY         158
+$define KW$NONE           159
+$define KW$ODD            160
+$define KW$EVEN           161
+$define KW$MARK           162
+$define KW$SPACE          163
+$define KW$STOP.BITS      164
+$define KW$NEWLINE        165
+$define KW$NO.LABEL       166
+$define KW$XREF           167
+$define KW$CUMULATIVE     168
+$define KW$PRE.WRITE      169
+$define KW$PRE.DELETE     170
+$define KW$POST.WRITE     171
+$define KW$POST.DELETE    172
+$define KW$READ           173
+$define KW$RETURN         174
+$define KW$FORM           175
+$define KW$OPTIONS        176
+$define KW$PCODE          177
+$define KW$PREFIX         178
+$define KW$EXCLUDE.REMOTE 179
+$define KW$INCLUDE.REMOTE 180
+$define KW$SPOOLER        181
+$define KW$IMMEDIATE      182
+$define KW$COL.HDG.ID     183
+$define KW$CSV            184
+$define KW$LOCKING        185
+$define KW$PCL            186
+$define KW$DUPLEX         187
+$define KW$SHORT          188
+$define KW$OVERLAY        189
+$define KW$CPI            190
+$define KW$PAPER.SIZE     191
+$define KW$LPI            192
+$define KW$BOXED          193
+$define KW$SYMBOL.SET     194
+$define KW$WEIGHT         195
+$define KW$COLOUR         196
+$define KW$BINARY         197
+$define KW$POSITIONED     198
+$define KW$STYLE          199
+$define KW$HEX            200
+$define KW$NO.OBJECT      201
+$define KW$PRE.CLEAR      202
+$define KW$POST.CLEAR     203
+$define KW$ABSENT.NULL    204
+$define KW$REPEATING      205
+$define KW$STATIC         206
+$define KW$APPENDING      207
+$define KW$NO.RESIZE      208
+$define KW$RESIZE         209
+$define KW$PAGESEQ        210
+$define KW$ENCRYPT        211
+$define KW$GROUP          212
+$define KW$TELNET         213
+$define KW$INTERNAL       214
+$define PARSER$RESET        0
+$define PARSER$GET.TOKEN    1
+$define PARSER$GET.REST     2
+$define PARSER$EXPAND       3
+$define PARSER$LOOK.AHEAD   4
+$define PARSER$MFILE        5  ;* Like GET.TOKEN but allows multifile syntax
+$define PARSER$END          0
+$define PARSER$TOKEN        1
+$define PARSER$STRING       2
+$define PARSER$COMMA        3
+$define PARSER$LBR          4
+$define PARSER$RBR          5
+* >>>>>>>>>>>> include file: /tmp/claude-1000/-home-don-Projects-SDCore4Linux/64710478-c62e-4e12-b6ee-1175f423127d/scratchpad/solo-bbcmp/sys/syscom/err.h
+$define ER$ARGS           1    ;* Command arguments invalid or incomplete
+$define ER$NCOMO          2    ;* Como file not active
+$define ER$ICOMP          3    ;* I-type compilation error
+$define ER$ACC.EXISTS     4    ;* Account name already in register
+$define ER$NO.DIR         5    ;* Directory not found
+$define ER$NOT.CREATED    6    ;* Unable to create directory
+$define ER$STOPPED        7    ;* Processing terminated by user action
+$define ER$INVA.PATH      8    ;* Invalid pathname
+$define ER$NOT.CAT        9    ;* Item not in catalogue
+$define ER$PROCESS       10    ;* Unable to start new process
+$define ER$USER.EXISTS   11    ;* User name already in register
+$define ER$UNSUPPORTED   12    ;* This operation is not supported on this platform
+$define ER$TERMINFO      13    ;* No terminfo definition for this function
+$define ER$NO.ACC        14    ;* Account name not in register
+$define ER$TERMINATED    15    ;* Operation terminated by user
+$define ER$PARAMS      1000    ;* Invalid parameters
+$define ER$MEM         1001    ;* Cannot allocate memory
+$define ER$LENGTH      1002    ;* Invalid length
+$define ER$BAD.NAME    1003    ;* Bad name
+$define ER$NOT.FOUND   1004    ;* Item not found
+$define ER$IN.USE      1005    ;* Item is in use
+$define ER$BAD.KEY     1006    ;* Bad action key
+$define ER$PRT.UNIT    1007    ;* Bad print unit
+$define ER$FAILED      1008    ;* Action failed (os.error)
+$define ER$MODE        1009    ;* Bad mode setting
+$define ER$TXN         1010    ;* Operation not allowed in a transaction
+$define ER$TIMEOUT     1011    ;* Timeout
+$define ER$LIMIT       1012    ;* Limit reached
+$define ER$EXPIRED     1013    ;* Expired
+$define ER$NO.CONFIG   1014    ;* Cannot find configuration file
+$define ER$RDONLY.VAR  1015    ;* Variable is read-only
+$define ER$NOT.PHANTOM 1016    ;* Not a phantom process
+$define ER$CONNECTED   1017    ;* Device already connected
+$define ER$INVA.ITYPE  1018    ;* Invalid I-type
+$define ER$MAX.STRING  1900    ;* Max String (record) Size
+$define ER$INVA.OBJ    2000    ;* Invalid object code
+$define ER$CFNF        2001    ;* Catalogued function not found
+$define ER$TI.NAME     2100    ;* Invalid terminal type name
+$define ER$TI.NOENT    2101    ;* No terminfo entry for given name
+$define ER$TI.MAGIC    2102    ;* Terminfo magic number check failed
+$define ER$TI.INVHDR   2103    ;* Invalid terminfo header data
+$define ER$TI.STRSZ    2104    ;* Invalid terminfo string length
+$define ER$TI.STRMEM   2105    ;* Error allocating terminfo string memory
+$define ER$TI.NAMEMEM  2106    ;* Error allocating terminfo name memory
+$define ER$TI.BOOLMEM  2107    ;* Error allocating terminfo boolean memory
+$define ER$TI.BOOLRD   2108    ;* Error reading terminfo booleans
+$define ER$TI.NUMMEM   2109    ;* Error allocating terminfo numbers memory
+$define ER$TI.NUMRD    2110    ;* Error reading terminfo numbers
+$define ER$TI.STROMEM  2111    ;* Error allocating terminfo string offsets memory
+$define ER$TI.STRORD   2112    ;* Error reading terminfo string offsets
+$define ER$TI.STRTBL   2113    ;* Error reading terminfo string table
+$define ER$IID         3000    ;* Illegal record id
+$define ER$SFNF        3001    ;* Subfile not found
+$define ER$NAM         3002    ;* Bad file name
+$define ER$FNF         3003    ;* File not found
+$define ER$NDIR        3004    ;* Not a directory file
+$define ER$NDYN        3005    ;* Not a dynamic file
+$define ER$RNF         3006    ;* Record not found
+$define ER$NVR         3007    ;* No VOC record
+$define ER$NPN         3008    ;* No pathname in VOC record
+$define ER$VNF         3009    ;* VOC file record not F type
+$define ER$IOE         3010    ;* I/O error (os.error)
+$define ER$LCK         3011    ;* Lock is held by another process
+$define ER$NLK         3012    ;* Lock is not held by this process
+$define ER$NSEQ        3013    ;* Not a sequential file
+$define ER$NEOF        3014    ;* Not at end of file
+$define ER$SQRD        3015    ;* Sequential file record read before creation
+$define ER$SQNC        3016    ;* Sequential record not created due to error (os.error)
+$define ER$SQEX        3017    ;* Sequential record already exists (CREATE)
+$define ER$RDONLY      3018    ;* Update to read only file
+$define ER$AKNF        3019    ;* AK index not found
+$define ER$INVAPATH    3020    ;* Invalid pathname
+$define ER$EXCLUSIVE   3021    ;* Cannot gain exclusive access to file
+$define ER$TRIGGER     3022    ;* Trigger function error
+$define ER$NOLOCK      3023    ;* Attempt to write/delete record with no lock
+$define ER$REMOTE      3024    ;* Open of remote file not allowed
+$define ER$NOTNOW      3025    ;* Action cannot be performed now
+$define ER$PORT        3026    ;* File is a port
+$define ER$NPORT       3027    ;* File is not a port
+$define ER$SQSEEK      3028    ;* Seek to invalid offset in sequential file
+$define ER$SQREL       3029    ;* Invalid seek relto in sequential file
+$define ER$EOF         3030    ;* End of file
+$define ER$CNF         3031    ;* Multifile component not found
+$define ER$MFC         3032    ;* Multifile reference with no component name
+$define ER$PNF         3033    ;* Port not found (os.error)
+$define ER$BAD.DICT    3034    ;* Bad dictionary entry
+$define ER$PERM        3035    ;* Permissions error (os.errno)
+$define ER$SEEK.ERROR  3036    ;* Seek error
+$define ER$WRITE.ERROR 3037    ;* Write error (os.errno)
+$define ER$ENCRYPTED   3041    ;* Access denied to encrypted file
+$define ER$SRVRMEM     4000    ;* Insufficient memory for packet buffer
+$define ER$NO.DLL      5000    ;* DLL not found
+$define ER$NO.API      5001    ;* API not found
+$define ER$NO.TEMP     5002    ;* Cannot open temporary file (os.error)
+$define ER$NO.EXIST    6031    ;* Item does not exist
+$define ER$EXISTS      6032    ;* Item already exists
+$define ER$NO.SPACE    6033    ;* No space for entry
+$define ER$INVALID     6034    ;* Validation error
+$define ER$NETWORK     7000    ;* Networked file not allowed for this operation
+$define ER$SERVER      7001    ;* Unknown server name
+$define ER$WSA.ERR     7002    ;* Failed to start Window socket library (os.error)
+$define ER$HOSTNAME    7003    ;* Invalid host name
+$define ER$NOSOCKET    7004    ;* Cannot open socket (os.error)
+$define ER$CONNECT     7005    ;* Cannot connect socket (os.error)
+$define ER$RECV.ERR    7006    ;* Error receiving socket data (os.error)
+$define ER$RESOLVE     7007    ;* Cannot resolve server name (os.error)
+$define ER$LOGIN       7008    ;* Login rejected
+$define ER$XREMOTE     7009    ;* Remote server disallowed access
+$define ER$ACCOUNT     7010    ;* Cannot connect to account
+$define ER$HOST.TABLE  7011    ;* Host table is full
+$define ER$BIND        7012    ;* Error binding socket (os.error)
+$define ER$SKT.CLOSED  7013    ;* Socket has been closed
+$define ERAI$ADDRFAMILY 7014    ;* Address family for nodename not supported
+$define ERAI$AGAIN      7015    ;* Temporary failure in name resolution.
+$define ERAI$BADFLAGS   7016    ;* Invalid value for ai.flags
+$define ERAI$FAIL       7017    ;* Non-recoverable failure in name resolution.
+$define ERAI$FAMILY     7018    ;* Requested ai.family not supported
+$define ERAI$MEMORY     7019    ;* Memory allocation failure
+$define ERAI$NODATA     7020    ;* No address associated with nodename
+$define ERAI$NONAME     7021    ;* nodename nor servname provided, or not known.
+$define ERAI$SERVICE    7022    ;* servname not supported for ai.socktype
+$define ERAI$SOCKTYPE   7023    ;* Requested ai.socktype not supported
+$define ERAI$SYSTEM     7024    ;* System error returned in errno
+$define ER$INCOMP.PROTO 7025    ;* Incompatible protocol/transport combination
+$define ER$NONBLOCK.FAIL 7026   ;* Attempt to set O.NON.BLOCK via fctnl() has failed
+$define ER$BADADDR      7027    ;* Incorrectly formed hostname or IP Address
+$define DHE$FILE.NOT.OPEN        8001 ;* DH.FILE pointer is NULL
+$define DHE$NOT.A.FILE           8002 ;* DH.FILE does not point to a file descriptor
+$define DHE$ID.LEN.ERR           8003 ;* Invalid record id length
+$define DHE$SEEK.ERROR           8004 ;* Error seeking in DH file (os.error)
+$define DHE$READ.ERROR           8005 ;* Error reading DH file (os.error)
+$define DHE$WRITE.ERROR          8006 ;* Error writing DH file (os.error)
+$define DHE$NAME.TOO.LONG        8007 ;* File name is too long
+$define DHE$SIZE                 8008 ;* File exceeds maximum allowable size
+$define DHE$STAT.ERR             8009 ;* Error from STAT() (os.error)
+$define DHE$OPEN.NO.MEMORY       8100 ;* No memory for DH.FILE structure
+$define DHE$FILE.NOT.FOUND       8101 ;* Cannot open primary subfile (os.error)
+$define DHE$OPEN1.ERR            8102 ;* Cannot open overflow subfile (os.error)
+$define DHE$PSFH.FAULT           8103 ;* Primary subfile header format error
+$define DHE$OSFH.FAULT           8104 ;* Overflow subfile header format error
+$define DHE$NO.BUFFERS           8105 ;* Unable to allocate file buffers
+$define DHE$INVA.FILE.NAME       8106 ;* Invalid file name
+$define DHE$TOO.MANY.FILES       8107 ;* Too many files (NUMFILES config param)
+$define DHE$NO.MEM               8108 ;* No memory to allocate group buffer
+$define DHE$AK.NOT.FOUND         8109 ;* Cannot open AK subfile
+$define DHE$AK.HDR.READ.ERROR    8110 ;* Error reading AK header
+$define DHE$AK.HDR.FAULT         8111 ;* AK subfile header format error
+$define DHE$AK.ITYPE.ERROR       8112 ;* Format error in AK I-type code
+$define DHE$AK.NODE.ERROR        8113 ;* Unrecognised node type
+$define DHE$NO.SUCH.AK           8114 ;* Reference to non-existant AK
+$define DHE$AK.DELETE.ERROR      8115 ;* Error deleting AK subfile
+$define DHE$EXCLUSIVE            8116 ;* File is open for exclusive access
+$define DHE$TRUSTED              8117 ;* Requires trusted program to open
+$define DHE$VERSION              8118 ;* Incompatible file version
+$define DHE$ID.LEN               8119 ;* File may contain id longer than MAX.ID
+$define DHE$AK.CROSS.CHECK       8120 ;* Relocated index pathname cross-check failed
+$define DHE$HASH.TYPE            8121 ;* Unsupported hash type
+$define DHE$ILLEGAL.GROUP.SIZE   8201 ;* Group size out of range
+$define DHE$ILLEGAL.MIN.MODULUS  8202 ;* Minimum modulus < 1
+$define DHE$ILLEGAL.BIG.REC.SIZE 8203 ;* Big record size invalid
+$define DHE$ILLEGAL.MERGE.LOAD   8204 ;* Merge load invalid
+$define DHE$ILLEGAL.SPLIT.LOAD   8205 ;* Split load invalid
+$define DHE$FILE.EXISTS          8206 ;* File exists on create
+$define DHE$CREATE.DIR.ERR       8207 ;* Cannot create directory (os.error)
+$define DHE$CREATE0.ERR          8208 ;* Cannot create primary subfile (os.error)
+$define DHE$CREATE1.ERR          8209 ;* Cannot create overflow subfile (os.error)
+$define DHE$PSFH.WRITE.ERROR     8210 ;* Failure writing primary subfile header (os.error)
+$define DHE$INIT.DATA.ERROR      8211 ;* Failure initialising data bucket (os.error)
+$define DHE$ILLEGAL.HASH         8212 ;* Invalid hashing algorithm
+$define DHE$OSFH.WRITE.ERROR     8213 ;* Failure writing overflow subfile header (os.error)
+$define DHE$RECORD.NOT.FOUND     8301 ;* Record not in file
+$define DHE$BIG.CHAIN.END        8302 ;* Found end of big record chain early
+$define DHE$NOT.BIG.REC          8303 ;* Big record pointer does not point to big record block
+$define DHE$NO.SELECT            8401 ;* No select is active
+$define DHE$OPEN2.ERR            8402 ;* Cannot open select list
+$define DHE$GSL.WRITE.ERR        8403 ;* Error from write() (os.error)
+$define DHE$GSL.TRUNCATE.ERR     8404 ;* Error from chsize() (os.error)
+$define DHE$AK.NAME.LEN          8501 ;* Index name too long
+$define DHE$AK.EXISTS            8502 ;* AK already exists
+$define DHE$AK.TOO.MANY          8503 ;* Too many AKs to create a new one
+$define DHE$AK.CREATE.ERR        8504 ;* Unable to create AK subfile
+$define DHE$AK.HDR.WRITE.ERROR   8505 ;* Error writing SK subfile header
+$define DHE$AK.WRITE.ERROR       8506 ;* Error writing AK node
+$define DHE$PSF.CHSIZE.ERR       8601 ;* Error compacting primary subfile (os.error)
+$define DHE$ALL.LOCKED           8701 ;* All buffers are locked
+$define DHE$SPLIT.HASH.ERROR     8702 ;* Record does not hash to either group in split
+$define DHE$WRONG.BIG.REC        8703 ;* Big record chain error
+$define DHE$FREE.COUNT.ZERO      8704 ;* Overflow free count zero in dh.new.overflow()
+$define DHE$FDS.OPEN.ERR         8705 ;* Cannot reopen subfile (os.error)
+$define DHE$POINTER.ERROR        8706 ;* Internal file pointer fault
+$define DHE$NO.INDICES           8707 ;* File has no AKs
+$define DHE$JNL.OPEN.ERR         8801 ;* Cannot open journal file (os.error)
+$define DHE$JNL.CTL.ERR          8802 ;* Cannot open SDSYS $JNLCTRL (os.error)
+$define DHE$JNL.CTL.READ         8803 ;* Cannot read SDSYS $JNLCTRL (os.error)
+$define DHE$JNL.XCHK             8804 ;* $JNL cross-check error
+$define DHE$ECB.TYPE             8900 ;* ECB has incorrect type
+$define SD$Mem.Err   -10100  ;* memory allocation error
+$define SD$SodInit.Err -10199  ;* libsodium initialization error
+$define SD$Encrypt.Err -10200  ;* error in call to crypto.secretbox.easy
+$define SD$Decrypt.Err -10201  ;* error in call to crypto.secretbox.easy.open
+$define SD$Encode.Err  -10202  ;* error in call to bin2hex or bin2base64
+$define SD$Decode.Err  -10203  ;* error in call to hex2bin or base642bin
+$define SD$KeyLen.Err  -10204  ;* key length error
+$define SD$EDType.Err  -10205  ;* Encode Decode type error
+$define SD$EXT.KEY.ERR -10300  ;* unknown key
+$define SD$EXT.ARG.CNT -10301  ;* incorrect argument count for called function
+$define SD$INT.OVERFLW -10302  ;* Result will create integer overflow  (> 32 Bit int)
+$define SD$SCRAM.ERR   -10303  ;* sd.scram.c primitive failed or was given bad input
+$define SD$EUID.PWD.Err  -10400  ;* Couldn't get pwd of user
+$define SD$EUID.SET.Err  -10401  ;* Couldn't set proess to uid / gid of user
+$define SD$EUID.RST.Err  -10402  ;* Couldn't return proess to uid / gid of caller
+$define SD$EUID.NSET.Err -10403  ;* SD.EUID.RESTORE called before SD.EUID.SET
+$define SD$PyEr.NotInit    -12001    ;* interperter not initiialized
+$define SD$PyEr.Dict       -12002    ;* PyDict.New() failed
+$define SD$PyEr.Builtin    -12003    ;* failed to set ..builtins.. link to the built-in scope
+$define SD$PyEr.Excpt      -12004    ;* exception on PyRun.String
+$define SD$PyEr.FinalEr    -12005    ;*  error reported by GPL.BP Program PY.FINALIZE
+$define SD$PyEr.NOF        -12006    ;* could not open script file
+$define SD$PyEr.Key        -12007    ;* failed to find key in dictionary
+$define SD$PyEr.ObToStr    -12008    ;* failed to convert python object to string
+$define SD$PyErr.UniToStr  -12009    ;* error encoding unicode python string to to Latin
+$define SD$PyErr.MainMod   -12010    ;* cannot import ..main..
+$define SD$PyErr.GlobDict  -12011    ;* could get ..main.. dictionary
+$define SD$PyErr.DictExsts -12012    ;* dictionary already exists
+$define SD$PyErr.NamSpcErr -12013    ;* Failed to add to namespace
+$define SD$PyErr.ObjNOF    -12014    ;* requested object does not exist
+$define SD$PyErr.DictSet   -12015    ;* failed to set dictionary key / value
+$define SD$PyErr.DictDel   -12016    ;* failed to Delete dictionary key / value
+$define SD$PyErr.NotDict   -12017    ;* Object not a dictionary
+$define SD$PyErr.EnLatin   -12018    ;* error encoding latin string to unicode
+$define SD$PyErr.NotStr    -12019    ;* Object not a String (unicode)
+$define SD$PyErr.DelObj    -12020    ;* Failed to remove Object from global dictionary
+$define SD$PyErr.NoItems   -12030    ;* Python Object contains no items (List?)
+$define SD$PyErr.CreStr    -12031    ;* Failed to create Python String Object
+$define SD$PyErr.ConCat    -12032    ;* Failed to concatinate Python String Objects
+$define SD$PyErr.LstItem   -12033    ;* Failed to access List Objects Item
+$define SD$PyErr.NotList   -12034    ;* Object not a list
+$define SD$PyErr.LstAppdEr -12035    ;* List append failed
+$define SD$PyErr.LstClrEr  -12036    ;* list clear failed
+$define SD$PyErr.LstCrteEr -12037    ;* PyList.New() failed
+$define SD$PyErr.LstExsts  -12038    ;* list already exists
+* >>>>>>>>>>>> include file: /tmp/claude-1000/-home-don-Projects-SDCore4Linux/64710478-c62e-4e12-b6ee-1175f423127d/scratchpad/solo-bbcmp/sys/gpl.bp/header.h
+$define INCLUDE.SUFFIX           "H"
+$define SCREEN.DEFINITION.SUFFIX "SCR"
+$define LISTING.SUFFIX           ".LIS"
+$define RECURSIVE.SUFFIX         ".rcr"
+$define hdr.magic                  1
+$define hdr.rev                    2
+$define hdr.id                     3    ;* Used after loading to memory
+$define hdr.start.offset           7
+$define hdr.args                  11
+$define hdr.no.vars               13
+$define hdr.stack.depth           15
+$define hdr.sym.tab.offset        17
+$define hdr.lin.tab.offset        21
+$define hdr.object.size           25
+$define hdr.flags                 29
+$define hdr.compile.time          31    ;* 4 bytes: = SYSTEM(1005)
+$define hdr.refs                  35
+$define hdr.program.name          37
+$define hdr.program.name.len     128
+$define object.header.size       165
+$define hdr.totals                35    ;* Number of TOTAL() functions (1 byte)
+$define itype.object.header.size  36
+$define inline.object.header.size 35
+$define hdr.magic.no.l        100    ;* For little endian machines
+$define hdr.magic.no.b        101    ;* For big endian machines
+$define hdr.revision            0
+$define hdr.is.cproc         0x0001  ;* Command processor
+$define hdr.internal         0x0002  ;* Internal mode program
+$define hdr.debug            0x0004  ;* Compiled in debug mode
+$define hdr.is.debugger      0x0008  ;* Debugger
+$define hdr.nocase           0x0010  ;* Case insensitive string operations
+$define hdr.is.function      0x0020  ;* Basic function
+$define hdr.var.args         0x0040  ;* Variable arg count (hdr.args = max)
+$define hdr.recursive        0x0080  ;* Is a recursive program
+$define hdr.itype            0x0100  ;* Is an A/S/C/I-type
+$define hdr.allow.break      0x0200  ;* Allow break in recursive
+$define hdr.is.trusted       0x0400  ;* Trusted program
+$define hdr.netfiles         0x0800  ;* Allow remote files by NFS
+$define hdr.case.sensitive   0x1000  ;* Program uses case sensitive names
+$define hdr.sdcall.allowed   0x2000  ;* Can be called using SDCall()
+$define hdr.ctype            0x4000  ;* Is a C-type
+$define hdr.is.class         0x8000  ;* Is CLASS module
+$define hdr.is.execute    0x00010000 ;* Started from an EXECUTE
+$define hdr.ignore.aborts 0x00040000 ;* Ignore aborts from EXECUTEd sentence
+* >>>>>>>>>>>> include file: /tmp/claude-1000/-home-don-Projects-SDCore4Linux/64710478-c62e-4e12-b6ee-1175f423127d/scratchpad/solo-bbcmp/sys/syscom/accbak.h
+$define ACCBAK$FORMAT      1                ;* manifest "format:" value written
+$define ACCBAK$MANIFEST    'manifest.txt'
+$define ACCBAK$HOLD        'login.hold'     ;* in @sdsys
+$define ACCBAK$STAGE       '.sdrestore.'    ;* <accounts.root>/.sdrestore.<@userno>
+$define ACCBAK$CHECK       'CHECK'          ;* list every other session
+$define ACCBAK$SET         'SET'            ;* CHECK, then write the hold
+$define ACCBAK$CLEAR       'CLEAR'          ;* remove the hold if it is ours
+$define ACCBAK$TEST        'TEST'           ;* LOGIN / API: is a live hold set?
 
-read rec from file, id
-on error
-return      ;* STATUS() has been set
+prompt ''
+@system.return.code = -ER$ARGS
+
+if not(kernel(K$ADMINISTRATOR, -1)) then
+stop sysmsg(2001)  ;* Command requires administrator privileges
 end
-else rec = ""
 
-if field.no > 0 then rec<field.no> = string
-else
-if field.no = 0 then rec<1> = string
-else rec<-1> = string
+parser = "!PARSER"
+call @parser(PARSER$RESET, 0, @sentence, 0)
+call @parser(PARSER$GET.TOKEN, token.type, token, keyword)   ;* verb
+
+names = ''
+all = @false
+dest = ''
+loop
+call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+until token.type = PARSER$END
+begin case
+case upcase(token) = 'TO'
+call @parser(PARSER$GET.TOKEN, token.type, dest, keyword)
+if token.type = PARSER$END then dest = ''
+case dest # ''
+stop sysmsg(2018, token) ;* Unexpected token (xx)
+case upcase(token) = 'ALL'
+all = @true
+case 1
+names<-1> = downcase(token)
+end case
+repeat
+
+if (all and names # '') or (not(all) and names = '') then
+stop sysmsg(13006) ;* Syntax
+end
+*  NO "TO": THE SAVED BACKUP DIRECTORY (owner's ruling, 1 Oct 2026), ASKED FOR AND
+*  SAVED WHEN THERE IS NONE.  Before the hold below, so declining to answer leaves
+*  nothing to clear.  TO still works and is a one-off.
+if dest = '' then
+call !acc_bakdir('USE', @true, dest, err)
+if err # '' then
+display sysmsg(err<1,1>, err<1,2>, err<1,3>)
+stop
+end
+end
+if not(ospath(dest, OS$EXISTS)) then stop sysmsg(13010, dest) ;* not a directory
+dest = ospath(dest, OS$FULLPATH)
+openpath dest to dest.f else stop sysmsg(13010, dest)
+
+openpath @sdsys:@ds:'accounts' to acc.f else
+stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
 end
 
-if retain.lock then writeu rec to file, id on error null
-else write rec to file, id on error null
+if all then
+select acc.f to 11
+loop
+readnext id from 11 else exit
+if id # 'sdsys' then names<-1> = id
+repeat
+end
 
+n = dcount(names, @fm)
+for i = 1 to n
+if names<i> = 'sdsys' then stop sysmsg(13004) ;* SDSYS is not backed up
+read rec from acc.f, names<i> else stop sysmsg(13005, names<i>) ;* not a registered account
+next i
+if n = 0 then stop sysmsg(13006)
+
+* Every other session must be gone, and stays gone while this runs.
+call !acc_hold(ACCBAK$SET, others, err)
+if err # '' then
+gosub show.err
+gosub show.others
+stop
+end
+
+done.ok = @false
+manifest.id = ''
+zip.path = ''
+
+call !acc_os_info('', '', sys.info, err)
+if err # '' then gosub show.err ; goto finish
+host = '' ; product = '' ; root = '' ; version = ''
+for k = 1 to dcount(sys.info, @fm)
+key = field(sys.info<k>, ':', 1) ; val = trim(field(sys.info<k>, ':', 2, 99))
+begin case
+case key = 'host'          ; host = val
+case key = 'product'       ; product = val
+case key = 'accounts.root' ; root = val
+case key = 'sd.version'    ; version = val
+end case
+next k
+
+begin case
+case all   ; what = 'all'
+case n > 3 ; what = n:'accounts'
+case 1     ; what = convert(@fm, '-', names)
+end case
+stamp = oconv(date(), 'D4Y'):fmt(oconv(date(), 'DM'), '2"0"R'):fmt(oconv(date(), 'DD'), '2"0"R')
+t = time()
+stamp := '-':fmt(idiv(t, 3600), '2"0"R'):fmt(idiv(rem(t, 3600), 60), '2"0"R'):fmt(rem(t, 60), '2"0"R')
+zip.name = 'SD-':host:'-':what:'-':stamp:'.zip'
+zip.path = dest:@ds:zip.name
+
+* ---- the manifest, with each account counted before the pack
+*  A SOLO BACKUP HAS NO "gcat:" LINES (agreed with Linux: both Solos refuse CATALOG
+*  GLOBAL, so an account has no global programs of its own), so the matching is not
+*  run for one.  Run, it walks the account's VOC pointers that end in ".out"; in
+*  Solo one of them is the SYSTEM's object directory, a token path
+*  (@SDSYS/global.bp.out) that it cannot open - the owner's first Solo backup, 1 Oct
+*  2026, printed "...sduser/@SDSYS/global.bp.out could not be read" - and, opened,
+*  it would list SD's own programs as the account's.
+*  gcat.ids IS ASSIGNED HERE, NOT ONLY INSIDE gcat.load: gcat.match reads it, and
+*  reading a variable nothing has assigned aborts the program at run time (no
+*  compiler warns about it, because the assignment exists later in the source).
+gcat.ids = '' ; gcat.times = ''
+if field(product, '-', 2) # 'solo' then gosub gcat.load
+
+m = 'format: ':ACCBAK$FORMAT
+m<-1> = 'product: ':product
+m<-1> = 'sd.version: ':version
+m<-1> = 'created: ':oconv(date(), 'D4Y'):'-':fmt(oconv(date(), 'DM'), '2"0"R'):'-':fmt(oconv(date(), 'DD'), '2"0"R'):'T':oconv(time(), 'MTS')
+m<-1> = 'host: ':host
+m<-1> = 'source.root: ':root
+m<-1> = 'accounts: ':n
+
+entries = ACCBAK$MANIFEST
+expect = ''
+for i = 1 to n
+acc.name = names<i>
+read acc.rec from acc.f, acc.name else null
+path = parse.pathname.tokens(acc.rec<ACC$PATH>)
+call !acc_os_info(acc.name, acc.rec, info, err)
+if err # '' then gosub show.err ; goto finish
+call !acc_tree_count(path, files, bytes, dirs, err)
+if err # '' then gosub show.err ; goto finish
+expect<i> = files:@vm:bytes:@vm:dirs
+
+m<-1> = ''
+m<-1> = '[account ':acc.name:']'
+for k = 1 to dcount(info, @fm)
+m<-1> = info<k>
+next k
+s = acc.rec<ACC$DESCR> ; gosub ascii.only
+m<-1> = 'description: ':s
+m<-1> = 'suspended: ':(if upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED' then 1 else 0)
+m<-1> = 'source.path: ':path
+m<-1> = 'files: ':files
+m<-1> = 'bytes: ':bytes
+m<-1> = 'dirs: ':dirs
+gosub gcat.match
+entries<-1> = 'accounts/':acc.name:@vm:path
+next i
+
+manifest.id = zip.name:'.manifest'
+write m to dest.f, manifest.id on error
+stop sysmsg(13003, dest:@ds:manifest.id, status())
+end
+entries<1,2> = dest:@ds:manifest.id
+
+* ---- the pack, then the instrument: what was written against what was counted
+call !acc_archive('CREATE', zip.path, entries, counts, err)
+if err # '' then gosub show.err ; goto finish
+
+for i = 1 to n
+got = counts<i + 1>
+if got<1,1> # expect<i,1> or got<1,2> # expect<i,2> or got<1,3> # expect<i,3> then
+void ospath(zip.path, OS$DELETE)
+* sysmsg() takes four arguments after the number, so each side is one value.
+display sysmsg(13007, names<i>, got<1,1>:'/':got<1,2>:'/':got<1,3>, expect<i,1>:'/':expect<i,2>:'/':expect<i,3>)
+goto finish
+end
+next i
+
+display sysmsg(13008, n, zip.path) ;* Backed up %1 account(s) to %2
+for i = 1 to n
+display sysmsg(13009, names<i>, expect<i,1>, expect<i,2>, expect<i,3>)
+next i
+done.ok = @true
+
+finish:
+if manifest.id # '' then delete dest.f, manifest.id
+call !acc_hold(ACCBAK$CLEAR, x, x.err)
+if done.ok then @system.return.code = 0 else @system.return.code = -ER$FAILED
+stop
+
+* ======================================================================
+show.err:
+display sysmsg(err<1,1>, err<1,2>, err<1,3>, err<1,4>, err<1,5>)
 return
+
+show.others:
+for k = 1 to dcount(others, @fm)
+display sysmsg(13001, others<k,1>, others<k,2>, others<k,3>, others<k,4>)
+next k
+return
+
+* ascii.only - s: anything outside printable ASCII becomes '?' (the manifest
+*   is plain ASCII by agreement, and the archiver refuses anything else).
+ascii.only:
+t = ''
+for c = 1 to len(s)
+ch = s[c,1]
+if seq(ch) < 32 or seq(ch) > 126 then ch = '?'
+t := ch
+next c
+s = t
+return
+
+* ======================================================================
+* gcat.load - every global catalogue entry's id and compile time, once.
+gcat.load:
+gcat.ids = '' ; gcat.times = ''
+openpath @sdsys:@ds:'gcat' to gcat.f else return
+mark.mapping gcat.f, off
+select gcat.f to 12
+loop
+readnext gid from 12 else exit
+read obj from gcat.f, gid then
+if len(obj) >= object.header.size then
+gcat.ids<-1> = gid
+gcat.times<-1> = obj[hdr.compile.time, 4]
+end
+end
+repeat
+return
+
+* gcat.match - acc.name, path, m in; "gcat:" lines added to m for every
+*   gcat entry that came from one of this account's object files.
+gcat.match:
+if gcat.ids = '' then return
+openpath path:@ds:'voc' to voc.f else
+display sysmsg(13011, path:@ds:'voc', acc.name)
+return
+end
+* Select lists 11 and 12 only: 13 and up are out of range (measured, 1 Oct 26).
+*   gcat.load's 12 is finished by now; the account loop holds no list.
+select voc.f to 11
+loop
+readnext vid from 11 else exit
+read vrec from voc.f, vid else continue
+if upcase(vrec[1,1]) # 'F' then continue
+rel = vrec<2,1>
+if downcase(rel[len(rel) - 3, 4]) # '.out' then continue
+if rel[1,1] = @ds then opath = rel else opath = path:@ds:rel
+openpath opath to obj.f else
+display sysmsg(13011, opath, acc.name)
+continue
+end
+mark.mapping obj.f, off
+select obj.f to 12
+loop
+readnext oid from 12 else exit
+read src from obj.f, oid else continue
+if len(src) < object.header.size then continue
+if src[hdr.magic, 1] # char(hdr.magic.no.l) and src[hdr.magic, 1] # char(hdr.magic.no.b) then continue
+locate src[hdr.compile.time, 4] in gcat.times<1> setting gpos else continue
+full = oconv(src[hdr.object.size, 4], 'IL')
+cut = full
+s.off = oconv(src[hdr.sym.tab.offset, 4], 'IL')
+l.off = oconv(src[hdr.lin.tab.offset, 4], 'IL')
+if s.off > 0 and s.off < cut then cut = s.off
+if l.off > 0 and l.off < cut then cut = l.off
+* Every gcat entry with that compile time is a candidate, not only the first.
+for g = 1 to dcount(gcat.times, @fm)
+if gcat.times<g> # src[hdr.compile.time, 4] then continue
+read gobj from gcat.f, gcat.ids<g> else continue
+if len(gobj) # cut and len(gobj) # full then continue
+a = src[1, 16]:src[hdr.flags, 8]:src[object.header.size, cut - object.header.size + 1]
+b = gobj[1, 16]:gobj[hdr.flags, 8]:gobj[object.header.size, cut - object.header.size + 1]
+if a = b then
+line = 'gcat: ':gcat.ids<g>:' = ':rel:' ':oid
+if len(gobj) = cut and cut < full then line := ' noxref'
+m<-1> = line
+end
+next g
+repeat
+close obj.f
+repeat
+close voc.f
+return
+
 end
 
 * END-CODE
