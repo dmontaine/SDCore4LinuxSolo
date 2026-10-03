@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 02 Oct 26 dm [ssh] and [service] report Solo's own ssh listener (LSOLO 29).
 * 02 Oct 26 dm Written for S.50 / LSOLO 20 (shared signature; the split of the
 *              report agreed with SD Core for Windows, mail 2026-10-01T1210:
 *              the shared verb prints what SD holds, this what the OS holds).
@@ -22,9 +23,13 @@
 *    [mode]      standalone, or managed when $cred holds the $global record
 *    [api]       the API listener (sd-solo-api.socket) and the certificate's
 *                subject, dates and fingerprint (<config dir>/sd-tls/api.pem)
-*    [ssh]       sshd's Match / ForceCommand lines that name SD Solo
-*    [service]   sd-solo.service and sd-solo-api.socket, enabled / active, and
-*                whether the user lingers (SD outlives a sign-out)
+*    [ssh]       Solo's own ssh (LSOLO 29): the listener (sd-solo-ssh.socket), the
+*                lines of <config dir>/sshd/sshd_config, the host key's public
+*                fingerprint and how many key lines the key file holds (never the
+*                keys); and, if the old sshd_config.d block is still there, that
+*    [service]   sd-solo.service, sd-solo-api.socket and sd-solo-ssh.socket,
+*                enabled / active, and whether the user lingers (SD outlives a
+*                sign-out)
 *
 * END-DESCRIPTION
 *
@@ -70,15 +75,37 @@ $include int$keys.h
    hdr = '[api]' ; gosub add.section
 
 * [ssh]
-   cmd = "grep -H -i -E '^[[:space:]]*(Port|AllowGroups|Match|ForceCommand)[[:space:]]' /etc/ssh/sshd_config.d/*sd-solo*.conf 2>/dev/null"
+   cmd = 'systemctl --user show -p Listen -p UnitFileState -p ActiveState sd-solo-ssh.socket 2>&1'
    gosub run.cmd
    sec = out
+   sshd.dir = field(conf, @ds, 1, dcount(conf, @ds) - 1):@ds:'sshd'
+   if index(sshd.dir, "'", 1) = 0 then
+      cmd = "grep -v -E '^[[:space:]]*(#|$)' '":sshd.dir:"/sshd_config' 2>&1"
+      gosub run.cmd
+      sec<-1> = out
+      cmd = "ssh-keygen -l -f '":sshd.dir:"/ssh_host_ed25519_key.pub' 2>&1"
+      gosub run.cmd
+      sec<-1> = 'host key: ':out<1>
+      cmd = "grep -c '^restrict,pty ' '":sshd.dir:"/authorized_keys' 2>&1"
+      gosub run.cmd
+      sec<-1> = 'key lines: ':out<1>
+   end
+   cmd = "grep -H -i -E '^[[:space:]]*(Port|AllowGroups|Match|ForceCommand)[[:space:]]' /etc/ssh/sshd_config.d/*sd-solo*.conf 2>/dev/null"
+   gosub run.cmd
+   if out # '' then
+      sec<-1> = 'OLD ROUTE, no longer used (remove it: solo-ssh.sh match <tree> --remove):'
+      sec<-1> = out
+   end
    hdr = '[ssh]' ; gosub add.section
 
 * [service]
    sec = ''
-   for u = 1 to 2
-      unit = if u = 1 then 'sd-solo.service' else 'sd-solo-api.socket'
+   for u = 1 to 3
+      begin case
+         case u = 1 ; unit = 'sd-solo.service'
+         case u = 2 ; unit = 'sd-solo-api.socket'
+         case 1     ; unit = 'sd-solo-ssh.socket'
+      end case
       cmd = 'systemctl --user is-enabled ':unit:' 2>&1'
       gosub run.cmd
       en = out<1>

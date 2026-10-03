@@ -13,8 +13,18 @@
 # carried on a USB stick: it needs the network only for the packages and the download.
 #
 # WHAT NEEDS sudo, and ONLY this: installing the build packages, opening a firewall
-# port you asked for, the optional sshd_config.d block, and "loginctl enable-linger".
+# port you asked for (the API's, or ssh's), and "loginctl enable-linger".
 # Everything else is done as you, in your own home.  Nothing is written outside it.
+#
+# SSH (LSOLO 29, owner, 2 Oct 2026): Solo runs its OWN ssh listener on port 4251, fixed,
+# as you and with no root: key login only, straight into sd (which then asks the SD account
+# password).  It does not touch the machine's own sshd, so a person who also uses the
+# multi-user SD Core reaches that one on port 22 and this one on 4251.  The earlier routes (a
+# forced-command line in ~/.ssh/authorized_keys, and the sshd_config.d "Match User" block)
+# are gone; --upgrade moves your Solo key lines into the new key file (after a copy of the old
+# file) and tells you the one sudo command that removes the old block.  Installing the ssh
+# server package (needed for /usr/sbin/sshd) also starts the machine's own sshd on port 22 on
+# Debian and Ubuntu; this script does not change that.
 #
 # THE COMMAND NAMES (owner, 1 Oct 2026: "sd = full version, sd-solo = solo version, both
 # windows and linux, just rename the solo exe to sd-solo").  The server is installed as
@@ -34,8 +44,10 @@
 #   --global-password-file FILE   the global password, one line (managed mode)
 #   --api off|local|open          the API listener (standalone only; managed is always open);
 #                                 always port 4249 - fixed, not an option (owner, 2 Oct 2026)
-#   --ssh-key FILE                a public key to add for ssh straight into sd
-#   --ssh-match                   also write the sshd_config.d block (needs sudo)
+#   --ssh off|local|open          Solo's own ssh listener (standalone only; managed is always open);
+#                                 always port 4251 - fixed, not an option.  Key login only.
+#   --ssh-key FILE                a public key to add for ssh straight into sd (turns ssh on, local,
+#                                 unless --ssh says otherwise)
 #   --enable-linger               run "loginctl enable-linger" so SD survives sign-out
 #   --skip-packages               do not install packages; check the tools instead
 #   --no-service                  do not install the systemd user service
@@ -88,7 +100,11 @@ acc_file=""; adm_file=""; glb_file=""
 # -- do not allow adjustable ports").  --api-port is gone.  The witnesses' private
 # ports go through solo-service.sh's announced test hook, SDSOLO_TEST_API_PORT.
 api="" ; api_port="4249"
-ssh_key=""; ssh_match=0; enable_linger=0; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
+# 02 Oct 26 - Solo's own ssh listener, port 4251, FIXED (LSOLO 29, owner).  --ssh-match is gone
+# with the routes it belonged to.  The witnesses' private port goes through the announced hook
+# SDSOLO_TEST_SSH_PORT, as the API's does.
+ssh=""; ssh_port="4251"
+ssh_key=""; enable_linger=0; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --home)                   [ "$#" -ge 2 ] || refuse "--home needs a directory"; HOME_DIR="$2"; shift 2 ;;
@@ -98,20 +114,29 @@ while [ "$#" -gt 0 ]; do
     --admin-password-file)    [ "$#" -ge 2 ] || refuse "$1 needs a file"; adm_file="$2"; shift 2 ;;
     --global-password-file)    [ "$#" -ge 2 ] || refuse "$1 needs a file"; glb_file="$2"; managed=1; shift 2 ;;
     --api)                    [ "$#" -ge 2 ] || refuse "--api needs off, local or open"; api="$2"; shift 2 ;;
+    --ssh)                    [ "$#" -ge 2 ] || refuse "--ssh needs off, local or open"; ssh="$2"; shift 2 ;;
     --ssh-key)                [ "$#" -ge 2 ] || refuse "--ssh-key needs a public key file"; ssh_key="$2"; shift 2 ;;
-    --ssh-match)              ssh_match=1; shift ;;
+    --ssh-match)              refuse "--ssh-match is gone: Solo's ssh has its own port (4251) now and no longer uses the machine's sshd_config. Use --ssh local or --ssh open." ;;
     --enable-linger)          enable_linger=1; shift ;;
     --skip-packages)          skip_pkgs=1; shift ;;
     --no-service)             no_service=1; shift ;;
     --yes)                    assume_yes=1; shift ;;
     --upgrade)                upgrade=1; shift ;;
-    -h|--help)                sed -n '2,52p' "$0"; exit 0 ;;
+    -h|--help)                sed -n '2,70p' "$0"; exit 0 ;;
     *) refuse "unknown option: $1 (see --help)" ;;
   esac
 done
 case "$HOME_DIR" in /*) ;; *) refuse "--home must be an absolute path (got '$HOME_DIR')" ;; esac
 case "$HOME_DIR" in *" "*|*'"'*|*"'"*|*'\'*|*'$'*|*'`'*|*'%'*) refuse "the install directory must not contain a space, quote, backslash, \$, backtick or %: $HOME_DIR" ;; esac
 case "$api" in ""|off|local|open) ;; *) refuse "--api must be off, local or open (got '$api')" ;; esac
+case "$ssh" in ""|off|local|open) ;; *) refuse "--ssh must be off, local or open (got '$ssh')" ;; esac
+if [ "$ssh" = "off" ] && [ -n "$ssh_key" ]; then refuse "--ssh-key needs ssh on; give --ssh local or --ssh open, or leave --ssh out"; fi
+if [ -n "${SDSOLO_TEST_SSH_PORT:-}" ]; then
+  case "$SDSOLO_TEST_SSH_PORT" in *[!0-9]*) refuse "SDSOLO_TEST_SSH_PORT must be a number (got '$SDSOLO_TEST_SSH_PORT')" ;; esac
+  { [ "$SDSOLO_TEST_SSH_PORT" -ge 1024 ] && [ "$SDSOLO_TEST_SSH_PORT" -le 65535 ]; } 2>/dev/null || refuse "SDSOLO_TEST_SSH_PORT must be 1024-65535"
+  ssh_port="$SDSOLO_TEST_SSH_PORT"
+  printf '\033[0;33m*** SDSOLO_TEST_SSH_PORT IS SET: the ssh port is %s, NOT 4251 (a test hook) ***\033[0m\n' "$ssh_port" >&2
+fi
 # The test hook, validated here as solo-service.sh validates it, because $api_port goes into
 # a sed and a ufw command below, and announced on every use like SDSOLO_REPO_URL.
 if [ -n "${SDSOLO_TEST_API_PORT:-}" ]; then
@@ -134,8 +159,8 @@ fi
 if [ "$upgrade" -eq 1 ]; then
   [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core for Linux Solo in $HOME_DIR to upgrade (no .sdcoresolo marker)"
   [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsdsolo.sh; upgrade it by hand or reinstall"
-  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh_key" ] && [ "$managed" -eq 0 ] && [ "$ssh_match" -eq 0 ] && [ "$enable_linger" -eq 0 ] \
-    || refuse "--upgrade keeps the mode, passwords, API and ssh settings as installed; it takes no password, control-file, --api, --ssh-key, --ssh-match, --enable-linger or --managed option"
+  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key" ] && [ "$managed" -eq 0 ] && [ "$enable_linger" -eq 0 ] \
+    || refuse "--upgrade keeps the mode, passwords, API and ssh settings as installed; it takes no password, control-file, --api, --ssh, --ssh-key, --enable-linger or --managed option"
 elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
   refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree; this script will not use it"
 fi
@@ -174,11 +199,12 @@ read_password() {   # read_password "Prompt: " VARNAME  - stars, from the termin
 
 # An upgrade asks nothing and reads the install's own record; a first install does
 # everything from here to "scratch space".
-cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_match=""; cf_linger=""; cf_deny=""
+cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_linger=""; cf_deny=""
 ACC_PW=""; ADM_PW=""; GLB_PW=""
 ssh_wanted=0; first_login=0
 if [ "$upgrade" -eq 1 ]; then
   api="off"   # not used: an upgrade leaves the service and API as they are
+  ssh="off"   # the upgrade works out Solo's own ssh from what the tree already has (ssh_upgrade_scope)
   old_commit="$(sed -n 's/^commit //p' "$HOME_DIR/.sdcore-install" | head -1)"
   mode_name="$(sed -n 's/^mode //p' "$HOME_DIR/.sdcore-install" | head -1)"
   case "$mode_name" in standalone) managed=0 ;; managed) managed=1 ;; *) refuse "$HOME_DIR/.sdcore-install has no usable 'mode' line" ;; esac
@@ -210,7 +236,7 @@ if [ -n "$control_file" ]; then
       global-password) cf_global="$val" ;;
       deny-verbs)      cf_deny="$val" ;;
       ssh-public-key-file) cf_ssh_key="$val" ;;
-      ssh-match)       cf_match="$val" ;;
+      ssh-match)       warn "the control file's ssh-match is gone (LSOLO 29: Solo's ssh has its own port, 4251, and no longer uses the machine's sshd_config); ignored" ;;
       enable-linger)   cf_linger="$val" ;;
       *) warn "the control file has an item this installer does not know, ignored: $key" ;;
     esac
@@ -220,7 +246,6 @@ if [ -n "$control_file" ]; then
     *[!A-Za-z0-9.\$_,\ -]*) refuse "deny-verbs in the control file holds a character that cannot be in a verb name" ;;
   esac
   [ -z "$cf_ssh_key" ] || [ -n "$ssh_key" ] || ssh_key="$cf_ssh_key"
-  [ "$cf_match" != "yes" ] || ssh_match=1
   [ "$cf_linger" != "yes" ] || enable_linger=1
 fi
 
@@ -298,8 +323,8 @@ fi
 
 # the API and ssh
 if [ "$managed" -eq 1 ]; then
-  api="open"; ssh_wanted=1
-  say "Managed mode: the API is open to the network on port $api_port and ssh is required."
+  api="open"; ssh="open"
+  say "Managed mode: the API is open to the network on port $api_port and ssh is open on port $ssh_port (key login only)."
 else
   if [ -z "$api" ]; then
     if [ "$interactive" -eq 1 ]; then
@@ -313,22 +338,27 @@ else
       api="off"
     fi
   fi
-  ssh_wanted=0
-  if [ -n "$ssh_key" ] || [ "$ssh_match" -eq 1 ]; then ssh_wanted=1; fi
-  if [ "$ssh_wanted" -eq 0 ] && [ "$interactive" -eq 1 ]; then
-    ask_yn "Set up ssh straight into sd (needs an ssh server)?" n && ssh_wanted=1
+  if [ -z "$ssh" ]; then
+    if [ -n "$ssh_key" ]; then
+      ssh="local"
+    elif [ "$interactive" -eq 1 ]; then
+      say
+      say "ssh straight into sd uses Solo's own listener on port $ssh_port (key login only; the machine's own ssh on"
+      say "port 22 is not used).  off = none; local = this computer only; open = reachable from the network."
+      read -r -p "ssh listener [off/local/open] (default off): " ssh < /dev/tty
+      ssh="${ssh:-off}"
+      case "$ssh" in off|local|open) ;; *) refuse "the ssh answer must be off, local or open (got '$ssh')" ;; esac
+    else
+      ssh="off"
+    fi
   fi
 fi
+ssh_wanted=0; [ "$ssh" = "off" ] || ssh_wanted=1
 if [ "$ssh_wanted" -eq 1 ] && [ -z "$ssh_key" ] && [ "$interactive" -eq 1 ]; then
   read -r -p "Path to a public key to add for ssh into sd (blank to skip): " ssh_key < /dev/tty
 fi
 if [ -n "$ssh_key" ]; then
   [ -r "$ssh_key" ] || refuse "cannot read the ssh public key $ssh_key"
-fi
-if [ "$ssh_wanted" -eq 1 ] && [ "$ssh_match" -eq 0 ] && [ "$interactive" -eq 1 ]; then
-  say "Keys added above land in sd.  To let your ssh PASSWORD login land in sd too, a"
-  say "'Match User' block goes into the machine's sshd configuration (needs sudo)."
-  ask_yn "Write that block?" n && ssh_match=1
 fi
 if [ "$enable_linger" -eq 0 ] && [ "$no_service" -eq 0 ] && [ "$interactive" -eq 1 ]; then
   say
@@ -342,7 +372,7 @@ say "Ready to install:"
 say "  mode          : $mode_name"
 say "  account pw    : $([ "$first_login" -eq 1 ] && echo "chosen at first login, at this computer's keyboard" || echo "set now")"
 say "  API           : $api$([ "$api" != off ] && echo " (port $api_port)")"
-say "  ssh into sd   : $([ "$ssh_wanted" -eq 1 ] && echo "yes$([ -n "$ssh_key" ] && echo ", key $ssh_key")$([ "$ssh_match" -eq 1 ] && echo ", Match block")" || echo no)"
+say "  ssh into sd   : $ssh$([ "$ssh" != off ] && echo " (port $ssh_port, key login only)")$([ -n "$ssh_key" ] && echo ", key $ssh_key")"
 say "  service       : $([ "$no_service" -eq 1 ] && echo "not installed" || echo "systemd user service$([ "$enable_linger" -eq 1 ] && echo ", linger on" || echo ", linger NOT enabled")")"
 say "  packages      : $([ "$skip_pkgs" -eq 1 ] && echo "not installed (checked)" || echo "installed with sudo")"
 if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
@@ -447,11 +477,11 @@ if [ "$upgrade" -eq 1 ]; then
   # afterwards whether the upgrade worked or was put back.
   if systemctl --user is-active sd-solo.service >/dev/null 2>&1 || [ -f "$HOME/.config/systemd/user/sd-solo.service" ]; then
     had_service=1
-    systemctl --user stop sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
+    systemctl --user stop sd-solo-ssh.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
   fi
   if ! bash "$SRC/gplbld/solo-stage.sh" --upgrade "$HOME_DIR" > "$WORK/stage.log" 2>&1; then
     tail -25 "$WORK/stage.log"
-    [ "$had_service" -eq 0 ] || systemctl --user start sd-solo.service sd-solo-api.socket >/dev/null 2>&1 || true
+    [ "$had_service" -eq 0 ] || systemctl --user start sd-solo.service sd-solo-api.socket sd-solo-ssh.socket >/dev/null 2>&1 || true
     fail "the upgrade (full log: $WORK/stage.log - removed when this script ends). The tree was put back as it was; if the log above does not say so, do not use $HOME_DIR: your data is in the safety copy $HOME_DIR.before-upgrade-*"
   fi
   grep -qx "solo-stage: UPGRADE COMPLETE in $HOME_DIR" <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
@@ -548,7 +578,7 @@ migrate_server_name() {   # migrate_server_name HOME_DIR UNITDIR AUTHORIZED_KEYS
   # 3. the sshd drop-in is root's; it keeps working through a link until it is re-applied
   if [ -f "$dropin" ] && grep -qxF "    ForceCommand $home_dir/bin/sd" "$dropin" 2>/dev/null; then
     ln -sfn sd-solo "$home_dir/bin/sd"
-    warn "$dropin still names $home_dir/bin/sd; a link keeps ssh working until you re-apply it: bash $home_dir/tools/solo-ssh.sh match $home_dir --apply  (needs sudo; it also removes the link)"
+    warn "$dropin still names $home_dir/bin/sd; a link keeps it working until you remove it, which you should: Solo no longer uses it (its ssh has its own port, 4251): bash $home_dir/tools/solo-ssh.sh match $home_dir --remove  (needs sudo; it also removes the link)"
   fi
   return 0
 }
@@ -557,6 +587,39 @@ if [ "$upgrade" -eq 1 ]; then
   migrate_server_name "$HOME_DIR" "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user" "$HOME/.ssh/authorized_keys" \
     "/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
 fi
+
+# ---------------------------------------------------------------- Solo's own ssh (LSOLO 29)
+# THE UPGRADE OF A TREE THAT USED THE EARLIER ssh ROUTES (a forced-command key line in
+# ~/.ssh/authorized_keys, or the sshd_config.d "Match User" block).  An upgrade asks nothing, so
+# the listener's scope is derived: a tree that already has the new socket keeps its address, a
+# managed tree is open, a tree that used either old route is local (the tight default: the
+# owner opens it by choice, "bash <tree>/tools/solo-service.sh ssh <tree> open" plus the firewall
+# rule), and a tree that used neither stays off.  The function between the markers is run by
+# gplbld/test-sshport-units.py: keep the lines, and keep it free of anything but its arguments.
+# BEGIN upgrade_ssh
+ssh_upgrade_scope() {   # ssh_upgrade_scope HOME_DIR UNITDIR MODE_NAME AUTHORIZED_KEYS DROPIN -> off|local|open
+  local home_dir="$1" unitdir="$2" mode_name="$3" ak="$4" dropin="$5" sock listen
+  sock="$unitdir/sd-solo-ssh.socket"
+  if [ -f "$sock" ]; then
+    listen="$(sed -n 's/^ListenStream=//p' "$sock" | head -1)"
+    case "$listen" in 0.0.0.0:*) echo open ;; *) echo local ;; esac
+    return 0
+  fi
+  if [ "$mode_name" = "managed" ]; then echo open; return 0; fi
+  if [ -f "$dropin" ]; then echo local; return 0; fi
+  if [ -f "$ak" ] && { grep -qF -- "command=\"$home_dir/bin/sd-solo\",restrict,pty " "$ak" \
+                       || grep -qF -- "command=\"$home_dir/bin/sd\",restrict,pty " "$ak"; }; then echo local; return 0; fi
+  echo off
+}
+# END upgrade_ssh
+ssh_prepare() {   # the tree's own sshd directory, then the key if one was given
+  local out
+  out="$(bash "$HOME_DIR/tools/solo-ssh.sh" setup "$HOME_DIR" 2>&1)" || { printf '%s\n' "$out" | tail -8; fail "solo-ssh.sh setup"; }
+  printf '%s\n' "$out" | grep -E '^(WARNING|  /|host key|SOLO SSHD READY)' || true
+  if [ -n "$ssh_key" ]; then
+    bash "$HOME_DIR/tools/solo-ssh.sh" key-add "$HOME_DIR" "$ssh_key" | tail -2 || fail "solo-ssh.sh key-add"
+  fi
+}
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not on your PATH; add it (or run $HOME_DIR/bin/sd-solo)" ;; esac
 
 # ---------------------------------------------------------------- the service, ssh, firewall
@@ -593,6 +656,26 @@ if [ "$upgrade" -eq 1 ]; then
     if [ -f "$sock" ]; then systemctl --user restart sd-solo-api.socket || fail "systemctl --user restart sd-solo-api.socket"; fi
     [ "$(systemctl --user is-active sd-solo.service)" = "active" ] || fail "sd-solo.service is not active after the upgrade"
     svc_state="sd-solo.service active"
+    # LSOLO 29: Solo's own ssh.  The scope is read BEFORE "migrate", which removes the old key
+    # lines that are part of the evidence that ssh was in use.
+    old_dropin="/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
+    ssh="$(ssh_upgrade_scope "$HOME_DIR" "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user" "$mode_name" "$HOME/.ssh/authorized_keys" "$old_dropin")"
+    if [ "$ssh" != "off" ]; then
+      ssh_wanted=1; ssh_key=""
+      say
+      say "Solo's own ssh: $ssh, port $ssh_port, key login only."
+      if ! { command -v sshd >/dev/null 2>&1 || [ -x /usr/sbin/sshd ]; }; then
+        warn "sshd is not installed, so Solo's ssh is NOT set up.  Install it (sudo apt install openssh-server, or your distribution's package), then: bash $HOME_DIR/tools/solo-ssh.sh setup $HOME_DIR && bash $HOME_DIR/tools/solo-ssh.sh migrate $HOME_DIR && bash $HOME_DIR/tools/solo-service.sh ssh $HOME_DIR $ssh"
+        ssh="off"; ssh_wanted=0
+      else
+        ssh_prepare
+        bash "$HOME_DIR/tools/solo-ssh.sh" migrate "$HOME_DIR" | tail -3 || fail "solo-ssh.sh migrate"
+        bash "$HOME_DIR/tools/solo-service.sh" ssh "$HOME_DIR" "$ssh" | tail -2 || fail "solo-service.sh ssh"
+        if [ -f "$old_dropin" ] && [ ! -L "$HOME_DIR/bin/sd" ]; then
+          warn "$old_dropin is the old ssh route and Solo no longer uses it; remove it (needs sudo): bash $HOME_DIR/tools/solo-ssh.sh match $HOME_DIR --remove"
+        fi
+      fi
+    fi
   else
     say "There was no service; starting SD directly ($HOME_DIR/bin/sd-solo -start)."
     "$HOME_DIR/bin/sd-solo" -start >/dev/null 2>&1 || true
@@ -600,7 +683,9 @@ if [ "$upgrade" -eq 1 ]; then
 elif [ "$no_service" -eq 0 ]; then
   say
   say "Installing the systemd user service."
-  svc_args=(install "$HOME_DIR" --api "$api")
+  # Solo's own sshd directory (config, host key, key file) must exist before its units do.
+  if [ "$ssh_wanted" -eq 1 ]; then ssh_prepare; fi
+  svc_args=(install "$HOME_DIR" --api "$api" --ssh "$ssh")
   [ "$enable_linger" -eq 1 ] && svc_args+=(--enable-linger)
   svc_out="$(bash "$HOME_DIR/tools/solo-service.sh" "${svc_args[@]}" 2>&1)" || { printf '%s\n' "$svc_out" | tail -15; fail "solo-service.sh install"; }
   printf '%s\n' "$svc_out" | tail -8
@@ -611,18 +696,17 @@ else
   "$HOME_DIR/bin/sd-solo" -start >/dev/null 2>&1 || true
 fi
 
-if [ "$ssh_wanted" -eq 1 ]; then
+if [ "$upgrade" -eq 0 ] && [ "$ssh_wanted" -eq 1 ] && [ "$no_service" -eq 1 ]; then
+  # No units were made, so there is no listener; the directory and the key are in place.
   say
-  if ! systemctl is-active ssh >/dev/null 2>&1 && ! systemctl is-active sshd >/dev/null 2>&1; then
-    warn "no ssh server is running.  Start one (as an administrator): sudo systemctl enable --now ssh   (or sshd)"
-    [ "$managed" -eq 0 ] || warn "managed mode needs ssh reachable from the network"
-  fi
-  if [ -n "$ssh_key" ]; then
-    bash "$HOME_DIR/tools/solo-ssh.sh" key-add "$HOME_DIR" "$ssh_key" | tail -2 || fail "solo-ssh.sh key-add"
-  fi
-  if [ "$ssh_match" -eq 1 ]; then
-    bash "$HOME_DIR/tools/solo-ssh.sh" match "$HOME_DIR" --apply | tail -2 || fail "solo-ssh.sh match --apply"
-  fi
+  ssh_prepare
+  warn "ssh is set up but NOT listening (no service): bash $HOME_DIR/tools/solo-service.sh install $HOME_DIR --ssh $ssh"
+fi
+if [ "$ssh" = "open" ] && command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
+  say "ufw is active: opening TCP $ssh_port for ssh (sudo)."
+  sudo ufw allow "$ssh_port/tcp" || warn "could not add the ufw rule; open port $ssh_port yourself"
+elif [ "$ssh" = "open" ]; then
+  warn "ssh is open on port $ssh_port; if a firewall runs on this computer, allow TCP $ssh_port"
 fi
 if [ "$api" = "open" ] && command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
   say "ufw is active: opening TCP $api_port for the API (sudo)."
@@ -677,6 +761,7 @@ say "  command name  : sd-solo starts this one (plain sd is the multi-user SD Co
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
 say "  service       : ${svc_state:-not installed}"
 [ "$api" = "off" ] || say "  API           : $api, port $api_port (TLS 1.3, account password)"
+[ "$ssh" = "off" ] || say "  ssh           : $ssh, port $ssh_port, key login only (ssh -p $ssh_port $(id -un)@<this computer>, then the account password); add keys with: bash $HOME_DIR/tools/solo-ssh.sh key-add $HOME_DIR <public key file>"
 say "  uninstall     : bash $HOME_DIR/tools/deletesdsolo.sh"
 say "  the download in $CLONE_DIR is removed when this script ends"
 say

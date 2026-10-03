@@ -1971,8 +1971,13 @@ vb.mark.mapping:
 * SrvrSshKey  -  request 49, the master's ssh key (LSOLO 19)
 *
 * In:  verb, FM, argument.  ADD key | REMOVE fingerprint | LIST.
-* Out: ADD    user FM host FM key fingerprint FM ADDED|PRESENT FM sshd host-key fingerprint
+* Out: ADD    user FM host FM key fingerprint FM ADDED|PRESENT FM sshd host-key fingerprint FM port
 *      REMOVE REMOVED|ABSENT FM Solo lines left      LIST  one fingerprint per field
+*
+* 02 Oct 26 (LSOLO 29, owner: Solo's ssh has its own port, 4251): the host-key fingerprint is
+* now SOLO'S OWN sshd's, not the machine's, and field 6 is the port to connect to.  Field 6 is
+* new: a client that reads five fields is unaffected.  PROPOSED TO SD CORE FOR WINDOWS in the
+* mailbox (2026-10-02T3510), which answers the same request; not agreed yet.
 *
 * Owner, 30 Sep 2026 (managed mode: the master logs in over ssh as sduser with the
 * global password and knows only the IP): the master asks the client to install its
@@ -2035,11 +2040,11 @@ if ssh.verb # 'LIST' then
 end
 
 ssh.sub = 'api-' : downcase(ssh.verb)
-ssh.cmd = 'sh "' : @sdsys : '/tools/solo-ssh.sh" ' : ssh.sub : ' "' : @sdsys : '"'
+ssh.cmd = 'bash "' : @sdsys : '/tools/solo-ssh.sh" ' : ssh.sub : ' "' : @sdsys : '"'
 if ssh.verb # 'LIST' then ssh.cmd := ' "' : ssh.in : '"'
 os.execute ssh.cmd : ' > "' : ssh.out : '" 2>/dev/null'
 
-ssh.user = '' ; ssh.host = '' ; ssh.fp = '' ; ssh.hostfp = '' ; ssh.result = ''
+ssh.user = '' ; ssh.host = '' ; ssh.fp = '' ; ssh.hostfp = '' ; ssh.port = '' ; ssh.result = ''
 ssh.fps = '' ; ssh.left = '' ; ssh.err = ''
 openseq ssh.out to ssh.f then
    loop
@@ -2052,6 +2057,7 @@ openseq ssh.out to ssh.f then
             case ssh.k = 'USER'     ; ssh.user = ssh.v
             case ssh.k = 'HOST'     ; ssh.host = ssh.v
             case ssh.k = 'HOSTFP'   ; ssh.hostfp = ssh.v
+            case ssh.k = 'PORT'     ; ssh.port = ssh.v
             case ssh.k = 'FP'
                if ssh.verb = 'LIST' then ssh.fps<-1> = ssh.v else ssh.fp = ssh.v
             case ssh.k = 'REMAINING'; ssh.left = ssh.v
@@ -2070,6 +2076,7 @@ if ssh.err # '' or ssh.result = '' then
    begin case
       case ssh.code = 'INVALID' ; error.msg = sysmsg(11042, 'the key or fingerprint is not valid')
       case ssh.code = 'CAP'     ; error.msg = sysmsg(11042, 'four Solo ssh keys are already installed')
+      case ssh.code = 'NOSSH'   ; error.msg = sysmsg(11042, 'ssh is not set up on this Solo')
       case 1                    ; error.msg = sysmsg(11042, 'the request could not be carried out')
    end case
    if ssh.err = '' then ssh.err = 'NO ANSWER from tools/solo-ssh.sh'
@@ -2079,7 +2086,7 @@ end
 
 begin case
    case ssh.verb = 'ADD'
-      response = ssh.user : @fm : ssh.host : @fm : ssh.fp : @fm : ssh.result : @fm : ssh.hostfp
+      response = ssh.user : @fm : ssh.host : @fm : ssh.fp : @fm : ssh.result : @fm : ssh.hostfp : @fm : ssh.port
       void kernel(K$AUDIT, 'API SSHKEY ADD ' : ssh.result : ' fp=' : ssh.fp : ' user=' : ssh.user : ' peer=' : system(42))
    case ssh.verb = 'REMOVE'
       response = ssh.result : @fm : ssh.left

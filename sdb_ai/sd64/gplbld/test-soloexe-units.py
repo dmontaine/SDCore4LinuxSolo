@@ -209,9 +209,9 @@ class Suite:
                 S.check(tag + "M4b authorized_keys keeps its mode", "0600", stat.S_IMODE(os.stat(ak).st_mode) == 0o600,
                         oct(stat.S_IMODE(os.stat(ak).st_mode)))
                 link = os.path.join(tree, "bin", "sd")
-                S.check(tag + "M6 an old drop-in gets a compatibility link and a warning naming the re-apply command",
-                        "bin/sd -> sd-solo; WARN mentions solo-ssh.sh match --apply",
-                        os.path.islink(link) and os.readlink(link) == "sd-solo" and "match" in r.stderr and "--apply" in r.stderr,
+                S.check(tag + "M6 an old drop-in gets a compatibility link and a warning naming the remove command (LSOLO 29: the drop-in is no longer a route)",
+                        "bin/sd -> sd-solo; WARN mentions solo-ssh.sh match --remove",
+                        os.path.islink(link) and os.readlink(link) == "sd-solo" and "match" in r.stderr and "--remove" in r.stderr,
                         "link=%s stderr=%r" % (os.readlink(link) if os.path.islink(link) else "none", r.stderr[:160]))
                 # M2/M5 running it again changes nothing and says nothing
                 snap = (open(svc).read(), open(api).read(), open(ak).read())

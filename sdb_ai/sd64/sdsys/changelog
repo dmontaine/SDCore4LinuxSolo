@@ -4,6 +4,39 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+02 Oct 26  SD CORE SOLO HAS ITS OWN ssh PORT, 4251.
+
+           ssh into sd now goes to a small ssh server that SD Core Solo runs
+           for itself, on port 4251, as you and without root.  It takes a
+           key and then asks for your account password; it does not take your
+           Linux password, it gives no shell, no file copy and no port
+           forwarding, and it starts only while someone is connecting.  Add a
+           key with "bash <tree>/tools/solo-ssh.sh key-add <tree> <public key
+           file>", or with --ssh-key at install.  The installer has a new
+           --ssh off, local or open option (a managed Solo is open), and the
+           port is fixed, like the API's.  "ssh -p 4251 you@host".
+
+           The machine's own ssh server, on port 22, is not touched, so a
+           person who has both SD Core and SD Core Solo reaches the first on
+           22 and this one on 4251.  Before, ssh into Solo went through the
+           machine's own server and could not be told apart from ssh into SD
+           Core for anyone who used both.
+
+           The two earlier ways in are gone: the forced-command line in your
+           ~/.ssh/authorized_keys and the sshd_config.d block (and
+           --ssh-match).  An upgrade moves your Solo key lines into Solo's own
+           key file, after keeping a copy of the old file, and tells you the
+           one command that removes the old block (it needs sudo).  The server's
+           request that installs its key (request 49) now answers with Solo's
+           own host key and the port.
+
+           WHAT THIS DOES NOT DO: an upgrade turns ssh on only if you used ssh
+           before, and then only for this computer (local); to reach it from
+           other computers run "bash <tree>/tools/solo-service.sh ssh <tree>
+           open" and allow TCP 4251 in your firewall.  Password login over ssh
+           no longer exists.  Installing the ssh server package also starts
+           the machine's own server on Debian and Ubuntu, as it always did.
+
 02 Oct 26  A RESTORED ACCOUNT KEEPS ITS DIRECTORY PERMISSIONS.
 
            RESTORE.ACCOUNT used to create every directory of the restored

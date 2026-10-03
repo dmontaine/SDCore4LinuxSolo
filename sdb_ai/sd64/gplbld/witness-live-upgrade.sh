@@ -9,13 +9,16 @@
 #       /proc/<pid>/exe is <tree>/bin/sd-solo is serving it (the socket unit's ExecStart is
 #       "bin/sd-solo -n -q");
 #   L2  CONTROL: the same login with a wrong password is REFUSED and never VERIFIED;
-#   L3  ssh: a key login as you lands in SD Core Solo - the sign-on banner, the password asked
-#       and taken, WHO answers sduser - and while it is open a process whose exe is
-#       <tree>/bin/sd-solo is running that login;
-#   L4  CONTROL: a throwaway key that is not in authorized_keys is refused (publickey).
-#   It prints which name sshd actually runs: the sshd drop-in (root's) still names bin/sd until
-#   you re-apply it, and then the ForceCommand wins over the key line - so L3 measures the
-#   compatibility LINK in that state and the new name afterwards.
+#   L3  ssh, on SOLO'S OWN PORT 4251 (LSOLO 29): a key login as you lands in SD Core Solo - the
+#       sign-on banner, the password asked and taken, WHO answers sduser - and while it is open
+#       a process whose exe is <tree>/bin/sd-solo is running that login;
+#   L4  CONTROL: a throwaway key that is not in Solo's key file (<tree>/sshd/authorized_keys)
+#       is refused (publickey);
+#   L5  the host key that port 4251 presents is SOLO'S OWN (<tree>/sshd/ssh_host_ed25519_key.pub),
+#       and, when the machine's own sshd is listening on 22, it presents a DIFFERENT one - the
+#       proof that the two are separate daemons and the routing is by port.
+#   It also says whether the old sshd_config.d drop-in is still on the machine (Solo no longer
+#   uses it; "solo-ssh.sh match <tree> --remove" takes it away).
 #
 # READS REAL STATE AND CHANGES NONE: it only opens sessions on the installed Solo (each leaves
 # its sign-on in the audit trail and the logs, which cannot be avoided).  It does not install,
@@ -32,6 +35,10 @@
 # key other than ~/.ssh/id_ed25519.  Exit 0 every leg passed, 1 a leg failed or was not reached,
 # 2 it could not run.  The log is /var/tmp/witness-live-upgrade-<time>.log.
 #
+# THE KEY MUST BE IN SOLO'S OWN KEY FILE, which is not ~/.ssh/authorized_keys any more.  If it is
+# not, L3/L4/L5 say NOT REACHED and name the one command that adds it:
+#     bash <tree>/tools/solo-ssh.sh key-add <tree> <the public key file>
+#
 set -u
 
 SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
@@ -40,6 +47,7 @@ H="${1:-$HOME/SDCoreSolo}"
 KEY="${SD_WITNESS_KEY:-$HOME/.ssh/id_ed25519}"
 PROBE="$HERE/scram-probe.py"
 PORT=4249
+SSH_PORT=4251
 STAMP=$(date +%Y%m%dT%H%M%S)
 LOG="${SD_WITNESS_LOG:-/var/tmp/witness-live-upgrade-$STAMP.log}"   # the logged re-run keeps the first run's name
 PASS=0; FAIL=0; NOTREACHED=0
@@ -84,7 +92,9 @@ trap 'rm -rf "$W"' EXIT
 say "  stamp   : $(sed -n 1,2p "$H/.sdcore-install" | tr '\n' ' ')"
 say "  server  : $(readlink -f "$H/bin/sd-solo")   units: $(grep -h '^ExecStart' "$HOME/.config/systemd/user/sd-solo-api@.service" 2>/dev/null | head -1)"
 DROPIN="/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
-if [ -r "$DROPIN" ]; then say "  sshd    : $(grep -m1 ForceCommand "$DROPIN" | sed 's/^ *//')   (in $DROPIN)"; else say "  sshd    : no drop-in $DROPIN - the authorized_keys line decides"; fi
+SSH_AK="$H/sshd/authorized_keys"
+say "  ssh     : Solo's own listener on port $SSH_PORT: $(systemctl --user is-active sd-solo-ssh.socket 2>&1) ($(sed -n 's/^ListenStream=//p' "$HOME/.config/systemd/user/sd-solo-ssh.socket" 2>/dev/null | head -1)); ForceCommand: $(grep -m1 '^ForceCommand' "$H/sshd/sshd_config" 2>/dev/null)"
+if [ -e "$DROPIN" ]; then say "  old route: $DROPIN is STILL THERE (Solo no longer uses it; remove it: bash $H/tools/solo-ssh.sh match $H --remove)"; else say "  old route: no $DROPIN"; fi
 say "  before  : service $(systemctl --user is-active sd-solo.service), solo server pids: [$(solo_pids | tr '\n' ' ')]"
 
 leaked() { # leaked FILE - the password must not be in the output
@@ -124,16 +134,16 @@ if grep -q '^SCRAM: login REFUSED' <(strip < "$W/api2.out") && ! grep -q 'server
 
 # ------------------------------------------------------------------ L3 / L4: ssh
 say ""
-say "== L3: an ssh login with your key =="
-if ! ss -ltn 2>/dev/null | grep -qE ':22 '; then
-  notreached "L3/L4 no ssh server is listening on port 22 on this computer"
+say "== L3: an ssh login with your key, on Solo's own port $SSH_PORT =="
+if ! ss -ltn 2>/dev/null | grep -qE "[:.]$SSH_PORT "; then
+  notreached "L3/L4/L5 nothing is listening on port $SSH_PORT (is the ssh listener on? bash $H/tools/solo-service.sh status; bash $H/tools/solo-service.sh ssh $H local)"
 elif [ ! -r "$KEY" ] || [ ! -r "$KEY.pub" ]; then
-  notreached "L3 $KEY or $KEY.pub is not readable (set SD_WITNESS_KEY to a private key whose public key is in authorized_keys)"
+  notreached "L3 $KEY or $KEY.pub is not readable (set SD_WITNESS_KEY to a private key whose public key is in $SSH_AK)"
 else
   FP="$(ssh-keygen -lf "$KEY.pub" 2>/dev/null | awk '{print $2}')"
-  if ssh-keygen -lf "$HOME/.ssh/authorized_keys" 2>/dev/null | awk '{print $2}' | grep -qxF "$FP"; then
-    say "  key $KEY ($FP) is in authorized_keys"
-    SSHO="-o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o PreferredAuthentications=publickey -o UserKnownHostsFile=$W/kh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+  if ssh-keygen -lf "$SSH_AK" 2>/dev/null | awk '{print $2}' | grep -qxF "$FP"; then
+    say "  key $KEY ($FP) is in $SSH_AK"
+    SSHO="-p $SSH_PORT -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o PreferredAuthentications=publickey -o UserKnownHostsFile=$W/kh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
     say "  > ssh -tt $SSHO -i $KEY 127.0.0.1   (the password is typed after SD asks for it; WHO and OFF follow)"
     before="$(solo_pids | tr '\n' ' ')"
     # A terminal's Enter is CR, not LF: SD reads the password and the commands in raw mode, where an
@@ -156,13 +166,27 @@ else
     fi
     if [ -n "$during" ]; then pass "L3 while it was open, a new server process ran it:$during"; else fail "L3 no NEW process with exe $H/bin/sd-solo was seen while the ssh session was open"; fi
     say ""
-    say "== L4: CONTROL - a key that is not in authorized_keys =="
+    say "== L4: CONTROL - a key that is not in Solo's key file =="
     ssh-keygen -q -t ed25519 -N '' -f "$W/stranger" -C witness-stranger
     timeout 30 ssh -tt $SSHO -i "$W/stranger" "$(id -un)@127.0.0.1" < /dev/null > "$W/ssh2.out" 2>&1
     strip < "$W/ssh2.out" | sed -e 's/^/      | /'
     if grep -q 'Permission denied' "$W/ssh2.out" && ! grep -qE '^[0-9]+ sduser|Password:' <(strip < "$W/ssh2.out"); then pass "L4 a stranger's key is refused (Permission denied), no SD session"; else fail "L4 the stranger's key was not refused as expected"; fi
+    say ""
+    say "== L5: port $SSH_PORT presents Solo's own host key, not the machine's =="
+    solo_hk="$(ssh-keygen -lf "$H/sshd/ssh_host_ed25519_key.pub" 2>/dev/null | awk '{print $2}')"
+    seen_hk="$(ssh-keyscan -t ed25519 -p "$SSH_PORT" 127.0.0.1 2>/dev/null | ssh-keygen -lf - 2>/dev/null | awk '{print $2}' | head -1)"
+    say "  Solo's host key file : ${solo_hk:-none}"
+    say "  port $SSH_PORT presented    : ${seen_hk:-nothing}"
+    if [ -n "$solo_hk" ] && [ "$solo_hk" = "$seen_hk" ]; then pass "L5 port $SSH_PORT presents the host key in $H/sshd"; else fail "L5 port $SSH_PORT did not present Solo's own host key"; fi
+    if ss -ltn 2>/dev/null | grep -qE '[:.]22 '; then
+      sys_hk="$(ssh-keyscan -t ed25519 -p 22 127.0.0.1 2>/dev/null | ssh-keygen -lf - 2>/dev/null | awk '{print $2}' | head -1)"
+      say "  port 22 presented     : ${sys_hk:-nothing}"
+      if [ -n "$sys_hk" ] && [ "$sys_hk" != "$seen_hk" ]; then pass "L5 CONTROL: the machine's own sshd on 22 presents a DIFFERENT host key (two daemons, routing by port)"; else fail "L5 CONTROL: port 22 presented the same host key (or none) - the two are not separate"; fi
+    else
+      say "  nothing listens on port 22 on this computer; the separation control is not applicable"
+    fi
   else
-    notreached "L3/L4 $KEY.pub ($FP) is not in $HOME/.ssh/authorized_keys, so no login can be made with it"
+    notreached "L3/L4/L5 $KEY.pub ($FP) is not in $SSH_AK, so no login can be made with it; add it: bash $H/tools/solo-ssh.sh key-add $H $KEY.pub"
   fi
 fi
 

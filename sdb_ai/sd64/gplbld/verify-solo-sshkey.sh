@@ -48,9 +48,10 @@ ss -ltn 2>/dev/null | grep -qE ":($PORT|$SSHPORT) " && refuse "port $PORT or $SS
 systemctl --user is-active --quiet sd-solo.service && refuse "a Solo service is already active for this user - stop it first (one machine-wide shared-memory key)"
 
 W="$(mktemp -d)" || refuse "mktemp"; chmod 700 "$W"
-AK="$W/authorized_keys"; SSHD_PID=""
+AK="$W/authorized_keys"; LISTENERS=()
 cleanup() {
-  [ -n "$SSHD_PID" ] && kill "$SSHD_PID" 2>/dev/null
+  local p
+  for p in "${LISTENERS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done
   systemctl --user unset-environment SDSOLO_AUTHORIZED_KEYS 2>/dev/null
   bash "$SVC" remove >/dev/null 2>&1
   "$SD" -stop >/dev/null 2>&1
@@ -61,8 +62,8 @@ trap cleanup EXIT
 echo "verify-solo-sshkey inputs:"
 echo "  tree       : $H  (managed)"
 echo "  binary     : $SD  ($(stat -c '%y' "$SD" | cut -c1-19))"
-echo "  authorized_keys used by request 49: $AK (scratch; the real ~/.ssh is not touched)"
-echo "  API        : 127.0.0.1:$PORT (SDSOLO_TEST_API_PORT=$PORT; the product's port is 4249)   private sshd: 127.0.0.1:$SSHPORT"
+echo "  key file used by request 49: $AK (scratch; the tree's own sshd/authorized_keys and ~/.ssh are not touched)"
+echo "  API        : 127.0.0.1:$PORT (SDSOLO_TEST_API_PORT=$PORT; the product's port is 4249)   Solo's sshd config on 127.0.0.1:$SSHPORT"
 echo "  running as : $(id -un) (uid $(id -u))"
 
 pass=0; fail=0; legs=0
@@ -76,8 +77,12 @@ leg() {
 for k in a b c d e plain; do ssh-keygen -q -t ed25519 -N '' -f "$W/$k" || refuse "ssh-keygen $k"; done
 cp "$W/plain.pub" "$AK"                      # the user's own line, which must survive everything
 fp_of() { ssh-keygen -l -f "$1" | awk '{print $2}'; }
-FORCED="command=\"$H/bin/sd-solo\",restrict,pty"
+# LSOLO 29: the key line is 'restrict,pty <key>' (the forced command is in Solo's sshd_config now).
+FORCED="restrict,pty"
 ours() { grep -cF -- "$FORCED " "$AK"; }
+# The answer names Solo's OWN host key, so Solo's ssh directory must exist before the first ADD.
+bash "$H/tools/solo-ssh.sh" setup "$H" 2>&1 | grep -E '^SOLO SSHD READY' | cut -c1-90 || refuse "solo-ssh.sh setup"
+[ -r "$H/sshd/ssh_host_ed25519_key.pub" ] || refuse "solo-ssh.sh setup left no host key in $H/sshd"
 
 "$SD" -stop >/dev/null 2>&1
 systemctl --user set-environment "SDSOLO_AUTHORIZED_KEYS=$AK" || refuse "cannot set the user manager's environment"
@@ -97,7 +102,7 @@ M41='Only the SD Core server may manage ssh keys'
 M42='The ssh key request was refused: the key or fingerprint is not valid'
 M43='The ssh key request was refused: four Solo ssh keys are already installed'
 M45='The ssh key request was refused: unknown request, use ADD, REMOVE or LIST'
-HOSTFP=""; [ -r /etc/ssh/ssh_host_ed25519_key.pub ] && HOSTFP="$(fp_of /etc/ssh/ssh_host_ed25519_key.pub)"
+HOSTFP="$(fp_of "$H/sshd/ssh_host_ed25519_key.pub")"      # Solo's own sshd's host key, not the machine's
 
 # ---- K1. a global session lists nothing at first.
 o="$(api "$GLOBALPW" --sshkey LIST)"
@@ -107,16 +112,19 @@ else
   leg "K1 LIST on a clean file" "VERIFIED, 0 fields" 1 "$(printf '%s\n' "$o" | grep -E 'ssh-key|SCRAM' | head -2 | tr '\n' ' ')"
 fi
 
-# ---- K2. ADD: five fields, the right ones, the forced line written, the user's line kept.
+# ---- K2. ADD: six fields, the right ones, the key line written, the user's line kept.
+# Field 6, the port (4251), is new in LSOLO 29; fields 1-5 are as before except that field 5 is
+# Solo's own host key's fingerprint.
 o="$(api "$GLOBALPW" --sshkey "ADD=$(keyline a)")"
 fpa="$(fp_of "$W/a.pub")"
-if printf '%s\n' "$o" | grep -qx 'ssh-key ADD: OK, 5 field(s)' \
+if printf '%s\n' "$o" | grep -qx 'ssh-key ADD: OK, 6 field(s)' \
    && [ "$(field "$o" 1)" = "$(id -un)" ] && [ "$(field "$o" 2)" = "$(hostname)" ] \
    && [ "$(field "$o" 3)" = "$fpa" ] && [ "$(field "$o" 4)" = "ADDED" ] && [ "$(field "$o" 5)" = "$HOSTFP" ] \
+   && [ "$(field "$o" 6)" = "4251" ] \
    && grep -qxF -- "$FORCED $(keyline a)" "$AK" && grep -qxF -- "$(cat "$W/plain.pub")" "$AK"; then
-  leg "K2 ADD" "user=$(id -un) host=$(hostname) fingerprint=$fpa ADDED, host-key fingerprint, forced line written, own line kept" 0 "$(printf '%s\n' "$o" | grep -E '^\| field' | tr '\n' ' ')"
+  leg "K2 ADD" "user=$(id -un) host=$(hostname) fingerprint=$fpa ADDED, Solo's host-key fingerprint, port 4251, key line written, own line kept" 0 "$(printf '%s\n' "$o" | grep -E '^\| field' | tr '\n' ' ')"
 else
-  leg "K2 ADD" "5 fields (user, host, fingerprint, ADDED, host key), forced line written" 1 "$(printf '%s\n' "$o" | grep -E 'ssh-key|field|SCRAM' | head -7 | tr '\n' ' ')"
+  leg "K2 ADD" "6 fields (user, host, fingerprint, ADDED, host key, port), key line written" 1 "$(printf '%s\n' "$o" | grep -E 'ssh-key|field|SCRAM' | head -8 | tr '\n' ' ')"
 fi
 
 # ---- K3. the same key again is PRESENT and adds no line.
@@ -197,24 +205,17 @@ fi
 
 # ---- K10. the key the API installed really gets into sd over ssh, and the global password
 # makes that a global session (DENY.VERBS lists; the account password would be refused 11030).
-ssh-keygen -q -t ed25519 -N '' -f "$W/host" || refuse "ssh-keygen host"
-cat > "$W/sshd_config" <<CFG
-Port $SSHPORT
-ListenAddress 127.0.0.1
-HostKey $W/host
-PidFile $W/sshd.pid
-AuthorizedKeysFile $AK
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PubkeyAuthentication yes
-UsePAM no
-StrictModes no
-LogLevel VERBOSE
-CFG
-"$SSHD" -D -f "$W/sshd_config" -E "$W/sshd.log" &
-SSHD_PID=$!
+# Solo's real sshd_config, started the way the unit starts it, with ONE change: it reads the scratch
+# key file this script's requests wrote, and StrictModes is off because that file lives under /tmp.
+# (TRAP, measured 2 Oct 2026: sshd -e's log must go through a pipe, never to a regular file, or its
+# privilege-separated child is killed by SIGXFSZ and every connection is reset.)
+sed -e "s#^AuthorizedKeysFile .*#AuthorizedKeysFile $AK#" -e 's#^StrictModes yes#StrictModes no#' "$H/sshd/sshd_config" > "$W/sshd_config"
+chmod 600 "$W/sshd_config"
+command -v systemd-socket-activate >/dev/null || refuse "systemd-socket-activate is not installed"
+systemd-socket-activate --accept --inetd -l "127.0.0.1:$SSHPORT" -- "$SSHD" -i -e -f "$W/sshd_config" 2> >(cat > "$W/sshd.log") &
+LISTENERS+=("$!")
 for i in 1 2 3 4 5 6 7 8 9 10; do ss -ltn 2>/dev/null | grep -q "127.0.0.1:$SSHPORT " && break; sleep 0.5; done
-ss -ltn 2>/dev/null | grep -q "127.0.0.1:$SSHPORT " || refuse "the private sshd did not start"
+ss -ltn 2>/dev/null | grep -q "127.0.0.1:$SSHPORT " || refuse "the listener on $SSHPORT did not start"
 SSHO=(-tt -p "$SSHPORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR)
 feed() { local l; sleep 3; for l in "$@"; do printf '%s\r' "$l"; sleep 1.5; done; sleep 1; }
 o="$(feed "$GLOBALPW" WHO DENY.VERBS OFF | timeout 60 ssh "${SSHO[@]}" -i "$W/a" 127.0.0.1 2>&1 | strip)"

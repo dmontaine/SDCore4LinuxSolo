@@ -20,12 +20,14 @@ upgrade (`bash installsdsolo.sh --upgrade`), the managed-mode server controls
 login are built and have been run on one machine. LS1.1-2 added, for a managed
 installation, the API request that lets the server install its own ssh key
 (request 49) and first-use pinning of the server's TLS certificate by the client
-library; both are described in [docs/SOLO_API.md](docs/SOLO_API.md). The documentation is in the
+library; both are described in [docs/SOLO_API.md](docs/SOLO_API.md). LS1.1-3 gives Solo its
+own ssh listener on port 4251 (key login only, run by you with no root, nothing changed in the
+machine's own sshd, so Solo and the multi-user SD Core can both be reached by ssh). The documentation is in the
 separate repository
 [SDCore4LinuxSoloDocs](https://github.com/dmontaine/SDCore4LinuxSoloDocs);
 [docs/SOLO_API.md](docs/SOLO_API.md) describes the API. **What has not been run,
-and is the owner's to run** (`sudo` paths, `loginctl enable-linger`, the
-`sshd_config.d` block, an install from the published branch) is listed in the
+and is the owner's to run** (`sudo` paths, `loginctl enable-linger`, the firewall
+rule for an open ssh or API port, an install from the published branch) is listed in the
 documentation's page 19 and in `PROJECT_STATUS.md`.
 
 SD Core is English only: it has no support for other languages or locales.
@@ -33,8 +35,7 @@ SD Core is English only: it has no support for other languages or locales.
 ## Installing
 
 Run as your own user - never as root. The script asks for `sudo` only to install
-the build packages, to open a firewall port you asked for, to write the optional
-`sshd_config.d` block and to enable linger.
+the build packages, to open a firewall port you asked for and to enable linger.
 
 ```sh
 bash installsdsolo.sh          # asks its questions; --help lists the options

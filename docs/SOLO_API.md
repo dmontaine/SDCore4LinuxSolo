@@ -67,22 +67,25 @@ user name from the reply. Windows Solo answers the same request in the same word
   standalone computer no session can be a global one.
 - **The request:** a verb, then a field mark and an argument. `ADD` and a one-line public
   key; `REMOVE` and a `SHA256:...` fingerprint; `LIST` alone.
-- **The reply:** `ADD` gives five fields: the Linux user, the host name, the key's
-  `SHA256:` fingerprint, `ADDED` or `PRESENT`, and the fingerprint of sshd's ed25519 host
-  key (empty if unreadable). `REMOVE` gives `REMOVED` or `ABSENT`, then how many Solo
-  lines are left. `LIST` gives one fingerprint per field.
+- **The reply:** `ADD` gives six fields: the Linux user, the host name, the key's
+  `SHA256:` fingerprint, `ADDED` or `PRESENT`, the fingerprint of **Solo's own** sshd's
+  ed25519 host key, and the **port to connect to** (4251). From LS1.1-3 Solo has its own ssh
+  listener, so the fifth field is no longer the machine's sshd's key and the sixth is new; a
+  client that reads five fields is unaffected. `REMOVE` gives `REMOVED` or `ABSENT`, then how many
+  Solo lines are left. `LIST` gives one fingerprint per field.
 - **The refusals,** message 11042, "The ssh key request was refused: %1", with the reason
   "the key or fingerprint is not valid", "four Solo ssh keys are already installed",
-  "unknown request, use ADD, REMOVE or LIST" or "the request could not be carried out".
-- **What it writes:** one line in the user's `~/.ssh/authorized_keys`,
-  `command="<tree>/bin/sd",restrict,pty <key>`, so the key starts `sd` and nothing else:
-  no shell, no forwarding. At most four such lines; the user's own keys are never listed,
-  counted or touched. The key reaches `tools/solo-ssh.sh api-add|api-remove|api-list` in a
-  file, never on a command line, and the script's answer comes back in another file.
+  "ssh is not set up on this Solo", "unknown request, use ADD, REMOVE or LIST" or "the
+  request could not be carried out".
+- **What it writes:** one line in **Solo's own key file**, `<tree>/sshd/authorized_keys`
+  (not the user's `~/.ssh/authorized_keys`), `restrict,pty <key>`. Solo's sshd forces `sd` for
+  every login, so the key starts `sd` and nothing else: no shell, no forwarding. At most four such
+  lines. The key reaches `tools/solo-ssh.sh api-add|api-remove|api-list` in a file, never on a
+  command line, and the script's answer comes back in another file.
 - **Audit:** every verb writes `API SSHKEY <verb> ... peer=<address>` with the key's
   fingerprint and never its text.
 - **Test hook:** `SDSOLO_AUTHORIZED_KEYS` names another file for the script to edit; the
-  witness uses it so the real `~/.ssh` is not touched. The script says so in its output.
+  witness uses it so the tree's own key file is not touched. The script says so in its output.
 
 ## Pinning the server's certificate (LS1.1-2)
 

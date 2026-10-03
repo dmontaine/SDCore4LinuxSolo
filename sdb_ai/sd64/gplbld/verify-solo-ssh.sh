@@ -1,19 +1,19 @@
 #!/bin/bash
-# verify-solo-ssh.sh - does ssh land straight in SD Core for Linux Solo?
+# verify-solo-ssh.sh - does ssh on Solo's own port land straight in SD Core for Linux Solo?
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-ssh.sh HOME_DIR ACCOUNT_PASSWORD_FILE
 #
 # No sudo.  HOME_DIR is a Solo tree built by solo-stage.sh (daemon running) with
-# --account-password-file ACCOUNT_PASSWORD_FILE.  It runs a PRIVATE sshd as the
-# person running this - own host key, own authorized_keys file, 127.0.0.1, a high
-# port, no PAM - so it never touches the machine's sshd or the user's real
-# ~/.ssh.  What it proves is what a key line does; what it cannot prove is the
-# machine's own sshd_config, so the Match route is checked for its text and its
-# syntax only ("sshd -t"), never applied (that needs sudo).
+# --account-password-file ACCOUNT_PASSWORD_FILE.  LSOLO 29 (owner, 2 Oct 2026): Solo runs its OWN
+# sshd, one process per connection, from the sshd_config that "solo-ssh.sh setup" writes in
+# <tree>/sshd.  This script starts exactly that sshd the way the systemd unit does
+# (systemd-socket-activate --inetd, "sshd -i -f <tree>/sshd/sshd_config") on a private
+# 127.0.0.1 port, so it never touches the machine's sshd, the unit directory or ~/.ssh.  What it
+# cannot prove is the systemd unit itself (the unit text is checked by test-sshport-units.py, a
+# real start by witness-live-upgrade.sh on the installed Solo).
 #
-# THE CONTROL: leg K5 shows that a key WITHOUT the forced command gets a real
-# shell over the same sshd.  Without it, "no shell" (K4) could pass because
-# nothing could run a shell at all.
+# THE CONTROL: leg K5 runs the same sshd_config WITHOUT its ForceCommand line and shows that a
+# shell then answers.  Without it, "no shell" (K4) could pass because nothing could run a shell.
 #
 # Exit 0 every leg passed, 1 a leg failed, 2 it could not measure.
 
@@ -33,18 +33,20 @@ SSHTOOL="$here/solo-ssh.sh"
 SD="$H/bin/sd-solo"
 SSHD=/usr/sbin/sshd
 [ -x "$SSHD" ] || refuse "$SSHD is not installed"
-for t in ssh ssh-keygen scp; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
+for t in ssh ssh-keygen scp systemd-socket-activate; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
 PORT=12222
-ss -ltn 2>/dev/null | grep -q ":$PORT " && refuse "port $PORT is already in use"
+CPORT=12223
+for p in $PORT $CPORT; do ss -ltn 2>/dev/null | grep -q ":$p " && refuse "port $p is already in use"; done
 pre="$(printf '%s\nWHO\nOFF\n' "$GOOD" | timeout 60 "$SD" 2>&1)"
 printf '%s\n' "$pre" | grep -qE '^[0-9]+ sduser' \
   || refuse "no session works against $H - is its daemon running (solo-stage.sh leaves it running)?"
 
 W="$(mktemp -d)" || refuse "mktemp"
 chmod 700 "$W"
-SSHD_PID=""
+LISTENERS=()
 cleanup() {
-  [ -n "$SSHD_PID" ] && kill "$SSHD_PID" 2>/dev/null
+  local p
+  for p in "${LISTENERS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done
   rm -rf "$W"
 }
 trap cleanup EXIT
@@ -52,7 +54,8 @@ trap cleanup EXIT
 echo "verify-solo-ssh inputs:"
 echo "  tree       : $H"
 echo "  tool       : $SSHTOOL"
-echo "  private sshd: 127.0.0.1:$PORT, work dir $W (removed at the end)"
+echo "  listener   : systemd-socket-activate --inetd -> sshd -i -f $H/sshd/sshd_config on 127.0.0.1:$PORT (control, no ForceCommand: $CPORT)"
+echo "  work dir   : $W (removed at the end)"
 echo "  ssh        : $(ssh -V 2>&1)"
 echo "  running as : $(id -un) (uid $(id -u))"
 
@@ -64,35 +67,52 @@ leg() {
   else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi
 }
 
-# ---- keys: one that gets sd (added by the tool), one plain control key.
-ssh-keygen -q -t ed25519 -N '' -f "$W/host"       || refuse "ssh-keygen (host key)"
+# ---- S1. setup writes Solo's own sshd directory.
+so="$(bash "$SSHTOOL" setup "$H" 2>&1)"
+if printf '%s\n' "$so" | grep -q '^SOLO SSHD READY port=4251 ' && [ -f "$H/sshd/sshd_config" ] \
+   && [ "$(stat -c %a "$H/sshd")" = 700 ] && [ "$(stat -c %a "$H/sshd/authorized_keys")" = 600 ]; then
+  leg "S1 setup" "READY, sshd/ is 0700, the key file 0600" 0 "$(printf '%s\n' "$so" | tail -1 | cut -c1-80)"
+else
+  leg "S1 setup" "READY, sshd/ is 0700, the key file 0600" 1 "$(printf '%s\n' "$so" | tail -2 | tr '\n' ' ')"
+fi
+
+# ---- keys: one that gets sd (added by the tool), one never added.
 ssh-keygen -q -t ed25519 -N '' -f "$W/sdkey"      || refuse "ssh-keygen (sd key)"
-ssh-keygen -q -t ed25519 -N '' -f "$W/plainkey"   || refuse "ssh-keygen (plain key)"
-AKF="$W/authorized_keys"
-# A pre-existing line of the user's own: it must survive add and remove untouched.
-printf '%s\n' "$(cat "$W/plainkey.pub")" > "$AKF"
+ssh-keygen -q -t ed25519 -N '' -f "$W/stranger"   || refuse "ssh-keygen (stranger key)"
+AKF="$H/sshd/authorized_keys"
 cp "$AKF" "$W/authorized_keys.original"
 
-cat > "$W/sshd_config" <<CFG
-Port $PORT
-ListenAddress 127.0.0.1
-HostKey $W/host
-PidFile $W/sshd.pid
-AuthorizedKeysFile $AKF
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PubkeyAuthentication yes
-UsePAM no
-StrictModes no
-LogLevel VERBOSE
-CFG
-"$SSHD" -t -f "$W/sshd_config" 2>&1 | head -3
-"$SSHD" -D -f "$W/sshd_config" -E "$W/sshd.log" &
-SSHD_PID=$!
-for i in 1 2 3 4 5 6 7 8 9 10; do ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT " && break; sleep 0.5; done
-ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT " || { tail -5 "$W/sshd.log" 2>&1; refuse "the private sshd did not start"; }
+# The control sshd_config: the real one with the forced command taken away.
+grep -v '^ForceCommand ' "$H/sshd/sshd_config" > "$H/sshd/sshd_config.control"
+chmod 600 "$H/sshd/sshd_config.control"
 
-SSHO=(-tt -p "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR)
+# TRAP (measured 2 Oct 2026): sshd -e writes its log to stderr, and a privilege-separated child that
+# writes to a REGULAR FILE is killed by SIGXFSZ (every connection reset before the banner), so the
+# log goes through a pipe, never straight to a file.
+start_listener() {   # start_listener CONFIG PORT
+  systemd-socket-activate --accept --inetd -l "127.0.0.1:$2" -- "$SSHD" -i -e -f "$1" 2> >(cat > "$W/listener-$2.log") &
+  LISTENERS+=("$!")
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10; do ss -ltn 2>/dev/null | grep -q "127.0.0.1:$2 " && return 0; sleep 0.5; done
+  tail -5 "$W/listener-$2.log" 2>&1
+  refuse "the listener on port $2 did not start"
+}
+
+# ---- K1. key-add says so, writes the key line, and is idempotent.
+o1="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" 2>&1)"
+o2="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" 2>&1)"
+n="$(bash "$SSHTOOL" key-list "$H" | grep -x 'SOLO SSH KEYS 1')"
+want="restrict,pty $(cat "$W/sdkey.pub")"
+if printf '%s\n' "$o1" | grep -q '^SOLO SSH KEY ADDED' && printf '%s\n' "$o2" | grep -q 'already present' \
+   && [ -n "$n" ] && grep -qxF -- "$want" "$AKF"; then
+  leg "K1 key-add" "adds exactly one 'restrict,pty' line, twice is once" 0 "$n"
+else
+  leg "K1 key-add" "one key line; second add says 'already present'" 1 "$(printf '%s\n' "$o1" | tail -1) / $(printf '%s\n' "$o2" | tail -1) / list: '$n'"
+fi
+
+start_listener "$H/sshd/sshd_config" "$PORT"
+start_listener "$H/sshd/sshd_config.control" "$CPORT"
+SSHO=(-tt -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR)
 
 # feed LINES... : type each line into the session with a PAUSE before it.  A real
 # person types after the prompt appears; input sent the instant the connection
@@ -106,24 +126,12 @@ SSHO=(-tt -p "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHo
 # Enter sends, and sd's hidden-password input on a terminal takes CR as the end of
 # the line.  (MEASURED the same day: with "\n" every later line was typed INTO the
 # password field - "Password: ******************".)  bash's own tty driver turns
-# CR into newline, so the plain-key shell control leg is unaffected.
+# CR into newline, so the control shell leg is unaffected.
 feed() { local l; sleep 3; for l in "$@"; do printf '%s\r' "$l"; sleep 1.5; done; sleep 1; }
-ssh_feed() { local key="$1"; shift; feed "$@" | timeout 60 ssh "${SSHO[@]}" -i "$key" 127.0.0.1 2>&1 | strip; }
-
-# ---- K1. key-add says so, writes the forced-command line, and is idempotent.
-o1="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" --authorized-keys "$AKF" 2>&1)"
-o2="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" --authorized-keys "$AKF" 2>&1)"
-n="$(bash "$SSHTOOL" key-list "$H" --authorized-keys "$AKF" | grep -x 'SOLO SSH KEYS 1')"
-want="command=\"$H/bin/sd-solo\",restrict,pty $(cat "$W/sdkey.pub")"
-if printf '%s\n' "$o1" | grep -q '^SOLO SSH KEY ADDED' && printf '%s\n' "$o2" | grep -q 'already present' \
-   && [ -n "$n" ] && grep -qxF -- "$want" "$AKF"; then
-  leg "K1 key-add" "adds exactly one forced-command line, twice is once" 0 "$n"
-else
-  leg "K1 key-add" "one forced-command line; second add says 'already present'" 1 "$(printf '%s\n' "$o1" | tail -1) / $(printf '%s\n' "$o2" | tail -1) / list: '$n'"
-fi
+ssh_feed() { local key="$1" port="$2"; shift 2; feed "$@" | timeout 60 ssh "${SSHO[@]}" -p "$port" -i "$key" 127.0.0.1 2>&1 | strip; }
 
 # ---- K2. the key lands in sd at the password prompt and a session works.
-o="$(ssh_feed "$W/sdkey" "$GOOD" WHO OFF)"
+o="$(ssh_feed "$W/sdkey" "$PORT" "$GOOD" WHO OFF)"
 if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$'; then
   leg "K2 ssh with the key lands in sd" "the password prompt, then WHO answers '<n> sduser'" 0 "$(printf '%s\n' "$o" | grep -E '^[0-9]+ sduser$' | head -1)"
 else
@@ -133,7 +141,7 @@ fi
 # ---- K3. wrong passwords over ssh are refused (ruling 21: every session asks).  On a
 # terminal sd allows THREE tries (login's require.password), so three wrong ones
 # end the session; one wrong one would just re-prompt, and the leg would stall.
-o="$(ssh_feed "$W/sdkey" 'not-the-password-1' 'not-the-password-2' 'not-the-password-3')"
+o="$(ssh_feed "$W/sdkey" "$PORT" 'not-the-password-1' 'not-the-password-2' 'not-the-password-3')"
 n_wrong="$(printf '%s\n' "$o" | grep -cx 'Wrong password')"
 if [ "$n_wrong" -eq 3 ] && printf '%s\n' "$o" | grep -qx 'Connection terminated'; then
   leg "K3 wrong passwords refused over ssh" "three 'Wrong password', then 'Connection terminated'" 0 "refused after $n_wrong tries"
@@ -141,29 +149,30 @@ else
   leg "K3 wrong passwords refused over ssh" "three 'Wrong password', then 'Connection terminated'" 1 "wrong=$n_wrong; $(printf '%s\n' "$o" | tail -2 | tr '\n' ' ')"
 fi
 
-# ---- K4/K5. NO SHELL for the forced key - and the CONTROL that a plain key has one.
-o4="$(ssh_feed "$W/sdkey" "$GOOD" 'echo $((6*7))' OFF)"
-o5="$(ssh_feed "$W/plainkey" 'echo $((6*7))' exit)"
+# ---- K4/K5. NO SHELL over the real config - and the CONTROL that the config without its
+# ForceCommand does give one.
+o4="$(ssh_feed "$W/sdkey" "$PORT" "$GOOD" 'echo $((6*7))' OFF)"
+o5="$(ssh_feed "$W/sdkey" "$CPORT" 'echo $((6*7))' exit)"
 if printf '%s\n' "$o5" | grep -qx '42'; then
-  leg "K5 CONTROL: a plain key has a shell" "the shell prints 42" 0 "42"
+  leg "K5 CONTROL: without the forced command the same key has a shell" "the shell prints 42" 0 "42"
 else
-  leg "K5 CONTROL: a plain key has a shell" "the shell prints 42" 1 "no 42 - so K4 below proves nothing: $(printf '%s\n' "$o5" | tail -1)"
+  leg "K5 CONTROL: without the forced command the same key has a shell" "the shell prints 42" 1 "no 42 - so K4 below proves nothing: $(printf '%s\n' "$o5" | tail -1)"
 fi
 if ! printf '%s\n' "$o4" | grep -qx '42'; then
-  leg "K4 the forced key has no shell" "'echo \$((6*7))' does NOT print 42 (sd does not run shell syntax)" 0 "no 42 in $(printf '%s\n' "$o4" | wc -l) lines"
+  leg "K4 the key has no shell" "'echo \$((6*7))' does NOT print 42 (sd does not run shell syntax)" 0 "no 42 in $(printf '%s\n' "$o4" | wc -l) lines"
 else
-  leg "K4 the forced key has no shell" "no 42" 1 "the shell ran the command"
+  leg "K4 the key has no shell" "no 42" 1 "the shell ran the command"
 fi
 
-# ---- K6. forwarding is refused for the forced key (restrict): a remote forward fails.
-o="$(feed "$GOOD" OFF | timeout 60 ssh "${SSHO[@]}" -i "$W/sdkey" -o ExitOnForwardFailure=yes -R 15998:127.0.0.1:1 127.0.0.1 2>&1 | strip)"
+# ---- K6. forwarding is refused (restrict, and DisableForwarding): a remote forward fails.
+o="$(feed "$GOOD" OFF | timeout 60 ssh "${SSHO[@]}" -p "$PORT" -i "$W/sdkey" -o ExitOnForwardFailure=yes -R 15998:127.0.0.1:1 127.0.0.1 2>&1 | strip)"
 if printf '%s\n' "$o" | grep -qiE 'remote port forwarding failed|forwarding.*(failed|prohibited)' && ! printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser'; then
   leg "K6 forwarding is refused" "'remote port forwarding failed' and no session" 0 "refused"
 else
   leg "K6 forwarding is refused" "'remote port forwarding failed'" 1 "$(printf '%s\n' "$o" | tail -2 | tr '\n' ' ')"
 fi
 
-# ---- K7. scp does not work against the forced key, and writes nothing.
+# ---- K7. scp does not work, and writes nothing.
 echo "scp-payload" > "$W/payload"
 rm -f "$W/landed"
 scp -P "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR \
@@ -175,35 +184,25 @@ else
   leg "K7 scp does not work" "scp fails and nothing lands" 1 "rc=$scp_rc landed=$([ -e "$W/landed" ] && echo yes || echo no)"
 fi
 
-# ---- K8. key-remove takes exactly our line away, the user's own line is
-# byte-for-byte as it was, and the removed key can no longer log in.
-o="$(bash "$SSHTOOL" key-remove "$H" "$W/sdkey.pub" --authorized-keys "$AKF" 2>&1 | tail -1)"
-denied="$(feed "$GOOD" OFF | timeout 30 ssh "${SSHO[@]}" -i "$W/sdkey" 127.0.0.1 2>&1 | strip | grep -ci 'permission denied')"
-if [ "$o" = "SOLO SSH KEY REMOVED 1" ] && cmp -s "$AKF" "$W/authorized_keys.original" && [ "$denied" -ge 1 ]; then
-  leg "K8 key-remove" "'REMOVED 1', the user's own line unchanged, the key is refused" 0 "$o"
+# ---- K8. a key that was never added is refused, and password login is not on offer.
+d1="$(feed "$GOOD" OFF | timeout 30 ssh "${SSHO[@]}" -p "$PORT" -i "$W/stranger" 127.0.0.1 2>&1 | strip | grep -ci 'permission denied')"
+d2="$(timeout 30 ssh "${SSHO[@]}" -p "$PORT" -i "$W/stranger" -o PreferredAuthentications=password -o PubkeyAuthentication=no 127.0.0.1 </dev/null 2>&1 | strip | grep -c 'Permission denied (publickey)')"
+if [ "$d1" -ge 1 ] && [ "$d2" -ge 1 ]; then
+  leg "K8 a stranger's key and a password are refused" "'Permission denied (publickey)' both ways" 0 "key refused, password not offered"
 else
-  leg "K8 key-remove" "'REMOVED 1', own line unchanged, key refused" 1 "said '$o'; file-restored=$(cmp -s "$AKF" "$W/authorized_keys.original" && echo yes || echo NO); denied=$denied"
+  leg "K8 a stranger's key and a password are refused" "'Permission denied (publickey)' both ways" 1 "key-refused=$d1 password-refused=$d2"
 fi
 
-# ---- M1/M2. the Match route: its text, and that sshd accepts it (never applied).
-mo="$(bash "$SSHTOOL" match "$H" 2>&1)"
-if printf '%s\n' "$mo" | grep -q "^    Match User $(id -un)$" \
-   && printf '%s\n' "$mo" | grep -q "^        ForceCommand $H/bin/sd-solo$" \
-   && printf '%s\n' "$mo" | grep -q '^        DisableForwarding yes$' \
-   && printf '%s\n' "$mo" | grep -qx 'SOLO SSH MATCH PRINTED'; then
-  leg "M1 match prints the block" "Match User, ForceCommand, DisableForwarding" 0 "printed"
+# ---- K9. key-remove takes exactly our line away, the file is byte-for-byte as it was, and the
+# removed key can no longer log in.
+o="$(bash "$SSHTOOL" key-remove "$H" "$W/sdkey.pub" 2>&1 | tail -1)"
+denied="$(feed "$GOOD" OFF | timeout 30 ssh "${SSHO[@]}" -p "$PORT" -i "$W/sdkey" 127.0.0.1 2>&1 | strip | grep -ci 'permission denied')"
+if [ "$o" = "SOLO SSH KEY REMOVED 1" ] && cmp -s "$AKF" "$W/authorized_keys.original" && [ "$denied" -ge 1 ]; then
+  leg "K9 key-remove" "'REMOVED 1', the key file as it was, the key is refused" 0 "$o"
 else
-  leg "M1 match prints the block" "Match User, ForceCommand, DisableForwarding" 1 "$(printf '%s\n' "$mo" | tail -2 | tr '\n' ' ')"
+  leg "K9 key-remove" "'REMOVED 1', file as it was, key refused" 1 "said '$o'; file-restored=$(cmp -s "$AKF" "$W/authorized_keys.original" && echo yes || echo NO); denied=$denied"
 fi
-{ cat "$W/sshd_config"; printf '%s\n' "$mo" | sed -n '/^Match User /,/^        DisableForwarding/p' ; } > "$W/sshd_config.match" 2>/dev/null
-# the printed block is indented four spaces under "contents:"; rebuild it plainly.
-{ cat "$W/sshd_config"; echo "Match User $(id -un)"; echo "    ForceCommand $H/bin/sd-solo"; echo "    DisableForwarding yes"; } > "$W/sshd_config.match"
-if "$SSHD" -t -f "$W/sshd_config.match" >"$W/t.out" 2>&1; then
-  leg "M2 sshd accepts the block" "sshd -t exits 0 on the configuration with the block" 0 "sshd -t clean"
-else
-  leg "M2 sshd accepts the block" "sshd -t exits 0" 1 "$(head -2 "$W/t.out" | tr '\n' ' ')"
-fi
-echo "  [NOTE] the Match route's --apply and --remove need sudo and are NOT MEASURED"
+rm -f "$H/sshd/sshd_config.control"
 
 echo
 echo "verify-solo-ssh: $pass passed, $fail failed, of $legs legs"

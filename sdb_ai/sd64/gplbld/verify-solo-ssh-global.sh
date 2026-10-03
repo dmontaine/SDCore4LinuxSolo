@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify-solo-ssh-global.sh - in MANAGED mode, does the forced-command ssh route take the
+# verify-solo-ssh-global.sh - in MANAGED mode, does Solo's own ssh (port 4251, LSOLO 29) take the
 # GLOBAL password and give a global (server) session?  (The master logs in to a client
 # as sduser with the global password over ssh - owner, 30 Sep 2026; the question the
 # Windows Solo agent was told was unmeasured on Linux.)
@@ -13,7 +13,7 @@
 # DENY.VERBS (message 11030 for everyone else, as in verify-solo-global.sh).
 #
 # THE CONTROLS: G3 signs in over the same ssh with the ACCOUNT password and must be
-# REFUSED the same command; G5 shows a plain key has a shell, so "no shell" (G4) cannot
+# REFUSED the same command; G5 shows the same config without its ForceCommand has a shell, so "no shell" (G4) cannot
 # pass because nothing could run one.
 #
 # Exit 0 every leg passed, 1 a leg failed, 2 it could not measure.
@@ -37,18 +37,21 @@ SSHTOOL="$here/solo-ssh.sh"
 SD="$H/bin/sd-solo"
 SSHD=/usr/sbin/sshd
 [ -x "$SSHD" ] || refuse "$SSHD is not installed"
-for t in ssh ssh-keygen; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
+for t in ssh ssh-keygen systemd-socket-activate; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
 PORT=12223
-ss -ltn 2>/dev/null | grep -q ":$PORT " && refuse "port $PORT is already in use"
+CPORT=12224
+for p in $PORT $CPORT; do ss -ltn 2>/dev/null | grep -q ":$p " && refuse "port $p is already in use"; done
 pre="$(printf '%s\nWHO\nOFF\n' "$GLOBALPW" | timeout 60 "$SD" 2>&1)"
 printf '%s\n' "$pre" | grep -qE '^[0-9]+ sduser' \
   || refuse "no global session works against $H - is its daemon running?"
 
 W="$(mktemp -d)" || refuse "mktemp"
 chmod 700 "$W"
-SSHD_PID=""
+LISTENERS=()
 cleanup() {
-  [ -n "$SSHD_PID" ] && kill "$SSHD_PID" 2>/dev/null
+  local p
+  for p in "${LISTENERS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done
+  rm -f "$H/sshd/sshd_config.control"
   rm -rf "$W"
 }
 trap cleanup EXIT
@@ -56,7 +59,8 @@ trap cleanup EXIT
 echo "verify-solo-ssh-global inputs:"
 echo "  tree       : $H  (managed: \$cred/\$global present)"
 echo "  binary     : $SD  ($(stat -c '%y' "$SD" | cut -c1-19))"
-echo "  private sshd: 127.0.0.1:$PORT, work dir $W (removed at the end)"
+echo "  listener   : systemd-socket-activate --inetd -> sshd -i -f $H/sshd/sshd_config on 127.0.0.1:$PORT (control, no ForceCommand: $CPORT)"
+echo "  work dir   : $W (removed at the end)"
 echo "  ssh        : $(ssh -V 2>&1)"
 echo "  running as : $(id -un) (uid $(id -u))"
 
@@ -68,47 +72,45 @@ leg() {
   else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi
 }
 
-ssh-keygen -q -t ed25519 -N '' -f "$W/host"     || refuse "ssh-keygen (host key)"
+# LSOLO 29: Solo's own sshd (the tree's sshd/ directory, written by solo-ssh.sh setup), started the way
+# the systemd unit starts it.  The CONTROL listener runs the same config WITHOUT its ForceCommand.
 ssh-keygen -q -t ed25519 -N '' -f "$W/sdkey"    || refuse "ssh-keygen (sd key)"
-ssh-keygen -q -t ed25519 -N '' -f "$W/plainkey" || refuse "ssh-keygen (plain key)"
-AKF="$W/authorized_keys"
-printf '%s\n' "$(cat "$W/plainkey.pub")" > "$AKF"
+so="$(bash "$SSHTOOL" setup "$H" 2>&1)" || { printf '%s\n' "$so" | tail -3; refuse "solo-ssh.sh setup"; }
+AKF="$H/sshd/authorized_keys"
+grep -v '^ForceCommand ' "$H/sshd/sshd_config" > "$H/sshd/sshd_config.control"
+chmod 600 "$H/sshd/sshd_config.control"
 
-cat > "$W/sshd_config" <<CFG
-Port $PORT
-ListenAddress 127.0.0.1
-HostKey $W/host
-PidFile $W/sshd.pid
-AuthorizedKeysFile $AKF
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PubkeyAuthentication yes
-UsePAM no
-StrictModes no
-LogLevel VERBOSE
-CFG
-"$SSHD" -t -f "$W/sshd_config" 2>&1 | head -3
-"$SSHD" -D -f "$W/sshd_config" -E "$W/sshd.log" &
-SSHD_PID=$!
-for i in 1 2 3 4 5 6 7 8 9 10; do ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT " && break; sleep 0.5; done
-ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT " || { tail -5 "$W/sshd.log" 2>&1; refuse "the private sshd did not start"; }
+# TRAP (measured 2 Oct 2026): sshd -e writes its log to stderr, and a privilege-separated child that
+# writes to a REGULAR FILE is killed by SIGXFSZ (every connection reset before the banner), so the
+# log goes through a pipe, never straight to a file.
+start_listener() {   # start_listener CONFIG PORT
+  systemd-socket-activate --accept --inetd -l "127.0.0.1:$2" -- "$SSHD" -i -e -f "$1" 2> >(cat > "$W/listener-$2.log") &
+  LISTENERS+=("$!")
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10; do ss -ltn 2>/dev/null | grep -q "127.0.0.1:$2 " && return 0; sleep 0.5; done
+  tail -5 "$W/listener-$2.log" 2>&1
+  refuse "the listener on port $2 did not start"
+}
 
-SSHO=(-tt -p "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR)
+SSHO=(-tt -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR)
 
 # Typing rules measured in verify-solo-ssh.sh: wait for the prompt (input typed ahead is
 # discarded when sd goes to hidden input), end each line with CR, and run under timeout.
 feed() { local l; sleep 3; for l in "$@"; do printf '%s\r' "$l"; sleep 1.5; done; sleep 1; }
-ssh_feed() { local key="$1"; shift; feed "$@" | timeout 60 ssh "${SSHO[@]}" -i "$key" 127.0.0.1 2>&1 | strip; }
+ssh_feed() { local key="$1"; shift; feed "$@" | timeout 60 ssh "${SSHO[@]}" -p "$PORT" -i "$key" 127.0.0.1 2>&1 | strip; }
 
 M30='The denied verbs can only be listed or changed by the SD Core server'
 
-# ---- G1. the key route is installed, and the line is the forced command.
-o="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" --authorized-keys "$AKF" 2>&1)"
-want="command=\"$H/bin/sd-solo\",restrict,pty $(cat "$W/sdkey.pub")"
+# ---- G1. the key is added to Solo's own key file ('restrict,pty <key>'; the forced command is in
+# the sshd_config), and the two listeners start.
+o="$(bash "$SSHTOOL" key-add "$H" "$W/sdkey.pub" 2>&1)"
+want="restrict,pty $(cat "$W/sdkey.pub")"
+start_listener "$H/sshd/sshd_config" "$PORT"
+start_listener "$H/sshd/sshd_config.control" "$CPORT"
 if printf '%s\n' "$o" | grep -q '^SOLO SSH KEY ADDED' && grep -qxF -- "$want" "$AKF"; then
-  leg "G1 key-add" "SOLO SSH KEY ADDED and the forced-command line is in the file" 0 "$(printf '%s\n' "$o" | tail -1)"
+  leg "G1 key-add" "SOLO SSH KEY ADDED and the key line is in Solo's key file" 0 "$(printf '%s\n' "$o" | tail -1)"
 else
-  leg "G1 key-add" "SOLO SSH KEY ADDED and the forced-command line is in the file" 1 "$(printf '%s\n' "$o" | tail -1)"
+  leg "G1 key-add" "SOLO SSH KEY ADDED and the key line is in Solo's key file" 1 "$(printf '%s\n' "$o" | tail -1)"
 fi
 
 # ---- G2. ssh with the key and the GLOBAL password is a global session: DENY.VERBS answers
@@ -131,19 +133,19 @@ else
 fi
 
 # ---- G4. the forced key has no shell: a command asked for over ssh is not run.
-o="$(timeout 60 ssh "${SSHO[@]}" -i "$W/sdkey" 127.0.0.1 'echo $((6*7))' </dev/null 2>&1 | strip)"
+o="$(timeout 60 ssh "${SSHO[@]}" -p "$PORT" -i "$W/sdkey" 127.0.0.1 'echo $((6*7))' </dev/null 2>&1 | strip)"
 if ! printf '%s\n' "$o" | grep -qx '42'; then
   leg "G4 the forced key runs no shell command" "'echo \$((6*7))' prints no 42" 0 "no 42"
 else
   leg "G4 the forced key runs no shell command" "'echo \$((6*7))' prints no 42" 1 "42 was printed"
 fi
 
-# ---- G5. THE CONTROL for G4: a plain key over the same sshd does run it.
-o="$(timeout 60 ssh "${SSHO[@]}" -i "$W/plainkey" 127.0.0.1 'echo $((6*7))' </dev/null 2>&1 | strip)"
+# ---- G5. THE CONTROL for G4: the same key over the same config WITHOUT its ForceCommand does run it.
+o="$(timeout 60 ssh "${SSHO[@]}" -p "$CPORT" -i "$W/sdkey" 127.0.0.1 'echo $((6*7))' </dev/null 2>&1 | strip)"
 if printf '%s\n' "$o" | grep -qx '42'; then
-  leg "G5 control: a plain key has a shell" "'echo \$((6*7))' prints 42" 0 "42"
+  leg "G5 control: without the forced command the same key has a shell" "'echo \$((6*7))' prints 42" 0 "42"
 else
-  leg "G5 control: a plain key has a shell" "'echo \$((6*7))' prints 42" 1 "$(printf '%s\n' "$o" | tail -2 | tr '\n' ' ')"
+  leg "G5 control: without the forced command the same key has a shell" "'echo \$((6*7))' prints 42" 1 "$(printf '%s\n' "$o" | tail -2 | tr '\n' ' ')"
 fi
 
 echo "verify-solo-ssh-global: $pass of $legs legs passed"

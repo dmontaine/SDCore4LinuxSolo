@@ -7,9 +7,10 @@
 #   bash deletesdsolo.sh [--home DIR] [--keep-data | --delete-data] [--yes]
 #
 # Removes SD Core for Linux Solo for the user who runs it: the systemd user units,
-# the running daemon, the ~/.local/bin/sd and sd-solo commands, the ssh key lines this product added,
-# the optional sshd_config.d block (sudo, only if it exists), and the installation
-# directory.  Run as YOUR OWN USER, never as root.
+# the running daemon, the ~/.local/bin/sd and sd-solo commands, the ssh key lines an earlier
+# release added to your ~/.ssh/authorized_keys, the old sshd_config.d block (sudo, only if it
+# exists), and the installation directory (which holds Solo's own ssh directory: its host
+# key and key file).  Run as YOUR OWN USER, never as root.
 #
 # YOUR DATA.  The account's files live in <home>/user_accounts/sduser.  --keep-data
 # moves that directory to ~/SDCoreSolo-data-<date> before anything is deleted;
@@ -112,7 +113,7 @@ fi
 # END link_detect
 
 say "This will remove:"
-say "  - the systemd user units (sd-solo.service, the API socket) and stop SD"
+say "  - the systemd user units (sd-solo.service, the API and ssh sockets) and stop SD"
 say "  - the installation directory $H"
 [ "$link_ours" -eq 1 ] && say "  - the command $link"
 [ "$solo_link_ours" -eq 1 ] && say "  - the link $solo_link"
@@ -138,8 +139,9 @@ fi
 if [ -f "$H/tools/solo-service.sh" ]; then
   bash "$H/tools/solo-service.sh" remove 2>&1 | tail -2
 else
-  systemctl --user disable --now sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
-  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service
+  systemctl --user disable --now sd-solo-ssh.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
+  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service \
+        "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh@.service
   systemctl --user daemon-reload 2>/dev/null || true
 fi
 for n in sd-solo sd; do   # the new name, then an old install's
@@ -191,6 +193,9 @@ if command -v ufw >/dev/null 2>&1; then
   ufw_rules="$(sudo -n ufw status 2>/dev/null)"
   if printf '%s\n' "$ufw_rules" | grep -qE '^4249/tcp .*ALLOW'; then
     warn "ufw still allows TCP 4249, this product's API port; if the installer added it, remove it with 'sudo ufw delete allow 4249/tcp'"
+  fi
+  if printf '%s\n' "$ufw_rules" | grep -qE '^4251/tcp .*ALLOW'; then
+    warn "ufw still allows TCP 4251, this product's ssh port; if the installer added it, remove it with 'sudo ufw delete allow 4251/tcp'"
   fi
   if printf '%s\n' "$ufw_rules" | grep -qE '^4243/tcp .*ALLOW'; then
     warn "ufw allows TCP 4243: that is OpenQM's and ScarletDME's port, not this product's, so it was left alone"
