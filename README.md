@@ -21,7 +21,7 @@ login are built and have been run on one machine. LS1.1-2 added, for a managed
 installation, the API request that lets the server install its own ssh key
 (request 49) and first-use pinning of the server's TLS certificate by the client
 library; both are described in [docs/SOLO_API.md](docs/SOLO_API.md). LS1.1-3 gives Solo its
-own ssh listener on port 4251 (key login only, run by you with no root, nothing changed in the
+own ssh listener on port 4251 (your Linux account name and password, or a key if you add one; run by you with no root, nothing changed in the
 machine's own sshd, so Solo and the multi-user SD Core can both be reached by ssh). The documentation is in the
 separate repository
 [SDCore4LinuxSoloDocs](https://github.com/dmontaine/SDCore4LinuxSoloDocs);

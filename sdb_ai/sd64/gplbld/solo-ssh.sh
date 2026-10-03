@@ -11,10 +11,23 @@
 # LSOLO 29 (owner, 2 Oct 2026): SOLO'S ssh LISTENS ON ITS OWN PORT, 4251, FIXED, and is
 # run by the Solo owner with no root.  Routing is by port, so nothing in the machine's
 # own sshd_config is touched and a person who owns Solo AND is a member of the multi-user
-# product reaches the two on 22 and 4251.  It is KEY-ONLY (a sshd that is not root cannot
-# check the Linux password; sd-solo then asks the SD account password).  This REPLACES
-# the two routes of LSOLO 8 - the forced-command key line in ~/.ssh/authorized_keys and
-# the "Match User" block in sshd_config.d - which are removed (owner: "Replace them").
+# product reaches the two on 22 and 4251.  This REPLACES the two routes of LSOLO 8 - the
+# forced-command key line in ~/.ssh/authorized_keys and the "Match User" block in
+# sshd_config.d - which are removed (owner: "Replace them").
+#
+# SIGN-IN: THE LINUX ACCOUNT NAME AND PASSWORD, KEYS OPTIONAL (owner, 2 Oct 2026, after first
+# choosing key-only: "the same level of security, password only, required in SD Core for Windows
+# should be replicated in all the other versions", and the password "not sent clear text").  A
+# sshd that is not root CAN check the password of the user it runs as: with UsePAM yes, pam_unix
+# asks the setuid helper unix_chkpwd, which verifies the caller's OWN password.  MEASURED 2 Oct
+# 2026 (gplbld/probe-solo-ssh-password.sh): a wrong password was refused by that check (journal:
+# "unix_chkpwd: password check failed"), the owner's correct one was ACCEPTED and the forced command
+# ran as him, and the key exchange (mlkem768x25519-sha256) and cipher (chacha20-poly1305) were
+# agreed BEFORE the password was sent, so it never travels in clear text.  A key in the key file is
+# an extra way in, not a requirement (request 49's key, and anyone who prefers one).  sd-solo then
+# asks the SD account password, as it does for every session.  The PAM session step logs two
+# harmless refusals for a process that is not root (pam_unix "setuid failed", pam_systemd
+# "CreateSession ... PermissionDenied"); neither stops the login.
 #
 # WHAT IT KEEPS, in <tree>/sshd/ (mode 0700): sshd_config (generated; rewritten by every
 # "setup"), ssh_host_ed25519_key[.pub] (made once, kept across upgrades) and
@@ -143,11 +156,10 @@ if [ "$cmd" = "setup" ]; then
 # REWRITTEN every time it runs; add keys with solo-ssh.sh key-add, do not edit this.
 HostKey $HOSTKEY
 AuthorizedKeysFile $AK
-UsePAM no
+UsePAM yes
 PubkeyAuthentication yes
-PasswordAuthentication no
+PasswordAuthentication yes
 KbdInteractiveAuthentication no
-AuthenticationMethods publickey
 PermitRootLogin no
 PermitEmptyPasswords no
 StrictModes yes

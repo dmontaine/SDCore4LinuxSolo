@@ -52,7 +52,8 @@ deny-verbs=
 
 # ssh-public-key-file
 #   A public key file (on this computer) whose owner may ssh straight into sd,
-#   on Solo's own ssh port (4251), key login only.  Leave it blank for none.
+#   on Solo's own ssh port (4251).  A key is optional: ssh also takes the user's
+#   Linux account name and password.  Leave it blank for none.
 #   (A managed install has ssh open on that port anyway; the SD Core server
 #   installs its own key through the API.)
 #ssh-public-key-file=/home/alex/.ssh/id_ed25519.pub

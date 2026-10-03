@@ -191,6 +191,10 @@ else
 fi
 
 say ""
+say "  NOT CHECKED BY THIS SCRIPT: a sign-in with your LINUX PASSWORD on port $SSH_PORT (LSOLO 29, owner 2 Oct 2026: the"
+say "  sign-in is the Linux account name and password; a key is optional).  The script never handles that password. Try it yourself:"
+say "      ssh -p $SSH_PORT -o PubkeyAuthentication=no $(id -un)@127.0.0.1      (your Linux password, then SD's account password)"
+say ""
 say "  after   : service $(systemctl --user is-active sd-solo.service), solo server pids: [$(solo_pids | tr '\n' ' ')]"
 say ""
 say "== result: $PASS passed, $FAIL failed, $NOTREACHED not reached =="

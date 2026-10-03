@@ -184,13 +184,17 @@ else
   leg "K7 scp does not work" "scp fails and nothing lands" 1 "rc=$scp_rc landed=$([ -e "$W/landed" ] && echo yes || echo no)"
 fi
 
-# ---- K8. a key that was never added is refused, and password login is not on offer.
+# ---- K8. a key that was never added is refused, and the server OFFERS a password (LSOLO 29, owner
+# 2 Oct 2026: the sign-in is the Linux account name and password; a key is optional).  With
+# BatchMode ssh cannot type a password, so the refusal names both methods it could have used:
+# "Permission denied (publickey,password)".  A wrong password typed at the prompt, and the owner's
+# correct one, are in test-sshport-units.py and probe-solo-ssh-password.sh.
 d1="$(feed "$GOOD" OFF | timeout 30 ssh "${SSHO[@]}" -p "$PORT" -i "$W/stranger" 127.0.0.1 2>&1 | strip | grep -ci 'permission denied')"
-d2="$(timeout 30 ssh "${SSHO[@]}" -p "$PORT" -i "$W/stranger" -o PreferredAuthentications=password -o PubkeyAuthentication=no 127.0.0.1 </dev/null 2>&1 | strip | grep -c 'Permission denied (publickey)')"
+d2="$(timeout 30 ssh "${SSHO[@]}" -p "$PORT" -i "$W/stranger" -o PreferredAuthentications=password -o PubkeyAuthentication=no 127.0.0.1 </dev/null 2>&1 | strip | grep -c 'Permission denied (.*password')"
 if [ "$d1" -ge 1 ] && [ "$d2" -ge 1 ]; then
-  leg "K8 a stranger's key and a password are refused" "'Permission denied (publickey)' both ways" 0 "key refused, password not offered"
+  leg "K8 a stranger's key is refused and a password is on offer" "'Permission denied' for the key; the refusal names 'password' as a method" 0 "key refused, password offered"
 else
-  leg "K8 a stranger's key and a password are refused" "'Permission denied (publickey)' both ways" 1 "key-refused=$d1 password-refused=$d2"
+  leg "K8 a stranger's key is refused and a password is on offer" "'Permission denied' for the key; the refusal names 'password' as a method" 1 "key-refused=$d1 password-offered=$d2"
 fi
 
 # ---- K9. key-remove takes exactly our line away, the file is byte-for-byte as it was, and the

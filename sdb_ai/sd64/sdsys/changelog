@@ -7,14 +7,17 @@ installed beside SD Core.  The same changes are in all four SD Core products.
 02 Oct 26  SD CORE SOLO HAS ITS OWN ssh PORT, 4251.
 
            ssh into sd now goes to a small ssh server that SD Core Solo runs
-           for itself, on port 4251, as you and without root.  It takes a
-           key and then asks for your account password; it does not take your
-           Linux password, it gives no shell, no file copy and no port
-           forwarding, and it starts only while someone is connecting.  Add a
-           key with "bash <tree>/tools/solo-ssh.sh key-add <tree> <public key
-           file>", or with --ssh-key at install.  The installer has a new
-           --ssh off, local or open option (a managed Solo is open), and the
-           port is fixed, like the API's.  "ssh -p 4251 you@host".
+           for itself, on port 4251, as you and without root.  You sign in
+           with your Linux account name and password, as you would to the
+           computer's own ssh server, and SD then asks for your account
+           password.  The password goes inside ssh's encrypted channel, never
+           in clear text.  A key is an optional extra, not a requirement: add
+           one with "bash <tree>/tools/solo-ssh.sh key-add <tree> <public key
+           file>", or with --ssh-key at install.  It gives no shell, no file
+           copy and no port forwarding, and it starts only while someone is
+           connecting.  The installer has a new --ssh off, local or open option
+           (a managed Solo is open), and the port is fixed, like the API's.
+           "ssh -p 4251 you@host".
 
            The machine's own ssh server, on port 22, is not touched, so a
            person who has both SD Core and SD Core Solo reaches the first on
@@ -33,9 +36,11 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            WHAT THIS DOES NOT DO: an upgrade turns ssh on only if you used ssh
            before, and then only for this computer (local); to reach it from
            other computers run "bash <tree>/tools/solo-service.sh ssh <tree>
-           open" and allow TCP 4251 in your firewall.  Password login over ssh
-           no longer exists.  Installing the ssh server package also starts
-           the machine's own server on Debian and Ubuntu, as it always did.
+           open" and allow TCP 4251 in your firewall.  The password is checked
+           by the computer's own login check, so it is the Linux password of
+           the user who owns Solo, nobody else's.  Installing the ssh server
+           package also starts the machine's own server on Debian and Ubuntu,
+           as it always did.
 
 02 Oct 26  A RESTORED ACCOUNT KEEPS ITS DIRECTORY PERMISSIONS.
 

@@ -17,8 +17,9 @@
 # Everything else is done as you, in your own home.  Nothing is written outside it.
 #
 # SSH (LSOLO 29, owner, 2 Oct 2026): Solo runs its OWN ssh listener on port 4251, fixed,
-# as you and with no root: key login only, straight into sd (which then asks the SD account
-# password).  It does not touch the machine's own sshd, so a person who also uses the
+# as you and with no root: sign in with your Linux account name and password (checked by PAM, sent
+# inside ssh's encrypted channel; a key is an optional extra), straight into sd, which then asks the
+# SD account password.  It does not touch the machine's own sshd, so a person who also uses the
 # multi-user SD Core reaches that one on port 22 and this one on 4251.  The earlier routes (a
 # forced-command line in ~/.ssh/authorized_keys, and the sshd_config.d "Match User" block)
 # are gone; --upgrade moves your Solo key lines into the new key file (after a copy of the old
@@ -45,7 +46,7 @@
 #   --api off|local|open          the API listener (standalone only; managed is always open);
 #                                 always port 4249 - fixed, not an option (owner, 2 Oct 2026)
 #   --ssh off|local|open          Solo's own ssh listener (standalone only; managed is always open);
-#                                 always port 4251 - fixed, not an option.  Key login only.
+#                                 always port 4251 - fixed, not an option.  Sign-in: your Linux password, or a key.
 #   --ssh-key FILE                a public key to add for ssh straight into sd (turns ssh on, local,
 #                                 unless --ssh says otherwise)
 #   --enable-linger               run "loginctl enable-linger" so SD survives sign-out
@@ -324,7 +325,7 @@ fi
 # the API and ssh
 if [ "$managed" -eq 1 ]; then
   api="open"; ssh="open"
-  say "Managed mode: the API is open to the network on port $api_port and ssh is open on port $ssh_port (key login only)."
+  say "Managed mode: the API is open to the network on port $api_port and ssh is open on port $ssh_port (your Linux password, or a key)."
 else
   if [ -z "$api" ]; then
     if [ "$interactive" -eq 1 ]; then
@@ -343,7 +344,7 @@ else
       ssh="local"
     elif [ "$interactive" -eq 1 ]; then
       say
-      say "ssh straight into sd uses Solo's own listener on port $ssh_port (key login only; the machine's own ssh on"
+      say "ssh straight into sd uses Solo's own listener on port $ssh_port (your Linux account and password, or a key; the machine's own ssh on"
       say "port 22 is not used).  off = none; local = this computer only; open = reachable from the network."
       read -r -p "ssh listener [off/local/open] (default off): " ssh < /dev/tty
       ssh="${ssh:-off}"
@@ -372,7 +373,7 @@ say "Ready to install:"
 say "  mode          : $mode_name"
 say "  account pw    : $([ "$first_login" -eq 1 ] && echo "chosen at first login, at this computer's keyboard" || echo "set now")"
 say "  API           : $api$([ "$api" != off ] && echo " (port $api_port)")"
-say "  ssh into sd   : $ssh$([ "$ssh" != off ] && echo " (port $ssh_port, key login only)")$([ -n "$ssh_key" ] && echo ", key $ssh_key")"
+say "  ssh into sd   : $ssh$([ "$ssh" != off ] && echo " (port $ssh_port, Linux password or key)")$([ -n "$ssh_key" ] && echo ", key $ssh_key")"
 say "  service       : $([ "$no_service" -eq 1 ] && echo "not installed" || echo "systemd user service$([ "$enable_linger" -eq 1 ] && echo ", linger on" || echo ", linger NOT enabled")")"
 say "  packages      : $([ "$skip_pkgs" -eq 1 ] && echo "not installed (checked)" || echo "installed with sudo")"
 if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
@@ -663,7 +664,7 @@ if [ "$upgrade" -eq 1 ]; then
     if [ "$ssh" != "off" ]; then
       ssh_wanted=1; ssh_key=""
       say
-      say "Solo's own ssh: $ssh, port $ssh_port, key login only."
+      say "Solo's own ssh: $ssh, port $ssh_port, your Linux password or a key."
       if ! { command -v sshd >/dev/null 2>&1 || [ -x /usr/sbin/sshd ]; }; then
         warn "sshd is not installed, so Solo's ssh is NOT set up.  Install it (sudo apt install openssh-server, or your distribution's package), then: bash $HOME_DIR/tools/solo-ssh.sh setup $HOME_DIR && bash $HOME_DIR/tools/solo-ssh.sh migrate $HOME_DIR && bash $HOME_DIR/tools/solo-service.sh ssh $HOME_DIR $ssh"
         ssh="off"; ssh_wanted=0
@@ -761,7 +762,7 @@ say "  command name  : sd-solo starts this one (plain sd is the multi-user SD Co
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
 say "  service       : ${svc_state:-not installed}"
 [ "$api" = "off" ] || say "  API           : $api, port $api_port (TLS 1.3, account password)"
-[ "$ssh" = "off" ] || say "  ssh           : $ssh, port $ssh_port, key login only (ssh -p $ssh_port $(id -un)@<this computer>, then the account password); add keys with: bash $HOME_DIR/tools/solo-ssh.sh key-add $HOME_DIR <public key file>"
+[ "$ssh" = "off" ] || say "  ssh           : $ssh, port $ssh_port (ssh -p $ssh_port $(id -un)@<this computer>: your Linux password, then the SD account password); optional keys: bash $HOME_DIR/tools/solo-ssh.sh key-add $HOME_DIR <public key file>"
 say "  uninstall     : bash $HOME_DIR/tools/deletesdsolo.sh"
 say "  the download in $CLONE_DIR is removed when this script ends"
 say

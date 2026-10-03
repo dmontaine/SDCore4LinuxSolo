@@ -12,8 +12,8 @@ directory are group-writable, and refuses anything under /tmp, so the scratch ca
 Exit 0 every row passed, 1 a row failed, 2 it could not run.  Written 2 Oct 26 for LSOLO 29.
 
 WHAT IT MEASURES.  Every row runs the REAL script and prints the command line and what came back.
-  CONFIG rows  - setup writes a config sshd -t accepts, with key-only, StrictModes, a forced
-                 command and no forwarding; setup twice keeps the host key; the key file is
+  CONFIG rows  - setup writes a config sshd -t accepts, with the Linux password through PAM (keys
+                 optional), StrictModes, a forced command and no forwarding; setup twice keeps the host key; the key file is
                  0600 in a 0700 directory; a group-writable tree is WARNED about by name.
   KEYS rows    - key-add/key-list/key-remove, the refusals, API request 49's add/list/remove
                  with its cap of four, the PORT answer and the NOSSH refusal.
@@ -32,9 +32,10 @@ WHAT IT MEASURES.  Every row runs the REAL script and prints the command line an
 
 THE NULL CASE IS REFUSED.  Without sshd, ssh, ssh-keygen or systemd-socket-activate the run exits
 2 rather than reporting rows that did nothing.  --selftest builds mutant copies of the tools
-(password login allowed, forwarding allowed, StrictModes off, the forced command gone, the
+(password login off, PAM off, forwarding allowed, StrictModes off, the forced command gone, the
 second spelling not migrated, the Solo key options dropped, the cap raised, a managed tree not
-open) and requires each to fail at least one row.
+open) and requires each to fail at least one row.  A CORRECT password is not tried here: it needs the
+owner's own, typed at ssh's prompt (probe-solo-ssh-password.sh).
 """
 
 import os
@@ -130,8 +131,8 @@ def suite(tools, work):
     ready = re.search(r"^SOLO SSHD READY port=4251 hostfp=(SHA256:\S+) user=%s$" % re.escape(USER), out, re.M)
     conf_path = os.path.join(d, "sshd_config")
     conf = open(conf_path).read() if os.path.isfile(conf_path) else ""
-    wanted = ["PasswordAuthentication no", "KbdInteractiveAuthentication no", "AuthenticationMethods publickey",
-              "StrictModes yes", "UsePAM no", "AllowUsers " + USER, "DisableForwarding yes", "PermitTTY yes",
+    wanted = ["PasswordAuthentication yes", "KbdInteractiveAuthentication no", "UsePAM yes", "PubkeyAuthentication yes",
+              "StrictModes yes", "AllowUsers " + USER, "DisableForwarding yes", "PermitTTY yes",
               "ForceCommand " + os.path.join(tree, "bin", "sd-solo"), "HostKey " + os.path.join(d, "ssh_host_ed25519_key"),
               "AuthorizedKeysFile " + os.path.join(d, "authorized_keys")]
     missing = [w for w in wanted if w not in conf.splitlines()]
@@ -353,6 +354,51 @@ def ssh_cmd(port, key, extra=(), tty=False, loglevel="ERROR"):
              "-o", "UserKnownHostsFile=/dev/null", "-o", "BatchMode=yes", "-o", "LogLevel=" + loglevel] + list(extra))
 
 
+def wrong_password_login(port):
+    """Type a deliberately WRONG password at ssh's own prompt, through a pty; return what ssh printed."""
+    import pty
+    import select
+    cmd = ["ssh", "-p", str(port), "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+           "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1",
+           "-o", "LogLevel=ERROR", USER + "@127.0.0.1"]
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvp("ssh", cmd)
+    out, sent, t0 = b"", False, time.time()
+    while time.time() - t0 < 20:
+        r, _, _ = select.select([fd], [], [], 1)
+        if r:
+            try:
+                d = os.read(fd, 4096)
+            except OSError:
+                break
+            if not d:
+                break
+            out += d
+            if b"assword:" in out and not sent:
+                time.sleep(0.5)
+                os.write(fd, b"this-is-a-deliberately-wrong-password\r")
+                sent = True
+    try:
+        os.kill(pid, 15)
+    except OSError:
+        pass
+    try:
+        os.waitpid(pid, 0)
+    except OSError:
+        pass
+    return out.decode("utf-8", "replace").replace("\r", "")
+
+
+def pam_refusal_lines():
+    """The journal's record that PAM's own check refused the wrong password, or '' when it cannot be read."""
+    if not shutil.which("journalctl"):
+        return ""
+    p = subprocess.run(["journalctl", "--since", "-1min", "--no-pager"], capture_output=True)
+    lines = [l for l in p.stdout.decode("utf-8", "replace").splitlines() if "unix_chkpwd" in l and "password check failed" in l]
+    return lines[-1][16:130] if lines else ""
+
+
 def login_suite(tools, work, tree, keys, k, ssh_tool):
     d = os.path.join(tree, "sshd")
     ak = os.path.join(d, "authorized_keys")
@@ -377,13 +423,18 @@ def login_suite(tools, work, tree, keys, k, ssh_tool):
         cmd = ssh_cmd(port, stranger, ["127.0.0.1"])
         rc, out, err = sh(cmd, timeout=30)
         row("LOGIN", "a key that is not in the key file is refused",
-            rc == 255 and "Permission denied (publickey)" in err and "STANDIN-SD" not in out,
+            rc == 255 and "Permission denied" in err and "STANDIN-SD" not in out,
             ["  -> exit %d %r" % (rc, err.strip()[:80])])
-        cmd = ssh_cmd(port, stranger, ["-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "127.0.0.1"])
-        rc, out, err = sh(cmd, timeout=30)
-        row("LOGIN", "password login is refused: the only method offered is publickey",
-            rc == 255 and "Permission denied (publickey)" in err and "password" not in err.lower().replace("passwordauth", ""),
-            ["  -> exit %d %r" % (rc, err.strip()[:100])])
+        # LSOLO 29, owner 2 Oct 2026: the sign-in is the Linux account name and PASSWORD.  The password is
+        # checked by PAM's own helper even though sshd is not root.  A WRONG one is typed by a pty harness
+        # (the test never handles a real password): ssh must be OFFERED a password prompt and be refused.
+        # A CORRECT password cannot be tried here; probe-solo-ssh-password.sh has the owner type his.
+        out_pw = wrong_password_login(port)
+        pam_evidence = pam_refusal_lines()
+        row("LOGIN", "a password is asked for, and a WRONG one is refused (PAM's check, no key involved)",
+            "assword:" in out_pw and "Permission denied" in out_pw and "STANDIN-SD" not in out_pw,
+            ["  -> %r" % out_pw.strip().replace("\n", " | ")[:140],
+             "  journal evidence that PAM's own check refused it: %s" % (pam_evidence or "none readable here (the row does not need it)")])
         # StrictModes: the key file at 0666 must refuse the GOOD key; back at 0600 it is accepted.
         os.chmod(ak, 0o666)
         rc, out, err = sh(ssh_cmd(port, client, ["127.0.0.1"]), timeout=30)
@@ -450,7 +501,8 @@ def login_suite(tools, work, tree, keys, k, ssh_tool):
 
 
 MUTANTS = [
-    ("password login allowed", SSH_TOOL, "PasswordAuthentication no\nKbd", "PasswordAuthentication yes\nKbd"),
+    ("password login off (key-only again)", SSH_TOOL, "PasswordAuthentication yes\nKbd", "PasswordAuthentication no\nKbd"),
+    ("PAM off", SSH_TOOL, "UsePAM yes\nPubkey", "UsePAM no\nPubkey"),
     ("forwarding allowed", SSH_TOOL, "DisableForwarding yes", "DisableForwarding no"),
     ("StrictModes off", SSH_TOOL, "StrictModes yes", "StrictModes no"),
     ("forced command gone", SSH_TOOL, "ForceCommand $H/bin/sd-solo", "#ForceCommand $H/bin/sd-solo"),
