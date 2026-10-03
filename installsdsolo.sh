@@ -47,6 +47,8 @@
 #                                 always port 4249 - fixed, not an option (owner, 2 Oct 2026)
 #   --ssh off|local|open          Solo's own ssh listener (standalone only; managed is always open);
 #                                 always port 4251 - fixed, not an option.  Sign-in: your Linux password, or a key.
+#                                 DEFAULT local (on, this computer only), as Windows Solo's is; the API's default is off.
+#                                 Three wrong passwords from one address within ten minutes lock that address for ten.
 #   --ssh-key FILE                a public key to add for ssh straight into sd (turns ssh on, local,
 #                                 unless --ssh says otherwise)
 #   --enable-linger               run "loginctl enable-linger" so SD survives sign-out
@@ -339,6 +341,10 @@ else
       api="off"
     fi
   fi
+  # 02 Oct 26 (owner: "Match Windows as built"): ssh is ON BY DEFAULT, this computer only, as Windows Solo's is
+  # (its own sshd is set up wherever OpenSSH is found; only reaching it from other computers is a box,
+  # unchecked).  The API stays OFF by default on both.  "off" is still a choice.
+  ssh_explicit=0; [ -z "$ssh" ] || ssh_explicit=1
   if [ -z "$ssh" ]; then
     if [ -n "$ssh_key" ]; then
       ssh="local"
@@ -346,13 +352,21 @@ else
       say
       say "ssh straight into sd uses Solo's own listener on port $ssh_port (your Linux account and password, or a key; the machine's own ssh on"
       say "port 22 is not used).  off = none; local = this computer only; open = reachable from the network."
-      read -r -p "ssh listener [off/local/open] (default off): " ssh < /dev/tty
-      ssh="${ssh:-off}"
+      read -r -p "ssh listener [off/local/open] (default local): " ssh < /dev/tty
+      ssh="${ssh:-local}"
       case "$ssh" in off|local|open) ;; *) refuse "the ssh answer must be off, local or open (got '$ssh')" ;; esac
+      ssh_explicit=1
     else
-      ssh="off"
+      ssh="local"
     fi
   fi
+fi
+# A computer without the ssh server program, and no way to install it here, does not fail an install that never
+# asked for ssh: the default quietly becomes "off" with a note.  An ssh the user asked for (--ssh, a key, an answer) must work.
+if [ "$managed" -eq 0 ] && [ "$ssh" != "off" ] && [ "${ssh_explicit:-0}" -eq 0 ] && [ "$skip_pkgs" -eq 1 ] \
+   && ! { command -v sshd >/dev/null 2>&1 || [ -x /usr/sbin/sshd ]; }; then
+  warn "no ssh server program (sshd) here and --skip-packages: Solo's ssh is OFF.  Install the ssh server package, then: bash <tree>/tools/solo-ssh.sh setup <tree> && bash <tree>/tools/solo-service.sh ssh <tree> local"
+  ssh="off"
 fi
 ssh_wanted=0; [ "$ssh" = "off" ] || ssh_wanted=1
 if [ "$ssh_wanted" -eq 1 ] && [ -z "$ssh_key" ] && [ "$interactive" -eq 1 ]; then

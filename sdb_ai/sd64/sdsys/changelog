@@ -17,7 +17,18 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            copy and no port forwarding, and it starts only while someone is
            connecting.  The installer has a new --ssh off, local or open option
            (a managed Solo is open), and the port is fixed, like the API's.
-           "ssh -p 4251 you@host".
+           "ssh -p 4251 you@host".  A new installation has ssh ON, for this
+           computer only, as SD Core Solo for Windows does; the API is off
+           unless you ask for it, on both.
+
+           THREE WRONG PASSWORDS LOCK THE ADDRESS.  After three wrong Linux
+           passwords from one address within ten minutes, that address is
+           refused for ten minutes (it lifts itself).  The lockout is per
+           address, not per account, so someone guessing cannot lock you out
+           of your own account, and the computer's own login and ssh server are
+           not touched.  "bash <tree>/tools/solo-ssh.sh locked <tree>" lists
+           who is locked and "unlock <tree> [address]" lets one back in.  A
+           guess spread over many addresses is not stopped.
 
            The machine's own ssh server, on port 22, is not touched, so a
            person who has both SD Core and SD Core Solo reaches the first on

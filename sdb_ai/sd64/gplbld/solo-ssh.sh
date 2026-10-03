@@ -7,6 +7,8 @@
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-list   HOME_DIR [--authorized-keys FILE]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh migrate    HOME_DIR [--old-authorized-keys FILE] [--authorized-keys FILE]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh match      HOME_DIR [--remove]
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh locked     HOME_DIR
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh unlock     HOME_DIR [ADDRESS]
 #
 # LSOLO 29 (owner, 2 Oct 2026): SOLO'S ssh LISTENS ON ITS OWN PORT, 4251, FIXED, and is
 # run by the Solo owner with no root.  Routing is by port, so nothing in the machine's
@@ -69,8 +71,8 @@ fail()   { echo "FAILED at: $*" >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root; Solo's ssh is the owner's own"
 cmd="${1:-}"
 case "$cmd" in
-  setup|key-add|key-remove|key-list|migrate|match|api-add|api-remove|api-list) shift ;;
-  *) refuse "usage: bash $0 setup|key-add|key-remove|key-list|migrate|match|api-add|api-remove|api-list HOME_DIR ..." ;;
+  setup|key-add|key-remove|key-list|migrate|match|locked|unlock|api-add|api-remove|api-list) shift ;;
+  *) refuse "usage: bash $0 setup|key-add|key-remove|key-list|migrate|match|locked|unlock|api-add|api-remove|api-list HOME_DIR ..." ;;
 esac
 [ "$#" -ge 1 ] || refuse "HOME_DIR is required"
 H="$1"; shift
@@ -341,6 +343,16 @@ if [ "$cmd" = "key-remove" ]; then
   grep -qxF -- "$newline" "$AK" && fail "the line is still in $AK"
   echo "SOLO SSH KEY REMOVED $removed"
   exit 0
+fi
+
+# ---- locked / unlock: the lockout in front of the sshd (solo-sshguard.py, owner 2 Oct 2026: three wrong
+# passwords from one address within ten minutes lock that address for ten minutes)
+if [ "$cmd" = "locked" ] || [ "$cmd" = "unlock" ]; then
+  G="$(cd "$(dirname "$0")" && pwd)/solo-sshguard.py"; [ -f "$G" ] || G="$H/tools/solo-sshguard.py"
+  [ -f "$G" ] || fail "solo-sshguard.py is missing"
+  [ -d "$D" ] || refuse "$D does not exist: run setup first"
+  if [ "$cmd" = "locked" ]; then exec python3 "$G" "$H" --list; fi
+  exec python3 "$G" "$H" --unlock "${pubfile:-all}"     # the first argument that is not an option is the address
 fi
 
 # ---- migrate: the key lines an earlier release put in ~/.ssh/authorized_keys

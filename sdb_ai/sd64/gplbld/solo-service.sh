@@ -99,7 +99,11 @@ Accept=true
 WantedBy=sockets.target
 UNIT
 }
-ssh_template_text() {   # ssh_template_text TREE SSHD
+ssh_python_path() { command -v python3 2>/dev/null || echo /usr/bin/python3; }
+# The unit starts the GUARD (solo-sshguard.py: three wrong passwords from one address within ten
+# minutes lock that address for ten minutes, owner 2 Oct 2026), which runs "sshd -i -e -f
+# <tree>/sshd/sshd_config" itself with the same connection.
+ssh_template_text() {   # ssh_template_text TREE SSHD PYTHON
   cat <<UNIT
 [Unit]
 Description=SD Core for Linux Solo (one ssh connection)
@@ -109,7 +113,7 @@ CollectMode=inactive-or-failed
 
 [Service]
 UMask=0077
-ExecStart=$2 -i -e -f $1/sshd/sshd_config
+ExecStart=$3 $1/tools/solo-sshguard.py $1 $2
 StandardInput=socket
 StandardError=journal
 SuccessExitStatus=5 255
@@ -122,8 +126,9 @@ ssh_apply() {
   # takes the real Solo's ssh away (found 2 Oct 2026: a test of this script against a scratch tree,
   # run on the owner's own user manager, removed his live listener and nothing said so).  So refuse to
   # replace or remove a pair that names another tree.
-  if [ -f "$UNITDIR/$SSH_TEMPLATE" ] && ! grep -qF -- " -f $tree/sshd/sshd_config" "$UNITDIR/$SSH_TEMPLATE"; then
-    other="$(sed -n 's#^ExecStart=.* -f \(.*\)/sshd/sshd_config.*#\1#p' "$UNITDIR/$SSH_TEMPLATE" | head -1)"
+  # (Both unit formats name the tree: the earlier "sshd -i -f <tree>/sshd/sshd_config" and the guard's.)
+  if [ -f "$UNITDIR/$SSH_TEMPLATE" ] && ! grep -qF -e " -f $tree/sshd/sshd_config" -e " $tree/tools/solo-sshguard.py " "$UNITDIR/$SSH_TEMPLATE"; then
+    other="$(sed -n -e 's#^ExecStart=.* -f \(.*\)/sshd/sshd_config.*#\1#p' -e 's#^ExecStart=[^ ]* \(.*\)/tools/solo-sshguard.py .*#\1#p' "$UNITDIR/$SSH_TEMPLATE" | head -1)"
     refuse "the ssh units installed for this user belong to another Solo tree (${other:-unknown}); doing this for $tree would replace or remove them.  Remove them from that tree (solo-service.sh ssh ${other:-<tree>} off) first, if that is what you mean"
   fi
   systemctl --user disable --now "$SSH_SOCKET" >/dev/null 2>&1 || true
@@ -137,7 +142,8 @@ ssh_apply() {
   port="$(ssh_port)" || exit $?
   mkdir -p "$UNITDIR" || fail "mkdir $UNITDIR"
   ssh_socket_text "$mode" "$port" > "$UNITDIR/$SSH_SOCKET"
-  ssh_template_text "$tree" "$sshd" > "$UNITDIR/$SSH_TEMPLATE"
+  [ -f "$tree/tools/solo-sshguard.py" ] || fail "$tree/tools/solo-sshguard.py is missing (the ssh guard); an upgrade installs it"
+  ssh_template_text "$tree" "$sshd" "$(ssh_python_path)" > "$UNITDIR/$SSH_TEMPLATE"
   systemctl --user daemon-reload || fail "daemon-reload"
   systemctl --user enable --now "$SSH_SOCKET" 2>&1 | tail -2
   local s; s="$(systemctl --user is-active "$SSH_SOCKET" 2>&1)"
@@ -162,7 +168,7 @@ if [ "${1:-}" = "ssh" ] && [ "$#" -eq 4 ] && [ "$4" = "--print" ]; then
   sshd="$(ssh_sshd_path)" || sshd="/usr/sbin/sshd"
   echo "# $SSH_SOCKET"; ssh_socket_text "$3" "$port"
   echo
-  echo "# $SSH_TEMPLATE"; ssh_template_text "$2" "$sshd"
+  echo "# $SSH_TEMPLATE"; ssh_template_text "$2" "$sshd" "$(ssh_python_path)"
   exit 0
 fi
 

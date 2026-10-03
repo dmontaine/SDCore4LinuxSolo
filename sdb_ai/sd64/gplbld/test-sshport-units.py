@@ -254,7 +254,9 @@ def suite(tools, work):
     # ----------------------------------------------------------------- UNITS
     rc, out, err = sh(["bash", svc_tool, "ssh", tree, "local", "--print"])
     rco, outo, erro = sh(["bash", svc_tool, "ssh", tree, "open", "--print"])
-    tmpl = "ExecStart=%s -i -e -f %s/sshd/sshd_config" % (shutil.which("sshd") or "/usr/sbin/sshd", tree)
+    # LSOLO 29: the unit starts the lockout guard (solo-sshguard.py), which runs "sshd -i -e -f <tree>/sshd/sshd_config"
+    tmpl = "ExecStart=%s %s/tools/solo-sshguard.py %s %s" % (shutil.which("python3") or "/usr/bin/python3", tree, tree,
+                                                             shutil.which("sshd") or "/usr/sbin/sshd")
     rch, outh, errh = sh(["bash", svc_tool, "ssh", tree, "local", "--print"], env={"SDSOLO_TEST_SSH_PORT": "24555"})
     row("UNITS", "local listens on 127.0.0.1:4251, open on 0.0.0.0:4251, one sshd -i per connection on the tree's own config",
         rc == 0 and "ListenStream=127.0.0.1:4251" in out and "ListenStream=0.0.0.0:4251" in outo and "Accept=true" in out

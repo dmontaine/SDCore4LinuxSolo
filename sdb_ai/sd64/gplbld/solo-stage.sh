@@ -194,7 +194,7 @@ cp -R gplbld/nanocfg "$H/nanocfg"
 # levels above this tree's sd64; it is copied when it is there (an installed tree
 # built from a clone always has it).
 mkdir -p "$H/tools"
-cp gplbld/solo-service.sh gplbld/solo-ssh.sh "$H/tools/"
+cp gplbld/solo-service.sh gplbld/solo-ssh.sh gplbld/solo-sshguard.py "$H/tools/"   # sshguard: the ssh lockout, LSOLO 29
 # 02 Oct 26 - LSOLO 20 (S.50): BACKUP.ACCOUNT / RESTORE.ACCOUNT's archive tool, in
 # bin beside sd, which runs it: the helpers name <sysdir>/bin/sd-accarchive and
 # start_sd() runs "sd-accarchive swap" to put a waiting restore in place.
