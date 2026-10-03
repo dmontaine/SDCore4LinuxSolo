@@ -1976,8 +1976,8 @@ vb.mark.mapping:
 *
 * 02 Oct 26 (LSOLO 29, owner: Solo's ssh has its own port, 4251): the host-key fingerprint is
 * now SOLO'S OWN sshd's, not the machine's, and field 6 is the port to connect to.  Field 6 is
-* new: a client that reads five fields is unaffected.  PROPOSED TO SD CORE FOR WINDOWS in the
-* mailbox (2026-10-02T3510), which answers the same request; not agreed yet.
+* new: a client that reads five fields is unaffected.  AGREED with SD Core for Windows (mailbox
+* 2026-10-02T3510 / T3600): Windows Solo answers the same six fields, field 5 its own sshd's key.
 *
 * Owner, 30 Sep 2026 (managed mode: the master logs in over ssh as sduser with the
 * global password and knows only the IP): the master asks the client to install its
