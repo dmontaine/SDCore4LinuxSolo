@@ -607,6 +607,9 @@ ssh_upgrade_scope() {   # ssh_upgrade_scope HOME_DIR UNITDIR MODE_NAME AUTHORIZE
     return 0
   fi
   if [ "$mode_name" = "managed" ]; then echo open; return 0; fi
+  # Solo's own ssh directory is evidence ssh was in use even if its socket unit is gone (found 2 Oct 2026:
+  # an upgrade that found no unit, no old key line and no drop-in left a tree that had ssh WITHOUT it).
+  if [ -f "$home_dir/sshd/sshd_config" ]; then echo local; return 0; fi
   if [ -f "$dropin" ]; then echo local; return 0; fi
   if [ -f "$ak" ] && { grep -qF -- "command=\"$home_dir/bin/sd-solo\",restrict,pty " "$ak" \
                        || grep -qF -- "command=\"$home_dir/bin/sd\",restrict,pty " "$ak"; }; then echo local; return 0; fi

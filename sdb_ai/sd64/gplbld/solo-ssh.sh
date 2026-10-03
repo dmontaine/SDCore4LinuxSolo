@@ -29,6 +29,12 @@
 # harmless refusals for a process that is not root (pam_unix "setuid failed", pam_systemd
 # "CreateSession ... PermissionDenied"); neither stops the login.
 #
+# MaxAuthTries IS 6, OPENSSH'S OWN DEFAULT, NOT 3 (measured 2 Oct 2026): every key a client offers that the
+# server does not know COUNTS as a failed attempt, so with 3 a person whose ssh agent holds four keys was
+# disconnected "Too many authentication failures" BEFORE the password prompt was ever shown.  With 6 the
+# same client gets the prompt.  (Guessing a password is limited by the three prompts the client allows
+# and by PAM, not by this number.)
+#
 # WHAT IT KEEPS, in <tree>/sshd/ (mode 0700): sshd_config (generated; rewritten by every
 # "setup"), ssh_host_ed25519_key[.pub] (made once, kept across upgrades) and
 # authorized_keys.  The listener is a systemd user SOCKET that starts "sshd -i -f
@@ -169,7 +175,7 @@ PermitTTY yes
 PermitUserEnvironment no
 PermitUserRC no
 PrintLastLog no
-MaxAuthTries 3
+MaxAuthTries 6
 LoginGraceTime 30
 LogLevel INFO
 ForceCommand $H/bin/sd-solo

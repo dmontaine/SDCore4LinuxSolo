@@ -268,6 +268,26 @@ def suite(tools, work):
         rcb == 2 and "off, local or open" in errb and rcm == 2 and "not there" in errm and rco2 == 0 and "ssh off" in outo2,
         ["  sideways -> %d %s" % (rcb, errb.strip()[:60]), "  no tree  -> %d %s" % (rcm, errm.strip()[:60]), "  off -> %s" % outo2.strip()[:40]])
 
+    # The unit names are ONE PAIR PER USER, not per tree.  Found 2 Oct 2026: a test of "solo-service.sh ssh
+    # <scratch tree> off" on the owner's own user manager removed his live listener.  The script now refuses
+    # to replace or remove a pair that names another tree.  THE TEST USES A SCRATCH XDG_CONFIG_HOME, only
+    # the REFUSAL is exercised (it happens before any systemctl), and THERE MUST BE NO MUTANT OF THIS GUARD:
+    # without it the script would run systemctl against the user's REAL manager.
+    xdg = os.path.join(work, "xdg")
+    udir = os.path.join(xdg, "systemd", "user")
+    os.makedirs(udir)
+    other_tree = "/home/someone/other-tree"
+    open(os.path.join(udir, "sd-solo-ssh@.service"), "w").write(
+        "[Service]\nExecStart=/usr/sbin/sshd -i -e -f %s/sshd/sshd_config\n" % other_tree)
+    open(os.path.join(udir, "sd-solo-ssh.socket"), "w").write("[Socket]\nListenStream=127.0.0.1:4251\n")
+    snap = {n: open(os.path.join(udir, n)).read() for n in os.listdir(udir)}
+    rcg, outg, errg = sh(["bash", svc_tool, "ssh", tree, "off"], env={"XDG_CONFIG_HOME": xdg})
+    unchanged = {n: open(os.path.join(udir, n)).read() for n in os.listdir(udir)} == snap
+    row("UNITS", "ssh for one tree REFUSES to replace or remove the ssh units that name another tree (one pair per user)",
+        rcg == 2 and "belong to another Solo tree" in errg and other_tree in errg and unchanged,
+        ["$ XDG_CONFIG_HOME=<scratch> solo-service.sh ssh <this tree> off", "  -> exit %d %r" % (rcg, errg.strip()[:150]),
+         "  the other tree's two unit files unchanged: %s" % unchanged])
+
     # ------------------------------------------------------------- INSTALLER
     src = open(installer).read()
     m = re.search(r"^# BEGIN upgrade_ssh\n(.*?)^# END upgrade_ssh\n", src, re.M | re.S)
@@ -282,8 +302,10 @@ def suite(tools, work):
         akf = os.path.join(scen, "ak")
         drop = os.path.join(scen, "dropin.conf")
         sock = os.path.join(unit, "sd-solo-ssh.socket")
+        bare = os.path.join(scen, "bare-tree")      # a tree with no sshd directory of its own
+        os.makedirs(bare)
 
-        def scope(mode_name="standalone", ak_text=None, dropin=False, socket_text=None):
+        def scope(mode_name="standalone", ak_text=None, dropin=False, socket_text=None, home=None):
             for p in (akf, drop, sock):
                 if os.path.exists(p):
                     os.remove(p)
@@ -293,7 +315,7 @@ def suite(tools, work):
                 open(drop, "w").write("x\n")
             if socket_text is not None:
                 open(sock, "w").write(socket_text)
-            script = func + '\nssh_upgrade_scope "%s" "%s" "%s" "%s" "%s"\n' % (tree, unit, mode_name, akf, drop)
+            script = func + '\nssh_upgrade_scope "%s" "%s" "%s" "%s" "%s"\n' % (home or bare, unit, mode_name, akf, drop)
             rcs, outs, errs = sh(["bash", "-c", script])
             return outs.strip() if rcs == 0 else "rc=%d %s" % (rcs, errs.strip()[:60])
         got = {
@@ -301,14 +323,17 @@ def suite(tools, work):
             "socket 127.0.0.1 kept": scope(socket_text="[Socket]\nListenStream=127.0.0.1:4251\n"),
             "managed": scope(mode_name="managed"),
             "old drop-in": scope(dropin=True),
-            "old key line, sd-solo": scope(ak_text='command="%s/bin/sd-solo",restrict,pty ssh-ed25519 AAAA x\n' % tree),
-            "old key line, sd": scope(ak_text='command="%s/bin/sd",restrict,pty ssh-ed25519 AAAA x\n' % tree),
+            "old key line, sd-solo": scope(ak_text='command="%s/bin/sd-solo",restrict,pty ssh-ed25519 AAAA x\n' % bare),
+            "old key line, sd": scope(ak_text='command="%s/bin/sd",restrict,pty ssh-ed25519 AAAA x\n' % bare),
             "another tree's line only": scope(ak_text='command="/other/bin/sd-solo",restrict,pty ssh-ed25519 AAAA x\nssh-ed25519 BBBB y\n'),
+            # found 2 Oct 2026: the socket unit was gone (removed by a test) and nothing else was left as evidence
+            "sshd directory present, no unit": scope(home=tree),
             "nothing": scope(),
         }
         want = {"socket 0.0.0.0 kept": "open", "socket 127.0.0.1 kept": "local", "managed": "open", "old drop-in": "local",
-                "old key line, sd-solo": "local", "old key line, sd": "local", "another tree's line only": "off", "nothing": "off"}
-        row("INSTALL", "ssh_upgrade_scope: a new socket keeps its address, managed is open, either old route is local, otherwise off",
+                "old key line, sd-solo": "local", "old key line, sd": "local", "another tree's line only": "off",
+                "sshd directory present, no unit": "local", "nothing": "off"}
+        row("INSTALL", "ssh_upgrade_scope: a new socket keeps its address, managed is open, an sshd directory or either old route is local, otherwise off",
             got == want, ["  %s -> %s" % (n, got[n]) for n in want] + ["  expected: %s" % want])
     refs = []
     # --upgrade is checked against a tree that exists, so the refusal under test is the one that comes back.
@@ -354,13 +379,18 @@ def ssh_cmd(port, key, extra=(), tty=False, loglevel="ERROR"):
              "-o", "UserKnownHostsFile=/dev/null", "-o", "BatchMode=yes", "-o", "LogLevel=" + loglevel] + list(extra))
 
 
-def wrong_password_login(port):
-    """Type a deliberately WRONG password at ssh's own prompt, through a pty; return what ssh printed."""
+def wrong_password_login(port, offer_keys=()):
+    """Type a deliberately WRONG password at ssh's own prompt, through a pty; return what ssh printed.
+    offer_keys: private key files the client offers FIRST (none of them is in the server's key file), the way an
+    ssh agent holding several keys does; without them the client goes straight to the password."""
     import pty
     import select
-    cmd = ["ssh", "-p", str(port), "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-           "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1",
-           "-o", "LogLevel=ERROR", USER + "@127.0.0.1"]
+    if offer_keys:
+        auth = ["-o", "IdentitiesOnly=yes"] + [a for k in offer_keys for a in ("-i", k)]
+    else:
+        auth = ["-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no"]
+    cmd = ["ssh", "-p", str(port), "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null"] + auth + [
+           "-o", "NumberOfPasswordPrompts=1", "-o", "LogLevel=ERROR", USER + "@127.0.0.1"]
     pid, fd = pty.fork()
     if pid == 0:
         os.execvp("ssh", cmd)
@@ -435,6 +465,14 @@ def login_suite(tools, work, tree, keys, k, ssh_tool):
             "assword:" in out_pw and "Permission denied" in out_pw and "STANDIN-SD" not in out_pw,
             ["  -> %r" % out_pw.strip().replace("\n", " | ")[:140],
              "  journal evidence that PAM's own check refused it: %s" % (pam_evidence or "none readable here (the row does not need it)")])
+        # MaxAuthTries (measured 2 Oct 2026): every key offered that the server does not know counts as a failure, so a
+        # client whose ssh agent holds several keys was cut off "Too many authentication failures" BEFORE the password
+        # prompt when the limit was 3.  Four unknown keys must still reach the prompt.
+        many = [os.path.join(keys, n) for n in ("a", "b", "c", "d")]
+        out_many = wrong_password_login(port, offer_keys=many)
+        row("LOGIN", "a client offering FOUR keys the server does not know still reaches the password prompt (MaxAuthTries)",
+            "assword:" in out_many and "Too many authentication failures" not in out_many,
+            ["  -> %r" % out_many.strip().replace("\n", " | ")[:140]])
         # StrictModes: the key file at 0666 must refuse the GOOD key; back at 0600 it is accepted.
         os.chmod(ak, 0o666)
         rc, out, err = sh(ssh_cmd(port, client, ["127.0.0.1"]), timeout=30)
@@ -503,12 +541,15 @@ def login_suite(tools, work, tree, keys, k, ssh_tool):
 MUTANTS = [
     ("password login off (key-only again)", SSH_TOOL, "PasswordAuthentication yes\nKbd", "PasswordAuthentication no\nKbd"),
     ("PAM off", SSH_TOOL, "UsePAM yes\nPubkey", "UsePAM no\nPubkey"),
+    ("MaxAuthTries back to 3", SSH_TOOL, "MaxAuthTries 6\nLoginGraceTime", "MaxAuthTries 3\nLoginGraceTime"),
     ("forwarding allowed", SSH_TOOL, "DisableForwarding yes", "DisableForwarding no"),
     ("StrictModes off", SSH_TOOL, "StrictModes yes", "StrictModes no"),
     ("forced command gone", SSH_TOOL, "ForceCommand $H/bin/sd-solo", "#ForceCommand $H/bin/sd-solo"),
     ("Solo key options dropped", SSH_TOOL, 'KEYOPTS="restrict,pty"', 'KEYOPTS="pty"'),
     ("cap raised", SSH_TOOL, "MAXKEYS=4", "MAXKEYS=400"),
     ("second spelling not migrated", SSH_TOOL, 'forms=("$FORCED_NEW" "$FORCED_OLD")', 'forms=("$FORCED_NEW")'),
+    ("sshd directory not counted as evidence", "installsdsolo.sh", 'if [ -f "$home_dir/sshd/sshd_config" ]; then echo local; return 0; fi',
+     'if false; then echo local; return 0; fi'),
     ("managed tree not open", "installsdsolo.sh", 'if [ "$mode_name" = "managed" ]; then echo open; return 0; fi', 'if false; then echo open; return 0; fi'),
     ("open listens locally", SVC_TOOL, 'if [ "$1" = "open" ]; then listen="0.0.0.0:$2"; else listen="127.0.0.1:$2"; fi',
      'listen="127.0.0.1:$2"'),

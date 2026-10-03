@@ -117,7 +117,15 @@ UNIT
 }
 # ssh_apply TREE MODE: off removes the two units; local or open writes them and starts the socket.
 ssh_apply() {
-  local tree="$1" mode="$2" port sshd
+  local tree="$1" mode="$2" port sshd other
+  # THE UNIT NAMES ARE ONE PAIR PER USER, NOT PER TREE.  Writing or removing them for a scratch tree
+  # takes the real Solo's ssh away (found 2 Oct 2026: a test of this script against a scratch tree,
+  # run on the owner's own user manager, removed his live listener and nothing said so).  So refuse to
+  # replace or remove a pair that names another tree.
+  if [ -f "$UNITDIR/$SSH_TEMPLATE" ] && ! grep -qF -- " -f $tree/sshd/sshd_config" "$UNITDIR/$SSH_TEMPLATE"; then
+    other="$(sed -n 's#^ExecStart=.* -f \(.*\)/sshd/sshd_config.*#\1#p' "$UNITDIR/$SSH_TEMPLATE" | head -1)"
+    refuse "the ssh units installed for this user belong to another Solo tree (${other:-unknown}); doing this for $tree would replace or remove them.  Remove them from that tree (solo-service.sh ssh ${other:-<tree>} off) first, if that is what you mean"
+  fi
   systemctl --user disable --now "$SSH_SOCKET" >/dev/null 2>&1 || true
   rm -f "$UNITDIR/$SSH_SOCKET" "$UNITDIR/$SSH_TEMPLATE"
   if [ "$mode" = "off" ]; then
