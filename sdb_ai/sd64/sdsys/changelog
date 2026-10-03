@@ -18,8 +18,14 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            connecting.  The installer has a new --ssh off, local or open option
            (a managed Solo is open), and the port is fixed, like the API's.
            "ssh -p 4251 you@host".  A new installation has ssh ON, for this
-           computer only, as SD Core Solo for Windows does; the API is off
-           unless you ask for it, on both.
+           computer only, as SD Core Solo for Windows does, and, as there,
+           the ssh server program is installed for you if the computer does
+           not have it (the openssh-server package, with your sudo; on Debian
+           and Ubuntu that package also starts the computer's own ssh server
+           on port 22).  "--ssh off", or answering off to the installer's
+           question, declines both.  With --skip-packages and no ssh server
+           program, ssh is simply left off.  The API is off unless you ask for
+           it, on both.
 
            THREE WRONG PASSWORDS LOCK THE ADDRESS.  After three wrong Linux
            passwords from one address within ten minutes, that address is

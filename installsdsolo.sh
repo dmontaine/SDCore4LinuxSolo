@@ -47,7 +47,9 @@
 #                                 always port 4249 - fixed, not an option (owner, 2 Oct 2026)
 #   --ssh off|local|open          Solo's own ssh listener (standalone only; managed is always open);
 #                                 always port 4251 - fixed, not an option.  Sign-in: your Linux password, or a key.
-#                                 DEFAULT local (on, this computer only), as Windows Solo's is; the API's default is off.
+#                                 DEFAULT local (on, this computer only), as Windows Solo's is, and the ssh server
+#                                 package (openssh-server) is installed if it is missing: --ssh off declines it.
+#                                 With --skip-packages and no sshd the default is off.  The API's default is off.
 #                                 Three wrong passwords from one address within ten minutes lock that address for ten.
 #   --ssh-key FILE                a public key to add for ssh straight into sd (turns ssh on, local,
 #                                 unless --ssh says otherwise)
@@ -91,6 +93,21 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; NC='\033[0m'
 say()  { printf '%s\n' "$*"; }
 warn() { printf '%b%s%b\n' "$YELLOW" "$*" "$NC"; }
 refuse() { printf '%bREFUSED: %s%b\n' "$RED" "$*" "$NC" >&2; exit 2; }
+# 02 Oct 26 (owner: "match the windows solo behavior"): what ssh becomes when the user did not choose it.  As in
+# SD Core Solo for Windows (sd-solo.iss: the "Install the OpenSSH server" task is offered when no sshd is there
+# and is ticked by default; unticking it leaves ssh not set up), the default is ON for this computer only, and
+# the ssh server package is installed if it is missing; "--ssh off" (or answering off) is the way to decline.
+# The one difference is a Linux one: with --skip-packages the user has forbidden package installation, so a
+# missing sshd turns the default off instead of failing the install.  The function between the markers is run by
+# gplbld/test-sshport-units.py: keep the lines, and keep it free of anything but its arguments.
+# BEGIN ssh_default
+ssh_default_choice() {   # ssh_default_choice GIVEN KEY HAVE_SSHD(0|1) SKIP_PACKAGES(0|1) -> off|local|open
+  local given="$1" key="$2" have="$3" skip="$4"
+  if [ -n "$given" ]; then echo "$given"; return 0; fi
+  if [ -n "$key" ]; then echo local; return 0; fi
+  if [ "$have" != "1" ] && [ "$skip" = "1" ]; then echo off; else echo local; fi
+}
+# END ssh_default
 fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 
 [ "$(id -u)" -ne 0 ] || refuse "run this as your own user, not root: SD Core for Linux Solo never runs as root"
@@ -344,31 +361,41 @@ else
   # 02 Oct 26 (owner: "Match Windows as built"): ssh is ON BY DEFAULT, this computer only, as Windows Solo's is
   # (its own sshd is set up wherever OpenSSH is found; only reaching it from other computers is a box,
   # unchecked).  The API stays OFF by default on both.  "off" is still a choice.
-  ssh_explicit=0; [ -z "$ssh" ] || ssh_explicit=1
+  # 02 Oct 26 (owner: "match the windows solo behavior", after a first version that installed the ssh server only
+  # when asked): Windows Solo OFFERS "Install the OpenSSH server" when no sshd is there and ticks it by default, so
+  # here too the default installs the ssh server package if it is missing, and --ssh off (or an answer of off) is
+  # the way to decline.  See ssh_default_choice for the one Linux difference, --skip-packages.
+  have_sshd=0; if command -v sshd >/dev/null 2>&1 || [ -x /usr/sbin/sshd ]; then have_sshd=1; fi
+  ssh_default="$(ssh_default_choice "" "$ssh_key" "$have_sshd" "$skip_pkgs")"
   if [ -z "$ssh" ]; then
     if [ -n "$ssh_key" ]; then
-      ssh="local"
+      ssh="$ssh_default"
     elif [ "$interactive" -eq 1 ]; then
       say
       say "ssh straight into sd uses Solo's own listener on port $ssh_port (your Linux account and password, or a key; the machine's own ssh on"
       say "port 22 is not used).  off = none; local = this computer only; open = reachable from the network."
-      read -r -p "ssh listener [off/local/open] (default local): " ssh < /dev/tty
-      ssh="${ssh:-local}"
+      if [ "$have_sshd" -eq 0 ] && [ "$skip_pkgs" -eq 0 ]; then
+        say "The ssh server program (sshd) is not installed here: local or open INSTALLS the openssh-server package with sudo (on Debian"
+        say "and Ubuntu that package also starts the computer's own ssh server on port 22).  Answer off to leave it out."
+      elif [ "$have_sshd" -eq 0 ]; then
+        say "The ssh server program (sshd) is not installed here and --skip-packages does not install it, so the default is off."
+      fi
+      read -r -p "ssh listener [off/local/open] (default $ssh_default): " ssh < /dev/tty
+      ssh="${ssh:-$ssh_default}"
       case "$ssh" in off|local|open) ;; *) refuse "the ssh answer must be off, local or open (got '$ssh')" ;; esac
-      ssh_explicit=1
     else
-      ssh="local"
+      ssh="$ssh_default"
+      if [ "$ssh" = "off" ]; then
+        warn "no ssh server program (sshd) here and --skip-packages: Solo's ssh is OFF.  Install the ssh server package, then: bash <tree>/tools/solo-ssh.sh setup <tree> && bash <tree>/tools/solo-service.sh ssh <tree> local"
+      fi
     fi
   fi
 fi
-# A computer without the ssh server program, and no way to install it here, does not fail an install that never
-# asked for ssh: the default quietly becomes "off" with a note.  An ssh the user asked for (--ssh, a key, an answer) must work.
-if [ "$managed" -eq 0 ] && [ "$ssh" != "off" ] && [ "${ssh_explicit:-0}" -eq 0 ] && [ "$skip_pkgs" -eq 1 ] \
-   && ! { command -v sshd >/dev/null 2>&1 || [ -x /usr/sbin/sshd ]; }; then
-  warn "no ssh server program (sshd) here and --skip-packages: Solo's ssh is OFF.  Install the ssh server package, then: bash <tree>/tools/solo-ssh.sh setup <tree> && bash <tree>/tools/solo-service.sh ssh <tree> local"
-  ssh="off"
-fi
 ssh_wanted=0; [ "$ssh" = "off" ] || ssh_wanted=1
+# Asking for ssh installs the ssh server package; --skip-packages forbids that, so say so now, not after the build.
+if [ "$ssh_wanted" -eq 1 ] && [ "$skip_pkgs" -eq 1 ] && ! { command -v sshd >/dev/null 2>&1 || [ -x /usr/sbin/sshd ]; }; then
+  refuse "ssh needs the ssh server program (sshd), which is not installed here, and --skip-packages does not install it: install the openssh-server package first, or leave ssh off (--ssh off)"
+fi
 if [ "$ssh_wanted" -eq 1 ] && [ -z "$ssh_key" ] && [ "$interactive" -eq 1 ]; then
   read -r -p "Path to a public key to add for ssh into sd (blank to skip): " ssh_key < /dev/tty
 fi

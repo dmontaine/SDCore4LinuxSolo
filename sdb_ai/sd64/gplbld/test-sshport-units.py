@@ -337,6 +337,36 @@ def suite(tools, work):
                 "sshd directory present, no unit": "local", "nothing": "off"}
         row("INSTALL", "ssh_upgrade_scope: a new socket keeps its address, managed is open, an sshd directory or either old route is local, otherwise off",
             got == want, ["  %s -> %s" % (n, got[n]) for n in want] + ["  expected: %s" % want])
+    # 2 Oct 2026 (owner: "match the windows solo behavior"): as Windows Solo's installer ticks "Install the OpenSSH
+    # server" by default, the DEFAULT is local and installs the ssh server package if it is missing; --ssh off declines;
+    # the one Linux difference is --skip-packages, where a missing sshd makes the default off (not a failed install).
+    md = re.search(r"^# BEGIN ssh_default\n(.*?)^# END ssh_default\n", src, re.M | re.S)
+    if not md:
+        row("INSTALL", "the marker lines for ssh_default_choice are in the installer", False, ["  no BEGIN/END ssh_default markers in " + installer])
+    else:
+        dfunc = md.group(1)
+
+        def dflt(given, key, have, skip):
+            rcd, outd, errd = sh(["bash", "-c", dfunc + '\nssh_default_choice "%s" "%s" "%s" "%s"\n' % (given, key, have, skip)])
+            return outd.strip() if rcd == 0 else "rc=%d %s" % (rcd, errd.strip()[:60])
+        dgot = {
+            "nothing asked, sshd here": dflt("", "", 1, 0),
+            "nothing asked, NO sshd (the package gets installed)": dflt("", "", 0, 0),
+            "nothing asked, NO sshd, --skip-packages": dflt("", "", 0, 1),
+            "nothing asked, sshd here, --skip-packages": dflt("", "", 1, 1),
+            "--ssh open, NO sshd": dflt("open", "", 0, 0),
+            "--ssh off, NO sshd": dflt("off", "", 0, 0),
+            "--ssh off, sshd here": dflt("off", "", 1, 0),
+            "a key given, NO sshd": dflt("", "/k.pub", 0, 0),
+            # a key is asking for ssh: it is not turned off by --skip-packages (the installer refuses that combination itself)
+            "a key given, NO sshd, --skip-packages": dflt("", "/k.pub", 0, 1),
+        }
+        dwant = {"nothing asked, sshd here": "local", "nothing asked, NO sshd (the package gets installed)": "local",
+                 "nothing asked, NO sshd, --skip-packages": "off", "nothing asked, sshd here, --skip-packages": "local",
+                 "--ssh open, NO sshd": "open", "--ssh off, NO sshd": "off", "--ssh off, sshd here": "off", "a key given, NO sshd": "local",
+                 "a key given, NO sshd, --skip-packages": "local"}
+        row("INSTALL", "ssh_default_choice: nothing asked is local (the ssh server package is installed if missing); --skip-packages with no sshd makes it off; --ssh wins",
+            dgot == dwant, ["  %s -> %s" % (n, dgot[n]) for n in dwant] + ["  expected: %s" % dwant])
     refs = []
     # --upgrade is checked against a tree that exists, so the refusal under test is the one that comes back.
     open(os.path.join(tree, ".sdcore-install"), "w").write("commit x\nmode standalone\n")
@@ -553,6 +583,12 @@ MUTANTS = [
     ("sshd directory not counted as evidence", "installsdsolo.sh", 'if [ -f "$home_dir/sshd/sshd_config" ]; then echo local; return 0; fi',
      'if false; then echo local; return 0; fi'),
     ("managed tree not open", "installsdsolo.sh", 'if [ "$mode_name" = "managed" ]; then echo open; return 0; fi', 'if false; then echo open; return 0; fi'),
+    ("default off where sshd is absent (the first, rejected, version)", "installsdsolo.sh",
+     'if [ "$have" != "1" ] && [ "$skip" = "1" ]; then echo off; else echo local; fi', 'if [ "$have" != "1" ]; then echo off; else echo local; fi'),
+    ("--skip-packages with no sshd not honoured", "installsdsolo.sh",
+     'if [ "$have" != "1" ] && [ "$skip" = "1" ]; then echo off; else echo local; fi', 'echo local'),
+    ("a key does not turn ssh on", "installsdsolo.sh", 'if [ -n "$key" ]; then echo local; return 0; fi', 'if false; then echo local; return 0; fi'),
+    ("an explicit --ssh is overridden", "installsdsolo.sh", 'if [ -n "$given" ]; then echo "$given"; return 0; fi', 'if false; then echo "$given"; return 0; fi'),
     ("open listens locally", SVC_TOOL, 'if [ "$1" = "open" ]; then listen="0.0.0.0:$2"; else listen="127.0.0.1:$2"; fi',
      'listen="127.0.0.1:$2"'),
 ]
