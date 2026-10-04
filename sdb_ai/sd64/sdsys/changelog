@@ -4,6 +4,21 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+04 Oct 26  EVERY FAILED API LOGIN IS NOW RECORDED, EVEN IF THE CLIENT HANGS UP EARLY.
+
+           When a program tried to log in to the API with a wrong password,
+           SD Core Solo waited three seconds before answering, to slow down
+           guessing, and wrote the failed attempt to the audit trail only
+           after that wait.  A program that hung up during the three seconds
+           left no record at all.  This was measured on SD Core for Linux on
+           Debian 13 and Fedora 44: five of five early disconnects wrote
+           nothing, while a client that waited wrote one.  Solo has the same
+           code.
+
+           SD Core Solo now writes the record first and then waits.  The
+           three-second wait is unchanged, and so is everything else about a
+           failed login.  Successful logins are not affected.
+
 04 Oct 26  THE INSTALLER CHECKS THE COMPUTER IS ONLINE BEFORE IT STARTS.
 
            The installer downloads SD and the build packages, so it needs the

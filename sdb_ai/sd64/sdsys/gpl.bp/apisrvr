@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 04 Oct 26 SD Core for Linux Solo (LSOLO 36, the full product's S.60) - a refused SCRAM
+*           login is audited BEFORE the three-second failed-credential delay, not after
+*           it.  A client that dropped during the delay used to leave no audit line.
 * 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - vb.local.login keeps only its refusal
 *           (request 25 stays in the dispatch table); the unreachable body, its
 *           is_grp_member test and the is_grp_member declaration are gone.
@@ -266,6 +269,7 @@ scram.gstored = ''     ;* $global's StoredKey, when it shares the salt (ruling 1
 scram.gserver = ''     ;* $global's ServerKey, likewise
 scram.audit.name = ''   ;* Name as PRESENTED, sanitised - see scram.clean.name
 scram.refuse.reason = '';* Why this exchange was refused; '' = not refused
+scram.fail.delay = 0   ;* Seconds to wait AFTER the refusal is audited (3 for a bad credential)
 
 loop
    unload.object               ;* Unload inactive object code
@@ -1426,7 +1430,10 @@ scram.bad.cred:
                if scram.refuse.reason = '' then scram.refuse.reason = 'credential'
                abort.message = sysmsg(5017) ;* Invalid username or password
                server.error = SV$ON.ERROR
-               sleep 3
+* 04 Oct 26 dm S.60 / LSOLO 36: THE DELAY IS TAKEN AFTER THE REFUSAL IS AUDITED, NOT
+*   BEFORE (the full product's S.60; see its apisrvr).  A client that dropped during the
+*   old "sleep 3" ended this process before the audit line was written.
+               scram.fail.delay = 3
                goto exit.vb.scram.fail
 
 exit.vb.scram.fail:
@@ -1437,6 +1444,11 @@ exit.vb.scram.fail:
                   if scram.audit.name = '' then scram.audit.name = '(none)'
                   void kernel(K$AUDIT, 'API REFUSED user=' : scram.audit.name : ' reason=' : scram.refuse.reason)
                   scram.refuse.reason = ''
+               end
+               * The wait comes AFTER the record, never before it (S.60 above).
+               if scram.fail.delay > 0 then
+                  sleep scram.fail.delay
+                  scram.fail.delay = 0
                end
 
                * The connection goes, as for a failed request 24.
