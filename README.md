@@ -44,9 +44,13 @@ bash installsdsolo.sh          # asks its questions; --help lists the options
 It downloads the source (the `main` branch of this repository) into a temporary
 directory under your home, builds it there, installs into `~/SDCoreSolo`, sets your
 passwords, starts SD as your own systemd service and deletes the download. The
-script can be carried on a USB stick; it needs the network for the packages and the
-download. `bash ~/SDCoreSolo/tools/deletesdsolo.sh` removes it again, keeping your
-data if you ask.
+script can be carried on a USB stick (a release zip unzipped there) and run from it
+with `bash /media/<you>/<stick>/installsdsolo.sh` - use `bash`, because a stick
+formatted FAT, exFAT or NTFS has no execute permission. The stick carries only the
+installer and the documentation: the computer must be online for the packages and
+the download, and the installer says so, before it asks anything or changes
+anything, if it is not. `bash ~/SDCoreSolo/tools/deletesdsolo.sh` removes it again,
+keeping your data if you ask.
 
 **Requirements:** a 64-bit Linux with a systemd user manager and one of the
 Debian/Ubuntu families or Fedora (not Arch, openSUSE, RHEL or RHEL's clones); a user who can use `sudo`.

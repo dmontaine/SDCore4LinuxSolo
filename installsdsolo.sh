@@ -193,6 +193,40 @@ fi
 command -v systemctl >/dev/null || refuse "systemctl is required (a systemd user manager)"
 [ -d "/run/user/$(id -u)" ] || warn "no /run/user/$(id -u): the systemd user manager may not be running in this shell"
 
+# 04 Oct 26 - LSOLO 35: THE NETWORK IS CHECKED BEFORE ANYTHING IS ASKED OR CHANGED (owner, 4 Oct 2026:
+# on Linux a USB stick carries only this installer and the documentation; the install downloads SD,
+# because there are several target distributions to build for).  Without this an offline computer
+# was asked every question, then sudo, and failed in the package step.  This needs only bash and
+# getent (git may not be installed yet).  It refuses ONLY when it is sure: any proxy variable, or
+# SD_SKIP_NET_CHECK=1, skips it, because a false refusal is worse than the late failure.  The
+# function between the markers is run by gplbld/test-netpreflight-units.py: keep the lines, and
+# keep it free of anything but its arguments and refuse().
+# BEGIN net_preflight
+net_preflight() {   # net_preflight HOST PORT
+  local host="$1" port="$2" v why
+  [ "${SD_SKIP_NET_CHECK:-}" = "1" ] && return 0
+  for v in https_proxy HTTPS_PROXY all_proxy ALL_PROXY; do
+    [ -n "${!v:-}" ] && return 0
+  done
+  if ! getent hosts "$host" >/dev/null 2>&1; then
+    why="cannot look up $host"
+  elif ! timeout 8 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$host" "$port" >/dev/null 2>&1; then
+    why="cannot connect to $host port $port"
+  else
+    return 0
+  fi
+  refuse "this computer is not online: $why.
+  This installer downloads SD from $host and the build packages from your distribution, so the
+  computer must be connected to the internet while it runs.  A USB stick carries this installer
+  and the documentation, not SD.  Nothing has been changed.  Connect to the internet and run it
+  again.  If you do reach $host through a proxy this check cannot see, run it again as:
+      SD_SKIP_NET_CHECK=1 bash $0"
+}
+# END net_preflight
+# The host is the one the installer clones from.  SDSOLO_REPO_URL (the test hook above) may name a
+# local path, which needs no network, so only an https URL is tested.
+if [[ "$REPO_URL" =~ ^https://([^/:]+)/ ]]; then net_preflight "${BASH_REMATCH[1]}" 443; fi
+
 # ---------------------------------------------------------------- the password rule
 # SD's rule (owner, 19 Sep 2026): 8 or more characters with a lower-case letter, an
 # upper-case letter, a digit and a symbol, all printable ASCII 33-126 (no space - the

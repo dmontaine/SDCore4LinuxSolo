@@ -4,6 +4,27 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+04 Oct 26  THE INSTALLER CHECKS THE COMPUTER IS ONLINE BEFORE IT STARTS.
+
+           The installer downloads SD and the build packages, so it needs the
+           internet.  On a computer that was offline it used to ask its
+           questions, ask for your password and then fail part-way through the
+           packages.  It now checks first and stops at once, saying the
+           computer is not online and that nothing has been changed.
+
+           This matters when the installer is run from a USB stick: the stick
+           carries the installer and the documentation, not SD itself, and the
+           computer it is plugged into must still be online.  Run it with
+           "bash", because a stick formatted FAT, exFAT or NTFS cannot mark a
+           file executable.
+
+           The check only looks for a route to github.com.  It is skipped when
+           a proxy is set in the environment (https_proxy, HTTPS_PROXY,
+           all_proxy or ALL_PROXY).  If your proxy is set up only for the
+           package manager and the check stops you wrongly, run the installer
+           as "SD_SKIP_NET_CHECK=1 bash installsdsolo.sh".  It does not make
+           the installer work offline.
+
 04 Oct 26  DEBIAN, UBUNTU AND FEDORA ONLY.
 
            The installer now supports Debian, Ubuntu (and derivatives such as
