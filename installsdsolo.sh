@@ -457,14 +457,16 @@ install_packages() {
   local ssh_pkg=0; [ "$ssh_wanted" -eq 1 ] && ssh_pkg=1
   if [ "$is_debian" -eq 1 ]; then
     say "Debian or Ubuntu based: apt-get"
-    local pk="git build-essential micro lynx libsodium-dev libssl-dev python3-dev"
+    # "openssl" (the command) as well as the headers: Fedora Workstation ships without it
+    # (measured 4 Oct 2026, the tool check below refused), and a minimal Debian may too.
+    local pk="git build-essential micro lynx libsodium-dev libssl-dev openssl python3-dev"
     [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
     # shellcheck disable=SC2086
     sudo apt-get -y install $pk || fail "apt-get"
     sudo apt-get -y --ignore-missing install libcrypt-dev || true
   elif [ "$is_fedora" -eq 1 ]; then
     say "Fedora based: dnf"
-    local pk="git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl-devel python3-devel"
+    local pk="git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl openssl-devel python3-devel"
     [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
     # shellcheck disable=SC2086
     sudo dnf -y install $pk || fail "dnf"
