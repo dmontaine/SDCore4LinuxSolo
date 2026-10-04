@@ -213,7 +213,8 @@ if command -v ufw >/dev/null 2>&1; then
   fi
 fi
 # LSOLO 32 (4 Oct 2026): the installer adds firewalld rules too now; reported the same way, not removed.
-if command -v firewall-cmd >/dev/null 2>&1 && [ "$(firewall-cmd --state 2>/dev/null)" = running ]; then
+# (systemd, not "firewall-cmd --state", which polkit refuses an ordinary user - Fedora 44.)
+if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
   for p in 4249 4251; do
     if sudo -n firewall-cmd --permanent --query-port="$p/tcp" >/dev/null 2>&1; then
       warn "firewalld still allows TCP $p, this product's $( [ "$p" = 4249 ] && echo API || echo ssh ) port; if the installer added it, remove it with 'sudo firewall-cmd --permanent --remove-port=$p/tcp && sudo firewall-cmd --reload'"

@@ -767,7 +767,9 @@ fw_open() {   # fw_open PORT WHAT
   if command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
     say "ufw is active: opening TCP $port for $what (sudo)."
     sudo ufw allow "$port/tcp" || warn "could not add the ufw rule; open port $port yourself"
-  elif command -v firewall-cmd >/dev/null 2>&1 && [ "$(firewall-cmd --state 2>/dev/null)" = running ]; then
+  # "firewall-cmd --state" is refused by polkit for an ordinary user (measured on Fedora 44:
+  # "Authorization failed", so a running firewalld read as stopped); systemd answers anyone.
+  elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
     say "firewalld is running: opening TCP $port for $what (sudo)."
     { sudo firewall-cmd -q --permanent --add-port="$port/tcp" && sudo firewall-cmd -q --reload; } \
       || warn "could not add the firewalld rule; open port $port yourself (sudo firewall-cmd --permanent --add-port=$port/tcp && sudo firewall-cmd --reload)"

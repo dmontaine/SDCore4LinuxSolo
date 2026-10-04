@@ -195,7 +195,8 @@ if [ "$cmd" = "ssh" ]; then
   # allowed - measured on the Fedora VM, where it timed out at firewalld.  No sudo here (see the
   # header), so the one command is printed, as for linger.
   if [ "$2" = "open" ]; then
-    if command -v firewall-cmd >/dev/null 2>&1 && [ "$(firewall-cmd --state 2>/dev/null)" = running ]; then
+    # systemd, not "firewall-cmd --state", which polkit refuses an ordinary user (Fedora 44).
+    if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
       echo "firewalld is running: allow TCP $(ssh_port) or nothing outside this computer reaches it:"
       echo "    sudo firewall-cmd --permanent --add-port=$(ssh_port)/tcp && sudo firewall-cmd --reload"
     elif command -v ufw >/dev/null 2>&1; then
