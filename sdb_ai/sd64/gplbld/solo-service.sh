@@ -191,6 +191,18 @@ if [ "$cmd" = "ssh" ]; then
   ssh_check_tree "$1"
   case "$2" in off|local|open) ;; *) refuse "the ssh mode must be off, local or open (got '$2')" ;; esac
   ssh_apply "$1" "$2"
+  # LSOLO 32 (4 Oct 2026): "open" behind a running firewall reaches nobody until the port is
+  # allowed - measured on the Fedora VM, where it timed out at firewalld.  No sudo here (see the
+  # header), so the one command is printed, as for linger.
+  if [ "$2" = "open" ]; then
+    if command -v firewall-cmd >/dev/null 2>&1 && [ "$(firewall-cmd --state 2>/dev/null)" = running ]; then
+      echo "firewalld is running: allow TCP $(ssh_port) or nothing outside this computer reaches it:"
+      echo "    sudo firewall-cmd --permanent --add-port=$(ssh_port)/tcp && sudo firewall-cmd --reload"
+    elif command -v ufw >/dev/null 2>&1; then
+      echo "if ufw is active, allow TCP $(ssh_port) or nothing outside this computer reaches it:"
+      echo "    sudo ufw allow $(ssh_port)/tcp"
+    fi
+  fi
   echo "SOLO SSH LISTENER $2"
   exit 0
 fi

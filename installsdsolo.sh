@@ -759,18 +759,24 @@ if [ "$upgrade" -eq 0 ] && [ "$ssh_wanted" -eq 1 ] && [ "$no_service" -eq 1 ]; t
   ssh_prepare
   warn "ssh is set up but NOT listening (no service): bash $HOME_DIR/tools/solo-service.sh install $HOME_DIR --ssh $ssh"
 fi
-if [ "$ssh" = "open" ] && command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
-  say "ufw is active: opening TCP $ssh_port for ssh (sudo)."
-  sudo ufw allow "$ssh_port/tcp" || warn "could not add the ufw rule; open port $ssh_port yourself"
-elif [ "$ssh" = "open" ]; then
-  warn "ssh is open on port $ssh_port; if a firewall runs on this computer, allow TCP $ssh_port"
-fi
-if [ "$api" = "open" ] && command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
-  say "ufw is active: opening TCP $api_port for the API (sudo)."
-  sudo ufw allow "$api_port/tcp" || warn "could not add the ufw rule; open port $api_port yourself"
-elif [ "$api" = "open" ]; then
-  warn "the API is open on port $api_port; if a firewall runs on this computer, allow TCP $api_port"
-fi
+# LSOLO 32 (owner, 4 Oct 2026: "yes - for both sd core and sd solo"): firewalld as well as ufw.
+# On the Fedora VM "open" got no rule, and a connection from outside timed out at firewalld.  The
+# rule goes to whichever of the two is RUNNING (ufw first, as before); with neither, the warning.
+fw_open() {   # fw_open PORT WHAT
+  local port="$1" what="$2"
+  if command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
+    say "ufw is active: opening TCP $port for $what (sudo)."
+    sudo ufw allow "$port/tcp" || warn "could not add the ufw rule; open port $port yourself"
+  elif command -v firewall-cmd >/dev/null 2>&1 && [ "$(firewall-cmd --state 2>/dev/null)" = running ]; then
+    say "firewalld is running: opening TCP $port for $what (sudo)."
+    { sudo firewall-cmd -q --permanent --add-port="$port/tcp" && sudo firewall-cmd -q --reload; } \
+      || warn "could not add the firewalld rule; open port $port yourself (sudo firewall-cmd --permanent --add-port=$port/tcp && sudo firewall-cmd --reload)"
+  else
+    warn "$what is open on port $port; if a firewall runs on this computer, allow TCP $port"
+  fi
+}
+[ "$ssh" = "open" ] && fw_open "$ssh_port" "ssh"
+[ "$api" = "open" ] && fw_open "$api_port" "the API"
 
 # ---------------------------------------------------------------- self-check (ruling 13 included)
 say
