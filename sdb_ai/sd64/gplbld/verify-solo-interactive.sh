@@ -68,7 +68,7 @@ answers() {   # answers CONTINUE-ANSWER
   printf '%s\n' expect:'Choose the administrator password: ' send:"$ADM"
   printf '%s\n' expect:'Confirm the administrator password: ' send:"$ADM"
   printf '%s\n' expect:'API listener \[off/local/open\] \(default off\): ' send:local
-  printf '%s\n' expect:'Set up ssh straight into sd .*\[y/N\]' send:n
+  printf '%s\n' expect:'ssh listener \[off/local/open\] \(default local\): ' send:off
   printf '%s\n' expect:'Enable it now\? \[Y/n\]' send:n
   printf '%s\n' expect:'Ready to install:'
   printf '%s\n' expect:'Continue\? \[Y/n\]' send:"$1"
