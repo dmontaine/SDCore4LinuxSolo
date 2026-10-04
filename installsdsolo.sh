@@ -13,8 +13,10 @@
 # carried on a USB stick: it needs the network only for the packages and the download.
 #
 # WHAT NEEDS sudo, and ONLY this: installing the build packages, opening a firewall
-# port you asked for (the API's, or ssh's), and "loginctl enable-linger".
-# Everything else is done as you, in your own home.  Nothing is written outside it.
+# port you asked for (the API's, or ssh's), "loginctl enable-linger", and - only where
+# SELinux is enabled and ssh is on - Solo's own PAM service, /etc/pam.d/sd-solo-ssh-<you>
+# (LSOLO 31: Fedora's sshd PAM stack refuses a sshd that is not root; see tools/solo-ssh.sh).
+# Everything else is done as you, in your own home.  Nothing else is written outside it.
 #
 # SSH (LSOLO 29, owner, 2 Oct 2026): Solo runs its OWN ssh listener on port 4251, fixed,
 # as you and with no root: sign in with your Linux account name and password (checked by PAM, sent
@@ -660,7 +662,17 @@ ssh_upgrade_scope() {   # ssh_upgrade_scope HOME_DIR UNITDIR MODE_NAME AUTHORIZE
 ssh_prepare() {   # the tree's own sshd directory, then the key if one was given
   local out
   out="$(bash "$HOME_DIR/tools/solo-ssh.sh" setup "$HOME_DIR" 2>&1)" || { printf '%s\n' "$out" | tail -8; fail "solo-ssh.sh setup"; }
-  printf '%s\n' "$out" | grep -E '^(WARNING|  /|host key|SOLO SSHD READY)' || true
+  # LSOLO 31: under SELinux a sshd that is not root fails Fedora's PAM session step, so Solo's
+  # sshd gets a PAM service of its own (sudo), and setup runs again to name it.
+  if [ -e /sys/fs/selinux/enforce ] && ! printf '%s\n' "$out" | grep -q '^pam service    : /etc/pam.d/'; then
+    say "SELinux is enabled: Solo's ssh needs its own PAM service, /etc/pam.d/sd-solo-ssh-$(id -un) (sudo)."
+    if bash "$HOME_DIR/tools/solo-ssh.sh" pam "$HOME_DIR" --install 2>&1 | tail -3; then
+      out="$(bash "$HOME_DIR/tools/solo-ssh.sh" setup "$HOME_DIR" 2>&1)" || { printf '%s\n' "$out" | tail -8; fail "solo-ssh.sh setup"; }
+    else
+      warn "Solo's PAM service was NOT installed, so the ssh sign-in will be refused; the line below says how to retry"
+    fi
+  fi
+  printf '%s\n' "$out" | grep -E '^(WARNING|  /|  bash|host key|pam service|SOLO SSHD READY)' || true
   if [ -n "$ssh_key" ]; then
     bash "$HOME_DIR/tools/solo-ssh.sh" key-add "$HOME_DIR" "$ssh_key" | tail -2 || fail "solo-ssh.sh key-add"
   fi

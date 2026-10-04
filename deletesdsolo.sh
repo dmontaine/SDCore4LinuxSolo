@@ -9,7 +9,8 @@
 # Removes SD Core for Linux Solo for the user who runs it: the systemd user units,
 # the running daemon, the ~/.local/bin/sd and sd-solo commands, the ssh key lines an earlier
 # release added to your ~/.ssh/authorized_keys, the old sshd_config.d block (sudo, only if it
-# exists), and the installation directory (which holds Solo's own ssh directory: its host
+# exists), Solo's own PAM service /etc/pam.d/sd-solo-ssh-<you> (sudo, only if it exists -
+# SELinux machines, LSOLO 31), and the installation directory (which holds Solo's own ssh directory: its host
 # key and key file).  Run as YOUR OWN USER, never as root.
 #
 # YOUR DATA.  The account's files live in <home>/user_accounts/sduser.  --keep-data
@@ -90,6 +91,11 @@ FORCED_OLD="command=\"$H/bin/sd\",restrict,pty "   # lines an install before the
 n_keys=0
 [ -f "$AK" ] && n_keys="$(grep -cF -e "$FORCED" -e "$FORCED_OLD" "$AK" 2>/dev/null || true)"
 DROPIN="/etc/ssh/sshd_config.d/50-sd-solo-$(id -un).conf"
+# LSOLO 31: Solo's own PAM service where SELinux is enabled (solo-ssh.sh pam); removed only when it
+# carries Solo's marker line.
+PAMFILE="/etc/pam.d/sd-solo-ssh-$(id -un)"
+pam_ours=0
+[ -f "$PAMFILE" ] && grep -qF '# SD Core for Linux Solo: the PAM service of' "$PAMFILE" 2>/dev/null && pam_ours=1
 # 02 Oct 26 - THE COMMAND NAMES (owner, 1 Oct 2026).  "sd-solo" is a link to this tree's
 # bin/sd-solo.  "sd" is NOT this product's name any more, but an install before the rename made
 # ~/.local/bin/sd (a link to this tree's old bin/sd, or a launcher naming it), and an upgrade
@@ -119,6 +125,7 @@ say "  - the installation directory $H"
 [ "$solo_link_ours" -eq 1 ] && say "  - the link $solo_link"
 [ "${n_keys:-0}" -gt 0 ] && say "  - $n_keys ssh key line(s) in $AK that force sd (your other keys are untouched)"
 [ -f "$DROPIN" ] && say "  - $DROPIN (needs sudo)"
+[ "$pam_ours" -eq 1 ] && say "  - $PAMFILE, Solo's PAM service (needs sudo)"
 say
 
 if [ -z "$data" ]; then
@@ -169,6 +176,10 @@ fi
 if [ -f "$DROPIN" ]; then
   if [ -f "$H/tools/solo-ssh.sh" ]; then bash "$H/tools/solo-ssh.sh" match "$H" --remove || warn "the sshd block was NOT removed; remove $DROPIN as an administrator"
   else warn "remove $DROPIN as an administrator (sudo rm, then reload sshd)"; fi
+fi
+if [ "$pam_ours" -eq 1 ]; then
+  if sudo rm -f "$PAMFILE" && [ ! -e "$PAMFILE" ]; then say "removed $PAMFILE"
+  else warn "$PAMFILE was NOT removed; remove it as an administrator (sudo rm $PAMFILE)"; fi
 fi
 
 # ---- 3. the data, then the tree

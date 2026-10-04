@@ -7,6 +7,7 @@
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-list   HOME_DIR [--authorized-keys FILE]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh migrate    HOME_DIR [--old-authorized-keys FILE] [--authorized-keys FILE]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh match      HOME_DIR [--remove]
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh pam        HOME_DIR [--install|--remove]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh locked     HOME_DIR
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh unlock     HOME_DIR [ADDRESS]
 #
@@ -30,6 +31,17 @@
 # asks the SD account password, as it does for every session.  The PAM session step logs two
 # harmless refusals for a process that is not root (pam_unix "setuid failed", pam_systemd
 # "CreateSession ... PermissionDenied"); neither stops the login.
+#
+# SELINUX (LSOLO 31, measured 3 Oct 2026 on Fedora 44, enforcing): THERE THE SESSION STEP DOES
+# STOP THE LOGIN.  Fedora's /etc/pam.d/sshd has "session required pam_selinux.so open", which a
+# sshd that is not root cannot pass ("A valid context for <user> could not be obtained", ssh exit
+# 254) after the password was ACCEPTED.  So where SELinux is enabled (/sys/fs/selinux/enforce
+# exists) Solo's sshd uses a PAM service of its own, /etc/pam.d/sd-solo-ssh-<user>: the
+# machine's sshd stack without pam_selinux, pam_loginuid and pam_namespace (the session modules
+# that need root), named by "PAMServiceName" (OpenSSH 10.0 and later).  "pam --install" writes
+# it (needs sudo), "pam --remove" removes it, "pam" alone says whether it is needed; "setup"
+# names it in sshd_config when it is there.  With the file the Fedora sign-in passed.  Without
+# SELinux nothing changes: Debian's stack names pam_selinux too, but "module_unknown=ignore".
 #
 # MaxAuthTries IS 6, OPENSSH'S OWN DEFAULT, NOT 3 (measured 2 Oct 2026): every key a client offers that the
 # server does not know COUNTS as a failed attempt, so with 3 a person whose ssh agent holds four keys was
@@ -71,8 +83,8 @@ fail()   { echo "FAILED at: $*" >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root; Solo's ssh is the owner's own"
 cmd="${1:-}"
 case "$cmd" in
-  setup|key-add|key-remove|key-list|migrate|match|locked|unlock|api-add|api-remove|api-list) shift ;;
-  *) refuse "usage: bash $0 setup|key-add|key-remove|key-list|migrate|match|locked|unlock|api-add|api-remove|api-list HOME_DIR ..." ;;
+  setup|key-add|key-remove|key-list|migrate|match|pam|locked|unlock|api-add|api-remove|api-list) shift ;;
+  *) refuse "usage: bash $0 setup|key-add|key-remove|key-list|migrate|match|pam|locked|unlock|api-add|api-remove|api-list HOME_DIR ..." ;;
 esac
 [ "$#" -ge 1 ] || refuse "HOME_DIR is required"
 H="$1"; shift
@@ -113,11 +125,30 @@ while [ "$#" -gt 0 ]; do
     --authorized-keys) [ "$#" -ge 2 ] || refuse "--authorized-keys needs a file"; AK="$2"; AK_DEFAULT=0; shift 2 ;;
     --old-authorized-keys) [ "$#" -ge 2 ] || refuse "--old-authorized-keys needs a file"; OLD_AK="$2"; shift 2 ;;
     --remove) mode="remove"; shift ;;
+    --install) [ "$cmd" = "pam" ] || refuse "--install is for pam only"; mode="install"; shift ;;
     -*) refuse "unknown argument: $1" ;;
     *)  [ -z "$pubfile" ] || refuse "one public key file only"; pubfile="$1"; shift ;;
   esac
 done
 
+# LSOLO 31: the PAM service of this user's Solo sshd where SELinux is enabled (see the header).
+PAMNAME="sd-solo-ssh-$user"
+PAMFILE="/etc/pam.d/$PAMNAME"
+PAMMARK="# SD Core for Linux Solo: the PAM service of"
+selinux_on() { [ -e /sys/fs/selinux/enforce ]; }
+pam_ours() { [ -f "$PAMFILE" ] && grep -qF "$PAMMARK" "$PAMFILE"; }
+# (gplbld/test-sshpam-units.py cuts the lines between the markers out of this file and runs them.)
+# BEGIN pam_stack
+pam_stack() {   # pam_stack SSHD_PAM_FILE USER -> Solo's PAM service file on stdout
+  echo "#%PAM-1.0"
+  echo "# SD Core for Linux Solo: the PAM service of $2's Solo sshd (port 4251)."
+  echo "# WRITTEN BY solo-ssh.sh pam --install from $1, without the session modules a sshd"
+  echo "# that is not root cannot pass (pam_selinux, pam_loginuid, pam_namespace).  Do not edit."
+  awk '/^[[:space:]]*#%PAM/ { next }
+       /^[[:space:]]*[^#[:space:]].*(pam_selinux|pam_loginuid|pam_namespace)\.so/ { next }
+       { print }' "$1"
+}
+# END pam_stack
 is_ours() { case "$1" in "$KEYOPTS "*) return 0 ;; *) return 1 ;; esac; }
 fp_of() { ssh-keygen -l -f "$1" 2>/dev/null | awk '{print $2}' | head -1; }
 mk_akdir() {
@@ -182,6 +213,13 @@ LoginGraceTime 30
 LogLevel INFO
 ForceCommand $H/bin/sd-solo
 CONFIG
+  pam_state="the machine's sshd service (no SELinux)"
+  if pam_ours; then
+    echo "PAMServiceName $PAMNAME" >> "$tmp"
+    pam_state="$PAMFILE (SELinux)"
+  elif selinux_on; then
+    pam_state="the machine's sshd service - SIGN-IN WILL FAIL UNDER SELINUX"
+  fi
   if ! out="$("$SSHD" -t -f "$tmp" 2>&1)"; then
     rm -f "$tmp"; printf '%s\n' "$out" >&2; fail "sshd -t rejected the generated configuration"
   fi
@@ -197,6 +235,11 @@ CONFIG
   echo "config         : $CONF"
   echo "host key       : $HOSTKEY.pub ($hostfp)"
   echo "key file       : $AK"
+  echo "pam service    : $pam_state"
+  if selinux_on && ! pam_ours; then
+    echo "WARNING: SELinux is enabled here, so the ssh sign-in is refused until Solo has its own PAM service (needs sudo):" >&2
+    echo "  bash $0 pam $H --install && bash $0 setup $H" >&2
+  fi
   echo "SOLO SSHD READY port=$PORT hostfp=$hostfp user=$user"
   exit 0
 fi
@@ -391,6 +434,52 @@ if [ "$cmd" = "migrate" ]; then
   chmod --reference="$OLD_AK" "$tmp" 2>/dev/null || chmod 600 "$tmp"
   mv -f -- "$tmp" "$OLD_AK" || { rm -f "$tmp"; fail "replace $OLD_AK"; }
   echo "SOLO SSH MIGRATED ${#moved[@]}"
+  exit 0
+fi
+
+# ---- pam: Solo's own PAM service where SELinux is enabled (LSOLO 31)
+if [ "$cmd" = "pam" ]; then
+  case "$user" in ""|*[!A-Za-z0-9_.-]*) refuse "the user name '$user' cannot name a PAM service safely" ;; esac
+  case "$mode" in
+    "")
+      if pam_ours; then echo "SOLO SSH PAM PRESENT $PAMFILE"
+      elif selinux_on; then
+        echo "SELinux is enabled: the ssh sign-in needs Solo's own PAM service (needs sudo):"
+        echo "    bash $0 pam $H --install && bash $0 setup $H"
+        echo "SOLO SSH PAM NEEDED $PAMFILE"
+      else echo "SOLO SSH PAM NOT NEEDED (SELinux is not enabled)"; fi
+      ;;
+    install)
+      selinux_on || { echo "SOLO SSH PAM NOT NEEDED (SELinux is not enabled)"; exit 0; }
+      [ -r /etc/pam.d/sshd ] || refuse "/etc/pam.d/sshd is not there to build from"
+      [ ! -e "$PAMFILE" ] || pam_ours || refuse "$PAMFILE exists and is not Solo's; it was left alone"
+      [ -f "$HOSTKEY" ] || refuse "run 'bash $0 setup $H' first (the check below needs the host key)"
+      SSHD="$(command -v sshd 2>/dev/null || echo /usr/sbin/sshd)"
+      tmp="$(mktemp "${TMPDIR:-/tmp}/sd-solo-pam.XXXXXX")" || fail "mktemp"
+      # PAMServiceName is OpenSSH 10.0 and later: an older sshd rejects the line, and then this cannot help.
+      printf 'PAMServiceName %s\nHostKey %s\n' "$PAMNAME" "$HOSTKEY" > "$tmp"
+      if ! out="$("$SSHD" -t -f "$tmp" 2>&1)"; then
+        rm -f "$tmp"; printf '%s\n' "$out" >&2
+        refuse "this sshd does not accept PAMServiceName (OpenSSH 10.0 or later is needed); Solo's ssh sign-in cannot work under SELinux here"
+      fi
+      pam_stack /etc/pam.d/sshd "$user" > "$tmp" || { rm -f "$tmp"; fail "building the PAM service"; }
+      grep -q -E '^[[:space:]]*auth[[:space:]]' "$tmp" || { rm -f "$tmp"; fail "the built PAM service has no auth line"; }
+      sudo install -m 644 -o root -g root "$tmp" "$PAMFILE" || { rm -f "$tmp"; fail "sudo install $PAMFILE"; }
+      rm -f "$tmp"
+      pam_ours || fail "$PAMFILE is not there after the install"
+      echo "SOLO SSH PAM INSTALLED $PAMFILE"
+      ;;
+    remove)
+      if [ ! -e "$PAMFILE" ]; then echo "SOLO SSH PAM ABSENT $PAMFILE"; exit 0; fi
+      pam_ours || refuse "$PAMFILE is not Solo's; it was left alone"
+      sudo rm -f "$PAMFILE" || fail "sudo rm $PAMFILE"
+      [ ! -e "$PAMFILE" ] || fail "$PAMFILE is still there"
+      if [ -f "$CONF" ] && grep -q '^PAMServiceName ' "$CONF"; then
+        echo "WARNING: $CONF still names $PAMNAME; run: bash $0 setup $H" >&2
+      fi
+      echo "SOLO SSH PAM REMOVED $PAMFILE"
+      ;;
+  esac
   exit 0
 fi
 
