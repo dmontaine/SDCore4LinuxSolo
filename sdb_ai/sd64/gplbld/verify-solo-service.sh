@@ -72,8 +72,8 @@ trap cleanup EXIT
 out="$(bash "$SVC" install "$H" --api local 2>&1)"
 last="$(printf '%s\n' "$out" | strip | grep -E '^SOLO SERVICE READY' | tail -1)"
 case "$last" in
-  "SOLO SERVICE READY daemon=active api=local linger="*) leg "S1 install" "'SOLO SERVICE READY daemon=active api=local linger=...'" 0 "$last" ;;
-  *) leg "S1 install" "'SOLO SERVICE READY daemon=active api=local ...'" 1 "$(printf '%s\n' "$out" | tail -2 | tr '\n' ' ')"; exit 1 ;;
+  "SOLO SERVICE READY daemon=active api=local ssh="*" linger="*) leg "S1 install" "'SOLO SERVICE READY daemon=active api=local ssh=... linger=...'" 0 "$last" ;;
+  *) leg "S1 install" "'SOLO SERVICE READY daemon=active api=local ssh=... linger=...'" 1 "$(printf '%s\n' "$out" | tail -2 | tr '\n' ' ')"; exit 1 ;;
 esac
 
 # ---- S2. the unit files name THIS tree and no other path.
@@ -278,7 +278,7 @@ sleep 1
 real_ss="$(ss -ltn 2>/dev/null | awk '$4 ~ /:4249$/ {print $4}' | head -1)"
 bash "$SVC" install "$H" --api local >/dev/null 2>&1; sleep 1     # back to the private port
 back_4249="$(ss -ltn 2>/dev/null | awk '$4 ~ /:4249$/ {print $4}' | head -1)"
-case "$real_ready" in "SOLO SERVICE READY daemon=active api=local linger="*) real_ok=1 ;; *) real_ok=0 ;; esac
+case "$real_ready" in "SOLO SERVICE READY daemon=active api=local ssh="*" linger="*) real_ok=1 ;; *) real_ok=0 ;; esac
 if [ $ap_refused -eq 1 ] && [ $ap_moved -eq 0 ] && [ $real_ok -eq 1 ] && [ "$real_hook" -eq 0 ] \
    && [ $real_unit -eq 1 ] && [ "$real_ss" = "127.0.0.1:4249" ] && [ -z "$back_4249" ]; then
   leg "S7c the port is 4249 and fixed" "'--api-port' refused ('unknown argument'); no hook -> unit says 127.0.0.1:4249 and ss shows it; gone again after the hooked reinstall" 0 "refused; listener $real_ss"
