@@ -156,6 +156,16 @@ if [ "$upgrade" -eq 1 ]; then
   # SDSYS's VOC and the dictionaries and work files of the system account.
   rm -rf "$H/gpl.bp.out" "$H/voc" "$H/voc.dic" "$H/accounts.dic" "$H/\$hold.dic" \
          "$H/\$map" "$H/\$map.dic" "$H/\$ipc" "$H/dict.dic" "$H/dir_dict"
+  # RETIRED FILES (LSOLO 30, 3 Oct 2026).  The overlay below ("cp -R sdsys/. $H/") only adds
+  # and replaces, so a file a release stops shipping would stay in the tree - and be compiled
+  # and catalogued again, or (the VOC templates) copied back into the account's VOC by
+  # UPDATE.ACCOUNTS.  A file removed from sdsys/ in a release goes on this list in the same
+  # commit; gplbld/test-retired-units.py checks that none is still shipped.
+  # LS1.1-3: the LOGTO verb (its two VOC records) and the helpers only it and the dead
+  # SDLocal login used.
+  for f in gpl.bp/is_grp_member gpl.bp/euid_set gpl.bp/euid_restore voc_template/logto newvoc/logto; do
+    rm -f "$H/$f"
+  done
 fi
 
 mkdir -p "$H"

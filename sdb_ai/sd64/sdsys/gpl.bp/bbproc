@@ -25,6 +25,8 @@
 *
 *
 * START-HISTORY:
+* 03 Oct 26 dm  is_grp_member leaves the bootstrap list: the program is deleted
+*               (LSOLO 30), its last callers were LOGTO and the dead SDLocal login.
 * 02 Oct 26 dm  acc_hold joins the bootstrap list: LOGIN calls it (LSOLO 20).
 * 13 Sep 26 dm  gpl.bp record names are lower case (plan M): the bootstrap list
 *               and the installed-already check name them so.  Compiled headers
@@ -235,7 +237,6 @@ src.list<-1> = 'bcomp'
 src.list<-1> = 'pterm'
 src.list<-1> = 'catalog'
 src.list<-1> = 'parser'
-src.list<-1> = 'is_grp_member'
 * 02 Oct 26 dm - S.50 / LSOLO 20: LOGIN calls !acc_hold (the login hold) on every
 *   entry, the bootstrap's own sessions included, so it must exist before LOGIN
 *   first runs.  Without it every later pass died "Unable to load '!ACC_HOLD'

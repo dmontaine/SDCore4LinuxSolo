@@ -18,6 +18,12 @@
 * 
 * 
 * START-HISTORY:
+* 03 Oct 26 LSOLO 30 - LOGTO is removed (owner, 30 Sep and 3 Oct 2026): INT.LOGTO, its
+*           logto.reset flag and its group test are gone, and slot 17 of the internal
+*           verb table is now INT.REMOVED.  So are the four $ifndef IS_INSTALL blocks
+*           (the euid dance around privileged commands and the sdsys entry checks, all
+*           compiled out in Solo since LSOLO 6), the privileged_commands list that fed
+*           them, and the is_grp_member declaration.
 * 30 Sep 26 LSOLO 15 - Windows Solo SOLO 16 (ruling 28), the two spins the parent's
 *           11 Sep fix of the command editor left: get.string cancels and PAUSE
 *           takes Q at end of input.
@@ -249,19 +255,12 @@ $include keycode.h
 $include define_install.h
 
 deffun errtext(err) calling '!errtext'
-* rev 0.9.0 *
-deffun is_grp_member(user,group) calling '!is_grp_member'
 
 $define max.elements 500
 
-* rev 0.9.0 define commands requiring admin (root) privilege 
-   privileged_commands = ''
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 4/5) - CREATEA, DELACC, MODIFYA and
-*   MODIFY.PASSWORD were the four entries; the programs are deleted (one
-*   account, sduser, and no OS user to create).  The list is empty and stays
-*   as a name until LSOLO 6 rebuilds the administrator gate on ADMIN.
-
-   logto.reset = @false      ;* 0555
+* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - privileged_commands (the four verbs
+*   that needed root: CREATEA, DELACC, MODIFYA, MODIFY.PASSWORD; empty since LSOLO 4/5)
+*   and the logto.reset flag are gone with the code that read them.
 
 restart.cproc:
    * Save the Proc common variables
@@ -429,81 +428,13 @@ restart.cproc:
 *   "sd -internal", the installer's door (ruling 13 - LSOLO 9 makes it available
 *   only while installing).  Every other session starts without the flag and
 *   gets it only from ADMIN and a password (LSOLO 6, still to be built).
-*   IS_INSTALL is now defined permanently (define_install.h), so the
-*   $ifndef IS_INSTALL blocks in this program - the euid dance around
-*   privileged commands and the sdsys checks - are compiled out, not deleted,
-*   until a cleanup pass.
+*   IS_INSTALL was defined permanently (define_install.h), so the $ifndef
+*   IS_INSTALL blocks in this program - the euid dance around privileged commands
+*   and the sdsys checks - were compiled out; they were deleted on 3 Oct 26
+*   (LSOLO 30) and only this arm remains.
       if kernel(K$INTERNAL, -1) then   ;* the installer's door
-$ifndef IS_INSTALL
-         refuse.msg = sysmsg(10190)   ;* several lines: one DISPLAY each
-         loop
-            display remove(refuse.msg, refuse.more)
-         while refuse.more
-         repeat
-         void kernel(K$AUDIT, 'ELEVATION REFUSED reason=root is not SD administrator')
-         goto abort.cproc
-$else
          void kernel(K$ADMINISTRATOR, 1)   ;* bootstrap: no register to read yet
-$endif
       end
-$ifndef IS_INSTALL
-*   downcase: kernel(K$USERNAME, 0) is the OS account, and the comparison must
-*   not depend on who typed what.
-      if downcase(kernel(K$USERNAME, 0)) = 'sdsys' and env('SSH_CONNECTION') = '' and env('SSH_TTY') = '' then
-         if kernel(K$LOGIN.UID, 'sdsys') = 1 then
-            void kernel(K$ADMINISTRATOR, 1)
-* 11 Sep 26 dm - PORT_ADOPTION 13.  Written AFTER the grant, the port's
-*   PRE_RELEASE 98 ordering: a trail must not record rights not yet given.
-            void kernel(K$AUDIT, 'ELEVATION GRANTED reason=sdsys login')
-            admin.notice<-1> = sysmsg(10916)
-         end else
-* 18 Sep 26 dm, NIGHT - sdsys without a sdsys login: sudo, su, a service.
-*   Refused like root; there is no plain sdsys session to fall back to.
-            refuse.msg = sysmsg(10195)   ;* several lines: one DISPLAY each
-            loop
-               display remove(refuse.msg, refuse.more)
-            while refuse.more
-            repeat
-            void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session without a sdsys login')
-            goto abort.cproc
-         end
-      end else
-* 19 Sep 26 dm - SDSYS HAS NO REMOTE ACCESS AT ALL (owner, 19 Sep 2026: "sdsys
-*   should not have any remote access from ssh or api").  REFUSED AT THE DOOR
-*   NOW, not at the account.
-*
-*   WHAT IT WAS BEFORE, MEASURED RATHER THAN ASSUMED: the test above simply did
-*   not match a remote sdsys session, so it got no grant and carried on; LOGIN
-*   then refused it entry to the SDSYS account (login:334, 10002, audited).  So
-*   the door was SHUT, and this is a hardening rather than a hole - but it was
-*   shut one room further in, and a refusal at the door is what the owner's
-*   ruling asks for and what root (10190) and a non-login sdsys (10195) already
-*   get.  A session that should not exist should not start.
-*
-*   10191 WAS WRITTEN FOR EXACTLY THIS CASE IN THE TEARDOWN AND NEVER WIRED.
-*   It was deleted earlier tonight as an orphan (S.34) and is restored here
-*   with its original text, because the text was right and only the wiring was
-*   missing.  ***THAT IS THE LESSON OF S.34 CORRECTING ITSELF WITHIN THE DAY:
-*   AN ORPHANED MESSAGE MEANS "UNFINISHED" AS OFTEN AS IT MEANS "DEAD", AND
-*   ONLY A RULING TELLS YOU WHICH.***
-*
-*   ssh IS NOT THE ONLY REMOTE TRANSPORT THIS CATCHES, WHICH IS WHY THE ARM IS
-*   THE else OF THE LOCAL TEST RATHER THAN AN SSH TEST OF ITS OWN: anything
-*   that sets SSH_CONNECTION or SSH_TTY lands here.  The API does not come
-*   through CPROC at all - APISRVR has its own two doors (10174 remote, 10922
-*   not-sdsys-on-the-socket) - so "or api" in the owner's ruling is served
-*   there and named here only so the next reader does not look for it.
-         if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then
-            refuse.msg = sysmsg(10191)   ;* several lines: one DISPLAY each
-            loop
-               display remove(refuse.msg, refuse.more)
-            while refuse.more
-            repeat
-            void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session from a remote transport')
-            goto abort.cproc
-         end
-      end
-$endif
       
       i = '$LOGIN'
       call @i(j,0)
@@ -610,7 +541,7 @@ $endif
       end
 
       break on
-   end else           ;* Stacked CPROC, abort or LOGTO RESET
+   end else           ;* Stacked CPROC or abort
       * Trap very early abort so that we don't loop trying to access the VOC
 
       if not(fileinfo(voc, FL$OPEN)) then goto terminate.cproc
@@ -699,8 +630,6 @@ $endif
             message = sysmsg(5012, @userno) ;* Phantom nn : Abnormal termination.
             goto terminate.phantom
          end
-      end else if logto.reset then   ;* 0555
-         logto.reset = @false   ;* Clear flag but do not increment level
       end else        ;* Stacked CPROC
          if kernel(K$FLAGS, HDR.IS.CPROC) then  ;* 0409
             i = kernel(K$CPROC.LEVEL,kernel(K$CPROC.LEVEL,0)+1)
@@ -1828,32 +1757,7 @@ reparse:
             begin case
                case dispatch.mode = "CA"  ;* Catalogued command
                   s = voc.rec<3>
-* rev 0.9.0
-* this is the point that a command defined in voc as type "CA" is execute
-* we check to see if the command is in out list of commands requiring addition priviliges 
-* we skip this during install
-$ifndef IS_INSTALL
-                  priv_required = 0    
-                  locate s in privileged_commands<1> setting priv_required then
-                     priv_required = 1 
-*                    * must raise  privilige 
-                    call !EUID_RESTORE(rstat)  ;* restore root privilages
-                    if rstat > 0 then
-                       crt 'Warning: failed to restore root privilages, command may fail, error: ':status() 
-                    end
-                  end  
-$endif       
                   call @s
-                  
-$ifndef IS_INSTALL 
-                  if priv_required then
-                     call !EUID_SET('sdsys',rstat)  ;* drop back to sdsys
-                     if rstat > 0 then
-                        crt 'Warning: failed to resend root priviages, error: ':status()
-                     end
-                  end
-$endif
-                  
                   s = ''   ;* Allow unload of object code
 
                case dispatch.mode = "CS"  ;* Catalogued subroutine
@@ -1878,7 +1782,7 @@ $endif
                      int.help,                   ;* 14  HELP
                      int.update.accounts,        ;* 15  UPDATE.ACCOUNTS
                      int.who,                    ;* 16  WHO
-                     int.logto,                  ;* 17  LOGTO
+                     int.removed,                ;* 17  (LOGTO, removed in LS1.1-3)
                      int.if,                     ;* 18  IF
                      int.cleardata,              ;* 19  CLEARDATA
                      int.clearprompts,           ;* 20  CLEARPROMPTS
@@ -2842,198 +2746,18 @@ int.who:
    return
 
 *****************************************************************************
-* INT.LOGTO  -  LOGTO (Internal verb 17)
-
-int.logto:
-   * Grab hold of new account name before we look for an ON.LOGTO entry
-
-   call @parser(PARSER$GET.TOKEN, token.type, new.account, keyword)
-   if token.type = PARSER$END then
-      display sysmsg(5160) ;* Account name required
-      unwinding = 2
-      return
-   end
-* 20240330 mab only root can logto sdsys
-* 18 Sep 26 dm - TEARDOWN (S.26).  LOGTO SDSYS IS REFUSED FOR EVERYBODY,
-*   administrators included.  SDSYS is entered only by running SD as the
-*   sdsys OS user on a local session - the entry block above, not LOGTO.
-   if (downcase(new.account) = "sdsys") then
-      display sysmsg(10002) ;* entered only by running SD as the sdsys OS user
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=sdsys reason=sdsys is entered by its own session only')
-      unwinding = 2
-      return    
-   end 
-
-   * Look for options
-
-   loop
-      call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
-   until token.type = PARSER$END
-      begin case
-         case keyword = KW$RESET
-            logto.reset = @true
-      end case
-   repeat
-
-   * Execute ON.LOGTO paragraph, if present
-
-   read voc.rec from voc, "ON.LOGTO" then
-      at.command = ""
-      new.sentence = "ON.LOGTO"
-      gosub proc.sentence
-   end
-
-   i = kernel(K$INVALIDATE.OBJECT, 0)   ;* 0400
-
-   @system.return.code = -ER$ARGS
-
-   openpath @sdsys:@ds:'accounts' to acc.f then
-*      readv acc.rec from acc.f, upcase(new.account), ACC$PATH then
-      read acc.record from acc.f, downcase(new.account) then
-         acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)
-         new.account = downcase(new.account)
-      end else
-         acc.rec = new.account
-         new.account = ''
-      end
-      close acc.f
-   end
-
-   * new.account contains the account name, null if attaching by path
-   * acc.rec contains the pathname of the account (other fields removed)
-   * acc.record contains the full ACCOUNT record 
-
-* rev 0.9.0 * is user member of account?
-* 09 Sep 26 dm - PRE_RELEASE 20.  AN ADMINISTRATOR PASSES THIS GATE EXPLICITLY
-*   NOW, AND THAT IS NOT NEW PRIVILEGE - IT IS THE SAME PRIVILEGE, STATED.
+* INT.REMOVED  -  slot 17 of the internal verb table
 *
-*   Until today @logname was "sdsys" for any privileged session, and CREATEA
-*   builds every account group with "groupadd -U root,sdsys,<user>"
-*   (CREATEA:681) - so sdsys was a member of every account it created and an
-*   administrator already entered them all.  The membership test was passing
-*   on a side effect of how the groups are built.
-*
-*   Now that @logname is the sdsys OS user itself (the teardown, S.26: the
-*   administrator runs as sdsys, and root sessions are refused outright),
-*   that side effect is gone: sdsys is in the account groups CREATEA builds,
-*   but the account-entry gate below must not depend on that construction.
-*   Naming the administrator here keeps the behaviour and makes the reason
-*   legible.
-*
-*   OBJECTION, RECORDED RATHER THAN RESOLVED.  This converts an implicit grant
-*   into an explicit one, and the two are only equivalent for accounts CREATEA
-*   actually made.  ***MEASURED 9 Sep 26: `sdu_don` IS `root,don` AND HAS NO
-*   sdsys***, so that account did not get the -U treatment and an
-*   administrator could NOT enter it before - for that one case this is a
-*   widening, not a preservation.  Why sdu_don differs is an open lead.
-* 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED BY LOGTO (PORT_ADOPTION 12;
-*   the port's logto.authorised, 27 Aug 2026).  LOGIN shuts the front door; an
-*   account reached with LOGTO never goes through LOGIN.
-*
-* 18 Sep 26 dm - TEARDOWN (W.7).  The suspension is its own flag now: field 5,
-*   blank means in service and SUSPENDED means suspended.  Nothing else about
-*   the door moves.
-*
-*   AN ADMINISTRATOR STILL ENTERS ONE - the port's judgement call, kept rather
-*   than the owner's ruling: looking at a suspended account is the ordinary
-*   reason to have one, and an administrator can lift the suspension anyway.
-*   If that is wrong, drop the K$ADMINISTRATOR half of this test; do not add a
-*   second test.  The way out mirrors the 10003 refusal below.
-   if not(kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$SUSPENDED>)) = 'SUSPENDED' then
-      display sysmsg(10107, new.account) ;* Account %1 is suspended
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=suspended')
-      if ospath(account.path, OS$CD) then return
-      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
-      return to abort.cproc
-   end
+* LOGTO was internal verb 17 until LS1.1-3 (LSOLO 30; owner, 30 Sep and 3 Oct
+* 2026).  Solo has one account and SDSYS is never a target, so the verb could
+* only refuse.  Its VOC records are gone and UPDATE.ACCOUNTS deletes the shipped one
+* from an account that still has it, so normally nothing dispatches here; the slot
+* stays because the table is positional and a hole would move every verb after it.
+* An account restored from an older backup can still hold the record, and then
+* LOGTO must answer the way an unknown verb does rather than do nothing.
 
-   if  not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
-      display sysmsg(10003) ;* User not allowed in requested account
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=not granted')
-      if ospath(account.path, OS$CD) then return
-      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
-      return to abort.cproc
-   end
-
-* 18 Sep 26 dm - TEARDOWN (S.25).  The upward-grant gate is gone with the
-*   tier model: there is no rank to climb any more.  A grant is Linux group
-*   membership, and the group test above is the whole of the LOGTO wall -
-*   SD keeps no second one.
-
-
-* 18 Sep 26 dm - TEARDOWN (S.26).  THE ADMINISTRATOR'S S.2 REFRESH.  A local
-*   sdsys session started before an account's group existed would fail the
-*   filesystem checks below with Error 3001 - the S.2 defect, which the old
-*   root-entry block kept clear by reloading root's groups at session start
-*   and after every privileged verb.  The reload now happens HERE for the
-*   administrator: !EUID_SET is a uid no-op in a sdsys session (it already is
-*   sdsys) and SD_EUID_SET reloads the caller's supplementary groups first
-*   (sdext_eguid.c, 18 Sep), so the administrator's LOGTO picks up account
-*   groups created since the session started.  initgroups() grants sdsys no
-*   group it is not already a member of.
-   if kernel(K$ADMINISTRATOR, -1) then
-      call !EUID_SET('sdsys', rstat)
-   end
-
-   if not(ospath(acc.rec, OS$CD)) then
-      display sysmsg(5161) ;* Unable to change to new directory
-      if ospath(account.path, OS$CD) then return
-      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
-      return to abort.cproc
-   end
-
-   openpath "voc" to new.voc else
-      display sysmsg(5163) ;* Directory is not a SD account
-      if ospath(account.path, OS$CD) then return
-      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
-      return to abort.cproc
-   end
-
-   i = ospath("", os$flush.cache)
-   account.path = ospath("", os$cwd)     ;* @PATH
-
-   if new.account = '' then
-      new.account = downcase(account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999])
-   end
-
-   who = new.account
-   voc = new.voc ; new.voc = 0   ;* Dereference temporary VOC file var
-
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-access grants and the K$SH/K$OS.EXEC
-*   load are gone: SH and OS.EXECUTE run at the account's own Linux
-*   permissions, and SD keeps no second wall.
-
-   void kernel(K$AUDIT, 'LOGTO account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13
-
-   gosub find.private.catalogue
-
-   if logto.reset then
-      loop
-      while system(1029)
-         return to logto.unwind   ;* Yuck!! Clever but really nasty!
-logto.unwind:
-      repeat
-   end
-
-   @system.return.code = 0
-
-* 18 Aug 26 Windows port - the same fold as the LOGIN read above.  5.12 (b).
-   login.voc.id = "LOGIN"
-   read voc.rec from voc, login.voc.id else
-      login.voc.id = downcase(login.voc.id)
-      read voc.rec from voc, login.voc.id else login.voc.id = ""
-   end
-
-   if login.voc.id # "" then
-      at.command = ""
-      new.sentence = login.voc.id
-      break off
-      gosub proc.sentence
-      break on
-   end
-
-   if logto.reset then goto restart.cproc
-
+int.removed:
+   display sysmsg(5051, 'LOGTO') ;* LOGTO is not in your VOC
    return
 
 *****************************************************************************

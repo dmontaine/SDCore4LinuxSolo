@@ -4,6 +4,31 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+03 Oct 26  THE LOGTO COMMAND IS GONE FROM SD CORE SOLO.
+
+           LOGTO switched a session to another account.  SD Core Solo has one
+           account, sduser, and SDSYS can never be entered with it, so the
+           command could only refuse; typed on your own account it said "User
+           not allowed in requested account", which helped nobody.  It is
+           removed, so LOGTO now gets the answer any unknown command gets.
+           SD Core, which has many accounts, keeps it.
+
+           Nothing else about signing in changes.  You still reach your
+           account through the console, ssh on port 4251 or the API, and ADMIN
+           still unlocks the administrator commands.  The API call SDLogto is
+           part of the client library the four products share and is not
+           touched.  A paragraph named ON.LOGTO, if you wrote one, is still
+           run when the API opens your account; only the LOGTO command no
+           longer runs it.
+
+           Also removed, with no visible effect: three small helper programs
+           (is_grp_member, euid_set, euid_restore) and a kernel key (65) that
+           only the multi-user product could use, the unreachable half of the
+           old SDConnectLocal login, and the parts of the command processor
+           that were switched off when Solo was made.  Message 10087 ("... is
+           a group account ... reach it with LOGTO") is raised by nothing and
+           is left in the message file unchanged.
+
 02 Oct 26  SD CORE SOLO HAS ITS OWN ssh PORT, 4251.
 
            ssh into sd now goes to a small ssh server that SD Core Solo runs

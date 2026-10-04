@@ -189,7 +189,9 @@ if printf '%s\n' "$out" | grep -qx 'Most of SD is licensed under the GPL v3.0.' 
    && ! printf '%s\n' "$out" | grep -qx "$NEEDS"; then
   leg "13 CONFIG GPL needs no ADMIN" "the licence text, no refusal" 0 "shown"
 else
-  leg "13 CONFIG GPL needs no ADMIN" "the licence text, no refusal" 1 "$(last "$out")"
+  # A leg that fails once in a hundred runs (29 Sep, 3 Oct 2026) is worthless unless the failing
+  # run says what it saw: the stripped output as one line, and how many lines and bytes there were.
+  leg "13 CONFIG GPL needs no ADMIN" "the licence text, no refusal" 1 "lines=$(printf '%s\n' "$out" | wc -l) bytes=${#out}: $(printf '%s\n' "$out" | head -12 | tr '\n' '|' | cut -c1-500)"
 fi
 
 # ---- 14. the right administrator password unlocks, LISTU then runs, ADMIN OFF locks.
@@ -386,6 +388,95 @@ if [ "$rc24" -ne 124 ] && [ "$el" -lt 20 ] && [ "$left" -eq 0 ]; then
   leg "24 end of input at PAUSE ends the session" "the session ends by itself in under 20 s and leaves no entry" 0 "ended in ${el}s"
 else
   leg "24 end of input at PAUSE ends the session" "ends by itself in under 20 s, no session left" 1 "rc=$rc24 after ${el}s, sessions left=$left"
+fi
+
+# ---- 25. LOGTO is gone (LSOLO 30, 3 Oct 2026): it is no longer a verb, so it answers like any
+# unknown one.  Before, it said "User not allowed in requested account" even to the owner's own
+# account, because Solo has one.  Controls in the same session: a made-up verb answers the same
+# way (so the wording is the unknown-verb wording, not something LOGTO-specific) and WHO still
+# answers (so the session ran and the lines were read).  The old refusal texts must be absent.
+o="$(sess 'LOGTO sduser' 'LOGTO' 'ZZNOSUCHVERB' WHO)"
+n_not="$(printf '%s\n' "$o" | grep -c -x -e 'LOGTO is not in your VOC')"
+if [ "$n_not" -eq 2 ] && printf '%s\n' "$o" | grep -qx 'ZZNOSUCHVERB is not in your VOC' \
+   && printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' \
+   && ! printf '%s\n' "$o" | grep -q -e 'User not allowed in requested account' -e 'Account name required'; then
+  leg "25 LOGTO is not a verb" "'LOGTO is not in your VOC' twice, like a made-up verb; no old refusal; WHO answers" 0 "as expected"
+else
+  leg "25 LOGTO is not a verb" "'LOGTO is not in your VOC' twice, like a made-up verb; no old refusal; WHO answers" 1 "LOGTO-not-in-VOC lines=$n_not, last: $(last "$o")"
+fi
+
+# ---- 26. A user program cannot reach KERNEL, and cannot mark itself $internal (LSOLO 12 residual,
+# measured 3 Oct 2026).  That is the wall in front of K$GLOBAL.SESSION: setting the global flag
+# needs a program with the $internal header flag, and only the internal door can compile one.
+# The compiler's refusals are what is asserted; a control program that uses neither compiles
+# clean and runs, so the compiler and the session were working.
+BPD="$H/user_accounts/sduser/bp"
+printf '%s\n' "   a = kernel(69, 1)" "   display 'T4 forged ' : a" "end" > "$BPD/verify_t4a"
+printf '%s\n' '$internal' "   display 'T4 internal'" "end" > "$BPD/verify_t4b"
+printf '%s\n' "   display 'T4 control ok'" "end" > "$BPD/verify_t4c"
+[ -s "$BPD/verify_t4a" ] && [ -s "$BPD/verify_t4b" ] && [ -s "$BPD/verify_t4c" ] || refuse "leg 26 could not write its probe programs"
+o="$(sess 'BASIC BP verify_t4a' 'BASIC BP verify_t4b' 'BASIC BP verify_t4c' 'RUN BP verify_t4a' 'RUN BP verify_t4b' 'RUN BP verify_t4c')"
+rm -f "$BPD/verify_t4a" "$BPD/verify_t4b" "$BPD/verify_t4c" "$H/user_accounts/sduser/bp.out/verify_t4a" "$H/user_accounts/sduser/bp.out/verify_t4b" "$H/user_accounts/sduser/bp.out/verify_t4c"
+k_ok=1    # the compiler prints "<line>: Matrix KERNEL is not referenced in a DIM statement"
+printf '%s\n' "$o" | grep -qx 'Compiling BP verify_t4a' && printf '%s\n' "$o" | grep -q 'Matrix KERNEL is not referenced in a DIM statement' && k_ok=0
+if [ "$k_ok" -eq 0 ] && printf '%s\n' "$o" | grep -q 'Unrecognised compiler directive' \
+   && printf '%s\n' "$o" | grep -qx 'T4 control ok' \
+   && ! printf '%s\n' "$o" | grep -q -e 'T4 forged' -e 'T4 internal'; then
+  leg "26 a user program cannot reach KERNEL or mark itself \$internal" "KERNEL and \$internal refused by the compiler, nothing forged ran, the control ran" 0 "as expected"
+else
+  leg "26 a user program cannot reach KERNEL or mark itself \$internal" "KERNEL and \$internal refused by the compiler, nothing forged ran, the control ran" 1 "$(printf '%s\n' "$o" | grep -E 'KERNEL|directive|T4' | head -4 | tr '\n' '|')"
+fi
+
+# ---- 27 and 28. A tree that still holds the OLD verb (an upgraded install whose account VOC was
+# made before LS1.1-3, or an account restored from an older backup) loses it cleanly, and a
+# person's own record called LOGTO is not touched (LSOLO 30).  The probe reads the VOC and
+# prints what it found; the planter writes the record under ADMIN.  Everything is put back.
+cat > "$BPD/verify_t5p" <<'BASIC'
+   open 'voc' to v else display 'T5 cannot open voc' ; stop
+   read r from v, 'logto' then display 'T5 logto PRESENT ' : r<1>[1,2] : ' ' : r<2> : ' ' : r<3> else display 'T5 logto ABSENT'
+end
+BASIC
+cat > "$BPD/verify_t5s" <<'BASIC'
+   open 'voc' to v else display 'T5 cannot open voc' ; stop
+   r = 'V' : @fm : 'IN' : @fm : '17'
+   write r to v, 'logto' on error display 'T5 write refused ' : status() ; stop
+   display 'T5 stale written'
+end
+BASIC
+cat > "$BPD/verify_t5m" <<'BASIC'
+   open 'voc' to v else display 'T5 cannot open voc' ; stop
+   r = 'PA' : @fm : 'DISPLAY mine'
+   write r to v, 'logto' on error display 'T5 write refused ' : status() ; stop
+   display 'T5 mine written'
+end
+BASIC
+cat > "$BPD/verify_t5d" <<'BASIC'
+   open 'voc' to v else display 'T5 cannot open voc' ; stop
+   delete v, 'logto' on error null
+   display 'T5 cleaned'
+end
+BASIC
+comp="$(sess 'BASIC BP verify_t5p' 'BASIC BP verify_t5s' 'BASIC BP verify_t5m' 'BASIC BP verify_t5d')"
+[ "$(printf '%s\n' "$comp" | grep -cx 'Compiled 1 program(s) with no errors')" -eq 4 ] || refuse "leg 27/28's probe programs did not compile: $(last "$comp")"
+o0="$(sess 'RUN BP verify_t5p')"
+o1="$(sess ADMIN "$ADMINPW" 'RUN BP verify_t5s' 'RUN BP verify_t5p' 'LOGTO sduser' 'WHO')"
+o2="$(sess ADMIN "$ADMINPW" 'UPDATE.ACCOUNTS' 'RUN BP verify_t5p')"
+o3="$(sess ADMIN "$ADMINPW" 'RUN BP verify_t5m' 'UPDATE.ACCOUNTS' 'RUN BP verify_t5p')"
+o4="$(sess ADMIN "$ADMINPW" 'RUN BP verify_t5d' 'RUN BP verify_t5p')"
+rm -f "$BPD"/verify_t5? "$H"/user_accounts/sduser/bp.out/verify_t5?
+if printf '%s\n' "$o0" | grep -qx 'T5 logto ABSENT' \
+   && printf '%s\n' "$o1" | grep -qx 'T5 stale written' && printf '%s\n' "$o1" | grep -qx 'T5 logto PRESENT V IN 17' \
+   && printf '%s\n' "$o1" | grep -qx 'LOGTO is not in your VOC' && printf '%s\n' "$o1" | grep -qE '^[0-9]+ sduser$' \
+   && printf '%s\n' "$o2" | grep -qx 'T5 logto ABSENT'; then
+  leg "27 an old LOGTO record answers, and UPDATE.ACCOUNTS removes it" "absent on a new tree; a planted shipped record: present, LOGTO says 'not in your VOC', WHO works; UPDATE.ACCOUNTS: absent" 0 "as expected"
+else
+  leg "27 an old LOGTO record answers, and UPDATE.ACCOUNTS removes it" "absent; planted: present, LOGTO answers; UPDATE.ACCOUNTS: absent" 1 "new: $(last "$o0") / planted: $(printf '%s\n' "$o1" | grep -E 'T5|LOGTO' | tr '\n' '|') / after update: $(last "$o2")"
+fi
+if printf '%s\n' "$o3" | grep -qx 'T5 mine written' && [ "$(printf '%s\n' "$o3" | grep -c 'T5 logto PRESENT PA')" -eq 1 ] \
+   && printf '%s\n' "$o4" | grep -qx 'T5 cleaned' && printf '%s\n' "$o4" | grep -qx 'T5 logto ABSENT'; then
+  leg "28 a person's own record called logto survives UPDATE.ACCOUNTS" "a PA record named logto is still there after UPDATE.ACCOUNTS; removed afterwards by the leg" 0 "kept, then cleaned"
+else
+  leg "28 a person's own record called logto survives UPDATE.ACCOUNTS" "kept after UPDATE.ACCOUNTS, then cleaned" 1 "after update: $(printf '%s\n' "$o3" | grep -E 'T5' | tr '\n' '|') / cleanup: $(printf '%s\n' "$o4" | grep -E 'T5' | tr '\n' '|')"
 fi
 
 echo

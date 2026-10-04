@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - the unused is_grp_member declaration
+*           is gone (the program itself is deleted).
 * 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - the login hold (13002) while a
 *           backup or restore runs; !acc_hold decides.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 14) - Windows Solo SOLO 18: a managed
@@ -122,8 +124,6 @@ $include err.h
 $include keys.h
 $include keyin.h
 $include keycode.h
-* 20240219 mab user must be member of sdusers  
-deffun is_grp_member(user,group) calling '!is_grp_member'
 * 30 Sep 26 LSOLO 14 (Windows Solo SOLO 18): set.first.password runs the password rule.
 deffun pw_complex(pw) calling '!pw_complex'
 
@@ -1086,6 +1086,29 @@ accept.without.query:
    if overridden.count then
       display sysmsg(10166, overridden.count, convert(@fm, ' ', overridden.ids))
    end
+
+* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - RETIRED VERBS.  The loop above only adds
+*   and replaces, so a verb a release stops shipping would stay in every account that
+*   already has it.  LOGTO is the first (removed in LS1.1-3); to retire another, add
+*   its id here and delete its files from the sdsys tree and from solo-stage.sh's
+*   retired list.  ONLY THE SHIPPED RECORD IS DELETED - a verb whose type, kind and
+*   number are exactly what this release shipped.  A person's own paragraph or program
+*   that happens to be called LOGTO is theirs and is left alone.  Both spellings are
+*   tried because a VOC may hold either.
+   retired.ids = 'LOGTO' : @fm : 'logto'
+   for ri = 1 to dcount(retired.ids, @fm)
+      rid = retired.ids<ri>
+      old.rec = ''
+      readu old.rec from update.voc.f, rid then
+         if old.rec<1>[1,1] = 'V' and old.rec<2> = 'IN' and old.rec<3> = '17' then
+            delete update.voc.f, rid
+         end else
+            release update.voc.f, rid
+         end
+      end else
+         release update.voc.f, rid
+      end
+   next ri
 
    close sdsys.file
 

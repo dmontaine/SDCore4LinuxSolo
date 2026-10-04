@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - vb.local.login keeps only its refusal
+*           (request 25 stays in the dispatch table); the unreachable body, its
+*           is_grp_member test and the is_grp_member declaration are gone.
 * 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - vb.scram.first refuses a new API
 *           session (13002) while a backup or restore runs.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 19) - request 49 (SrvrSshKey): the master
@@ -133,8 +136,6 @@ $include header.h
 $include err.h
 $include keys.h
 
-* 20240219 mab user must be member of sdusers  
-deffun is_grp_member(user,group) calling '!is_grp_member'
 * 14 Sep 26 dm - DECLARED HERE, NOT IN vb.login, as the port did on 19 Aug:
 *   vb.scram.first calls it too, and phase 5 retires vb.login.
 deffun valid_os_name(name) calling '!valid_os_name'
@@ -1023,51 +1024,12 @@ vb.local.login:
 *   be made to ask.  Measured here before the change: sdclilib's SDConnectLocal forks
 *   "sd -Q" and HUNG (30 s and still waiting) instead of failing.  Refused the way
 *   retired request 24 is, with one message naming what to use instead, audited, and
-*   the connection ends.  The old body below is unreachable and goes with the
-*   LSOLO 6 cleanup.
+*   the connection ends.  The old body that followed was removed on 3 Oct 26
+*   (LSOLO 30).
                abort.message = sysmsg(11021) ;* SDConnectLocal is not available... use SDConnect
                server.error = SV$ON.ERROR
                void kernel(K$AUDIT, 'API REFUSED request=25 SDConnectLocal - disabled in SD Core for Linux Solo')
                done = @true
-               return
-              * dsm 20240612 openpath @sdsys:@ds:'$LOGINS' to lgn.f else
-              * dsm 20240612    abort.message = sysmsg(6050) ;* Cannot open $LOGINS register
-              * dsm 20240612    server.error = SV$ON.ERROR
-              * dsm 20240612    return
-              * dsm 20240612 end
-
-               * mab 20240219  read security.rec from lgn.f, '$SECURE' then
-               * mab 20240219     = kernel(K$SECURE, security.rec<1>)
-               * mab 20240219  end
-
-               username = logname
-
-               * mab 20240219 if kernel(K$SECURE, -1) then
-               * dsm 20240612 readu lgn.rec from lgn.f, username else null
-               * 20240219 mab user must be member of sdusers           
-               if  not(is_grp_member(username,'sdusers')) then
-                     server.error = SV$ON.ERROR
-                     void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=not a member of sdusers (local login)')
-                     abort.message = sysmsg(5009) ;* This user is not registered for SD use
-                     goto exit.vb.local.login
-               end
-
-               * dsm 20240612 lgn.rec<LGN$DATE> = date()
-               * dsm 20240612 lgn.rec<LGN$TIME> = time()
-               * dsm 20240612 recordlocku lgn.f, username
-               * dsm 20240612 write lgn.rec to lgn.f, username
-
-               logname = username
-               * dsm 20240612 i = kernel(K$ADMINISTRATOR,lgn.rec<LGN$ADMIN>)
-               * mab 20240219    end else      ;* System is insecure
-               * mab 20240219      i = kernel(K$ADMINISTRATOR,1)    ;* All users are administrators
-               * mab 20240219    end
-
-exit.vb.local.login:
-               * dsm 20240612close lgn.f
-               if server.error = SV$OK then logged.in = @true
-               else done = @true
-
                return
 
                * ======================================================================
@@ -1102,8 +1064,8 @@ vb.scram.first:
 
 * 02 Oct 26 SD Core for Linux Solo (LSOLO 20, S.50) - THE LOGIN HOLD: no new API
 *   session while BACKUP.ACCOUNT or RESTORE.ACCOUNT runs, as LOGIN refuses one.
-*   Before any credential is looked at.  (vb.local.login is dead code here,
-*   LSOLO 17, so it gets no copy of this check.)
+*   Before any credential is looked at.  (vb.local.login only refuses, so it
+*   gets no copy of this check.)
                call !acc_hold('TEST', hold.info, hold.err)
                if hold.err # '' then
                   scram.refuse.reason = 'a backup or restore is running'
