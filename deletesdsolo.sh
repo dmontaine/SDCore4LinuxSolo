@@ -216,7 +216,8 @@ fi
 # (systemd, not "firewall-cmd --state", which polkit refuses an ordinary user - Fedora 44.)
 if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
   for p in 4249 4251; do
-    if sudo -n firewall-cmd --permanent --query-port="$p/tcp" >/dev/null 2>&1; then
+    # the exact entry: Fedora Workstation's own 1025-65535/tcp would answer --query-port too
+    if sudo -n firewall-cmd --permanent --list-ports 2>/dev/null | tr ' ' '\n' | grep -qx -- "$p/tcp"; then
       warn "firewalld still allows TCP $p, this product's $( [ "$p" = 4249 ] && echo API || echo ssh ) port; if the installer added it, remove it with 'sudo firewall-cmd --permanent --remove-port=$p/tcp && sudo firewall-cmd --reload'"
     fi
   done
