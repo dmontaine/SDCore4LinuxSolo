@@ -13,6 +13,12 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            removed rather than shipped untested.  RHEL and its clones were
            already refused.
 
+           On Fedora Workstation (the desktop edition) the install stopped
+           with "the tool 'openssl' is not installed": unlike Fedora Server it
+           does not include the openssl command.  The installer now installs
+           it.  Tested on Fedora 44 Workstation: the install completes and
+           ssh into SD works.
+
 04 Oct 26  "OPEN" NOW OPENS THE FIREWALL ON FEDORA TOO.
 
            Choosing "open" for ssh or the API made SD Core Solo listen on
