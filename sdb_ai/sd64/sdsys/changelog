@@ -4,6 +4,29 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+03 Oct 26  ssh INTO SD NOW WORKS ON FEDORA AND OTHER SELINUX SYSTEMS.
+
+           On a computer with SELinux switched on - Fedora, out of the box -
+           signing in on port 4251 failed after your Linux password had been
+           accepted: the ssh client said "A valid context for <you> could not
+           be obtained" and sd never started.  The computer's sign-in rules
+           include a SELinux step that only the computer's own ssh server,
+           which runs as root, can pass, and SD Core Solo's runs as you.
+
+           Where SELinux is on, the installer now gives SD Core Solo's ssh
+           server sign-in rules of its own: a file /etc/pam.d/sd-solo-ssh-<you>,
+           written with sudo, that is the computer's own rules without the
+           steps that need root.  Your password is still checked the same way,
+           and three wrong ones still lock the address out.  An upgrade does
+           the same, and the uninstaller removes the file.  If you turned ssh
+           on later, "bash <tree>/tools/solo-ssh.sh pam <tree>" says whether
+           the file is needed and gives the command.
+
+           It needs OpenSSH 10.0 or later; on an older one the installer says
+           so and ssh stays unusable under SELinux.  On a computer without
+           SELinux - Debian and Ubuntu as usually installed - nothing changes
+           and no file is written.  Tested on Fedora 44 Server and Debian 13.
+
 03 Oct 26  THE LOGTO COMMAND IS GONE FROM SD CORE SOLO.
 
            LOGTO switched a session to another account.  SD Core Solo has one
