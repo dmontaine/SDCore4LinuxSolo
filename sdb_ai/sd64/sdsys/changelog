@@ -4,6 +4,28 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+04 Oct 26  DEBIAN, UBUNTU AND FEDORA ONLY.
+
+           The installer now supports Debian, Ubuntu (and derivatives such as
+           Linux Mint) and Fedora, and refuses anything else by name - also
+           with --skip-packages.  Arch and openSUSE were listed but SD Core
+           Solo had never been installed on either; their package steps are
+           removed rather than shipped untested.  RHEL and its clones were
+           already refused.
+
+04 Oct 26  "OPEN" NOW OPENS THE FIREWALL ON FEDORA TOO.
+
+           Choosing "open" for ssh or the API made SD Core Solo listen on
+           every address, but the installer added a firewall rule only for
+           ufw (Debian and Ubuntu).  Fedora runs firewalld, so there the port
+           stayed shut and other computers timed out.  The installer now adds
+           the rule to firewalld as well, with sudo, kept in its saved
+           settings.  "solo-service.sh ssh <tree> open", which never uses
+           sudo, prints the one command to run for the firewall that is
+           running, and the uninstaller reminds you of a rule it leaves.
+           Tested on Fedora 44 Server: before, the connection timed out;
+           after, it reached SD Core Solo's ssh server.
+
 03 Oct 26  ssh INTO SD NOW WORKS ON FEDORA AND OTHER SELINUX SYSTEMS.
 
            On a computer with SELinux switched on - Fedora, out of the box -

@@ -434,20 +434,23 @@ trap cleanup EXIT
 umask 077
 
 # ---------------------------------------------------------------- packages
+# LSOLO 33 (owner, 4 Oct 2026: "lets drop arch and opensuse and focus on debian, ubuntu and
+# fedora server versions"): Debian, Ubuntu and Fedora only; the pacman and zypper branches are gone.
 detect_distro() {
-  is_arch=0; is_debian=0; is_fedora=0; is_suse=0
+  is_debian=0; is_fedora=0
   if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     . /etc/os-release
     ids=" ${ID:-} ${ID_LIKE:-} "
-    case "$ids" in *" arch "*) is_arch=1 ;; esac
     case "$ids" in *" debian "*|*" ubuntu "*) is_debian=1 ;; esac
     # Fedora only (owner, 30 Sep 2026).  RHEL and its clones name "rhel" and also
     # "fedora" in ID_LIKE, so they are turned away here, not matched by the fedora test.
     case "$ids" in *" fedora "*) is_fedora=1 ;; esac
     case "$ids" in *" rhel "*) [ "${ID:-}" = fedora ] || is_fedora=0 ;; esac
-    case "$ids" in *" suse "*|*" opensuse"*|*" sles "*) is_suse=1 ;; esac
   fi
+}
+refuse_unsupported() {   # after detect_distro, which read /etc/os-release
+  refuse "this distribution is not supported (/etc/os-release says ID=${ID:-unknown}); supported: Debian, Ubuntu (and their derivatives) and Fedora - not Arch, openSUSE, RHEL or its clones"
 }
 install_packages() {
   detect_distro
@@ -465,24 +468,14 @@ install_packages() {
     [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
     # shellcheck disable=SC2086
     sudo dnf -y install $pk || fail "dnf"
-  elif [ "$is_suse" -eq 1 ]; then
-    say "openSUSE or SUSE based: zypper"
-    local pk="git make automake gcc gcc-c++ kernel-default-devel micro-editor lynx libsodium-devel libopenssl-devel python3-devel"
-    [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh"
-    # shellcheck disable=SC2086
-    sudo zypper --non-interactive install $pk || fail "zypper"
-  elif [ "$is_arch" -eq 1 ]; then
-    say "Arch based: pacman"
-    local pk="git base-devel micro lynx libsodium openssl python"
-    [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh"
-    # shellcheck disable=SC2086
-    sudo pacman -Sy --noconfirm $pk || fail "pacman"
   else
-    refuse "this distribution could not be identified from /etc/os-release; supported: Debian, Ubuntu, Arch, Fedora and openSUSE families (not RHEL or its clones)"
+    refuse_unsupported
   fi
 }
 say
 if [ "$skip_pkgs" -eq 1 ]; then
+  detect_distro
+  [ "$is_debian" -eq 1 ] || [ "$is_fedora" -eq 1 ] || refuse_unsupported
   say "Skipping package installation (--skip-packages); checking the tools instead."
 else
   say "Installing the build packages (sudo)."
