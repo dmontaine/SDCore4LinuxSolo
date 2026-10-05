@@ -4,6 +4,37 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+05 Oct 26  RESTORE.ACCOUNT LATEST NOW CHOOSES THE NEWEST BACKUP THAT REALLY
+           HOLDS YOUR ACCOUNT, AND SAYS WHEN A NEWER BACKUP DOES NOT.
+
+           RESTORE.ACCOUNT LATEST used to choose from the names of the backup
+           files.  A backup made with ALL, or of several accounts, has no
+           account name in its file name, so it counted for every name.  If
+           the newest backup of that kind did not hold your account, SD chose
+           it anyway and then refused it, even with an older backup of your
+           account in the same directory.
+
+           SD now opens each backup the name might fit, reads the list of
+           accounts it holds (nothing is unpacked) and takes the newest one
+           that holds your account.  If a newer backup made on this computer
+           does not hold it, or cannot be read, SD says so before it asks
+           whether to go ahead:
+
+               The most recent backup made on this computer, <file>, does
+               not hold <account> (or cannot be read). The newest backup that
+               does is <path>
+
+           You can still answer n.  If no backup holds it, SD says "No backup
+           of <account> made on this computer was found in <directory>." and
+           changes nothing.  RESTORE.ACCOUNT LATEST ALL is as before.
+
+           WHAT THIS DOES NOT DO: it looks only at backups made on this
+           computer, in the directory saved by SET.BACKUP.DIRECTORY, and it
+           still checks the chosen backup in full before anything is
+           changed.  A backup that cannot be read is skipped, not repaired.
+           As always, restoring the account you are using waits for the next
+           time SD starts.
+
 04 Oct 26  EVERY FAILED API LOGIN IS NOW RECORDED, EVEN IF THE CLIENT HANGS UP EARLY.
 
            When a program tried to log in to the API with a wrong password,
@@ -225,11 +256,10 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            WHY: a backup's name holds the computer, the accounts and the
            time, which is a lot to type when you only want the last one.
 
-           WHAT THIS DOES NOT DO: it chooses from the file names alone, and
-           the backup it chooses is checked against its own contents before
-           anything is changed.  It never picks a backup made on another
+           WHAT THIS DOES NOT DO: it never picks a backup made on another
            computer.  As always, restoring the account you are using waits
-           for the next time SD starts.
+           for the next time SD starts.  (How it decides which backup holds
+           your account was changed on 05 Oct 26: see that entry.)
 
 02 Oct 26  THE WINDOWS CLIENT LIBRARY EXAMPLE IS GONE.
 

@@ -8,6 +8,9 @@
 *              is Linux Solo's.  The multi-user product packs as root through
 *              sd-elevate; Solo has no root and its user owns the whole tree,
 *              so every step here runs <home>/bin/sd-accarchive directly.
+* 05 Oct 26 dm MANIFEST mode, for RESTORE.ACCOUNT LATEST (owner, 5 Oct 2026: the last
+*              backup that CONTAINS the account, found by looking).  A new mode of an
+*              agreed helper: SD Core for Windows is told in the same mail as the verb.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -20,6 +23,10 @@
 *             was WRITTEN, one per field in entry order.
 *    EXTRACT  entries<1>: a target directory that must not exist.  counts: one
 *             per account, files VM bytes VM dirs VM name.
+*    MANIFEST nothing is unpacked.  counts: the archive's manifest.txt, one
+*             line per field.  (05 Oct 26: RESTORE.ACCOUNT LATEST reads this to
+*             learn which accounts a backup holds.)  Every other entry of the
+*             archive is left unread; EXTRACT still vets the whole archive.
 *    err      '' or the message number then its arguments (value marks).
 *
 *    Anything the archiver skipped (a symlink, a device) is named on the
@@ -50,6 +57,8 @@ $include int$keys.h
          gosub create.archive
       case mode = 'EXTRACT'
          gosub extract.archive
+      case mode = 'MANIFEST'
+         gosub manifest.archive
       case 1
          err = 2018:@vm:mode   ;* Unexpected token (xx)
    end case
@@ -162,6 +171,22 @@ extract.archive:
       end
    next j
    if counts = '' then err = 11048:@vm:zip.path
+   return
+
+* ======================================================================
+manifest.archive:
+   out = ''
+   os.execute archiver:" manifest '":zip.path:"' 2>&1" capturing out
+   stat = os.error()
+   if stat # 0 then
+      err = 11047:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      return
+   end
+   if out = '' then
+      err = 11048:@vm:zip.path
+      return
+   end
+   counts = out
    return
 
 end
