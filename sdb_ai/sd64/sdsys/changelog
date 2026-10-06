@@ -4,6 +4,46 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+06 Oct 26  UNINSTALLING CAN LEAVE YOUR DATA AND CONFIGURATION WHERE THEY ARE,
+           AND A NEW INSTALL OFFERS TO USE THEM AGAIN.
+
+           deletesdsolo.sh --keep-data used to move your account's files to
+           a folder of their own and keep nothing else.  It now leaves the
+           account's files (user_accounts/sduser) and sd.conf exactly where
+           they are, in the install directory, removes everything else
+           there, and writes a small stamp, .sdcore-kept, saying which
+           release made them.  Nothing is moved, so nothing can be lost in a
+           move.  With no terminal to ask on and neither --keep-data nor
+           --delete-data, the data is kept: nothing is deleted unasked.
+
+           When you install again into that directory the installer says
+           "Saved data was found" and asks "Reload your saved data and
+           configuration into this new install?" (yes is the default).  Yes
+           uses your account's files and sd.conf in the new install and
+           refreshes the account's vocabulary the way an upgrade does; the
+           directory as you left it stays beside the new one as
+           <directory>.kept-<date and time>, a safety copy for you to delete
+           when you are satisfied.  No moves the kept data aside to the same
+           kind of folder, never deletes it, and installs clean.  If SD will
+           not start on the kept sd.conf (an item this release no longer
+           knows), the install still completes with the default sd.conf and
+           says so.  --reload-data, --start-clean and the install file's
+           reload-data=yes or no answer the question for an install nobody
+           sits at; with no terminal and no answer the data is reloaded.
+
+           The passwords are NOT kept - they, the audit trail, the deny list
+           and SD's own files are removed - so the new install asks for new
+           ones.  That makes this the way to add a global password to a
+           computer installed without one (uninstall keeping your data,
+           install again giving a global password, reload), or to drop one.
+
+           WHAT THIS DOES NOT DO: it does not keep an installation, only the
+           data and sd.conf; it does not reload anything into a tree that is
+           already installed (an upgrade already keeps both); and a folder
+           that holds anything else besides the kept data is never used or
+           moved - the installer refuses it as it refuses any non-empty
+           directory.
+
 06 Oct 26  THERE IS ONE INSTALL, NOT TWO MODES.  THE GLOBAL PASSWORD IS
            OPTIONAL, AND THE API AND SSH ARE ALWAYS YOUR CHOICE.
 

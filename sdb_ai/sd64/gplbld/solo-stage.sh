@@ -66,11 +66,19 @@ denyverbs=""
 # copy of the tree is made first and put back if any step fails.  Takes no
 # password and no --deny-verbs: nothing about the credentials changes.
 upgrade=0
-usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] HOME_DIR
+# --reload-data DIR (LSOLO 39, owner 6 Oct 2026): DIR is a KEPT TREE, what deletesdsolo.sh --keep-data
+# leaves (user_accounts/sduser and, if it was there, sd.conf), moved aside by the installer so
+# HOME_DIR could be made.  After the account and its passwords exist, the new account's files are
+# replaced by the kept ones, the kept sd.conf replaces the default (and is put back if SD will not
+# start with it), and the account's VOC is refreshed as an upgrade does.  DIR is only read: it is
+# copied, never moved.  Fresh stages only: an upgrade already keeps both.
+reloaddir=""
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] [--reload-data DIR] HOME_DIR
        bash $0 --upgrade HOME_DIR"
-while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--upgrade" ]; do
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--reload-data" ] || [ "${1:-}" = "--upgrade" ]; do
   if [ "$1" = "--upgrade" ]; then upgrade=1; shift; continue; fi
   [ "$#" -ge 3 ] || refuse "$usage"
+  if [ "$1" = "--reload-data" ]; then reloaddir="$2"; shift 2; continue; fi
   if [ "$1" = "--deny-verbs" ]; then
     case "$2" in
       *[!A-Za-z0-9.\$_,\ -]*) refuse "--deny-verbs holds a character that cannot be in a verb name" ;;
@@ -93,6 +101,12 @@ done
 # password.  LOGIN then has the user choose it at the console on first login, and
 # !CRED_SET takes $global's salt for the new record, so the master still logs in.
 [ "$#" -eq 1 ] || refuse "$usage"
+if [ -n "$reloaddir" ]; then
+  [ "$upgrade" -eq 0 ] || refuse "--reload-data is for a new install: an upgrade keeps the account and sd.conf as they are"
+  case "$reloaddir" in /*) ;; *) refuse "--reload-data must be an absolute path (got '$reloaddir')" ;; esac
+  [ -d "$reloaddir/user_accounts/sduser/voc" ] || refuse "--reload-data: $reloaddir holds no kept account (no user_accounts/sduser/voc): it is not what deletesdsolo.sh --keep-data leaves"
+  [ ! -L "$reloaddir" ] && [ ! -L "$reloaddir/user_accounts" ] && [ ! -L "$reloaddir/user_accounts/sduser" ] || refuse "--reload-data: $reloaddir or its account folder is a symbolic link; give the real directory"
+fi
 H="$1"
 case "$H" in
   /*) ;;
@@ -374,6 +388,45 @@ if [ "$upgrade" -eq 0 ]; then
   else
     ! printf '%s\n' "$sg_plain" | grep -qF 'has no global password' || fail "SYNC.GLOBAL.CATALOG said there is no global password on a tree that has one"
   fi
+fi
+
+# LSOLO 39: reload what deletesdsolo.sh --keep-data saved.  The account and its passwords exist
+# by now, so nothing in the new account's files is the user's: they are replaced whole by the
+# saved copy.  The saved sd.conf replaces the default; SD is started on it, and if SD refuses it
+# (an item this release no longer knows) the default is put back and that is said - the saved
+# copy is never touched, so it can be corrected and loaded by hand.  Then the account's VOC is
+# refreshed the way an upgrade does it, because the saved account may be from an older release.
+reload_conf="none was saved"
+if [ -n "$reloaddir" ]; then
+  echo
+  echo "Reloading the saved data and configuration from $reloaddir"
+  "$SD" -stop >/dev/null 2>&1 || true
+  rm -rf "$H/user_accounts/sduser" || fail "removing the new account's files before the reload"
+  cp -a "$reloaddir/user_accounts/sduser" "$H/user_accounts/sduser" || fail "copying the kept account into $H/user_accounts"
+  chmod -R go-rwx "$H/user_accounts/sduser"
+  [ -d "$H/user_accounts/sduser/voc" ] || fail "the reloaded account has no voc"
+  if [ -f "$reloaddir/sd.conf" ]; then
+    cp "$H/sd.conf" "$H/sd.conf.default" || fail "keeping the default sd.conf"
+    cp "$reloaddir/sd.conf" "$H/sd.conf" && chmod 600 "$H/sd.conf" || fail "copying the saved sd.conf"
+    if "$SD" -start > "$H/.reload-start.log" 2>&1; then
+      reload_conf="reloaded"
+    else
+      reload_conf="NOT accepted by SD, the default was kept ($(tr '\n' ' ' < "$H/.reload-start.log" | cut -c1-160))"
+      echo "the saved sd.conf was not accepted: $(tr '\n' ' ' < "$H/.reload-start.log" | cut -c1-200)"
+      cp "$H/sd.conf.default" "$H/sd.conf"
+      "$SD" -stop >/dev/null 2>&1 || true
+    fi
+    rm -f "$H/sd.conf.default" "$H/.reload-start.log"
+  fi
+  "$SD" -stop >/dev/null 2>&1 || true
+  "$SD" -start || fail "$SD -start after the reload"
+  echo "Refreshing the reloaded account's VOC ($SD -internal UPDATE.ACCOUNTS ALL)"
+  ua_out="$(sdi UPDATE.ACCOUNTS ALL 2>&1)" || true
+  ua_plain="$(printf '%s\n' "$ua_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$ua_plain" | tail -4
+  printf '%s\n' "$ua_plain" | grep -qx '1 account(s) had their VOC updated from the shipped vocabulary.' \
+    || fail "after the reload, UPDATE.ACCOUNTS ALL did not print '1 account(s) had their VOC updated ...'"
+  echo "SOLO RELOAD DONE data=reloaded config=$reload_conf"
 fi
 
 upgrade_ok=1

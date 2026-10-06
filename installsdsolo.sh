@@ -46,6 +46,14 @@
 #   --global-password-file FILE   the global password, one line.  Only a computer that an SD Core
 #                                 server manages has one: you are asked for it last and may leave
 #                                 it blank.  Having one is what makes the computer "managed".
+#   --reload-data                 when the install directory holds the data and configuration that
+#                                 "deletesdsolo.sh --keep-data" left there (a .sdcore-kept stamp, the
+#                                 account's files, sd.conf), use them in this NEW install.  Passwords are
+#                                 not kept: the install still asks for new ones.  On a terminal the
+#                                 installer asks by itself; with no terminal and no answer it reloads.
+#   --start-clean                 the opposite answer: the kept data is moved aside to <home>.kept-<time>
+#                                 (never deleted) and the install is a clean one.  Neither option does
+#                                 anything when nothing was kept.  Not for --upgrade.
 #   --api off|local|open          the API listener, your choice in every install;
 #                                 always port 4249 - fixed, not an option (owner, 2 Oct 2026)
 #   --ssh off|local|open          Solo's own ssh listener, your choice in every install;
@@ -115,7 +123,9 @@ ssh_default_choice() {   # ssh_default_choice GIVEN KEY HAVE_SSHD(0|1) SKIP_PACK
   if [ "$have" != "1" ] && [ "$skip" = "1" ]; then echo off; else echo local; fi
 }
 # END ssh_default
-fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
+fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2
+           [ -z "${kept_aside:-}" ] || printf '%bYour saved data is safe, moved aside to %s%b\n' "$YELLOW" "$kept_aside" "$NC" >&2
+           exit 1; }
 
 [ "$(id -u)" -ne 0 ] || refuse "run this as your own user, not root: SD Core for Linux Solo never runs as root"
 
@@ -123,6 +133,8 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 HOME_DIR="$HOME/SDCoreSolo"
 control_file=""; managed=0   # managed is decided from the global password, below: there is no mode to choose
 acc_file=""; adm_file=""; glb_file=""
+reload_ans=""        # yes (--reload-data), no (--start-clean) or "": what to do with data a previous uninstall kept in the install directory
+kept_tree=0; kept_aside=""; reload_dir=""
 # 02 Oct 26 - THE API PORT IS 4249, FIXED (owner, 2 Oct 2026: "make ports 4247 and 4249
 # -- do not allow adjustable ports").  --api-port is gone.  The witnesses' private
 # ports go through solo-service.sh's announced test hook, SDSOLO_TEST_API_PORT.
@@ -140,6 +152,8 @@ while [ "$#" -gt 0 ]; do
     --account-password-file)  [ "$#" -ge 2 ] || refuse "$1 needs a file"; acc_file="$2"; shift 2 ;;
     --admin-password-file)    [ "$#" -ge 2 ] || refuse "$1 needs a file"; adm_file="$2"; shift 2 ;;
     --global-password-file)    [ "$#" -ge 2 ] || refuse "$1 needs a file"; glb_file="$2"; shift 2 ;;
+    --reload-data)            [ "$reload_ans" != "no" ] || refuse "--reload-data and --start-clean contradict each other"; reload_ans="yes"; shift ;;
+    --start-clean)            [ "$reload_ans" != "yes" ] || refuse "--reload-data and --start-clean contradict each other"; reload_ans="no"; shift ;;
     --api)                    [ "$#" -ge 2 ] || refuse "--api needs off, local or open"; api="$2"; shift 2 ;;
     --ssh)                    [ "$#" -ge 2 ] || refuse "--ssh needs off, local or open"; ssh="$2"; shift 2 ;;
     --ssh-key)                [ "$#" -ge 2 ] || refuse "--ssh-key needs a public key file"; ssh_key="$2"; shift 2 ;;
@@ -149,7 +163,7 @@ while [ "$#" -gt 0 ]; do
     --no-service)             no_service=1; shift ;;
     --yes)                    assume_yes=1; shift ;;
     --upgrade)                upgrade=1; shift ;;
-    -h|--help)                sed -n '2,70p' "$0"; exit 0 ;;
+    -h|--help)                sed -n '2,78p' "$0"; exit 0 ;;
     *) refuse "unknown option: $1 (see --help)" ;;
   esac
 done
@@ -176,6 +190,18 @@ fi
 interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
 
 # ---------------------------------------------------------------- what is already here
+is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves - the stamp, the account, sd.conf, nothing else
+  local d="$1" e
+  { [ -f "$d/.sdcore-kept" ] && [ ! -f "$d/.sdcoresolo" ] && [ -d "$d/user_accounts/sduser/voc" ]; } || return 1
+  { [ ! -L "$d" ] && [ ! -L "$d/user_accounts" ] && [ ! -L "$d/user_accounts/sduser" ]; } || return 1
+  [ "$(stat -c %u "$d/user_accounts/sduser")" = "$(id -u)" ] || return 1
+  for e in "$d"/* "$d"/.[!.]* "$d"/..?*; do
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    case "${e##*/}" in user_accounts|sd.conf|.sdcore-kept) ;; *) return 1 ;; esac
+  done
+  [ -z "$(ls -A "$d/user_accounts" | grep -v '^sduser$')" ] || return 1
+  return 0
+}
 if [ -f "$HOME_DIR/.sdcoresolo" ] && [ "$upgrade" -eq 0 ]; then
   refuse "SD Core for Linux Solo is already installed in $HOME_DIR.
   To bring it up to the current release, keeping your account, data and passwords:
@@ -186,10 +212,16 @@ fi
 if [ "$upgrade" -eq 1 ]; then
   [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core for Linux Solo in $HOME_DIR to upgrade (no .sdcoresolo marker)"
   [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsdsolo.sh; upgrade it by hand or reinstall"
-  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key" ] && [ "$enable_linger" -eq 0 ] \
-    || refuse "--upgrade keeps the passwords (and so whether a global password is set), API and ssh settings as installed; it takes no password, control-file, --api, --ssh, --ssh-key or --enable-linger option"
+  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key$reload_ans" ] && [ "$enable_linger" -eq 0 ] \
+    || refuse "--upgrade keeps the passwords (and so whether a global password is set), the account's data and sd.conf, and the API and ssh settings as installed; it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key or --enable-linger option"
 elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
-  refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree; this script will not use it"
+  # LSOLO 39: the one non-empty directory this installer will use is what deletesdsolo.sh --keep-data leaves:
+  # the stamp, the account and sd.conf and NOTHING else (a folder you have put other things in is never touched).
+  if is_kept_tree "$HOME_DIR"; then
+    kept_tree=1
+  else
+    refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree or the data and configuration one left (the .sdcore-kept stamp, user_accounts/sduser and sd.conf, and nothing else); this script will not use it"
+  fi
 fi
 # 02 Oct 26 - THE MULTI-USER PRODUCT NO LONGER BLOCKS THIS INSTALL (owner, 2 Oct 2026: yes to
 # installing both).  The two have separate API ports (4247 / 4249) and shared-memory keys, and
@@ -260,7 +292,7 @@ read_password() {   # read_password "Prompt: " VARNAME  - stars, from the termin
 
 # An upgrade asks nothing and reads the install's own record; a first install does
 # everything from here to "scratch space".
-cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_ssh=""; cf_linger=""; cf_deny=""
+cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_ssh=""; cf_linger=""; cf_deny=""; cf_reload=""
 ACC_PW=""; ADM_PW=""; GLB_PW=""
 ssh_wanted=0; first_login=0
 if [ "$upgrade" -eq 1 ]; then
@@ -300,6 +332,7 @@ if [ -n "$control_file" ]; then
       ssh-public-key-file) cf_ssh_key="$val" ;;
       api)             cf_api="${val//[[:space:]]/}" ;;
       ssh)             cf_ssh="${val//[[:space:]]/}" ;;
+      reload-data)     cf_reload="$val" ;;
       ssh-match)       warn "the control file's ssh-match is gone (LSOLO 29: Solo's ssh has its own port, 4251, and no longer uses the machine's sshd_config); ignored" ;;
       enable-linger)   cf_linger="$val" ;;
       *) warn "the control file has an item this installer does not know, ignored: $key" ;;
@@ -316,6 +349,8 @@ if [ -n "$control_file" ]; then
   case "$cf_ssh" in ""|off|local|open) ;; *) refuse "ssh in the control file must be off, local or open (got '$cf_ssh')" ;; esac
   [ -n "$api" ] || api="$cf_api"
   [ -n "$ssh" ] || ssh="$cf_ssh"
+  case "$cf_reload" in ""|yes|no) ;; *) refuse "reload-data in the control file must be yes or no (got '$cf_reload')" ;; esac
+  [ -n "$reload_ans" ] || reload_ans="$cf_reload"
   if [ "$ssh" = "off" ] && [ -n "$ssh_key" ]; then refuse "an ssh public key needs ssh on: the install says ssh off and also gives a key (--ssh-key or the control file's ssh-public-key-file)"; fi
 fi
 
@@ -333,6 +368,26 @@ ask_yn() {   # ask_yn "question" default(y|n)  -> 0 yes, 1 no ; non-interactive:
   read -r -p "$q [$([ "$d" = y ] && echo Y/n || echo y/N)] " a < /dev/tty
   a="${a:-$d}"; case "$a" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
 }
+
+# LSOLO 39 (owner, 6 Oct 2026: "the installer script should offer to reload the saved data and config";
+# "you and windows should handle removal and reinstall the same way"): the install directory holds what
+# deletesdsolo.sh --keep-data left there.  On a terminal the user is asked; the answer can be given as
+# --reload-data / --start-clean or the control file's reload-data=yes|no; with no terminal and no answer the
+# data is reloaded (it is kept either way, and an unattended install was given its passwords).
+if [ "$kept_tree" -eq 1 ]; then
+  say "Saved data was found: $HOME_DIR"
+  say "  (the account's files$([ -f "$HOME_DIR/sd.conf" ] && echo " and sd.conf"), left here by deletesdsolo.sh$(sed -n 's/^commit \(.......\).*/ from commit \1/p' "$HOME_DIR/.sdcore-kept" | head -1)$(sed -n 's/^kept \([0-9-]*\)T.*/ on \1/p' "$HOME_DIR/.sdcore-kept" | head -1))"
+  say "  Passwords are not kept: this install asks for new ones."
+  if [ -z "$reload_ans" ]; then
+    if [ "$interactive" -eq 1 ]; then
+      if ask_yn "Reload your saved data and configuration into this new install?" y; then reload_ans="yes"; else reload_ans="no"; fi
+    else
+      reload_ans="yes"
+      say "  (no terminal and no --reload-data or --start-clean: reloading it)"
+    fi
+  fi
+  say
+fi
 
 # passwords, in the owner's order (ruling 30): account, administrator, then - if there is one - global
 get_password() {   # get_password VAR "what" "from-file" "from-control"
@@ -486,6 +541,13 @@ fi
 # ---------------------------------------------------------------- confirmation
 say
 say "Ready to install:"
+if [ "$kept_tree" -eq 1 ]; then
+  if [ "$reload_ans" = "yes" ]; then
+    say "  reload        : your saved data$([ -f "$HOME_DIR/sd.conf" ] && echo " and configuration") from $HOME_DIR (the folder is kept aside as $HOME_DIR.kept-<date and time> until you delete it)"
+  else
+    say "  start clean   : your saved data in $HOME_DIR is moved aside to $HOME_DIR.kept-<date and time>, not deleted, and NOT reloaded"
+  fi
+fi
 say "  global pw     : $([ "$managed" -eq 1 ] && echo "set - an SD Core server is expected to manage this computer" || echo "none - no SD Core server manages this computer")"
 say "  account pw    : $([ "$first_login" -eq 1 ] && echo "chosen at first login, at this computer's keyboard" || echo "set now")"
 say "  API           : $api$([ "$api" != off ] && echo " (port $api_port)")"
@@ -604,12 +666,22 @@ if [ "$upgrade" -eq 1 ]; then
     printf 'upgraded-from %s\n' "${old_commit:-unknown}"; } > "$HOME_DIR/.sdcore-install"
   chmod 600 "$HOME_DIR/.sdcore-install"
 else
+# LSOLO 39: data a previous uninstall left in the install directory is moved aside whole, so the new tree can be
+# made there, and the stage copies it back in when the answer was yes.  It is never deleted: the aside folder
+# stays until the user removes it (and if this install fails, fail() says where it is).
+if [ "$kept_tree" -eq 1 ]; then
+  kept_aside="$HOME_DIR.kept-$(date +%Y%m%d-%H%M%S)"
+  mv "$HOME_DIR" "$kept_aside" || fail "moving your saved data aside to $kept_aside"
+  say "Your saved data is moved aside to $kept_aside."
+  [ "$reload_ans" != "yes" ] || reload_dir="$kept_aside"
+fi
 say "Installing into $HOME_DIR and running the bootstrap."
 st_args=()
 if [ "$first_login" -eq 0 ]; then printf '%s\n' "$ACC_PW" > "$WORK/acc.pw"; st_args+=(--account-password-file "$WORK/acc.pw"); fi
 printf '%s\n' "$ADM_PW" > "$WORK/adm.pw"; st_args+=(--admin-password-file "$WORK/adm.pw")
 if [ "$managed" -eq 1 ]; then printf '%s\n' "$GLB_PW" > "$WORK/glb.pw"; st_args+=(--global-password-file "$WORK/glb.pw"); fi
 if [ -n "$cf_deny" ]; then st_args+=(--deny-verbs "$cf_deny"); fi
+if [ -n "$reload_dir" ]; then st_args+=(--reload-data "$reload_dir"); fi
 bash "$SRC/gplbld/solo-stage.sh" "${st_args[@]}" "$HOME_DIR" > "$WORK/stage.log" 2>&1 \
   || { tail -25 "$WORK/stage.log"; fail "the bootstrap (full log: $WORK/stage.log - removed when this script ends; re-run the failing step by hand from $SRC/gplbld/solo-stage.sh)"; }
 rm -f "$WORK/acc.pw" "$WORK/adm.pw" "$WORK/glb.pw"
@@ -622,6 +694,12 @@ else
   [ ! -e "$HOME_DIR/\$cred/sduser" ] || fail "\$cred/sduser exists on a first-login install"
 fi
 [ -f "$HOME_DIR/user_accounts/sduser/voc/%0" ] || [ -d "$HOME_DIR/user_accounts/sduser" ] || fail "the account directory is missing"
+reload_note=""
+if [ -n "$reload_dir" ]; then
+  # LSOLO 39: anchored on the stage's own success line, whose config part says what happened to sd.conf.
+  reload_note="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^SOLO RELOAD DONE data=reloaded config=//p' | head -1)"
+  [ -n "$reload_note" ] || fail "the stage log has no 'SOLO RELOAD DONE data=reloaded' (the saved data in $reload_dir was NOT reloaded)"
+fi
 
 # what was installed
 { printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; } > "$HOME_DIR/.sdcore-install"
@@ -888,6 +966,12 @@ else
   say "SD Core for Linux Solo is installed."
 fi
 say "  home          : $HOME_DIR      ($mode_name)"
+if [ -n "${reload_note:-}" ]; then
+  say "  reloaded      : your saved data; configuration: $reload_note"
+  say "                  (your data as you left it is still in $kept_aside, a safety copy; delete it when you are satisfied)"
+elif [ -n "${kept_aside:-}" ]; then
+  say "  saved data    : NOT reloaded; it is in $kept_aside (not deleted)"
+fi
 if [ "$first_login" -eq 1 ]; then
   say "  start a session: sd-solo       (at THIS computer's keyboard: it asks you to choose the account password)"
 else

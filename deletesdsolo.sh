@@ -13,12 +13,16 @@
 # SELinux machines, LSOLO 31), and the installation directory (which holds Solo's own ssh directory: its host
 # key and key file).  Run as YOUR OWN USER, never as root.
 #
-# YOUR DATA.  The account's files live in <home>/user_accounts/sduser.  --keep-data
-# moves that directory to ~/SDCoreSolo-data-<date> before anything is deleted;
-# --delete-data removes it with the rest.  Asked when neither is given.  The
-# passwords, the audit trail and the system files are always removed: a kept
-# user_accounts is data, not an installation, and a reinstall starts from a clean
-# tree.  (It cannot be re-attached to a new install by this script yet.)
+# YOUR DATA AND CONFIGURATION.  The account's files live in <home>/user_accounts/sduser and
+# the configuration is <home>/sd.conf.  --keep-data LEAVES BOTH WHERE THEY ARE and removes
+# everything else in <home> (programs, system files, passwords, audit trail, deny list, keys);
+# --delete-data removes <home> whole.  Asked when neither is given; with no terminal to ask on, the
+# data is KEPT (nothing is deleted unasked, as in Windows Solo's silent uninstall).  06 Oct 2026 (LSOLO 39,
+# owner: "the uninstaller leaves the data in place" and "you and windows should handle removal
+# and reinstall the same way"): what is left is data and configuration, not an installation, and
+# a stamp, <home>/.sdcore-kept, says which release made it.  A new install into <home> finds it
+# and OFFERS to reload it (installsdsolo.sh; --reload-data, --start-clean); it asks for new
+# passwords.  To remove what was kept for good: rm -rf <home>.
 #
 # Linger is left as it is: it is a persistent setting of your account and other things
 # may rely on it.  A firewall rule the installer added is not removed; the script says so.
@@ -45,7 +49,7 @@ while [ "$#" -gt 0 ]; do
     --delete-data) data="delete"; shift ;;
     --yes)         assume_yes=1; shift ;;
     --from-copy)   from_copy=1; shift ;;
-    -h|--help)     sed -n '2,30p' "$0"; exit 0 ;;
+    -h|--help)     sed -n '2,31p' "$0"; exit 0 ;;
     *) refuse "unknown option: $1" ;;
   esac
 done
@@ -130,11 +134,13 @@ say
 
 if [ -z "$data" ]; then
   if [ "$interactive" -eq 1 ]; then
-    say "Your data is the account's files in $H/user_accounts/sduser."
-    read -r -p "Keep it (moved to ~/SDCoreSolo-data-<date>) or delete it? [keep/delete] " data < /dev/tty
+    say "Your data is the account's files in $H/user_accounts/sduser; your configuration is $H/sd.conf."
+    read -r -p "Keep them (left where they are, for a new install to reload) or delete them? [keep/delete] " data < /dev/tty
     case "$data" in keep|delete) ;; *) refuse "answer keep or delete (got '$data'); nothing was changed" ;; esac
   else
-    refuse "say --keep-data or --delete-data (there is no terminal to ask on); nothing was changed"
+    # LSOLO 39 (agreed with Windows Solo, whose silent uninstall does the same): nothing is deleted unasked.
+    data="keep"
+    say "There is no terminal to ask on and neither --keep-data nor --delete-data was given: keeping your data and configuration (--delete-data removes them)."
   fi
 fi
 if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
@@ -183,19 +189,34 @@ if [ "$pam_ours" -eq 1 ]; then
 fi
 
 # ---- 3. the data, then the tree
+kept=0
 if [ "$data" = "keep" ]; then
-  if [ -d "$H/user_accounts/sduser" ]; then
-    dest="$HOME/SDCoreSolo-data-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$dest" && mv "$H/user_accounts/sduser" "$dest/" || fail "moving your data to $dest"
-    chmod -R go-rwx "$dest"
-    say "your data is in $dest/sduser"
+  if [ -d "$H/user_accounts/sduser/voc" ]; then
+    # LSOLO 39: the data and sd.conf stay exactly where they are; the stamp says which release made them
+    # and when they were left, so a new install can tell this folder from any other.  Nothing is moved, so
+    # nothing can be lost in a move.  The passwords ($cred), the audit trail, the system files, the deny
+    # list and the keys are NOT kept: they belong to the install, and a new one asks for new passwords.
+    stamp="$(mktemp)" || fail "mktemp"
+    { [ ! -f "$H/.sdcore-install" ] || cat "$H/.sdcore-install"; printf 'kept %s\n' "$(date -Is)"; } > "$stamp"
+    find "$H" -mindepth 1 -maxdepth 1 ! -name user_accounts ! -name sd.conf -exec rm -rf {} + || fail "removing the installation from $H"
+    find "$H/user_accounts" -mindepth 1 -maxdepth 1 ! -name sduser -exec rm -rf {} + || fail "removing the other accounts' folders from $H/user_accounts"
+    mv "$stamp" "$H/.sdcore-kept" && chmod 600 "$H/.sdcore-kept" || fail "writing $H/.sdcore-kept"
+    chmod -R go-rwx "$H"
+    [ -d "$H/user_accounts/sduser/voc" ] || fail "your data is not in $H/user_accounts/sduser after the removal"
+    kept=1
+    say "removed everything in $H except your data and configuration"
+    say "your data is in $H/user_accounts/sduser"
+    if [ -f "$H/sd.conf" ]; then say "your configuration is in $H/sd.conf"; else warn "there is no $H/sd.conf to keep"; fi
+    say "a new install into $H will offer to reload them; to remove them for good: rm -rf $H"
   else
     warn "there is no $H/user_accounts/sduser to keep"
   fi
 fi
-rm -rf "$H" || fail "removing $H"
-[ ! -e "$H" ] || fail "$H is still there"
-say "removed $H"
+if [ "$kept" -eq 0 ]; then
+  rm -rf "$H" || fail "removing $H"
+  [ ! -e "$H" ] || fail "$H is still there"
+  say "removed $H"
+fi
 
 # 02 Oct 26 - the API port is 4249, fixed (owner, 2 Oct 2026).  Its rule is reported, not
 # removed (the installer added it with your sudo); 4243 is OpenQM's and ScarletDME's port, so a

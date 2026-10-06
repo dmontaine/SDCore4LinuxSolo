@@ -50,7 +50,8 @@ formatted FAT, exFAT or NTFS has no execute permission. The stick carries only t
 installer and the documentation: the computer must be online for the packages and
 the download, and the installer says so, before it asks anything or changes
 anything, if it is not. `bash ~/SDCoreSolo/tools/deletesdsolo.sh` removes it again,
-keeping your data if you ask.
+leaving your data and `sd.conf` where they are if you ask; a new install into that
+directory then offers to reload them (it asks for new passwords).
 
 **Requirements:** a 64-bit Linux with a systemd user manager and one of the
 Debian/Ubuntu families or Fedora (not Arch, openSUSE, RHEL or RHEL's clones); a user who can use `sudo`.

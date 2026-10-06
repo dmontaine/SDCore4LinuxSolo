@@ -97,7 +97,16 @@ printf '[install]\nadmin-password=%s\nssh=off\nssh-public-key-file=%s\n' "$(head
 refusal "R13 ssh off in the install file with a key" "an ssh public key needs ssh on" "$W/h13" --control-file "$W/ctl-sshkey.conf"
 printf '[install]\nadmin-password=%s\nglobal-password=\n' "$(head -1 "$W/adm.pw")" > "$W/ctl-noglobal.conf"
 refusal "R14 an install file with no global password still asks for the account password" "no account password was given and there is no terminal to ask on" "$W/h14" --control-file "$W/ctl-noglobal.conf"
-absent=0; for d in h1 h2 h2b h4 h5 h7 h11 h12 h13 h14; do [ -e "$W/$d" ] && absent=1; done
+# LSOLO 39: the one non-empty folder the installer will use is what an uninstall that kept the data leaves - the
+# .sdcore-kept stamp, user_accounts/sduser and sd.conf and NOTHING else.  A folder with the stamp and anything more
+# is refused (it is someone's folder), and the two answers cannot both be given.
+mkdir -p "$W/h15/user_accounts/sduser/voc" && printf 'commit x\nkept 2026-10-06T00:00:00+00:00\n' > "$W/h15/.sdcore-kept" && echo x > "$W/h15/notes.txt"
+refusal "R15 a kept-data folder with something else in it is refused" "exists and is not empty" "$W/h15" --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw"
+refusal "R16 --upgrade takes no --reload-data" "keeps the passwords .*the account's data and sd.conf" "$W/h8" --upgrade --reload-data
+refusal "R17 --reload-data and --start-clean contradict" "contradict each other" "$W/h17" --reload-data --start-clean
+printf '[install]\nadmin-password=%s\nreload-data=maybe\n' "$(head -1 "$W/adm.pw")" > "$W/ctl-badreload.conf"
+refusal "R18 a bad reload-data answer in the install file" "reload-data in the control file must be yes or no" "$W/h18" --control-file "$W/ctl-badreload.conf"
+absent=0; for d in h1 h2 h2b h4 h5 h7 h11 h12 h13 h14 h17 h18; do [ -e "$W/$d" ] && absent=1; done
 [ "$absent" -eq 0 ] && leg "R7 a refusal creates nothing" "h1, h2, h4 and h5 do not exist" 0 "none created" || leg "R7 a refusal creates nothing" "h1, h2, h4, h5 do not exist" 1 "one was created"
 
 if [ "$full" -eq 1 ]; then
@@ -178,22 +187,121 @@ if [ "$full" -eq 1 ]; then
     esac
   fi
   rm -rf "$H".before-upgrade-*
-  # F4 uninstall, keeping the data, from the tree's own copy of the script
+  # F4 uninstall, keeping the data, from the tree's own copy of the script.  LSOLO 39 (owner: "the uninstaller
+  # leaves the data in place", and Windows does the same): the account's files and sd.conf STAY WHERE THEY ARE in
+  # the install folder and everything else goes, with a .sdcore-kept stamp left beside them.
   echo "kept data" > "$H/user_accounts/sduser/keepme.txt"
+  # Change a value the daemon accepts, so a reload can be told from the default.
+  sed -i 's/^SORTMEM=.*/SORTMEM=2048/' "$H/sd.conf"
+  want_conf="$(cat "$H/sd.conf")"
   dout="$(bash "$H/tools/deletesdsolo.sh" --keep-data --yes 2>&1 | strip)"
-  kept="$(printf '%s\n' "$dout" | sed -n 's/^your data is in \(.*\)\/sduser$/\1/p')"
   left=0
-  [ -e "$H" ] && left=1
   [ -e "$HOME/.local/bin/sd" ] || [ -L "$HOME/.local/bin/sd" ] && left=1
   [ -e "$HOME/.local/bin/sd-solo" ] || [ -L "$HOME/.local/bin/sd-solo" ] && left=1
   systemctl --user is-active sd-solo.service >/dev/null 2>&1 && left=1
   ss -ltn 2>/dev/null | grep -q ':14244 ' && left=1
-  if printf '%s\n' "$dout" | grep -qx "SOLO DELETE COMPLETE $H" && [ "$left" -eq 0 ] && [ -n "$kept" ] && [ "$(cat "$kept/sduser/keepme.txt" 2>/dev/null)" = "kept data" ]; then
-    leg "F4 uninstall keeps the data and leaves nothing" "'SOLO DELETE COMPLETE', no tree/link/service/port, keepme.txt kept" 0 "kept in $kept"
+  rest="$(LC_ALL=C ls -A "$H" 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')"
+  accs="$(LC_ALL=C ls -A "$H/user_accounts" 2>/dev/null | tr '\n' ' ')"
+  if printf '%s\n' "$dout" | grep -qx "SOLO DELETE COMPLETE $H" && [ "$left" -eq 0 ] \
+     && [ "$rest" = ".sdcore-kept sd.conf user_accounts " ] && [ "$accs" = "sduser " ] \
+     && [ "$(cat "$H/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ] \
+     && [ "$(cat "$H/sd.conf" 2>/dev/null)" = "$want_conf" ] && grep -q '^commit ' "$H/.sdcore-kept" && grep -q '^kept ' "$H/.sdcore-kept" \
+     && printf '%s\n' "$dout" | grep -qx "your configuration is in $H/sd.conf" && [ ! -e "$H/\$cred" ] && [ ! -e "$H/bin" ]; then
+    leg "F4 uninstall leaves the data and the configuration in place and nothing else" "'SOLO DELETE COMPLETE', no link/service/port, the folder holds exactly .sdcore-kept, sd.conf (SORTMEM=2048) and user_accounts/sduser (keepme.txt), no \$cred, no bin" 0 "kept in place in $H"
   else
-    leg "F4 uninstall keeps the data and leaves nothing" "complete; nothing left; data kept" 1 "left=$left kept='$kept' $(printf '%s\n' "$dout" | tail -2 | tr '\n' ' ')"
+    leg "F4 uninstall leaves the data and the configuration in place and nothing else" "complete; nothing left but .sdcore-kept, sd.conf, user_accounts/sduser" 1 "left=$left rest='$rest' accounts='$accs' conf=$(cat "$H/sd.conf" 2>/dev/null | tr '\n' '|') $(printf '%s\n' "$dout" | tail -2 | tr '\n' ' ')"
   fi
-  [ -z "$kept" ] || rm -rf "$kept"    # my own test data, in the home directory
+
+  # F8 (LSOLO 39) A NEW INSTALL OVER THE KEPT DATA.  inst runs the installer unattended into $H, over what F4 left;
+  # take_aside turns the safety copy a reload leaves ($H.kept-<time>, which is again exactly what an uninstall
+  # leaves) back into $H, so each scenario starts from the same kept tree.
+  printf 'New-Pass-9z!\n' > "$W/acc2.pw"; printf 'Admin-Pass-8y!\n' > "$W/adm2.pw"; printf 'Glob-Pass-7x!\n' > "$W/glb2.pw"
+  inst() { timeout 900 bash "$INSTALL" --home "$H" --skip-packages --yes --account-password-file "$W/acc2.pw" --admin-password-file "$W/adm2.pw" --api local --ssh off "$@" 2>&1 < /dev/null | strip; }
+  take_aside() { local a; a="$(ls -d "$H".kept-* 2>/dev/null | tail -1)"; [ -n "$a" ] || return 1; rm -rf "$H"; mv "$a" "$H"; rm -rf "$H".kept-*; }
+  asideof() { ls -d "$H".kept-* 2>/dev/null | tail -1; }
+  sdwho() { printf '%s\nWHO\nOFF\n' "$1" | timeout 60 "$H/bin/sd-solo" 2>&1 | strip; }
+  # F8: --reload-data: the account's files are back, sd.conf is the kept one, the stage says so, the passwords are
+  # the NEW ones (the old account password no longer opens it), the kept folder is still there untouched as a safety
+  # copy, the new tree is an ordinary one, and it passes verify-solo.sh.
+  out="$(inst --reload-data)"
+  ok=1; why=""; aside="$(asideof)"
+  printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H" || { ok=0; why="$why not-complete;"; }
+  printf '%s\n' "$out" | grep -qF '  reloaded      : your saved data; configuration: reloaded' || { ok=0; why="$why no-reloaded-line;"; }
+  [ "$(cat "$H/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ] || { ok=0; why="$why data-not-back;"; }
+  [ "$(cat "$H/sd.conf" 2>/dev/null)" = "$want_conf" ] || { ok=0; why="$why sdconf-not-the-kept-one;"; }
+  [ -n "$aside" ] && [ "$(cat "$aside/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ] && [ "$(cat "$aside/sd.conf")" = "$want_conf" ] && [ -f "$aside/.sdcore-kept" ] || { ok=0; why="$why kept-copy-missing-or-changed;"; }
+  [ ! -e "$H/.sdcore-kept" ] && [ -f "$H/.sdcoresolo" ] && grep -qx 'mode unmanaged' "$H/.sdcore-install" || { ok=0; why="$why not-an-ordinary-tree;"; }
+  new="$(sdwho "$(head -1 "$W/acc2.pw")")"; old="$(sdwho "$(head -1 "$W/acc.pw")")"
+  printf '%s\n' "$new" | grep -qE '^[0-9]+ sduser$' || { ok=0; why="$why new-password-refused;"; }
+  ! printf '%s\n' "$old" | grep -qE '^[0-9]+ sduser$' || { ok=0; why="$why OLD-password-works;"; }
+  [ "$ok" -eq 1 ] && leg "F8 a new install over the kept data reloads it" "COMPLETE, 'reloaded', keepme.txt and sd.conf (SORTMEM=2048) back, the new password opens it and the old one does not, the kept folder still there as .kept-<time>, an ordinary tree" 0 "reloaded" \
+                  || leg "F8 a new install over the kept data reloads it" "COMPLETE, reloaded, data and sd.conf back, new password only, kept copy untouched" 1 "$why $(printf '%s\n' "$out" | grep -E 'REFUSED|FAILED|reload' | head -3 | tr '\n' ' ')"
+  if [ -f "$here/verify-solo.sh" ]; then
+    v="$(timeout 900 bash "$here/verify-solo.sh" "$H" "$W/acc2.pw" "$W/adm2.pw" 2>&1 | strip | grep -E 'verify-solo:|\[FAIL\]' | cut -c1-240)"
+    case "$v" in
+      *", 0 failed,"*) leg "F8b the reloaded tree passes verify-solo.sh" "0 failed" 0 "$(printf '%s\n' "$v" | tail -1)" ;;
+      *) leg "F8b the reloaded tree passes verify-solo.sh" "0 failed" 1 "$v" ;;
+    esac
+  fi
+  bash "$H/tools/deletesdsolo.sh" --delete-data --yes >/dev/null 2>&1; take_aside
+
+  # F8c a kept sd.conf this release refuses: the install still completes, the default sd.conf is used (and that is
+  # said), the data is reloaded, and the kept copy is not touched.
+  printf 'ZZUNKNOWN=1\n' >> "$H/sd.conf"
+  out="$(inst --reload-data)"; aside="$(asideof)"
+  if printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H" && printf '%s\n' "$out" | grep -qF 'configuration: NOT accepted by SD, the default was kept' \
+     && [ "$(cat "$H/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ] && ! grep -q 'ZZUNKNOWN' "$H/sd.conf" && grep -q '^SORTMEM=4096$' "$H/sd.conf" \
+     && [ -n "$aside" ] && grep -q 'ZZUNKNOWN=1' "$aside/sd.conf"; then
+    leg "F8c a kept sd.conf SD refuses is not installed" "COMPLETE, 'NOT accepted by SD, the default was kept', data back, sd.conf is the default (SORTMEM=4096), the kept copy untouched" 0 "default kept"
+  else
+    leg "F8c a kept sd.conf SD refuses is not installed" "COMPLETE, NOT accepted, default kept, data back" 1 "$(printf '%s\n' "$out" | grep -E 'REFUSED|FAILED|reload|COMPLETE|not accepted' | head -4 | tr '\n' ' ') conf=$(grep -c ZZUNKNOWN "$H/sd.conf" 2>/dev/null)"
+  fi
+  bash "$H/tools/deletesdsolo.sh" --delete-data --yes >/dev/null 2>&1; take_aside; sed -i '/^ZZUNKNOWN=/d' "$H/sd.conf"
+
+  # F8d --start-clean: a clean install; the kept data is moved aside, not deleted, and not reloaded.
+  out="$(inst --start-clean)"; aside="$(asideof)"
+  if printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H" && printf '%s\n' "$out" | grep -qF "  saved data    : NOT reloaded; it is in $aside" \
+     && [ ! -e "$H/user_accounts/sduser/keepme.txt" ] && grep -q '^SORTMEM=4096$' "$H/sd.conf" \
+     && [ -n "$aside" ] && [ "$(cat "$aside/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ]; then
+    leg "F8d --start-clean installs clean and moves the kept data aside" "COMPLETE, 'saved data : NOT reloaded; it is in <dir>', no keepme.txt in the new account, default sd.conf, the kept data in <dir>" 0 "clean"
+  else
+    leg "F8d --start-clean installs clean and moves the kept data aside" "COMPLETE, NOT reloaded, kept data aside" 1 "$(printf '%s\n' "$out" | grep -E 'REFUSED|FAILED|saved data|COMPLETE' | head -3 | tr '\n' ' ')"
+  fi
+  bash "$H/tools/deletesdsolo.sh" --delete-data --yes >/dev/null 2>&1; take_aside
+
+  # F8e no answer and no terminal: the kept data is reloaded (it is kept either way), and the installer says so.
+  out="$(inst)"
+  if printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H" && printf '%s\n' "$out" | grep -qF 'no terminal and no --reload-data or --start-clean: reloading it' \
+     && [ "$(cat "$H/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ]; then
+    leg "F8e with no answer and no terminal the kept data is reloaded" "COMPLETE, 'no terminal and no --reload-data or --start-clean: reloading it', keepme.txt back" 0 "reloaded"
+  else
+    leg "F8e with no answer and no terminal the kept data is reloaded" "COMPLETE, said so, keepme.txt back" 1 "$(printf '%s\n' "$out" | grep -E 'REFUSED|FAILED|reload|COMPLETE' | head -3 | tr '\n' ' ')"
+  fi
+  bash "$H/tools/deletesdsolo.sh" --delete-data --yes >/dev/null 2>&1; take_aside
+
+  # F9 a global password can be ADDED to a computer that was installed without one: keep the data, install again
+  # GIVING one, reload.  It is managed afterwards (the global record, the stamp), the data and sd.conf are back, and
+  # the global password opens it - the supported way from "not managed" to "managed".
+  out="$(inst --reload-data --global-password-file "$W/glb2.pw")"
+  gw="$(sdwho "$(head -1 "$W/glb2.pw")")"
+  if printf '%s\n' "$out" | grep -qx "SOLO INSTALL COMPLETE $H" && [ -f "$H/\$cred/\$global" ] && grep -qx 'mode managed' "$H/.sdcore-install" \
+     && [ "$(cat "$H/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ] && [ "$(cat "$H/sd.conf")" = "$want_conf" ] \
+     && printf '%s\n' "$gw" | grep -qE '^[0-9]+ sduser$'; then
+    leg "F9 an unmanaged computer becomes managed by reinstalling with a global password and reloading" "COMPLETE, \$cred/\$global, mode managed, keepme.txt and sd.conf back, the global password opens it" 0 "managed, data kept"
+  else
+    leg "F9 an unmanaged computer becomes managed by reinstalling with a global password and reloading" "COMPLETE, global record, mode managed, data back, global password opens it" 1 "$(printf '%s\n' "$out" | grep -E 'REFUSED|FAILED|COMPLETE' | head -3 | tr '\n' ' ') global-record=$([ -f "$H/\$cred/\$global" ] && echo yes || echo NO)"
+  fi
+  # F10 (agreed with Windows Solo, whose silent uninstall does the same) an uninstall with NO terminal and NEITHER
+  # --keep-data nor --delete-data deletes nothing: it keeps the data and sd.conf in place and says so.
+  dout="$(bash "$H/tools/deletesdsolo.sh" --yes 2>&1 < /dev/null | strip)"
+  rest="$(LC_ALL=C ls -A "$H" 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')"
+  if printf '%s\n' "$dout" | grep -qx "SOLO DELETE COMPLETE $H" && printf '%s\n' "$dout" | grep -qF 'keeping your data and configuration' \
+     && [ "$rest" = ".sdcore-kept sd.conf user_accounts " ] && [ "$(cat "$H/user_accounts/sduser/keepme.txt" 2>/dev/null)" = "kept data" ]; then
+    leg "F10 an uninstall with no terminal and no choice keeps the data" "COMPLETE, 'keeping your data and configuration', the folder holds exactly .sdcore-kept, sd.conf and user_accounts/sduser (keepme.txt)" 0 "kept"
+  else
+    leg "F10 an uninstall with no terminal and no choice keeps the data" "COMPLETE, keeping, data left in place" 1 "rest='$rest' $(printf '%s\n' "$dout" | grep -E 'REFUSED|FAILED|keeping|COMPLETE' | head -3 | tr '\n' ' ')"
+  fi
+  rm -rf "$H" "$H".kept-*
 
   # F5 a MANAGED install (it has a global password) from a control file that has no account
   # password (LSOLO 14): the installer neither asks for one nor sets one, the global password

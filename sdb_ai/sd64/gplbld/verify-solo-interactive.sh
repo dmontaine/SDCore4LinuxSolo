@@ -11,7 +11,9 @@
 # "Continue?".  There is no mode question (LSOLO 38): the global password is optional.
 # First a run answered "n" at "Continue?" that TYPES a global password (a weak one is
 # refused, a confirmation that does not match is asked again) and must change nothing; then
-# a run answered "n" that leaves the global password BLANK; then a run answered "y" with it
+# a run answered "n" that leaves the global password BLANK; then two runs against an install folder that
+# holds kept data (the offer to reload it, answered y and answered n; LSOLO 39), which change nothing;
+# then a run answered "y" with it
 # blank, which does a real install (about three minutes), and is checked by a session with
 # the passwords the pty typed and by the record that the computer is not managed.  Linger is
 # answered n: it is a persistent account setting and this is a test.  Removes what it
@@ -60,7 +62,11 @@ export SDSOLO_TEST_API_PORT=14245
 IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages "$INSTALL" "$@"; }
 
 # The answers, in the installer's order.  Each send waits for its prompt.
-answers() {   # answers CONTINUE-ANSWER [typed-global]  (no second argument = the global password left blank)
+answers() {   # answers CONTINUE-ANSWER [typed-global] [reload-answer]  (no second argument = the global password left blank;
+              # a third = a saved directory is offered first, and it is answered y or n)
+  if [ -n "${3:-}" ]; then
+    printf '%s\n' expect:'Saved data was found: ' expect:'Reload your saved data and configuration into this new install\? \[Y/n\]' send:"$3"
+  fi
   printf '%s\n' expect:'Choose the account password: ' send:"$WEAK"
   printf '%s\n' expect:'The password must be'
   printf '%s\n' expect:'Choose the account password: ' send:"$ACC"
@@ -118,6 +124,28 @@ if [ "$rc" -eq 0 ] && [ ! -e "$H" ] && [ ! -e "$HOME/.sdsolotmp" ] \
 else
   leg "1c a typed global password is checked, then accepted" "summary 'global pw : set', no tree, no echo" 1 "rc=$rc; $(printf '%s\n' "$t" | grep -E 'ptyrun:|global pw' | tr '\n' '|')"
 fi
+
+# ---- 1e/1f (LSOLO 39). Data an uninstall left in the install folder (the stamp, the account, sd.conf and
+# nothing else) is OFFERED, and the answer decides.  The fixture is made in the install folder, and removed after.
+fixture() { rm -rf "$H"; mkdir -p "$H/user_accounts/sduser/voc" && printf 'commit 0123456789abcdef\nkept 2026-10-06T00:00:00+00:00\n' > "$H/.sdcore-kept" && printf '[sd]\nSORTMEM=2048\n' > "$H/sd.conf"; chmod -R go-rwx "$H"; }
+fixture
+mapfile -t steps < <(answers n "" y; printf '%s\n' expect:'cancelled by you; nothing was changed')
+t="$(IA 60 "${steps[@]}" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ] && printf '%s\n' "$t" | grep -qF "Saved data was found: $H" && printf '%s\n' "$t" | grep -qF "reload        : your saved data and configuration from $H" \
+   && [ -f "$H/.sdcore-kept" ] && [ ! -e "$H/.sdcoresolo" ]; then
+  leg "1e saved data in the install folder is offered, and y puts it in the summary" "'Saved data was found: <folder>', the question, then 'reload : your saved data and configuration from <folder>', the kept folder untouched" 0 "offered, accepted"
+else
+  leg "1e saved data in the install folder is offered, and y puts it in the summary" "offered, accepted, in the summary, folder untouched" 1 "rc=$rc; $(printf '%s\n' "$t" | grep -E 'ptyrun:|Saved data|reload  ' | tr '\n' '|')"
+fi
+mapfile -t steps < <(answers n "" n; printf '%s\n' expect:'cancelled by you; nothing was changed')
+t="$(IA 60 "${steps[@]}" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ] && printf '%s\n' "$t" | grep -qF "Saved data was found: $H" && printf '%s\n' "$t" | grep -qF "start clean   : your saved data in $H is moved aside" \
+   && ! printf '%s\n' "$t" | grep -qF 'reload        :' && [ -f "$H/.sdcore-kept" ] && [ ! -e "$H/.sdcoresolo" ]; then
+  leg "1f answering n starts clean" "offered, n, 'start clean : ... moved aside' and no 'reload' line in the summary, the kept folder untouched (nothing is moved until Continue)" 0 "declined"
+else
+  leg "1f answering n starts clean" "offered, declined, start-clean line, no reload line" 1 "rc=$rc; $(printf '%s\n' "$t" | grep -E 'ptyrun:|start clean|reload  ' | tr '\n' '|')"
+fi
+rm -rf "$H"
 
 # ---- 2. answered "y": a real install.
 mapfile -t steps < <(answers y; printf '%s\n' expect:'SOLO INSTALL COMPLETE')
