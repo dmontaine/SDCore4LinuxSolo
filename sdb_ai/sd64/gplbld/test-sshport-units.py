@@ -33,8 +33,9 @@ WHAT IT MEASURES.  Every row runs the REAL script and prints the command line an
 THE NULL CASE IS REFUSED.  Without sshd, ssh, ssh-keygen or systemd-socket-activate the run exits
 2 rather than reporting rows that did nothing.  --selftest builds mutant copies of the tools
 (password login off, PAM off, forwarding allowed, StrictModes off, the forced command gone, the
-second spelling not migrated, the Solo key options dropped, the cap raised, a managed tree not
-open) and requires each to fail at least one row.  A CORRECT password is not tried here: it needs the
+second spelling not migrated, the Solo key options dropped, the cap raised, a managed tree on an
+old route not open, a managed tree with no ssh evidence forced open) and requires each to fail at
+least one row.  A CORRECT password is not tried here: it needs the
 owner's own, typed at ssh's prompt (probe-solo-ssh-password.sh).
 """
 
@@ -307,7 +308,7 @@ def suite(tools, work):
         bare = os.path.join(scen, "bare-tree")      # a tree with no sshd directory of its own
         os.makedirs(bare)
 
-        def scope(mode_name="standalone", ak_text=None, dropin=False, socket_text=None, home=None):
+        def scope(mode_name="unmanaged", ak_text=None, dropin=False, socket_text=None, home=None):
             for p in (akf, drop, sock):
                 if os.path.exists(p):
                     os.remove(p)
@@ -323,7 +324,12 @@ def suite(tools, work):
         got = {
             "socket 0.0.0.0 kept": scope(socket_text="[Socket]\nListenStream=0.0.0.0:4251\n"),
             "socket 127.0.0.1 kept": scope(socket_text="[Socket]\nListenStream=127.0.0.1:4251\n"),
-            "managed": scope(mode_name="managed"),
+            # LSOLO 38 (6 Oct 2026): managed is no longer open by rule, so a managed tree with no evidence of ssh is off;
+            # only a managed tree on an OLD route (before the socket) keeps what that meant, which was open.
+            "managed, no evidence": scope(mode_name="managed"),
+            "managed, old drop-in": scope(mode_name="managed", dropin=True),
+            "managed, old key line": scope(mode_name="managed", ak_text='command="%s/bin/sd-solo",restrict,pty ssh-ed25519 AAAA x\n' % bare),
+            "managed, socket 127.0.0.1 kept": scope(mode_name="managed", socket_text="[Socket]\nListenStream=127.0.0.1:4251\n"),
             "old drop-in": scope(dropin=True),
             "old key line, sd-solo": scope(ak_text='command="%s/bin/sd-solo",restrict,pty ssh-ed25519 AAAA x\n' % bare),
             "old key line, sd": scope(ak_text='command="%s/bin/sd",restrict,pty ssh-ed25519 AAAA x\n' % bare),
@@ -332,10 +338,12 @@ def suite(tools, work):
             "sshd directory present, no unit": scope(home=tree),
             "nothing": scope(),
         }
-        want = {"socket 0.0.0.0 kept": "open", "socket 127.0.0.1 kept": "local", "managed": "open", "old drop-in": "local",
+        want = {"socket 0.0.0.0 kept": "open", "socket 127.0.0.1 kept": "local",
+                "managed, no evidence": "off", "managed, old drop-in": "open", "managed, old key line": "open",
+                "managed, socket 127.0.0.1 kept": "local", "old drop-in": "local",
                 "old key line, sd-solo": "local", "old key line, sd": "local", "another tree's line only": "off",
                 "sshd directory present, no unit": "local", "nothing": "off"}
-        row("INSTALL", "ssh_upgrade_scope: a new socket keeps its address, managed is open, an sshd directory or either old route is local, otherwise off",
+        row("INSTALL", "ssh_upgrade_scope: a new socket keeps its address, an sshd directory or either old route is local (open for a managed tree on an old route), otherwise off",
             got == want, ["  %s -> %s" % (n, got[n]) for n in want] + ["  expected: %s" % want])
     # 2 Oct 2026 (owner: "match the windows solo behavior"): as Windows Solo's installer ticks "Install the OpenSSH
     # server" by default, the DEFAULT is local and installs the ssh server package if it is missing; --ssh off declines;
@@ -369,7 +377,7 @@ def suite(tools, work):
             dgot == dwant, ["  %s -> %s" % (n, dgot[n]) for n in dwant] + ["  expected: %s" % dwant])
     refs = []
     # --upgrade is checked against a tree that exists, so the refusal under test is the one that comes back.
-    open(os.path.join(tree, ".sdcore-install"), "w").write("commit x\nmode standalone\n")
+    open(os.path.join(tree, ".sdcore-install"), "w").write("commit x\nmode unmanaged\n")
     for label, args, want in (("--ssh-match", ["--ssh-match"], "--ssh-match is gone"), ("--ssh sideways", ["--ssh", "sideways"], "off, local or open"),
                               ("--ssh off --ssh-key", ["--ssh", "off", "--ssh-key", "/x"], "needs ssh on"),
                               ("--upgrade --ssh local", ["--upgrade", "--home", tree, "--ssh", "local"], "takes no password")):
@@ -582,7 +590,15 @@ MUTANTS = [
     ("second spelling not migrated", SSH_TOOL, 'forms=("$FORCED_NEW" "$FORCED_OLD")', 'forms=("$FORCED_NEW")'),
     ("sshd directory not counted as evidence", "installsdsolo.sh", 'if [ -f "$home_dir/sshd/sshd_config" ]; then echo local; return 0; fi',
      'if false; then echo local; return 0; fi'),
-    ("managed tree not open", "installsdsolo.sh", 'if [ "$mode_name" = "managed" ]; then echo open; return 0; fi', 'if false; then echo open; return 0; fi'),
+    ("managed tree on an old drop-in not open", "installsdsolo.sh",
+     'if [ -f "$dropin" ]; then if [ "$mode_name" = "managed" ]; then echo open; else echo local; fi; return 0; fi',
+     'if [ -f "$dropin" ]; then echo local; return 0; fi'),
+    ("managed tree on an old key line not open", "installsdsolo.sh",
+     '    if [ "$mode_name" = "managed" ]; then echo open; else echo local; fi; return 0\n  fi',
+     '    echo local; return 0\n  fi'),
+    ("a managed tree with no ssh evidence forced open (the old rule)", "installsdsolo.sh",
+     "  # Solo's own ssh directory is evidence ssh was in use even if its socket unit is gone",
+     '  if [ "$mode_name" = "managed" ]; then echo open; return 0; fi\n  # Solo\'s own ssh directory is evidence ssh was in use even if its socket unit is gone'),
     ("default off where sshd is absent (the first, rejected, version)", "installsdsolo.sh",
      'if [ "$have" != "1" ] && [ "$skip" = "1" ]; then echo off; else echo local; fi', 'if [ "$have" != "1" ]; then echo off; else echo local; fi'),
     ("--skip-packages with no sshd not honoured", "installsdsolo.sh",

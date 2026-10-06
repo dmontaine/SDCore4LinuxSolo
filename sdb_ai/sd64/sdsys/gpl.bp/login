@@ -788,7 +788,7 @@ require.password:
 *  INSTALLED FROM A CONTROL FILE HAS NO ACCOUNT PASSWORD UNTIL ITS FIRST LOGIN,
 *  and it is set AT THE CONSOLE ONLY: an interactive session, on a terminal, not
 *  over ssh.  Managed only ($global present), as the control file is; a
-*  standalone tree without its record still gets 11020 above.  Anywhere else the
+*  tree with no global password and without its record still gets 11020 above.  Anywhere else the
 *  session is told so, and the prompt below then accepts only the global
 *  password (the master's, ruling 19), as it always has.
    if not(pw.has.acct) and pw.has.global then

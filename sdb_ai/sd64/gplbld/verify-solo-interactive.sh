@@ -5,13 +5,17 @@
 #
 # No sudo.  Run as an ordinary user with a clean git tree (the installer builds the
 # COMMITTED head of this repository, as verify-solo-install.sh does).  It drives
-# installsdsolo.sh through ptyrun.py exactly as a person at a keyboard would: the mode
-# question, a weak account password (refused, asked again), a confirmation that does not
-# match (asked again), the administrator password, the API question, ssh, linger and
-# "Continue?".  First a run answered "n" at "Continue?", which must change nothing; then
-# a run answered "y", which does a real install (about three minutes), and is checked by a
-# session with the passwords the pty typed.  Linger is answered n: it is a persistent
-# account setting and this is a test.  Removes what it installed and its scratch directory.
+# installsdsolo.sh through ptyrun.py exactly as a person at a keyboard would: a weak account
+# password (refused, asked again), a confirmation that does not match (asked again), the
+# administrator password, the global password question, the API question, ssh, linger and
+# "Continue?".  There is no mode question (LSOLO 38): the global password is optional.
+# First a run answered "n" at "Continue?" that TYPES a global password (a weak one is
+# refused, a confirmation that does not match is asked again) and must change nothing; then
+# a run answered "n" that leaves the global password BLANK; then a run answered "y" with it
+# blank, which does a real install (about three minutes), and is checked by a session with
+# the passwords the pty typed and by the record that the computer is not managed.  Linger is
+# answered n: it is a persistent account setting and this is a test.  Removes what it
+# installed and its scratch directory.
 #
 # Exit 0 every leg passed, 1 a leg failed, 2 it could not measure.
 
@@ -38,7 +42,7 @@ cleanup() {
 trap cleanup EXIT
 umask 077
 
-ACC='Acct-Ia-Test-4711!'; ADM='Admin-Ia-Test-4712!'; WEAK='weak'; OTHER='Other-Ia-Test-9999!'
+ACC='Acct-Ia-Test-4711!'; ADM='Admin-Ia-Test-4712!'; WEAK='weak'; OTHER='Other-Ia-Test-9999!'; GLB='Glob-Ia-Test-4713!'
 export SDSOLO_REPO_URL="$REPO"
 
 echo "verify-solo-interactive inputs:"
@@ -56,8 +60,7 @@ export SDSOLO_TEST_API_PORT=14245
 IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages "$INSTALL" "$@"; }
 
 # The answers, in the installer's order.  Each send waits for its prompt.
-answers() {   # answers CONTINUE-ANSWER
-  printf '%s\n' expect:'managed by an SD Core server\? \[y/N\]' send:n
+answers() {   # answers CONTINUE-ANSWER [typed-global]  (no second argument = the global password left blank)
   printf '%s\n' expect:'Choose the account password: ' send:"$WEAK"
   printf '%s\n' expect:'The password must be'
   printf '%s\n' expect:'Choose the account password: ' send:"$ACC"
@@ -67,6 +70,17 @@ answers() {   # answers CONTINUE-ANSWER
   printf '%s\n' expect:'Confirm the account password: ' send:"$ACC"
   printf '%s\n' expect:'Choose the administrator password: ' send:"$ADM"
   printf '%s\n' expect:'Confirm the administrator password: ' send:"$ADM"
+  if [ -n "${2:-}" ]; then
+    printf '%s\n' expect:'Global password \(leave blank if no SD Core server manages this computer\): ' send:"$WEAK"
+    printf '%s\n' expect:'The password must be'
+    printf '%s\n' expect:'Global password \(leave blank if no SD Core server manages this computer\): ' send:"$GLB"
+    printf '%s\n' expect:'Confirm the global password: ' send:"$OTHER"
+    printf '%s\n' expect:'The two did not match'
+    printf '%s\n' expect:'Global password \(leave blank if no SD Core server manages this computer\): ' send:"$GLB"
+    printf '%s\n' expect:'Confirm the global password: ' send:"$GLB"
+  else
+    printf '%s\n' expect:'Global password \(leave blank if no SD Core server manages this computer\): ' send:
+  fi
   printf '%s\n' expect:'API listener \[off/local/open\] \(default off\): ' send:local
   printf '%s\n' expect:'ssh listener \[off/local/open\] \(default local\): ' send:off
   printf '%s\n' expect:'Enable it now\? \[Y/n\]' send:n
@@ -88,6 +102,22 @@ if printf '%s\n' "$t" | grep -qF -e "$ACC" -e "$ADM" -e "$OTHER" -e "$WEAK"; the
 else
   leg "1b no typed password is echoed" "none of the four typed passwords on the screen (stars only)" 0 "stars"
 fi
+if printf '%s\n' "$t" | grep -qF 'global pw     : none - no SD Core server manages this computer'; then
+  leg "1d a blank global password reads as none" "the summary says 'global pw : none - no SD Core server manages this computer'" 0 "none"
+else
+  leg "1d a blank global password reads as none" "'global pw : none - no SD Core server manages this computer'" 1 "$(printf '%s\n' "$t" | grep -F 'global pw' | head -1)"
+fi
+
+# ---- 1c. the same, typing a global password (a weak one refused, a mismatch asked again).
+mapfile -t steps < <(answers n typed; printf '%s\n' expect:'cancelled by you; nothing was changed')
+t="$(IA 60 "${steps[@]}" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ] && [ ! -e "$H" ] && [ ! -e "$HOME/.sdsolotmp" ] \
+   && printf '%s\n' "$t" | grep -qF 'global pw     : set - an SD Core server is expected to manage this computer' \
+   && ! printf '%s\n' "$t" | grep -qF -e "$GLB" -e "$OTHER" -e "$WEAK"; then
+  leg "1c a typed global password is checked, then accepted" "weak refused, mismatch asked again, the summary says 'set', no password on the screen, nothing created" 0 "set"
+else
+  leg "1c a typed global password is checked, then accepted" "summary 'global pw : set', no tree, no echo" 1 "rc=$rc; $(printf '%s\n' "$t" | grep -E 'ptyrun:|global pw' | tr '\n' '|')"
+fi
 
 # ---- 2. answered "y": a real install.
 mapfile -t steps < <(answers y; printf '%s\n' expect:'SOLO INSTALL COMPLETE')
@@ -108,6 +138,13 @@ if printf '%s\n' "$o1" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o2" | gre
   leg "3 the typed passwords are the installed ones" "the account and administrator passwords work; the mismatched one does not" 0 "as typed"
 else
   leg "3 the typed passwords are the installed ones" "account pw and admin pw work; the mismatched one does not" 1 "$(printf '%s\n' "$o1" | tail -1) / $(printf '%s\n' "$o2" | tail -1)"
+fi
+
+# ---- 3b. the blank global password made an unmanaged computer: no $global record, and the stamp says so.
+if [ ! -e "$H/\$cred/\$global" ] && [ "$(sed -n 's/^mode //p' "$H/.sdcore-install")" = "unmanaged" ]; then
+  leg "3b a blank global password installs an unmanaged computer" "no \$cred/\$global; .sdcore-install says 'mode unmanaged'" 0 "unmanaged"
+else
+  leg "3b a blank global password installs an unmanaged computer" "no \$cred/\$global; mode unmanaged" 1 "global-record=$([ -e "$H/\$cred/\$global" ] && echo present || echo absent) mode=$(sed -n 's/^mode //p' "$H/.sdcore-install")"
 fi
 
 # ---- 4. the API answer took: a local listener on the port given.

@@ -122,9 +122,11 @@ else leg "3 the manifest is Solo's and matches the zip" "a zip to read" 1 "no zi
 # ---- 4
 out="$(sess ADMIN "$ADMINPW" SETTINGS.REPORT)"
 if printf '%s\n' "$out" | grep -q '^product: linux-solo' && printf '%s\n' "$out" | grep -q '^\[mode\]' \
+   && printf '%s\n' "$out" | grep -qx 'not managed (no global password)' \
+   && ! printf '%s\n' "$out" | grep -qi 'standalone' \
    && printf '%s\n' "$out" | grep -q '^\[policy\]'; then
-  leg "4 SETTINGS.REPORT" "product: linux-solo, [mode], [policy]" 0 ""
-else leg "4 SETTINGS.REPORT" "product: linux-solo, [mode], [policy]" 1 "$(one "$out")"; fi
+  leg "4 SETTINGS.REPORT" "product: linux-solo, [mode] 'not managed (no global password)' (LSOLO 38; never 'standalone'), [policy]" 0 ""
+else leg "4 SETTINGS.REPORT" "product: linux-solo, [mode] 'not managed (no global password)', [policy]" 1 "$(one "$out")"; fi
 
 # ---- 5: damage, then restore - which must change nothing yet
 cat > "$H/user_accounts/sduser/bp/zzdamage" <<'EOF'

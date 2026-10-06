@@ -58,11 +58,19 @@ It can be installed beside the multi-user SD Core for Linux (since 2 Oct 2026: `
 
 ## What it is for
 
-- **Standalone** — a local, single-user database, used much as you would use
+- **On its own** — a local, single-user database, used much as you would use
   SQLite.
-- **Managed client** — a local store in a distributed setup, where a master
-  SD Core server holds the central data and manages its clients. A global
-  password, set by the installer, lets the master server reach the client.
+- **As a client of an SD Core server** — a local store in a distributed setup,
+  where a master SD Core server holds the central data and manages its clients.
+  A global password lets the master server reach the client.
+
+There is one install for both. The installer asks for a global password last and
+you can leave it blank if no SD Core server manages this computer; a computer is
+managed if, and only if, it has a global password. The API and ssh are always your
+choice (off, this computer only, or reachable from the network), with or without a
+global password; a computer that a server manages needs both open to the network.
+An install file (`sd-solo-setup.conf.sample`) can answer these questions for an
+install nobody sits at.
 
 ## Source
 

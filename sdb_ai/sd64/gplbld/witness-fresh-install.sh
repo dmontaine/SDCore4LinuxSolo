@@ -47,10 +47,10 @@ echo "  stamp     :"; sed 's/^/              /' "$H/.sdcore-install"
 commit="$(awk '$1=="commit"{print $2}' "$H/.sdcore-install")"
 remote="$(git -C "$REPO" ls-remote origin refs/heads/main 2>/dev/null | awk '{print $1}')"
 [ -n "$remote" ] || refuse "could not read origin/main from $REPO (no network?) - F1 would compare with nothing"
-if [ "$commit" = "$remote" ] && ! grep -q '^upgraded-from' "$H/.sdcore-install" && grep -qx 'mode standalone' "$H/.sdcore-install"; then
-  leg "F1 stamp" "the commit equals origin/main, standalone, no upgraded-from" 0 "${commit:0:7}"
+if [ "$commit" = "$remote" ] && ! grep -q '^upgraded-from' "$H/.sdcore-install" && grep -qx 'mode unmanaged' "$H/.sdcore-install"; then
+  leg "F1 stamp" "the commit equals origin/main, unmanaged, no upgraded-from" 0 "${commit:0:7}"
 else
-  leg "F1 stamp" "the commit equals origin/main, standalone, no upgraded-from" 1 "stamp ${commit:0:7} origin/main ${remote:0:7}; $(grep -c '^upgraded-from' "$H/.sdcore-install") upgraded-from line(s)"
+  leg "F1 stamp" "the commit equals origin/main, unmanaged, no upgraded-from" 1 "stamp ${commit:0:7} origin/main ${remote:0:7}; $(grep -c '^upgraded-from' "$H/.sdcore-install") upgraded-from line(s)"
 fi
 
 # ---- F2. the units: the daemon and the ssh listener on, the API off (the default).

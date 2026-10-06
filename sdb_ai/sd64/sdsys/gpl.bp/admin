@@ -109,8 +109,8 @@ $include err.h
    call !CRED_VERIFY('$ADMIN', pw, ok)
    via = 'admin'
    if not(ok) then
-*     Managed mode (b): the global password is the other key (ruling 12).  In
-*     standalone mode there is no $GLOBAL record and CRED_VERIFY says no.
+*     A managed computer (b): the global password is the other key (ruling 12).
+*     With no global password there is no $GLOBAL record and CRED_VERIFY says no.
       call !CRED_VERIFY('$GLOBAL', pw, ok)
       via = 'global'
    end

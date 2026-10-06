@@ -358,7 +358,7 @@ if [ -n "$denyverbs" ]; then
 fi
 
 # Ruling 33: the SD Core server's programs in GLOBAL.BP.OUT go into the global
-# catalogue, last, in both modes (standalone says so and succeeds).
+# catalogue, last, whether or not there is a global password (without one it says so and succeeds).
 echo
 echo "Syncing the global catalogue ($SD -internal SYNC.GLOBAL.CATALOG)"
 sg_out="$(sdi SYNC.GLOBAL.CATALOG 2>&1)" || true
@@ -366,6 +366,15 @@ sg_plain="$(printf '%s\n' "$sg_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's
 printf '%s\n' "$sg_plain" | tail -3
 printf '%s\n' "$sg_plain" | grep -qE '^SYNC GLOBAL CATALOG DONE [0-9]+ catalogued [0-9]+ removed 0 refused[[:space:]]*$' \
   || fail "SYNC.GLOBAL.CATALOG did not print its DONE line with 0 refused"
+# LSOLO 38: a fresh stage with no global password must SAY so in the new words (and a managed one must not).
+if [ "$upgrade" -eq 0 ]; then
+  nogp='SYNC.GLOBAL.CATALOG: this computer has no global password, so no SD Core server manages it and there is nothing to manage.'
+  if [ -z "$globalfile" ]; then
+    printf '%s\n' "$sg_plain" | grep -qF "$nogp" || fail "SYNC.GLOBAL.CATALOG did not say that this computer has no global password (got: $(printf '%s\n' "$sg_plain" | tail -2 | tr '\n' '|'))"
+  else
+    ! printf '%s\n' "$sg_plain" | grep -qF 'has no global password' || fail "SYNC.GLOBAL.CATALOG said there is no global password on a tree that has one"
+  fi
+fi
 
 upgrade_ok=1
 if [ "$upgrade" -eq 1 ]; then

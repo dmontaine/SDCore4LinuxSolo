@@ -3,6 +3,8 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 06 Oct 26 dm [mode] says "not managed (no global password)" where it said
+*              "standalone" (LSOLO 38: one install, no standalone mode).
 * 02 Oct 26 dm [ssh] and [service] report Solo's own ssh listener (LSOLO 29).
 * 02 Oct 26 dm Written for S.50 / LSOLO 20 (shared signature; the split of the
 *              report agreed with SD Core for Windows, mail 2026-10-01T1210:
@@ -20,7 +22,7 @@
 *
 *    [sd.conf]   the configuration file SD read (SD_CONFIG, else <home>/sd.conf)
 *    [policy]    <home>/solo.policy, the install-time choices (denied verbs ...)
-*    [mode]      standalone, or managed when $cred holds the $global record
+*    [mode]      managed when $cred holds the $global record, else not managed
 *    [api]       the API listener (sd-solo-api.socket) and the certificate's
 *                subject, dates and fingerprint (<config dir>/sd-tls/api.pem)
 *    [ssh]       Solo's own ssh (LSOLO 29): the listener (sd-solo-ssh.socket), the
@@ -55,7 +57,7 @@ $include int$keys.h
    hdr = '[policy] ':path ; gosub add.section
 
 * [mode]
-   sec = 'standalone'
+   sec = 'not managed (no global password)'
    openpath @sdsys:@ds:'$cred' to cred.f then
       read x from cred.f, '$global' then sec = 'managed (a global password is set)'
       close cred.f

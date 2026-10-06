@@ -4,6 +4,53 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+06 Oct 26  THERE IS ONE INSTALL, NOT TWO MODES.  THE GLOBAL PASSWORD IS
+           OPTIONAL, AND THE API AND SSH ARE ALWAYS YOUR CHOICE.
+
+           The installer used to ask whether the computer was "standalone"
+           or "managed by an SD Core server".  It no longer asks.  It asks
+           for the global password last, and you can leave it blank if no SD
+           Core server manages this computer.  A computer is managed if, and
+           only if, it has a global password; that was always how SD told the
+           two apart, and it still is.
+
+           A computer managed by a server used to have its API and ssh forced
+           open to the network.  Now nobody is forced: with or without a
+           global password the installer asks whether the API (default: off)
+           and ssh (default: this computer only) are off, local or open.
+           A computer that a server is to manage needs both open to the
+           network, and the installer says so when you give it a global
+           password and choose less.
+
+           The install file, for an install nobody sits at, is no longer for
+           managed computers only.  It can now answer those two questions:
+           api=off, local or open, and ssh=off, local or open (the API is
+           always on port 4249 and ssh on port 4251).  A blank
+           global-password in the file means none, and the installer says
+           "The control file gives no global password, so this computer will
+           NOT be managed by an SD Core server" instead of asking.  The
+           account password is chosen at the keyboard at first login only
+           when the file also gives a global password; without one the
+           installer asks for the account password as usual.
+
+           WHAT THIS DOES NOT DO: it does not let you add a global password
+           later - no command creates or clears it, so a computer that was
+           installed without one needs a reinstall to be managed.  An
+           upgrade changes nothing about the passwords, the API or ssh.  A
+           deny list given in the install file of a computer with no global
+           password cannot be changed afterwards, because only a session
+           opened with the global password may change it.  "--managed" is
+           gone from the installer: it now says to give a global password.
+
+           What you see has changed in three places.  A computer with no
+           global password now says "This computer has no global password -
+           no SD Core server manages it" (it said "standalone") when you
+           try SET.PASSWORD GLOBAL; SYNC.GLOBAL.CATALOG says "this computer
+           has no global password, so no SD Core server manages it and there
+           is nothing to manage"; and SETTINGS.REPORT's [mode] section says
+           "not managed (no global password)".  A tree installed before
+           today that was recorded as "standalone" is read as not managed.
+
 05 Oct 26  RESTORE.ACCOUNT LATEST NOW CHOOSES THE NEWEST BACKUP THAT REALLY
            HOLDS YOUR ACCOUNT, AND SAYS WHEN A NEWER BACKUP DOES NOT.
 

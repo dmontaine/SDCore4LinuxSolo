@@ -317,12 +317,12 @@ else
   leg "18 SET.PASSWORD ADMIN" "needs ADMIN; weak refused, old still unlocks; good changes it; put back" 1 "no-admin: $(last "$o_no") weak: $(last "$o_weak") still=$still chg: $(last "$o_chg") new-unlocks=$new_unlocks"
 fi
 
-# ---- 19. SET.PASSWORD GLOBAL on a standalone tree says so (no global password).
+# ---- 19. SET.PASSWORD GLOBAL on a tree with no global password says so (LSOLO 38: the text lost "standalone").
 out="$(sess_as "$GOOD" 'SET.PASSWORD GLOBAL')"
-if printf '%s\n' "$out" | grep -qx 'This computer is standalone - it has no global password'; then
-  leg "19 SET.PASSWORD GLOBAL is refused when standalone" "'This computer is standalone...'" 0 "refused"
+if printf '%s\n' "$out" | grep -qx 'This computer has no global password - no SD Core server manages it'; then
+  leg "19 SET.PASSWORD GLOBAL is refused with no global password" "'This computer has no global password - no SD Core server manages it'" 0 "refused"
 else
-  leg "19 SET.PASSWORD GLOBAL is refused when standalone" "'This computer is standalone...'" 1 "$(last "$out")"
+  leg "19 SET.PASSWORD GLOBAL is refused with no global password" "'This computer has no global password - no SD Core server manages it'" 1 "$(last "$out")"
 fi
 
 # ======================================================================

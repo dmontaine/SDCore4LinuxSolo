@@ -113,7 +113,7 @@ def build(tmp, *, dirty=False, pushed=True, stamp="head",
                   encoding="utf-8") as f:
             if solo_stamp:
                 # installsdsolo.sh's own format: "key value" lines.
-                f.write("commit %s\ndate %s\nmode standalone\n"
+                f.write("commit %s\ndate %s\nmode unmanaged\n"
                         % (sha, time.strftime("%Y-%m-%dT%H:%M:%S")))
             else:
                 f.write("commit=%s\nbranch=main\ninstalled=%s\n"

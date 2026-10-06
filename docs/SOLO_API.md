@@ -64,7 +64,7 @@ user name from the reply. Windows Solo answers the same request in the same word
 - **Who may send it:** only a session signed in with the global password
   (`K$GLOBAL.SESSION`). An account-password session, or ADMIN, gets message 11041,
   "Only the SD Core server may manage ssh keys". It is not admitted before login, and on a
-  standalone computer no session can be a global one.
+  computer with no global password no session can be a global one.
 - **The request:** a verb, then a field mark and an argument. `ADD` and a one-line public
   key; `REMOVE` and a `SHA256:...` fingerprint; `LIST` alone.
 - **The reply:** `ADD` gives six fields: the Linux user, the host name, the key's
