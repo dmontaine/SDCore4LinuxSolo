@@ -96,6 +96,26 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            without stopping the walk).  Solo's own programs compiled (214) and its
            kernel built.  Not run in Solo itself.
 
+07 Oct 26  BACKSPACE ERASES AT AN INPUT PROMPT, WHICHEVER KEY YOUR TERMINAL
+           SENDS FOR IT.
+
+           A terminal sends either Ctrl-H or Delete for the Backspace key, and
+           which one it sends does not always match what its terminal type says.
+           The INPUT statement erased only the key the terminal type named; with
+           the other one Backspace did not erase, it ADDED a character, so a
+           typing mistake at a password prompt could not be corrected and trying
+           to correct it made the entry longer.  Both keys erase now, as well as
+           whatever key the terminal type names, and the erase on the screen is
+           back, blank, back.  The same change, byte for byte, as the full SD
+           Core for Linux made today after SD Core for Windows made it on 22
+           August.
+
+           What it does NOT do: nothing else about typing at a prompt changes.
+
+           This was measured on a test copy of the full SD Core for Linux (the
+           file is identical in Solo): 40 of 40 rows, where 12 failed before the
+           change.  Not run in Solo itself.
+
 07 Oct 26  SDSYS'S OWN VOC HAS THE SOUNDEX KEYWORD TOO.
 
            SDSYS's VOC is built from a second set of records, VOC_TEMPLATE, and
