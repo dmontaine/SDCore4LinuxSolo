@@ -4,6 +4,22 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+06 Oct 26  THE SOUNDEX TEST "~" WORKS AGAIN IN THE ACCOUNT'S VOC.
+
+           A query such as LIST CUSTOMERS WITH NAME ~ "smith" needs the keyword
+           "~" in the account's VOC.  It was missing from every account made or
+           updated since the file names were put into lower case on 13
+           September: its source record, a file in sdsys/newvoc, has to be
+           named %T in capitals (the loader turns a leading %T into "~" and
+           does not recognise %t), and it had been renamed %t by mistake from
+           a comment that said lower case.  That comment is corrected.  This
+           was measured on a test copy of the full SD Core for Linux, built from
+           the same source: the VOC of an ordinary account held no "~" before
+           and holds it after.  What it does not do: the fix was not run in
+           Solo, and the VOC of an existing Solo gains the keyword when it is
+           next updated by UPDATE.ACCOUNTS, which Solo's installer does not
+           yet run (see LSOLO 41).
+
 06 Oct 26  COPY ... DELETING NO LONGER DELETES A RECORD COPIED ONTO ITSELF, AND
            THREE PROMPTS NO LONGER ASK FOR EVER.
 
