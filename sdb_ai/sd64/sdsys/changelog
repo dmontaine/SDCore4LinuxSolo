@@ -50,6 +50,14 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            looks for cat/zzsub (measured on the full product: "Unable to load").
            If both cat/ZZSUB and cat/zzsub exist they are named and left.
 
+           Signing in no longer asks about the release.  When your VOC was
+           made by an older release, sign-on used to print "Your VOC is at
+           release level ..." and ask "Update VOC to new release (y/<n>)?",
+           which a script or an installer step with no one at the keyboard
+           cannot answer.  It now signs in without a question, as Windows and
+           Windows Solo do; the installer refreshes the account's VOC on an
+           upgrade and on a reload of kept data, as it did before.
+
            Smaller things taken from the full product on the way: a
            PY_LISTCREATE function beside PY_LISTCRTE; the Python and user-switch
            error texts spelt as Windows spells them; CONFIG no longer lists
@@ -86,8 +94,8 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            the same source: the VOC of an ordinary account held no "~" before
            and holds it after.  What it does not do: the fix was not run in
            Solo, and the VOC of an existing Solo gains the keyword when it is
-           next updated by UPDATE.ACCOUNTS, which Solo's installer does not
-           yet run (see LSOLO 41).
+           next updated by UPDATE.ACCOUNTS, which Solo's installer runs on an
+           upgrade and on a reload of kept data.
 
 06 Oct 26  COPY ... DELETING NO LONGER DELETES A RECORD COPIED ONTO ITSELF, AND
            THREE PROMPTS NO LONGER ASK FOR EVER.
