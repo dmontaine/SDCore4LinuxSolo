@@ -53,6 +53,9 @@
 *      change owner there; Solo has one user, so it converts such a file.)
 *
 * START-HISTORY:
+* 07 Oct 26 SD Core for Linux Solo (LSOLO 43; the full product's first COMPLETE install run,
+*           40d0378): a file is judged once per account (real path), a path with no %0 (a
+*           directory file) is returned silently again, and a file under SDSYS is listed once.
 * 07 Oct 26 SD Core for Linux Solo (LSOLO 43; the full product's first real install run died
 *           with "Error 3001 opening file"): the path is now judged BEFORE the file is opened
 *           (convert.one), and the opens that remain (a file, the account's VOC) are ON ERROR:
@@ -219,6 +222,7 @@ fix.cat.names:
 *   this.is.sdsys says whether its VOC is the live one.
 do.account.at:
    file.list = ''
+   seen.real = ''                  ;* @fm: real paths already judged in THIS account (several F-records may name one file)
 * 07 Oct 26 - ON ERROR (the full product's first real install died with error 3001 on an
 *   open that ELSE does not catch): a VOC that cannot be opened is reported (11065) and
 *   counted, and the walk goes on.
@@ -301,9 +305,21 @@ convert.one:
 *   error number and the walk goes on.
    one.real = ospath(one.path, OS$FULLPATH)
    if one.real = '' then one.real = one.path
+* 07 Oct 26 - the full product's first COMPLETE install run (40d0378) read "Converted 2 of 3" and a
+*   10-file list that named one file three times and named directory files.  A file is judged
+*   ONCE per account (two VOC records may name it), a path with no %0 beside it is a directory
+*   file, never converted, and is returned silently as it was before the test moved ahead of
+*   the open, and a file under SDSYS is listed once however many records name it.
+   locate one.real in seen.real<1> setting seen.at then
+      return
+   end
+   seen.real<-1> = one.real
+   if not(ospath(one.real : @ds : '%0', OS$EXISTS)) then return   ;* a directory file, or nothing there
    if one.real[1, len(sds.real) + 1] = sds.real : @ds or one.real[1, len(@sdsys) + 1] = @sdsys : @ds then
-      sds.count += 1
-      if dcount(sds.files, @fm) < twin.list.cap then sds.files<-1> = one.real
+      locate one.real in sds.files<1> setting sds.at else
+         sds.count += 1
+         if dcount(sds.files, @fm) < twin.list.cap then sds.files<-1> = one.real
+      end
       return
    end
    openpath one.path to old.fu on error

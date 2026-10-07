@@ -75,7 +75,10 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            such a file), and a file of the account's own that cannot be
            opened, or a VOC that cannot, is reported with its error number
            ("Cannot open ... It was left as it is."), counted among the files
-           that could not be read or rebuilt, and the walk goes on.
+           that could not be read or rebuilt, and the walk goes on.  A file
+           that several VOC records name is judged once, and a directory
+           file is passed over in silence (the full product's first complete
+           run listed such files and counted one file twice).
 
            What this does NOT do: a directory file (bp, cat and the like) is
            still case sensitive, because on Linux a name that differs only by
@@ -87,7 +90,7 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            Solo's own programs swapped in, because Solo has no test tool of its
            own and a second Solo would share the installed one's shared memory:
            26 of 26 rows for files and ids, 25 of 25 for names, 28 of 28 for
-           dictionaries and 50 of 50 for the conversion of an account's files
+           dictionaries and 52 of 52 for the conversion of an account's files
            (a pair left whole, the catalogue renamed with its bytes intact,
            owner and mode unchanged, and files that cannot be opened reported
            without stopping the walk).  Solo's own programs compiled (214) and its
