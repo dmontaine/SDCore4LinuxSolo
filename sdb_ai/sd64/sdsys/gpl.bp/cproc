@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 LSOLO 40 (parity audit) - Enter at the "Overwrite VOC record" prompt
+*           (5045) means N and the prompt shows (y/<n>); the full product's PAL-5.
+*           Message 10149 (F1) names LISTV, as the Windows port's does (PAL-3).
 * 03 Oct 26 LSOLO 30 - LOGTO is removed (owner, 30 Sep and 3 Oct 2026): INT.LOGTO, its
 *           logto.reset flag and its group test are gone, and slot 17 of the internal
 *           verb table is now INT.REMOVED.  So are the four $ifndef IS_INSTALL blocks
@@ -1470,9 +1473,16 @@ stack.manipulation:
 
          readvu voc.rec from voc, arg1, 0 then
             loop
-               display sysmsg(5045, arg1) :  ;* Overwrite VOC record 'xx'?
+               display sysmsg(5045, arg1) :  ;* Overwrite VOC record 'xx' (y/<n>)?
                prompt ""
                input s
+
+* 06 Oct 26 dm - LSOLO 40, PAL-5, the Windows port's RELEASE_1.1 34 (the full
+*   product's change of the same day).  ENTER TAKES THE DEFAULT, AND IT IS N.  At
+*   end of input "input" yields '', which is neither N nor Y, so this loop
+*   re-asked for ever.  N is the arm that releases the record and saves nothing.
+               if s = '' then s = 'N'
+
                if upcase(s[1,1]) = "N" then
                   release voc, arg1
                   goto exit.stack.command

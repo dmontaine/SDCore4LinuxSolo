@@ -4,6 +4,39 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+06 Oct 26  COPY ... DELETING NO LONGER DELETES A RECORD COPIED ONTO ITSELF, AND
+           THREE PROMPTS NO LONGER ASK FOR EVER.
+
+           COPY FROM file TO file id,id OVERWRITING DELETING copies a record
+           and then deletes the original.  When the source and the target
+           were the same record (the same file and the same id), the copy
+           landed on the original and the delete then removed the only copy,
+           while the command said "1 record(s) copied and deleted".  This was
+           measured on a test copy of SD Core for Linux built from the same
+           source: COUNT of the file said 0 afterwards.  COPY now leaves such
+           a record alone and says so: "Record 'jack' was copied onto itself,
+           so it was not deleted."  A file that ignores case (NO.CASE) and a
+           directory file are guarded for jack and JACK too; in an ordinary
+           file those are two records and still copy and delete.  The closing
+           line says what happened: "1 record(s) copied, 0 deleted. 1
+           record(s) copied onto themselves were left in place."
+
+           Three questions re-asked themselves for ever when you pressed Enter
+           or a script ran out of input: ".S name" asking "Overwrite VOC
+           record", DELETE file ALL, and CLEAR.FILE's "Use file 'name'?".  The
+           first two were measured on the test copy: the session never
+           returned.  Enter now means no, nothing is changed, and each shows
+           "(y/<n>)".  F1 at an empty prompt now names LISTV, and
+           RESTORE.ACCOUNT writes a line to the audit trail for each account
+           restored (RESTORE.ACCOUNT account=name archive=file.zip).
+
+           What it does not do: these changes were compiled in Solo (224
+           programs, no errors) but not run in Solo, because a test of Solo
+           would stop the installed one; the same lines were run in the full
+           product.  The question at sign-in about an older VOC ("Update VOC
+           to new release") is unchanged here, because Solo's installer does
+           not yet refresh the VOC itself.
+
 06 Oct 26  UNINSTALLING CAN LEAVE YOUR DATA AND CONFIGURATION WHERE THEY ARE,
            AND A NEW INSTALL OFFERS TO USE THEM AGAIN.
 

@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  LSOLO 40 (parity audit): DELETING no longer deletes a record
+*               that was copied onto itself (PAL-2; message 10187), and the
+*               closing line says so (shared message 13050).  The full product's
+*               change of the same day, with the VOC guard (LSOLO 6) kept.
 * 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - copying into, or DELETING out of,
 *           a VOC needs ADMIN (ruling 14, !voc_guard), as in SD Core Solo for
 *           Windows (SOLO 5).
@@ -236,6 +240,7 @@ retry.target.file.open:
    end
 
    records.copied = 0
+   records.kept = 0         ;* copied onto themselves, so not deleted (PAL-2)
 
    if copy.all then    ;* Copy all records
       select src.file to 11
@@ -285,8 +290,14 @@ retry.target.file.open:
 
    @system.return.code = records.copied
 
-   if deleting then display sysmsg(6190, records.copied)   
-   else display sysmsg(6189, records.copied)   
+   if deleting and records.kept then
+      * 06 Oct 26 dm - "copied and deleted" would tell the user the opposite of
+      *   what happened to a record the guard left alone (shared message 13050).
+      display sysmsg(13050, records.copied, records.copied - records.kept, records.kept)
+   end else
+      if deleting then display sysmsg(6190, records.copied)
+      else display sysmsg(6189, records.copied)
+   end
 
    return
 
@@ -348,19 +359,46 @@ copy.record:
          * Check for DELETING action - Only valid when copying to a file
 
          if deleting then
-            recordlocku src.file, src.record.name
-            if not(voc_guard(src.file)) then     ;* 29 Sep 26 LSOLO 6, ruling 14
-               release src.file, src.record.name
-               @system.return.code = -ER$PERM
-               stop
-            end
-            delete src.file, src.record.name on error
-               crt sysmsg(6165, status(), tgt.record.name) ;* Error xx deleting record 'xx'
-               if status() = ER$TRIGGER then
-                  crt sysmsg(3007, @trigger.return.code) ;* Data validation error: xx
+            * 06 Oct 26 dm - A RECORD COPIED ONTO ITSELF IS NOT DELETED (parity
+            *   audit PAL-2; the Windows port's guard of 14 Sep 26, message 10187;
+            *   the full product's change of the same day).  With the same file as
+            *   source and target, the write above lands on the source record
+            *   whenever the two ids name the same one, and the delete below then
+            *   removed the only copy.  MEASURED 6 Oct 2026 on a sandbox SD built
+            *   from the full product's tree, before the guard: COPY FROM zzt TO
+            *   zzt jack,jack OVERWRITING DELETING printed "1 record(s) copied and
+            *   deleted." and COUNT zzt then said 0.  A file whose ids fold
+            *   (NO.CASE, and a directory file) is compared the same way, so a
+            *   case-only rename of one record is guarded too.
+            same.record = @false
+            if fileinfo(src.file, FL$PATH) = fileinfo(tgt.file, FL$PATH) then
+               if tgt.record.name = src.record.name then
+                  same.record = @true
+               end else
+                  if fileinfo(tgt.file, FL$NOCASE) or fileinfo(tgt.file, FL$TYPE) = FL$TYPE.DIR then
+                     if upcase(tgt.record.name) = upcase(src.record.name) then same.record = @true
+                  end
                end
-               @system.return.code = -status()
-               stop
+            end
+
+            if same.record then
+               records.kept += 1
+               display sysmsg(10187, src.record.name) ;* Record 'xx' was copied onto itself, so it was not deleted.
+            end else
+               recordlocku src.file, src.record.name
+               if not(voc_guard(src.file)) then     ;* 29 Sep 26 LSOLO 6, ruling 14
+                  release src.file, src.record.name
+                  @system.return.code = -ER$PERM
+                  stop
+               end
+               delete src.file, src.record.name on error
+                  crt sysmsg(6165, status(), tgt.record.name) ;* Error xx deleting record 'xx'
+                  if status() = ER$TRIGGER then
+                     crt sysmsg(3007, @trigger.return.code) ;* Data validation error: xx
+                  end
+                  @system.return.code = -status()
+                  stop
+               end
             end
          end
       end
