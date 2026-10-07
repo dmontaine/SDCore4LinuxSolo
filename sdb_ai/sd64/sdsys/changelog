@@ -81,6 +81,15 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            owner and mode unchanged).  Solo's own programs compiled (214) and its
            kernel built.  Not run in Solo itself.
 
+07 Oct 26  SDSYS'S OWN VOC HAS THE SOUNDEX KEYWORD TOO.
+
+           SDSYS's VOC is built from a second set of records, VOC_TEMPLATE, and
+           that set had no record for "~", so a query in SDSYS could not use
+           it.  The record (%T, the same bytes as the ordinary one) is there
+           now; SD Core Solo for Windows made the same change the same day.  Not
+           run in Solo; measured in the full product, whose SDSYS VOC answers
+           CT VOC ~ after the change.
+
 06 Oct 26  THE SOUNDEX TEST "~" WORKS AGAIN IN THE ACCOUNT'S VOC.
 
            A query such as LIST CUSTOMERS WITH NAME ~ "smith" needs the keyword
