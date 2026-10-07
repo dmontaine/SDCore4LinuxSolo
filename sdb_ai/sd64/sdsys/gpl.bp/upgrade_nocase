@@ -47,7 +47,10 @@
 *      case, unless the lower-case name already exists (then both are reported and
 *      left).  NTFS folds, so the port has no such step.
 *   4. A path under SDSYS named by a user's VOC is not converted: it is not the
-*      user's to rebuild.
+*      user's to rebuild.  It is counted and named at the end (11064), not skipped
+*      silently, and the test is made on the real path of both sides (links resolved).
+*      (The full product also leaves a file outside the account's directory, which would
+*      change owner there; Solo has one user, so it converts such a file.)
 *
 * START-HISTORY:
 * 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-1 D2 walk): the
@@ -98,6 +101,10 @@ $include err.h
    ak.skipped = 0                  ;* AK files left for manual CONFIGURE.FILE
    err.count = 0                   ;* files that could not be read or rebuilt
    cat.renamed = 0                 ;* private catalogue names made lower case
+   sds.count = 0                   ;* files a VOC names under SDSYS: left
+   sds.files = ''                  ;* @fm: their real paths (capped like the twin list)
+   sds.real = ospath(@sdsys, OS$FULLPATH)
+   if sds.real = '' then sds.real = @sdsys
 
    openpath @sdsys:@ds:'accounts' to acc.f then
       select acc.f to 12
@@ -135,6 +142,12 @@ $include err.h
          next j
       next i
       crt sysmsg(10181)            ;* Rename or delete one id of each pair, then convert that file with CONFIGURE.FILE NO.CASE.
+   end
+   if sds.count then
+      crt sysmsg(11064, sds.count)             ;* %1 file(s) named by an account's VOC lie under SDSYS and were left as they are:
+      for i = 1 to dcount(sds.files, @fm)
+         crt sysmsg(10184, sds.files<i>)       ;* File: %1
+      next i
    end
    if check.only then
       crt sysmsg(10182, scanned, twin.count)   ;* Checked %1 file(s); %2 hold a case-only duplicate record id.
@@ -313,7 +326,16 @@ convert.one:
 *   case above cannot arise here.  The test now guards LINUX 4: any file under
 *   SDSYS that an account's VOC names (a pointer to $ipc, say) is not that
 *   account's to rebuild, whatever it is called.
-   if old.path[1, len(@sdsys) + 1] = @sdsys : @ds then
+* 07 Oct 26 SD Core for Linux Solo (LSOLO 43; the Windows agent's review of the full
+*   product's walk, mail T0639) - the test is made on the REAL path of both sides:
+*   FL$PATH is fullpath()'s answer, sdrealpath() in linuxlb.c, which resolves "..",
+*   doubled separators and symbolic links, and @sdsys is resolved the same way (sds.real)
+*   so a link at the install folder cannot make the test miss.  A file skipped here is
+*   counted and named at the end (11064), not skipped in silence.  Solo has no "outside
+*   the account" rule: its one account and its files all belong to the one user.
+   if old.path[1, len(sds.real) + 1] = sds.real : @ds or old.path[1, len(@sdsys) + 1] = @sdsys : @ds then
+      sds.count += 1
+      if dcount(sds.files, @fm) < twin.list.cap then sds.files<-1> = old.path
       close old.fu
       return
    end

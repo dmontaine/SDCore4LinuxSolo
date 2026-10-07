@@ -66,6 +66,11 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            not-your-own-account refusal now carries the same "branch=4" word
            Windows Solo's does.
 
+           A file that the account's VOC names but that lies under SDSYS is
+           left alone and named at the end (not converted in silence): SDSYS's
+           files are made new by the install, and the path is compared in its
+           real form, so a link into SDSYS does not get past.
+
            What this does NOT do: a directory file (bp, cat and the like) is
            still case sensitive, because on Linux a name that differs only by
            case is a different file in the operating system, which Windows
