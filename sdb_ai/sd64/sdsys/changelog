@@ -69,7 +69,13 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            A file that the account's VOC names but that lies under SDSYS is
            left alone and named at the end (not converted in silence): SDSYS's
            files are made new by the install, and the path is compared in its
-           real form, so a link into SDSYS does not get past.
+           real form, so a link into SDSYS does not get past.  The decision is
+           made before the file is opened (the full product's first run on a
+           real install stopped with "Error 3001 opening file" on exactly
+           such a file), and a file of the account's own that cannot be
+           opened, or a VOC that cannot, is reported with its error number
+           ("Cannot open ... It was left as it is."), counted among the files
+           that could not be read or rebuilt, and the walk goes on.
 
            What this does NOT do: a directory file (bp, cat and the like) is
            still case sensitive, because on Linux a name that differs only by
@@ -81,9 +87,10 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            Solo's own programs swapped in, because Solo has no test tool of its
            own and a second Solo would share the installed one's shared memory:
            26 of 26 rows for files and ids, 25 of 25 for names, 28 of 28 for
-           dictionaries and 37 of 37 for the conversion of an account's files
+           dictionaries and 50 of 50 for the conversion of an account's files
            (a pair left whole, the catalogue renamed with its bytes intact,
-           owner and mode unchanged).  Solo's own programs compiled (214) and its
+           owner and mode unchanged, and files that cannot be opened reported
+           without stopping the walk).  Solo's own programs compiled (214) and its
            kernel built.  Not run in Solo itself.
 
 07 Oct 26  SDSYS'S OWN VOC HAS THE SOUNDEX KEYWORD TOO.

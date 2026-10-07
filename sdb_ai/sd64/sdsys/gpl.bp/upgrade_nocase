@@ -53,6 +53,10 @@
 *      change owner there; Solo has one user, so it converts such a file.)
 *
 * START-HISTORY:
+* 07 Oct 26 SD Core for Linux Solo (LSOLO 43; the full product's first real install run died
+*           with "Error 3001 opening file"): the path is now judged BEFORE the file is opened
+*           (convert.one), and the opens that remain (a file, the account's VOC) are ON ERROR:
+*           reported (11065), counted in 10183, and the walk goes on.
 * 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-1 D2 walk): the
 *           full product's program for Linux, minus its owner switching (one user, no
 *           root session): SDSYS is skipped, cat/ names are made lower case, and the
@@ -215,27 +219,31 @@ fix.cat.names:
 *   this.is.sdsys says whether its VOC is the live one.
 do.account.at:
    file.list = ''
-   openpath this.acct:@ds:'voc' to acct.voc then
+* 07 Oct 26 - ON ERROR (the full product's first real install died with error 3001 on an
+*   open that ELSE does not catch): a VOC that cannot be opened is reported (11065) and
+*   counted, and the walk goes on.
+   openpath this.acct:@ds:'voc' to acct.voc on error
+      crt sysmsg(11065, this.acct:@ds:'voc', status())   ;* Cannot open %1 (error %2); left as it is
+      err.count += 1
+      return
+   end else return                 ;* no VOC at this path; nothing to do
 * 14 Sep 26 - LIST 11, NOT 13.  Select lists run 0 to 12 (HIGH_SELECT,
 *   gplsrc/sd.h:43), and 11-12 only in an $internal program; 13, 14 and 15
 *   stopped the walk with 1118 "Select list number out of range" on its first
 *   file (verify-nocaseupgrade, its first measuring run).  The register walk
 *   holds 12 for its whole loop, so every inner list here is 11, used one after
 *   another: this one is exhausted before any file is converted.
-      select acct.voc to 11
-      loop
-         readnext vid from 11 else exit
-         read vrec from acct.voc, vid then
-            if upcase(vrec[1,1]) = 'F' then
-               gosub add.file
-               if vrec<3> # '' and vrec<3> # vrec<2> then gosub add.file.dict
-            end
+   select acct.voc to 11
+   loop
+      readnext vid from 11 else exit
+      read vrec from acct.voc, vid then
+         if upcase(vrec[1,1]) = 'F' then
+            gosub add.file
+            if vrec<3> # '' and vrec<3> # vrec<2> then gosub add.file.dict
          end
-      repeat
-      close acct.voc
-   end else
-      return                       ;* no VOC at this path; nothing to do
-   end
+      end
+   repeat
+   close acct.voc
 
    nf = dcount(file.list, @fm)
    for fi = 1 to nf
@@ -285,7 +293,24 @@ convert.one:
 * 07 Oct 26 - the port folded backslashes to '/' here (a Windows register path
 *   carries them).  On Linux a backslash is a legal file name character, so the
 *   path is used exactly as it was resolved.
-   openpath one.path to old.fu else return    ;* not a file we can open; skip
+* 07 Oct 26 - THE PATH IS JUDGED BEFORE THE FILE IS OPENED (the full product's first real
+*   install: "Error 3001 opening file").  A VOC can name SDSYS's own files ($map, voc.dic,
+*   dict.dic ...), which the walk has no business opening, and openpath's ELSE does not
+*   catch a file it cannot open.  The SDSYS test (LINUX 4, below) is made on the real path
+*   of the string, which needs no open; and an open that still fails is reported with its
+*   error number and the walk goes on.
+   one.real = ospath(one.path, OS$FULLPATH)
+   if one.real = '' then one.real = one.path
+   if one.real[1, len(sds.real) + 1] = sds.real : @ds or one.real[1, len(@sdsys) + 1] = @sdsys : @ds then
+      sds.count += 1
+      if dcount(sds.files, @fm) < twin.list.cap then sds.files<-1> = one.real
+      return
+   end
+   openpath one.path to old.fu on error
+      crt sysmsg(11065, one.path, status())   ;* Cannot open %1 (error %2); left as it is
+      err.count += 1
+      return
+   end else return    ;* not a file we can open; skip
    ftype = fileinfo(old.fu, FL$TYPE)
    if ftype # FL$TYPE.DH then
       close old.fu
@@ -333,12 +358,7 @@ convert.one:
 *   so a link at the install folder cannot make the test miss.  A file skipped here is
 *   counted and named at the end (11064), not skipped in silence.  Solo has no "outside
 *   the account" rule: its one account and its files all belong to the one user.
-   if old.path[1, len(sds.real) + 1] = sds.real : @ds or old.path[1, len(@sdsys) + 1] = @sdsys : @ds then
-      sds.count += 1
-      if dcount(sds.files, @fm) < twin.list.cap then sds.files<-1> = old.path
-      close old.fu
-      return
-   end
+*   (7 Oct 26: the test itself now sits at the top of this routine, before the open, on one.real.)
    scanned += 1
 
    if bitand(fileinfo(old.fu, FL$FLAGS), FL$FLAGS.NOCASE) then
