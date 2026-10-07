@@ -187,7 +187,7 @@ cd "$sd64"
 
 # ---- the SDSYS files, then the empty places the parent's installer touched.
 cp -R sdsys/. "$H/"
-touch "$H/gcat/\$CPROC"        # fool sd's vm into thinking gcat is populated
+touch "$H/gcat/\$cproc"        # fool sd's vm into thinking gcat is populated (lower case since LSOLO 43: that is what config.c looks for)
 touch "$H/errlog"
 # The audit trail (K$AUDIT appends to it; it is not created on demand).  The
 # parent made it append-only with chattr +a, which needs root; Solo cannot, so
@@ -247,6 +247,26 @@ cd "$H"
 write_marker() { printf 'solo-stage pid=%s %s\n' "$$" "$(date -Is)" > "$H/\$internal"; }
 sdi() { write_marker; "$SD" -internal "$@"; }
 
+# 07 Oct 26 (LSOLO 43, the full product's PAL-1 D2 walk).  THE KEPT ACCOUNT'S FILES ARE MADE CASE
+# INSENSITIVE.  The kernel now makes every NEW file so, but an upgrade or a reload keeps the old
+# ones, built case sensitive.  upgrade_nocase reads every file first and rebuilds only those proven
+# to hold no two ids that differ only by case; a file that holds a pair is left as it was and named.
+# It also makes the private catalogue's names lower case (cat/ZZSUB -> cat/zzsub), which PAL-1
+# stage 3a needs on ext4.  A WARNING about a pair is not a failure; a run that did not reach
+# COMPLETE is said, and the stage goes on, because an unconverted file works as it did.
+convert_nocase() {
+  local nc_out nc_plain
+  echo
+  echo "Making the kept account's files case insensitive ($SD -internal RUN gpl.bp upgrade_nocase)"
+  nc_out="$(sdi RUN gpl.bp upgrade_nocase 2>&1)" || true
+  printf '%s\n' "$nc_out"
+  nc_plain="$(printf '%s\n' "$nc_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  if ! printf '%s\n' "$nc_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+    echo "WARNING: the case-insensitive conversion of the kept account did not finish."
+    echo "  Nothing was lost: a file that was not converted works as it did."
+  fi
+}
+
 echo
 echo "Starting SD ($SD -start)"
 "$SD" -stop >/dev/null 2>&1 || true
@@ -302,6 +322,7 @@ if [ "$upgrade" -eq 1 ]; then
   printf '%s\n' "$ua_plain" | grep -qx '1 account(s) had their VOC updated from the shipped vocabulary.' \
     || fail "UPDATE.ACCOUNTS ALL did not print '1 account(s) had their VOC updated ...'"
   printf '%s\n' "$ua_plain" | grep -q 'requires administrator\|Cannot update every' && fail "UPDATE.ACCOUNTS ALL was refused"
+  convert_nocase
 else
 echo
 echo "Creating the one account ($SD -internal RUN gpl.bp solo_account)"
@@ -426,6 +447,7 @@ if [ -n "$reloaddir" ]; then
   printf '%s\n' "$ua_plain" | tail -4
   printf '%s\n' "$ua_plain" | grep -qx '1 account(s) had their VOC updated from the shipped vocabulary.' \
     || fail "after the reload, UPDATE.ACCOUNTS ALL did not print '1 account(s) had their VOC updated ...'"
+  convert_nocase
   echo "SOLO RELOAD DONE data=reloaded config=$reload_conf"
 fi
 

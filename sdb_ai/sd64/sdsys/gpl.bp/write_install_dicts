@@ -1,4 +1,5 @@
 PROGRAM WRITE_INSTALL_DICTS
+$include keys.h
 *
 * PROGRAM WRITES FILE DEFINING DICTIONARY ITEMS
 *
@@ -43,6 +44,11 @@ END
 
 OPEN_FILE_NAME = ''
 FILES.PROCESSED.LIST = ''
+* 14 Sep 26 - the ids already in the open dictionary; see where it is opened.
+OLD.IDS = ''
+U.OLD.IDS = ''
+N.OLD.IDS = 0
+NOCASE.DICT = @FALSE
 * Modified by Composer AI - 2026/06/10.
 * Track dictionary file handle open state for safe CLOSE.
 * (no flag previously)
@@ -88,7 +94,24 @@ FOR I = 1 TO ID_CNT
        CONTINUE
     END
     DICT.FILE.OPEN = @TRUE
-  END   
+
+    * 14 Sep 26 Windows port - RELEASE_1.1_FIXES.md 5, stage 2b.  THE SHIPPED
+    * IDS ARE LOWER CASE NOW, AND AN UPGRADED DICTIONARY STILL HOLDS THE OLD
+    * UPPER-CASE ONES.  This program merges record by record, so writing
+    * 'type' into a dictionary that holds 'TYPE' would leave both - the twin
+    * update.voc was changed to avoid for VOC in stage 1.  So the ids already
+    * in the dictionary are listed once, when it is opened, and each shipped
+    * record below replaces any of them that differs from it only in case.
+    * An id that matches in no case (an administrator's own item) is untouched.
+    OLD.IDS = ''
+    SELECT DICT.FILE.VAR TO 4
+    READLIST OLD.IDS FROM 4 ELSE OLD.IDS = ''
+    U.OLD.IDS = UPCASE(OLD.IDS)
+    N.OLD.IDS = DCOUNT(OLD.IDS, @FM)
+    * 07 Oct 26 - PAL-1 D2 (the Windows port's 14 Sep 26): whether this dictionary is
+    * case insensitive decides the order of the replace below.
+    NOCASE.DICT = FILEINFO(DICT.FILE.VAR, FL$NOCASE)
+  END
     
   CRT 'DICTIONARY: ':NEW_FILE_NAME:' ':FILE_REC_NAME 
     
@@ -98,7 +121,25 @@ FOR I = 1 TO ID_CNT
     STOP
   END
     
-  WRITE DICT.REC ON DICT.FILE.VAR, FILE_REC_NAME
+  * 14 Sep 26 - written first, then the old id deleted, as update.voc does:
+  * a failure between the two leaves a twin, never a missing item.
+  * 07 Oct 26 - BUT NOT ON A CASE-INSENSITIVE DICTIONARY (PAL-1 D2, the Windows
+  *   port's 14 Sep 26), WHERE THAT ORDER DELETES THE ITEM.  There the old spelling
+  *   IS the record: the WRITE updates it in place, still stored under the old id,
+  *   and the DELETE then removes the only copy (measured on the port: write TYPE,
+  *   write type, delete TYPE - 0 records).  So on such a file the old id is deleted
+  *   FIRST and the shipped record written after, which renames it; a failure
+  *   between the two leaves the item missing until this runs again, and it
+  *   writes it back.
+  U.REC.NAME = UPCASE(FILE_REC_NAME)
+  IF NOT(NOCASE.DICT) THEN WRITE DICT.REC ON DICT.FILE.VAR, FILE_REC_NAME
+  FOR J = 1 TO N.OLD.IDS
+    IF U.OLD.IDS<J> = U.REC.NAME AND OLD.IDS<J> # FILE_REC_NAME THEN
+      DELETE DICT.FILE.VAR, OLD.IDS<J>
+      CRT 'REPLACED OLD ID: ':NEW_FILE_NAME:' ':OLD.IDS<J>:' BY ':FILE_REC_NAME
+    END
+  NEXT J
+  IF NOCASE.DICT THEN WRITE DICT.REC ON DICT.FILE.VAR, FILE_REC_NAME
 
 NEXT I
 

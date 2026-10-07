@@ -4,6 +4,75 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+07 Oct 26  EVERY NAME IN SD IS LOWER CASE, AND NO TWO RECORD IDS IN A FILE MAY
+           DIFFER ONLY BY CASE.
+
+           This brings SD Core for Linux Solo level with SD Core Solo for
+           Windows, which took these steps on 14 September, and with the full
+           SD Core for Linux, which took them on 7 October.
+
+           Dictionary items.  A dictionary item named in a query, CD, SHOW, an
+           I-type or CREATE.INDEX is found whether it was stored in lower or
+           upper case (as typed first, then lower, then upper).  The items SD
+           itself supplies for its own files are now stored in lower case
+           (type, f1, @id, data.name ...), the ACCOUNTS dictionary describes
+           "Suspension" instead of the removed tiers, and the program that
+           writes them at install time replaces an older upper-case item
+           instead of leaving both, printing "REPLACED OLD ID".
+
+           Program names.  A program, subroutine or catalogue name is lower
+           case wherever SD keeps it: CATALOG writes zzsub, cat/zzsub, $cproc
+           in the global catalogue, the program library and the messages say
+           so, and what you type is turned to lower case before it is looked
+           up.  The program name in every verb's VOC record ($alias, $catalog,
+           $qproc ...; 186 records in the two shipped VOCs) and the include
+           file named in a program's source (keys.h, err.h) are lower case too.
+           The kernel and SD's own programs change together, so an install
+           replaces both.
+
+           Record ids.  Every file SD creates now ignores case in record ids:
+           a file can hold "jack" or "JACK" but never both, and writing one
+           when the other is there updates the same record.  CREATE.FILE and
+           CONFIGURE.FILE no longer accept the CASE keyword and say why
+           (10176).  CONFIGURE.FILE of an older case-sensitive file converts it,
+           and refuses a file that holds two ids differing only by case (10177),
+           naming both and leaving the file as it was, because a rebuild would
+           have kept one of them without a word.
+
+           Your old files.  When an install keeps your account (a reload of the
+           saved data, or an upgrade), the installer now reads every file of
+           the account for two ids that differ only by case, rebuilds each file
+           that has none as case insensitive with every record kept, and leaves
+           a file that has a pair as it was, naming the pair so you can rename
+           or delete one and run CONFIGURE.FILE NO.CASE.  It also makes the
+           private catalogue's names lower case, because a program catalogued
+           before this change, as cat/ZZSUB, is not found by a call that now
+           looks for cat/zzsub (measured on the full product: "Unable to load").
+           If both cat/ZZSUB and cat/zzsub exist they are named and left.
+
+           Smaller things taken from the full product on the way: a
+           PY_LISTCREATE function beside PY_LISTCRTE; the Python and user-switch
+           error texts spelt as Windows spells them; CONFIG no longer lists
+           CREATUSR; a single-command sign-on records its command on the audit
+           trail, a refusal to enter a suspended account is recorded, and the
+           not-your-own-account refusal now carries the same "branch=4" word
+           Windows Solo's does.
+
+           What this does NOT do: a directory file (bp, cat and the like) is
+           still case sensitive, because on Linux a name that differs only by
+           case is a different file in the operating system, which Windows
+           hides; the programs that take a name from you still try it as typed,
+           then lower, then upper.
+
+           This was measured on test copies of the full SD Core for Linux with
+           Solo's own programs swapped in, because Solo has no test tool of its
+           own and a second Solo would share the installed one's shared memory:
+           26 of 26 rows for files and ids, 25 of 25 for names, 28 of 28 for
+           dictionaries and 37 of 37 for the conversion of an account's files
+           (a pair left whole, the catalogue renamed with its bytes intact,
+           owner and mode unchanged).  Solo's own programs compiled (214) and its
+           kernel built.  Not run in Solo itself.
+
 06 Oct 26  THE SOUNDEX TEST "~" WORKS AGAIN IN THE ACCOUNT'S VOC.
 
            A query such as LIST CUSTOMERS WITH NAME ~ "smith" needs the keyword

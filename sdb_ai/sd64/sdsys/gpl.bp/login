@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-16) - the LOGIN
+*           audit line of a single-command sign-on carries command=<the command>.
 * 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - the unused is_grp_member declaration
 *           is gone (the program itself is deleted).
 * 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - the login hold (13002) while a
@@ -642,7 +644,19 @@ deffun pw_complex(pw) calling '!pw_complex'
 
 * 11 Sep 26 dm - THE SUCCESS RECORD, mode 0 only: the update modes reach here
 *   too and are not sign-ons.
-   if mode = 0 then void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
+* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-16) - a sign-on that
+*   was a single command line ("sd-solo 'command'") records the command, as Windows
+*   Solo's does, so the trail says WHAT ran unattended and not only who.  An
+*   interactive sign-on is unchanged.
+   if mode = 0 then
+      one.command = ''
+      if not(is.phantom) and not(kernel(K$INTERNAL,-1)) then one.command = trim(system(1026))
+      if one.command = '' then
+         void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
+      end else
+         void kernel(K$AUDIT, 'LOGIN account=' : initial.account : ' command=' : one.command)
+      end
+   end
    ok = @true
    return
 
