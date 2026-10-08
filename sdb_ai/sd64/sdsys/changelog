@@ -16,7 +16,9 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            It covers backup.account, restore.account, set.backup.directory,
            settings.report, configure.file with no.case, update.accounts with
            all, build.index, remove.home, modify.password, logto, break and
-           umask, in 25 messages.
+           umask, and SD Core for Linux Solo's own admin, set.password and
+           sync.global.catalog, in 29 messages and the usage and refusal lines
+           of those three commands.
 
            What it does NOT do: the words you type are unchanged (SD has always
            accepted either case), and SD's BASIC and query-language error

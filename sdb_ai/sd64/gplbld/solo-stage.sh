@@ -403,7 +403,7 @@ printf '%s\n' "$sg_plain" | grep -qE '^SYNC GLOBAL CATALOG DONE [0-9]+ catalogue
   || fail "SYNC.GLOBAL.CATALOG did not print its DONE line with 0 refused"
 # LSOLO 38: a fresh stage with no global password must SAY so in the new words (and a managed one must not).
 if [ "$upgrade" -eq 0 ]; then
-  nogp='SYNC.GLOBAL.CATALOG: this computer has no global password, so no SD Core server manages it and there is nothing to manage.'
+  nogp='sync.global.catalog: this computer has no global password, so no SD Core server manages it and there is nothing to manage.'
   if [ -z "$globalfile" ]; then
     printf '%s\n' "$sg_plain" | grep -qF "$nogp" || fail "SYNC.GLOBAL.CATALOG did not say that this computer has no global password (got: $(printf '%s\n' "$sg_plain" | tail -2 | tr '\n' '|'))"
   else

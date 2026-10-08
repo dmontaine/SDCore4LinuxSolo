@@ -208,7 +208,7 @@ fi
 
 # ---- 15. direct VOC edits are refused without ADMIN and allowed with it.
 # 'who' is a real VOC record; 'zzcopy' is the scratch id, absent before and after.
-VOCMSG='The VOC can only be changed after ADMIN (the administrator password)'
+VOCMSG='The VOC can only be changed after admin (the administrator password)'
 before="$(sess 'COUNT VOC' | grep -E 'record\(s\) counted')"
 [ -n "$before" ] || refuse "COUNT VOC printed no count - leg 15 would compare nothing"
 out="$(sess 'DELETE VOC who' 'COPY FROM VOC TO VOC who,zzcopy' 'CLEAR.FILE VOC' '.S zzsave 1' 'COUNT VOC')"

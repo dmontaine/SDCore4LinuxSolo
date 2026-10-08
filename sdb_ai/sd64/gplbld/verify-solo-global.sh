@@ -52,7 +52,7 @@ count() { printf '%s\n' "$1" | grep -c -x -- "$2" || true; }
 
 NEEDS='Command requires administrator privileges'
 M28='The global catalogue can only be changed by the SD Core server'
-M29="The global catalogue holds the SD Core server's programs from GLOBAL.BP.OUT and is changed only by SYNC.GLOBAL.CATALOG"
+M29="The global catalogue holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog"
 M30='The denied verbs can only be listed or changed by the SD Core server'
 
 GBP="$H/global.bp.out"; GCAT="$H/gcat"; SUB=zzgsub; CALL=zzgcall
