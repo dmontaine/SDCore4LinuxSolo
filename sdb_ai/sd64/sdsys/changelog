@@ -6,12 +6,13 @@ installed beside SD Core.  The same changes are in all four SD Core products.
 
 08 Oct 26  UPDATE.ACCOUNTS ALL NO LONGER TELLS YOU TO START SD WITH SUDO.
 
-           Typing UPDATE.ACCOUNTS ALL at an SD Solo prompt has always been
-           refused, because only SD's own upgrade session may walk the account
-           register.  The refusal used to end with "Start SD with sudo - that
-           lands you in SDSYS - and run it again", which cannot be done in SD
-           Solo.  It now says that the command cannot be run from a session and
-           that SD Solo's installer runs it whenever SD Solo is upgraded.
+           Typing UPDATE.ACCOUNTS ALL at an SD Core for Linux Solo prompt has
+           always been refused, because only SD's own upgrade session may walk
+           the account register.  The refusal used to end with "Start SD with
+           sudo - that lands you in SDSYS - and run it again", which cannot be
+           done in SD Core for Linux Solo.  It now says that the command cannot
+           be run from a session and that SD Core for Linux Solo's installer
+           runs it whenever SD Core for Linux Solo is upgraded.
 
            What it does NOT do: it does not make the command work from a prompt,
            and it changes nothing about the upgrade itself, which still refreshes
