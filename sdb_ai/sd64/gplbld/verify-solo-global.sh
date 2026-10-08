@@ -203,7 +203,7 @@ fi
 
 # ---- 6f. ADMIN can never be denied, and the two-verb list can be emptied again.
 out="$(asglobal 'DENY.VERBS ADD ADMIN')"
-if printf '%s\n' "$out" | grep -qx 'DENY.VERBS: ADMIN is never denied - dropped' && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*ADMIN'; then
+if printf '%s\n' "$out" | grep -qx 'deny.verbs: admin is never denied - dropped' && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*ADMIN'; then
   leg "6f ADMIN is never denied" "'ADMIN is never denied - dropped', ADMIN not on the list" 0 "dropped"
 else
   leg "6f ADMIN is never denied" "'ADMIN is never denied - dropped', ADMIN not on the list" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
@@ -219,7 +219,7 @@ fi
 TAG="zzbang-ran-$$"
 out="$(asglobal 'DENY.VERBS ADD SH')"
 if printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*SH' \
-   && printf '%s\n' "$out" | grep -qE '^DENY\.VERBS also denies, as the same command: .*!'; then
+   && printf '%s\n' "$out" | grep -qE '^deny\.verbs also denies, as the same command: .*!'; then
   leg "7a DENY.VERBS ADD SH names ! as also denied" "SH on the list and an 'also denies' line naming !" 0 "named"
 else
   leg "7a DENY.VERBS ADD SH names ! as also denied" "SH on the list and an 'also denies' line naming !" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
