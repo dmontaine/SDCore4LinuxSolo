@@ -4,6 +4,19 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+08 Oct 26  UPDATE.ACCOUNTS ALL NO LONGER TELLS YOU TO START SD WITH SUDO.
+
+           Typing UPDATE.ACCOUNTS ALL at an SD Solo prompt has always been
+           refused, because only SD's own upgrade session may walk the account
+           register.  The refusal used to end with "Start SD with sudo - that
+           lands you in SDSYS - and run it again", which cannot be done in SD
+           Solo.  It now says that the command cannot be run from a session and
+           that SD Solo's installer runs it whenever SD Solo is upgraded.
+
+           What it does NOT do: it does not make the command work from a prompt,
+           and it changes nothing about the upgrade itself, which still refreshes
+           the account's VOC as before.
+
 07 Oct 26  EVERY NAME IN SD IS LOWER CASE, AND NO TWO RECORD IDS IN A FILE MAY
            DIFFER ONLY BY CASE.
 
