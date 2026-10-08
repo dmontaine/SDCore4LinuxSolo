@@ -73,10 +73,10 @@ cleanup() {
 trap cleanup EXIT
 
 # The deny list the install set, so the legs can say it was put back.
-base="$(asglobal DENY.VERBS | grep -E '^DENY\.VERBS [0-9]+:' | head -1)"
+base="$(asglobal DENY.VERBS | grep -E '^deny\.verbs [0-9]+:' | head -1)"
 [ -n "$base" ] || refuse "a global session got no 'DENY.VERBS n:' line - cannot read the list"
 echo "  deny list at the start: $base"
-case "$base" in *WHO*|*SH*|*TIME*) refuse "WHO, SH or TIME is already on the deny list - the legs would remove it" ;; esac
+case "$base" in *who*|*sh*|*time*) refuse "WHO, SH or TIME is already on the deny list - the legs would remove it" ;; esac
 
 # ---- 1. GLOBAL.BP.OUT is installed and empty, and nothing is catalogued from it.
 n_obj="$(ls -A "$GBP" | wc -l)"
@@ -161,7 +161,7 @@ rm -f "$BP/$SUB" "$BP/$CALL" "$OUT/$SUB" "$OUT/$CALL"
 
 # ---- 5. DENY.VERBS is refused to sduser even with ADMIN.
 out="$(asadmin DENY.VERBS 'DENY.VERBS ADD WHO')"
-if [ "$(count "$out" "$M30")" -eq 2 ] && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+:'; then
+if [ "$(count "$out" "$M30")" -eq 2 ] && ! printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+:'; then
   leg "5 with ADMIN, DENY.VERBS is refused" "11030 x2, no 'DENY.VERBS n:' line" 0 "refused twice"
 else
   leg "5 with ADMIN, DENY.VERBS is refused" "11030 x2, no 'DENY.VERBS n:' line" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
@@ -171,8 +171,8 @@ fi
 # TIME goes on first, so WHO is added to a list of TWO or more - the case a search by
 # field (LOCATE list<1>) silently missed on Windows Solo (its leg 17c).
 out="$(asglobal 'DENY.VERBS ADD TIME,WHO')"
-if printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*WHO'; then
-  leg "6a a global session adds WHO to the list" "'DENY.VERBS n: ...WHO'" 0 "$(printf '%s\n' "$out" | grep -E '^DENY\.VERBS [0-9]+:' | tail -1)"
+if printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+: .*who'; then
+  leg "6a a global session adds WHO to the list" "'DENY.VERBS n: ...WHO'" 0 "$(printf '%s\n' "$out" | grep -E '^deny\.verbs [0-9]+:' | tail -1)"
 else
   leg "6a a global session adds WHO to the list" "'DENY.VERBS n: ...WHO'" 1 "$(last "$out")"
 fi
@@ -189,7 +189,7 @@ else
   leg "6c with ADMIN, WHO runs" "a WHO answer and no 2001" 1 "$(last "$out")"
 fi
 out="$(asglobal 'DENY.VERBS REMOVE WHO')"
-if printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+:' && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*WHO'; then
+if printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+:' && ! printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+: .*who'; then
   leg "6d the server removes WHO" "a 'DENY.VERBS n:' line without WHO" 0 "removed"
 else
   leg "6d the server removes WHO" "a 'DENY.VERBS n:' line without WHO" 1 "$(last "$out")"
@@ -203,13 +203,13 @@ fi
 
 # ---- 6f. ADMIN can never be denied, and the two-verb list can be emptied again.
 out="$(asglobal 'DENY.VERBS ADD ADMIN')"
-if printf '%s\n' "$out" | grep -qx 'deny.verbs: admin is never denied - dropped' && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*ADMIN'; then
+if printf '%s\n' "$out" | grep -qx 'deny.verbs: admin is never denied - dropped' && ! printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+: .*admin'; then
   leg "6f ADMIN is never denied" "'ADMIN is never denied - dropped', ADMIN not on the list" 0 "dropped"
 else
   leg "6f ADMIN is never denied" "'ADMIN is never denied - dropped', ADMIN not on the list" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
 fi
 out="$(asglobal 'DENY.VERBS REMOVE TIME')"
-if printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+:' && ! printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*TIME'; then
+if printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+:' && ! printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+: .*time'; then
   leg "6g the server removes TIME" "a 'DENY.VERBS n:' line without TIME" 0 "removed"
 else
   leg "6g the server removes TIME" "a 'DENY.VERBS n:' line without TIME" 1 "$(last "$out")"
@@ -218,7 +218,7 @@ fi
 # ---- 7. a verb is denied by what it runs: denying SH denies ! too (Windows SOLO 22).
 TAG="zzbang-ran-$$"
 out="$(asglobal 'DENY.VERBS ADD SH')"
-if printf '%s\n' "$out" | grep -qE '^DENY\.VERBS [0-9]+: .*SH' \
+if printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+: .*sh' \
    && printf '%s\n' "$out" | grep -qE '^deny\.verbs also denies, as the same command: .*!'; then
   leg "7a DENY.VERBS ADD SH names ! as also denied" "SH on the list and an 'also denies' line naming !" 0 "named"
 else
@@ -239,7 +239,7 @@ else
 fi
 
 # ---- 8. the list is as the install left it.
-now="$(asglobal DENY.VERBS | grep -E '^DENY\.VERBS [0-9]+:' | head -1)"
+now="$(asglobal DENY.VERBS | grep -E '^deny\.verbs [0-9]+:' | head -1)"
 if [ "$now" = "$base" ]; then
   leg "8 the deny list is put back" "$base" 0 "$now"
 else

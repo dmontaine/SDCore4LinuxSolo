@@ -219,8 +219,8 @@ ss -ltn 2>/dev/null | grep -q "127.0.0.1:$SSHPORT " || refuse "the listener on $
 SSHO=(-tt -p "$SSHPORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR)
 feed() { local l; sleep 3; for l in "$@"; do printf '%s\r' "$l"; sleep 1.5; done; sleep 1; }
 o="$(feed "$GLOBALPW" WHO DENY.VERBS OFF | timeout 60 ssh "${SSHO[@]}" -i "$W/a" 127.0.0.1 2>&1 | strip)"
-if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o" | grep -qE '^DENY\.VERBS [0-9]+:'; then
-  leg "K10 the installed key reaches sd over ssh" "key A and the global password: WHO answers, DENY.VERBS lists" 0 "$(printf '%s\n' "$o" | grep -E '^DENY\.VERBS [0-9]+:' | head -1)"
+if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o" | grep -qE '^deny\.verbs [0-9]+:'; then
+  leg "K10 the installed key reaches sd over ssh" "key A and the global password: WHO answers, DENY.VERBS lists" 0 "$(printf '%s\n' "$o" | grep -E '^deny\.verbs [0-9]+:' | head -1)"
 else
   leg "K10 the installed key reaches sd over ssh" "WHO answers, DENY.VERBS lists" 1 "$(printf '%s\n' "$o" | grep -v '^[[:space:]]*$' | tail -3 | tr '\n' ' ')"
 fi

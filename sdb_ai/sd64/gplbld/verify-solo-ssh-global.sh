@@ -116,9 +116,9 @@ fi
 # ---- G2. ssh with the key and the GLOBAL password is a global session: DENY.VERBS answers
 # 'DENY.VERBS n:' (the list), the success wording; the refusal wording 11030 must be absent.
 o="$(ssh_feed "$W/sdkey" "$GLOBALPW" WHO DENY.VERBS OFF)"
-if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o" | grep -qE '^DENY\.VERBS [0-9]+:' \
+if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o" | grep -qE '^deny\.verbs [0-9]+:' \
    && ! printf '%s\n' "$o" | grep -qF "$M30"; then
-  leg "G2 ssh + global password = a global session" "WHO answers '<n> sduser' and DENY.VERBS lists ('DENY.VERBS n:'), no 11030" 0 "$(printf '%s\n' "$o" | grep -E '^DENY\.VERBS [0-9]+:' | head -1)"
+  leg "G2 ssh + global password = a global session" "WHO answers '<n> sduser' and DENY.VERBS lists ('DENY.VERBS n:'), no 11030" 0 "$(printf '%s\n' "$o" | grep -E '^deny\.verbs [0-9]+:' | head -1)"
 else
   leg "G2 ssh + global password = a global session" "WHO answers '<n> sduser' and DENY.VERBS lists ('DENY.VERBS n:')" 1 "$(printf '%s\n' "$o" | grep -v '^[[:space:]]*$' | tail -3 | tr '\n' ' ')"
 fi
@@ -126,7 +126,7 @@ fi
 # ---- G3. THE CONTROL: the same ssh with the ACCOUNT password signs in but is refused DENY.VERBS.
 o="$(ssh_feed "$W/sdkey" "$GOOD" WHO DENY.VERBS OFF)"
 if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o" | grep -qF "$M30" \
-   && ! printf '%s\n' "$o" | grep -qE '^DENY\.VERBS [0-9]+:'; then
+   && ! printf '%s\n' "$o" | grep -qE '^deny\.verbs [0-9]+:'; then
   leg "G3 ssh + account password is NOT a global session" "WHO answers, DENY.VERBS refused with 11030" 0 "refused"
 else
   leg "G3 ssh + account password is NOT a global session" "WHO answers, DENY.VERBS refused with 11030" 1 "$(printf '%s\n' "$o" | grep -v '^[[:space:]]*$' | tail -3 | tr '\n' ' ')"

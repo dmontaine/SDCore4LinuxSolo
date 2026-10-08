@@ -389,7 +389,7 @@ if [ -n "$denyverbs" ]; then
   dv_plain="$(printf '%s\n' "$dv_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
   printf '%s\n' "$dv_plain" | tail -4
   printf '%s\n' "$dv_plain" | grep -q 'is not a verb name\|deny.verbs: cannot open\|can only be listed' && fail "DENY.VERBS refused: $(printf '%s\n' "$dv_plain" | tail -2)"
-  printf '%s\n' "$dv_plain" | grep -qE '^DENY\.VERBS [0-9]+: ' || fail "DENY.VERBS did not print its 'DENY.VERBS <n>:' line"
+  printf '%s\n' "$dv_plain" | grep -qE '^deny\.verbs [0-9]+: ' || fail "DENY.VERBS did not print its 'deny.verbs <n>:' line"
 fi
 
 # Ruling 33: the SD Core server's programs in GLOBAL.BP.OUT go into the global

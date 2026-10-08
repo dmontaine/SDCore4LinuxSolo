@@ -191,7 +191,9 @@ $include err.h
 
    if bad = 0 then @system.return.code = 0
    n = dcount(list, @vm)
-   display 'DENY.VERBS ' : n : ': ' : convert(@vm, ',', list)
+* 08 Oct 26 - PAL-24 stage 2: the machine line is lower case too, prefix and names.  Its readers moved with
+*   it (solo-stage, verify-solo-global, -ssh-global, -sshkey; Windows Solo's match case-insensitively).
+   display 'deny.verbs ' : n : ': ' : downcase(convert(@vm, ',', list))
    stop
 end
 
