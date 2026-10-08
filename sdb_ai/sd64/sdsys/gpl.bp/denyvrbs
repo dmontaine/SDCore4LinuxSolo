@@ -148,7 +148,9 @@ $include err.h
       end
 * 07 Oct 26 - the owner's lower-case rule (PAL-24): deny.verbs and its mode word (add, remove,
 *   set, list) are lower case in the audit line; arg is what the caller typed.
-      void kernel(K$AUDIT, 'deny.verbs ' : downcase(mode) : ' ' : arg : ' - now ' : convert(@vm, ',', list))
+* 08 Oct 26 - and the list after "now" is the normalised (upper-case) policy list, which SD writes, so it is
+*   lower case too, as on the machine line; Windows Solo's audit showed the capitals (mail T1900).
+      void kernel(K$AUDIT, 'deny.verbs ' : downcase(mode) : ' ' : arg : ' - now ' : downcase(convert(@vm, ',', list)))
    end
    close pol.f
 
