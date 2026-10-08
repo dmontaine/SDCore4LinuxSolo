@@ -369,7 +369,7 @@ fi
 
 # ---- 23. every use is audited: the admission, and both kinds of refusal.
 new_audit="$(tail -n +"$((audit_lines_before + 1))" "$H/audit")"
-if printf '%s\n' "$new_audit" | grep -q 'INTERNAL SESSION ADMITTED account=sdsys writer=verify-solo pid=' \
+if printf '%s\n' "$new_audit" | grep -q 'internal session admitted account=sdsys writer=verify-solo pid=' \
    && printf '%s\n' "$new_audit" | grep -q 'reason=no internal marker' \
    && printf '%s\n' "$new_audit" | grep -q 'reason=the internal marker had expired'; then
   leg "23 the internal door is audited" "admitted, 'no internal marker', 'had expired'" 0 "3 kinds present"

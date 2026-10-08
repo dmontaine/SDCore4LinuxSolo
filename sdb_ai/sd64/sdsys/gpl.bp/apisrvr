@@ -477,7 +477,7 @@ if acc.suspended then
 * 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-17) - the refusal is
 *   on the audit trail, in Windows Solo's words (its ACCOUNT REFUSED branch=2), with
 *   the account asked for appended.  The CALLER still sees only 10003.
-    void kernel(K$AUDIT, 'ACCOUNT REFUSED branch=2 suspended account=' : new.account)
+    void kernel(K$AUDIT, 'account refused branch=2 suspended account=' : new.account)  ;* 07 Oct 26 PAL-24: the audit trail is lower case
     server.error = SV$ERROR
     error.msg = sysmsg(10003) ;* User not allowed in requested account
     abort.message = error.msg
@@ -495,7 +495,7 @@ acc.member = (downcase(new.account) # 'sdsys') and (downcase(new.account) = acc.
 if not(acc.member) then
 * 07 Oct 26 SD Core for Linux Solo (LSOLO 43, PAL-17) - the line carries Windows Solo's
 *   "branch=4" word, which it lacked.
-   void kernel(K$AUDIT, 'ACCOUNT REFUSED branch=4 not.own.account user=' : acc.who : ' account=' : new.account)
+   void kernel(K$AUDIT, 'account refused branch=4 not.own.account user=' : acc.who : ' account=' : new.account)
    server.error = SV$ERROR
    error.msg = sysmsg(10003) ;* User not allowed in requested account
    abort.message = error.msg
@@ -1041,7 +1041,7 @@ vb.local.login:
 *   (LSOLO 30).
                abort.message = sysmsg(11021) ;* SDConnectLocal is not available... use SDConnect
                server.error = SV$ON.ERROR
-               void kernel(K$AUDIT, 'API REFUSED request=25 SDConnectLocal - disabled in SD Core for Linux Solo')
+               void kernel(K$AUDIT, 'api refused request=25 SDConnectLocal - disabled in SD Core for Linux Solo')
                done = @true
                return
 
@@ -1210,7 +1210,7 @@ vb.scram.first:
                         scram.gserver = ''
                      end
                   end else
-                     void kernel(K$AUDIT, 'API NOTE user=' : scram.audit.name : ' - $global does not share this account''s salt, so the global password cannot log in under this name')
+                     void kernel(K$AUDIT, 'api note user=' : scram.audit.name : ' - $global does not share this account''s salt, so the global password cannot log in under this name')
                   end
                end
                scram.cred = ''
@@ -1382,12 +1382,12 @@ vb.scram.final:
                if scram.via = 'global' then
                   if kernel(K$ADMINISTRATOR, 1) then
                      void kernel(K$GLOBAL.SESSION, 1)
-                     void kernel(K$AUDIT, 'API LOGIN user=' : scram.user : ' via=global - administrator commands unlocked')
+                     void kernel(K$AUDIT, 'api login user=' : scram.user : ' via=global - administrator commands unlocked')
                   end else
-                     void kernel(K$AUDIT, 'API LOGIN user=' : scram.user : ' via=global - administrator flag NOT set')
+                     void kernel(K$AUDIT, 'api login user=' : scram.user : ' via=global - administrator flag NOT set')
                   end
                end else
-                  void kernel(K$AUDIT, 'API LOGIN user=' : scram.user : ' via=account')
+                  void kernel(K$AUDIT, 'api login user=' : scram.user : ' via=account')
                end
 
                return
@@ -1451,7 +1451,7 @@ exit.vb.scram.fail:
                * audited whether or not its author thinks about the trail.
                if scram.refuse.reason # '' then
                   if scram.audit.name = '' then scram.audit.name = '(none)'
-                  void kernel(K$AUDIT, 'API REFUSED user=' : scram.audit.name : ' reason=' : scram.refuse.reason)
+                  void kernel(K$AUDIT, 'api refused user=' : scram.audit.name : ' reason=' : scram.refuse.reason)
                   scram.refuse.reason = ''
                end
                * The wait comes AFTER the record, never before it (S.60 above).
@@ -1977,7 +1977,7 @@ vb.sshkey:
 if not(kernel(K$GLOBAL.SESSION, -1)) then
    server.error = SV$ERROR
    error.msg = sysmsg(11041) ;* Only the SD Core server may manage ssh keys
-   void kernel(K$AUDIT, 'API SSHKEY REFUSED - not a global session peer=' : system(42))
+   void kernel(K$AUDIT, 'api sshkey refused - not a global session peer=' : system(42))
    return
 end
 
@@ -2000,7 +2000,7 @@ if ssh.verb # 'LIST' then
    if ssh.bad then
       server.error = SV$ERROR
       error.msg = sysmsg(11042, 'the key or fingerprint is not valid') ;* The ssh key request was refused: %1
-      void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - the argument is empty, too long or not printable ASCII')
+      void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - the argument is empty, too long or not printable ASCII')
       return
    end
 end
@@ -2014,7 +2014,7 @@ if ssh.verb # 'LIST' then
       create ssh.f else
          server.error = SV$ERROR
          error.msg = sysmsg(11042, 'the request could not be carried out') ;* The ssh key request was refused: %1
-         void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - cannot create the key file')
+         void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - cannot create the key file')
          return
       end
    end
@@ -2063,20 +2063,20 @@ if ssh.err # '' or ssh.result = '' then
       case 1                    ; error.msg = sysmsg(11042, 'the request could not be carried out')
    end case
    if ssh.err = '' then ssh.err = 'NO ANSWER from tools/solo-ssh.sh'
-   void kernel(K$AUDIT, 'API SSHKEY ' : ssh.verb : ' REFUSED - ' : ssh.err : ' peer=' : system(42))
+   void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - ' : downcase(ssh.err) : ' peer=' : system(42))  ;* 07 Oct 26 PAL-24: the helper's error token is lower case here too
    return
 end
 
 begin case
    case ssh.verb = 'ADD'
       response = ssh.user : @fm : ssh.host : @fm : ssh.fp : @fm : ssh.result : @fm : ssh.hostfp : @fm : ssh.port
-      void kernel(K$AUDIT, 'API SSHKEY ADD ' : ssh.result : ' fp=' : ssh.fp : ' user=' : ssh.user : ' peer=' : system(42))
+      void kernel(K$AUDIT, 'api sshkey add ' : downcase(ssh.result) : ' fp=' : ssh.fp : ' user=' : ssh.user : ' peer=' : system(42))
    case ssh.verb = 'REMOVE'
       response = ssh.result : @fm : ssh.left
-      void kernel(K$AUDIT, 'API SSHKEY REMOVE ' : ssh.result : ' remaining=' : ssh.left : ' peer=' : system(42))
+      void kernel(K$AUDIT, 'api sshkey remove ' : downcase(ssh.result) : ' remaining=' : ssh.left : ' peer=' : system(42))
    case 1
       response = ssh.fps
-      void kernel(K$AUDIT, 'API SSHKEY LIST ' : dcount(ssh.fps, @fm) : ' key(s) peer=' : system(42))
+      void kernel(K$AUDIT, 'api sshkey list ' : dcount(ssh.fps, @fm) : ' key(s) peer=' : system(42))
 end case
 return
 

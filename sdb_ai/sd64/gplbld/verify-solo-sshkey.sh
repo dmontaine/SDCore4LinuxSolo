@@ -227,11 +227,12 @@ fi
 
 # ---- K11. the audit trail has every verb and no key text.
 aud="$H/audit"
-if grep -q 'API SSHKEY ADD ADDED fp=.* peer=127\.0\.0\.1$' "$aud" && grep -q 'API SSHKEY REMOVE REMOVED' "$aud" && grep -q 'API SSHKEY ADD REFUSED - CAP' "$aud" \
-   && grep -q 'API SSHKEY REFUSED - not a global session' "$aud" && ! grep -q 'AAAAC3NzaC1lZDI1NTE5' "$aud"; then
-  leg "K11 audit" "ADDED, REMOVED, CAP and not-a-global-session lines, and no key text" 0 "$(grep -c 'API SSHKEY' "$aud") SSHKEY lines"
+# 7 Oct 26 - PAL-24, the owner's lower-case rule: the whole audit trail is lower case.
+if grep -q 'api sshkey add added fp=.* peer=127\.0\.0\.1$' "$aud" && grep -q 'api sshkey remove removed' "$aud" && grep -q 'api sshkey add refused - cap' "$aud" \
+   && grep -q 'api sshkey refused - not a global session' "$aud" && ! grep -q 'AAAAC3NzaC1lZDI1NTE5' "$aud"; then
+  leg "K11 audit" "added, removed, cap and not-a-global-session lines, and no key text" 0 "$(grep -c 'api sshkey' "$aud") sshkey lines"
 else
-  leg "K11 audit" "ADDED, REMOVED, CAP and not-a-global-session lines, no key text" 1 "$(grep 'API SSHKEY' "$aud" | head -3 | cut -c1-120 | tr '\n' '|')"
+  leg "K11 audit" "added, removed, cap and not-a-global-session lines, no key text" 1 "$(grep 'api sshkey' "$aud" | head -3 | cut -c1-120 | tr '\n' '|')"
 fi
 
 echo "verify-solo-sshkey: $pass of $legs legs passed"

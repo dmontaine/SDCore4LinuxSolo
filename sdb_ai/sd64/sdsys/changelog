@@ -96,6 +96,37 @@ installed beside SD Core.  The same changes are in all four SD Core products.
            without stopping the walk).  Solo's own programs compiled (214) and its
            kernel built.  Not run in Solo itself.
 
+07 Oct 26  THE AUDIT TRAIL IS WRITTEN IN LOWER CASE.
+
+           Every line SD Core for Linux Solo adds to ~/SDCoreSolo/audit now has
+           its event words in lower case: login, login refused, login password,
+           login first password set, admin locked, admin unlocked, admin refused,
+           account refused, api login, api refused, api note, api sshkey add,
+           remove and list, deny.verbs, sync.global.catalog, solo password set,
+           global password refused, account password set and refused, admin
+           password set, internal session admitted, and restore.account.  A line
+           reads, for example,
+               2026-09-30 02:56:31 user=sduser uid=1 pid=109059 login account=sduser
+           This is the rule that commands are lower case wherever SD writes
+           them, which SD Core for Windows set first; the audit trail had kept
+           upper case from the start.  What follows an equals sign is unchanged:
+           the account name, the text of a reason=, and what a caller typed in
+           command=.
+
+           What it does NOT do: it does not rewrite the lines already in your
+           audit file, so one file can hold both spellings until it is rotated,
+           and anything of yours that looks for the old upper-case words
+           (LOGIN REFUSED, API REFUSED ...) has to match the new ones or match
+           without regard to case.  The messages and the plain lines SD prints on
+           screen are not changed by this.
+
+           This was checked by reading the programs, not by running Solo: a new
+           check reads all 38 audit statements and fails on an upper-case event
+           word, and Solo's programs compile (214).  The same change in the full
+           SD Core was run on a test copy and wrote lower-case lines.  Not run in
+           Solo itself; the verifier rows that wait for these lines were changed
+           and have not been run.
+
 07 Oct 26  BACKSPACE ERASES AT AN INPUT PROMPT, WHICHEVER KEY YOUR TERMINAL
            SENDS FOR IT.
 

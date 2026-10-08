@@ -146,10 +146,10 @@ else
 fi
 
 # ---- 7. the audit trail names it (and not the password).
-if grep -q 'LOGIN FIRST PASSWORD SET account=sduser' "$H/audit" && ! grep -qF -e "$NEWPW" -e "$GLB" "$H/audit"; then
-  leg "7 the first password is audited, the password is not" "'LOGIN FIRST PASSWORD SET account=sduser' present; no password in the trail" 0 "audited"
+if grep -q 'login first password set account=sduser' "$H/audit" && ! grep -qF -e "$NEWPW" -e "$GLB" "$H/audit"; then
+  leg "7 the first password is audited, the password is not" "'login first password set account=sduser' present; no password in the trail" 0 "audited"
 else
-  leg "7 the first password is audited" "audit line present, no password in it" 1 "$(grep -c 'FIRST PASSWORD' "$H/audit") lines"
+  leg "7 the first password is audited" "audit line present, no password in it" 1 "$(grep -c -i 'first password' "$H/audit") lines"
 fi
 
 echo

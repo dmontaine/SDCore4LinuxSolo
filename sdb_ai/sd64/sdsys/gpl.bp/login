@@ -636,17 +636,19 @@ deffun pw_complex(pw) calling '!pw_complex'
    if mode = 0 then
       one.command = ''
       if not(is.phantom) and not(kernel(K$INTERNAL,-1)) then one.command = trim(system(1026))
+* 07 Oct 26 - the owner's lower-case rule (PAL-24): the whole audit trail is lower case, event
+*   names included.  command= is what the caller typed and stays as typed.
       if one.command = '' then
-         void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
+         void kernel(K$AUDIT, 'login account=' : initial.account)
       end else
-         void kernel(K$AUDIT, 'LOGIN account=' : initial.account : ' command=' : one.command)
+         void kernel(K$AUDIT, 'login account=' : initial.account : ' command=' : one.command)
       end
    end
    ok = @true
    return
 
 terminate.connection:
-   void kernel(K$AUDIT, 'LOGIN REFUSED account=' : initial.account : ' reason=' : audit.reason)
+   void kernel(K$AUDIT, 'login refused account=' : initial.account : ' reason=' : audit.reason)  ;* 07 Oct 26 PAL-24
    display sysmsg(5024) ;* Connection terminated
    sleep 2
 abort.login:
@@ -728,7 +730,7 @@ internal.gate:
 
    audit.account = initial.account
    if gate.ok then
-      void kernel(K$AUDIT, 'INTERNAL SESSION ADMITTED account=' : initial.account : ' writer=' : gate.writer : ' age=' : gate.age)
+      void kernel(K$AUDIT, 'internal session admitted account=' : initial.account : ' writer=' : gate.writer : ' age=' : gate.age)
       display sysmsg(11040, gate.writer) ;* Internal session admitted (opened by %1)
    end
    return
@@ -798,11 +800,11 @@ require.password:
          gosub set.first.password
          if pf.ok then
             pw.via = 'first'
-            void kernel(K$AUDIT, 'LOGIN FIRST PASSWORD SET account=' : initial.account)
+            void kernel(K$AUDIT, 'login first password set account=' : initial.account)
             pw.ok = @true
          end else
             pw.why = 'no first password was set'
-            void kernel(K$AUDIT, 'LOGIN REFUSED account=' : initial.account : ' - no first password was set')
+            void kernel(K$AUDIT, 'login refused account=' : initial.account : ' - no first password was set')
          end
          return
       end
@@ -827,7 +829,7 @@ require.password:
       end
       pw.rec = ''
       if pw.via # '' then
-         void kernel(K$AUDIT, 'LOGIN PASSWORD account=' : initial.account : ' via=stored')
+         void kernel(K$AUDIT, 'login password account=' : initial.account : ' via=stored')
          pw.ok = @true
          return
       end
@@ -861,7 +863,7 @@ require.password:
 
    if pw.via = '' then
       pw.why = 'wrong or missing account password'
-      void kernel(K$AUDIT, 'LOGIN REFUSED account=' : initial.account : ' - wrong or missing password')
+      void kernel(K$AUDIT, 'login refused account=' : initial.account : ' - wrong or missing password')
       return
    end
 
@@ -873,7 +875,7 @@ require.password:
       void kernel(K$ADMINISTRATOR, 1)
       void kernel(K$GLOBAL.SESSION, 1)
    end
-   void kernel(K$AUDIT, 'LOGIN PASSWORD account=' : initial.account : ' via=' : pw.via)
+   void kernel(K$AUDIT, 'login password account=' : initial.account : ' via=' : pw.via)
    pw.ok = @true
    return
 

@@ -146,7 +146,9 @@ $include err.h
       end else
          write convert(@vm, @fm, list) to pol.f, 'denied.verbs'
       end
-      void kernel(K$AUDIT, 'DENY.VERBS ' : mode : ' ' : arg : ' - now ' : convert(@vm, ',', list))
+* 07 Oct 26 - the owner's lower-case rule (PAL-24): deny.verbs and its mode word (add, remove,
+*   set, list) are lower case in the audit line; arg is what the caller typed.
+      void kernel(K$AUDIT, 'deny.verbs ' : downcase(mode) : ' ' : arg : ' - now ' : convert(@vm, ',', list))
    end
    close pol.f
 
