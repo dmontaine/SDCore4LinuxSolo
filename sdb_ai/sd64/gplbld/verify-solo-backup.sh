@@ -23,7 +23,7 @@
 #      there) - Solo cannot replace the session's own account in place
 #   6  sd -stop, sd -start: the start prints RESTORED, the marker is gone,
 #      .sdrestore.previous holds the old tree, sdrestore.log says DONE
-#   7  after the swap the data is back: 52 records, MyRec and myrec both
+#   7  after the swap the data is back: 51 records, MyRec and myrec one record (value lower)
 #   8  another session logged in: BACKUP.ACCOUNT refuses (13000) and names it
 # WHAT IT DOES NOT MEASURE
 #   A managed tree, a restore from another Linux user's backup (ruling 5, the
@@ -65,7 +65,10 @@ sess() {
 }
 one() { printf '%s\n' "$1" | tail -3 | tr '\n' ' '; }
 
-# The test data: a file of 52 records, two of them a case-only pair.
+# The test data: a file of 51 records.  8 Oct 26: it was 52, "two of them a case-only pair" (MyRec and
+#   myrec).  Every file is case-insensitive since PAL-1 (7 Oct), so the pair is ONE record and the second
+#   write wins ('lower'); the first run on the upgraded Solo refused at the 52 ("51 record(s) counted").
+#   What the pair still measures: the single record and its last value survive backup, damage, restore.
 mkdir -p "$H/user_accounts/sduser/bp"
 cat > "$H/user_accounts/sduser/bp/zzfill" <<'EOF'
 open 'zzbk' to f else stop 'ZZFILL: no zzbk'
@@ -75,12 +78,12 @@ for i = 1 to 50
 next i
 write 'upper' to f, 'MyRec'
 write 'lower' to f, 'myrec'
-crt 'ZZFILL wrote 52'
+crt 'ZZFILL wrote 52 times, 51 records'
 end
 EOF
 out="$(sess 'CREATE.FILE zzbk' 'BASIC BP ZZFILL' 'RUN BP ZZFILL' 'COUNT zzbk')"
-printf '%s\n' "$out" | grep -q '^52 record(s) counted' || refuse "could not set up the test data: $(one "$out")"
-echo "  test data  : zzbk, 52 records (MyRec and myrec among them)"
+printf '%s\n' "$out" | grep -q '^51 record(s) counted' || refuse "could not set up the test data: $(one "$out")"
+echo "  test data  : zzbk, 51 records (MyRec and myrec are one of them)"
 
 # ---- 1
 out="$(sess "BACKUP.ACCOUNT ALL TO $BK")"
@@ -139,9 +142,9 @@ EOF
 sess 'BASIC BP ZZDAMAGE' 'RUN BP ZZDAMAGE' >/dev/null
 out="$(sess ADMIN "$ADMINPW" "RESTORE.ACCOUNT $Z ALL NO.QUERY" 'COUNT zzbk')"
 if printf '%s\n' "$out" | grep -q 'sduser is restored and waiting' && [ -f "$H/.sdrestore.pending" ] \
-   && printf '%s\n' "$out" | grep -q '^11 record(s) counted'; then
-  leg "5 RESTORE.ACCOUNT waits for the next start" "'restored and waiting', the marker, data unchanged (11)" 0 ""
-else leg "5 RESTORE.ACCOUNT waits for the next start" "'restored and waiting', the marker, data unchanged (11)" 1 \
+   && printf '%s\n' "$out" | grep -q '^10 record(s) counted'; then
+  leg "5 RESTORE.ACCOUNT waits for the next start" "'restored and waiting', the marker, data unchanged (10)" 0 ""
+else leg "5 RESTORE.ACCOUNT waits for the next start" "'restored and waiting', the marker, data unchanged (10)" 1 \
   "$(one "$out"); marker: $(ls -a "$H" | grep -c sdrestore.pending)"; fi
 
 # ---- 6: the start-up swap
@@ -160,10 +163,10 @@ else leg "6 sd -start applies the waiting restore" "RESTORED, marker gone, .sdre
 
 # ---- 7
 out="$(sess 'COUNT zzbk' 'CT zzbk MyRec myrec')"
-if printf '%s\n' "$out" | grep -q '^52 record(s) counted' && printf '%s\n' "$out" | grep -q 'upper' \
-   && printf '%s\n' "$out" | grep -q 'lower'; then
-  leg "7 the data is back after the swap" "52 records, MyRec=upper, myrec=lower" 0 ""
-else leg "7 the data is back after the swap" "52 records, MyRec=upper, myrec=lower" 1 "$(one "$out")"; fi
+if printf '%s\n' "$out" | grep -q '^51 record(s) counted' && printf '%s\n' "$out" | grep -q 'lower' \
+   && ! printf '%s\n' "$out" | grep -q 'upper'; then
+  leg "7 the data is back after the swap" "51 records; MyRec and myrec are one record whose value is lower" 0 ""
+else leg "7 the data is back after the swap" "51 records; MyRec and myrec are one record whose value is lower" 1 "$(one "$out")"; fi
 
 # ---- 8: another session in
 ( printf '%s\nSLEEP 20\nOFF\n' "$GOOD" | timeout 60 "$SD" >/dev/null 2>&1 ) &
