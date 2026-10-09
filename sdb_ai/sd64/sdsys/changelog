@@ -4,6 +4,23 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+08 Oct 26  A PROGRAM THE SD CORE SERVER ADDS TO A MANAGED COMPUTER CAN BE CALLED AGAIN.
+
+           On a computer that an SD Core server manages, the server puts its
+           programs into the global catalogue with SYNC.GLOBAL.CATALOG, and an
+           account calls one with CALL *name.  Since the 7 October change to
+           lower-case names, SYNC.GLOBAL.CATALOG still wrote each entry in upper
+           case (*NAME), so the call looked for *name, found nothing, and the
+           program stopped with "Unable to load".  It now catalogues the entry in
+           lower case, and a stale upper-case entry left by an earlier sync is
+           removed the next time it runs.
+
+           What it does NOT do: it changes nothing on a computer with no global
+           password, where SYNC.GLOBAL.CATALOG has nothing to manage, and it does
+           not touch the programs the account catalogues for itself.  Found by the
+           first run of the managed-computer checks on this release; fixed and
+           re-run on a test copy, 23 of 23.
+
 08 Oct 26  SD'S OWN COMMANDS ARE WRITTEN IN LOWER CASE IN ITS MESSAGES.
 
            The 7 October change put the audit trail in lower case.  This takes

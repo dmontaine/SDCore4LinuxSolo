@@ -18,6 +18,9 @@
 *
 *
 * START-HISTORY:
+* 08 Oct 26 SD Core for Linux Solo (LSOLO 46) - a server's program is catalogued as *name in
+*           LOWER case (it was *NAME, which the loader no longer finds since PAL-1 stage 3a);
+*           stale entries are compared by their stored name, so an upper-case one goes.
 * 06 Oct 26 SD Core for Linux Solo (LSOLO 38) - no "standalone" mode: with no
 *           $global it says so in new words (the same on SD Core Solo for Windows).
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 12) - ported; message 11028/11029,
@@ -127,9 +130,12 @@ $include err.h
    select src.f to 11
    loop
       readnext id from 11 else exit
-*     Catalogue names are UPPER case on Linux (CATALOG does upcase(name), and
-*     the loader looks the name up upper-cased), unlike the Windows port's.
-      call.name = '*' : upcase(id)
+*     08 Oct 26: catalogue names are LOWER case since PAL-1 stage 3a (7 Oct) - CATALOG
+*     lower-cases the name and the loader looks it up lower-cased (valid_call_name
+*     accepts lower only).  This said UPPER, so a server's program was catalogued as
+*     *NAME and "CALL *name" failed with "Unable to load" (verify-solo-global leg 4c,
+*     the first run on a managed Solo).
+      call.name = '*' : downcase(id)
       read obj from src.f, id else
          display 'sync.global.catalog: ' : id : ' could not be read - refused'
          n.bad += 1
@@ -164,7 +170,9 @@ $include err.h
    loop
       readnext id from 12 else exit
       if id[1, 1] = '*' then
-         locate upcase(id) in want<1> setting pos else gone<-1> = id
+*        The stored name, exactly: an UPPER-case entry left by a sync before 8 Oct is
+*        not in want (which is lower case), so it goes with the other stale ones.
+         locate id in want<1> setting pos else gone<-1> = id
       end
    repeat
    loop
