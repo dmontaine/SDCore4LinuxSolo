@@ -45,7 +45,7 @@
 * WHAT IT DOES.  Makes the global catalogue's * entries match GLOBAL.BP.OUT
 * (SDSYS's global.bp.out, which starts empty - the owner chose that the server
 * fills it after installing):
-*   - every object in GLOBAL.BP.OUT is catalogued as *<NAME>, upper case as CATALOG does on Linux -
+*   - every object in GLOBAL.BP.OUT is catalogued as *<name>, lower case as CATALOG does on Linux -
 *     written whole, so a changed object replaces the old one;
 *   - every * entry in the global catalogue with no object in GLOBAL.BP.OUT is
 *     deleted.
