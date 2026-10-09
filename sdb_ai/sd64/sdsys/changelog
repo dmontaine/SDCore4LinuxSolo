@@ -4,6 +4,23 @@ Changes since LS1.1-2.  Backup and restore of the account, SD Core Solo's
 own shared-memory keys and API port, and command names that let it be
 installed beside SD Core.  The same changes are in all four SD Core products.
 
+09 Oct 26  THE AUDIT TRAIL NAMES THE SSH KEY THAT WAS REMOVED.
+
+           When the SD Core server asks a managed computer to install, list or
+           remove one of its ssh keys, the request is written to the audit trail.
+           A removal used to record only how many keys were left, so the trail
+           could not say which key had gone.  It now records the fingerprint it
+           was asked to remove, in the form
+           "api sshkey remove removed fp=SHA256:... remaining=1 peer=...".
+           The two refusals that did not record where the request came from (an
+           empty or unprintable argument, and a key file that could not be made)
+           now say peer= like every other line, and the word "ASCII" in the first
+           is written in lower case with the rest.  SD Core Solo for Windows is
+           being changed to write these lines in the same way.
+
+           What it does NOT do: it never records a key itself, only its
+           fingerprint, and it changes nothing about which requests are accepted.
+
 08 Oct 26  A PROGRAM THE SD CORE SERVER ADDS TO A MANAGED COMPUTER CAN BE CALLED AGAIN.
 
            On a computer that an SD Core server manages, the server puts its

@@ -19,6 +19,10 @@
 *
 *
 * START-HISTORY:
+* 09 Oct 26 SD Core for Linux Solo (LSOLO 48, agreed with the Windows agent, mail T0040/T0100) - the
+*           ssh key request's audit lines have ONE shape on both Solo ports: remove names the
+*           fingerprint it was asked for (fp=, cut to 100 characters) before remaining=, and the
+*           two refusals that had no peer= (empty or unprintable argument, key file not made) carry it.
 * 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-17) - the suspended
 *           refusal is audited (ACCOUNT REFUSED branch=2); the not.own.account line
 *           gains the branch=4 word Windows Solo's has.
@@ -2000,7 +2004,7 @@ if ssh.verb # 'LIST' then
    if ssh.bad then
       server.error = SV$ERROR
       error.msg = sysmsg(11042, 'the key or fingerprint is not valid') ;* The ssh key request was refused: %1
-      void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - the argument is empty, too long or not printable ASCII')
+      void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - the argument is empty, too long or not printable ascii peer=' : system(42))
       return
    end
 end
@@ -2014,7 +2018,7 @@ if ssh.verb # 'LIST' then
       create ssh.f else
          server.error = SV$ERROR
          error.msg = sysmsg(11042, 'the request could not be carried out') ;* The ssh key request was refused: %1
-         void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - cannot create the key file')
+         void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - cannot create the key file peer=' : system(42))
          return
       end
    end
@@ -2073,7 +2077,7 @@ begin case
       void kernel(K$AUDIT, 'api sshkey add ' : downcase(ssh.result) : ' fp=' : ssh.fp : ' user=' : ssh.user : ' peer=' : system(42))
    case ssh.verb = 'REMOVE'
       response = ssh.result : @fm : ssh.left
-      void kernel(K$AUDIT, 'api sshkey remove ' : downcase(ssh.result) : ' remaining=' : ssh.left : ' peer=' : system(42))
+      void kernel(K$AUDIT, 'api sshkey remove ' : downcase(ssh.result) : ' fp=' : ssh.arg[1, 100] : ' remaining=' : ssh.left : ' peer=' : system(42))
    case 1
       response = ssh.fps
       void kernel(K$AUDIT, 'api sshkey list ' : dcount(ssh.fps, @fm) : ' key(s) peer=' : system(42))

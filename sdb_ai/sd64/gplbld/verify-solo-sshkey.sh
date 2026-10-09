@@ -228,7 +228,8 @@ fi
 # ---- K11. the audit trail has every verb and no key text.
 aud="$H/audit"
 # 7 Oct 26 - PAL-24, the owner's lower-case rule: the whole audit trail is lower case.
-if grep -q 'api sshkey add added fp=.* peer=127\.0\.0\.1$' "$aud" && grep -q 'api sshkey remove removed' "$aud" && grep -q 'api sshkey add refused - cap' "$aud" \
+# 9 Oct 26 - LSOLO 48, agreed with Windows Solo: the remove line names the fingerprint it was asked for.
+if grep -q 'api sshkey add added fp=.* peer=127\.0\.0\.1$' "$aud" && grep -q 'api sshkey remove removed fp=SHA256:[A-Za-z0-9+/=]* remaining=[0-9]* peer=127\.0\.0\.1$' "$aud" && grep -q 'api sshkey add refused - cap' "$aud" \
    && grep -q 'api sshkey refused - not a global session' "$aud" && ! grep -q 'AAAAC3NzaC1lZDI1NTE5' "$aud"; then
   leg "K11 audit" "added, removed, cap and not-a-global-session lines, and no key text" 0 "$(grep -c 'api sshkey' "$aud") sshkey lines"
 else
