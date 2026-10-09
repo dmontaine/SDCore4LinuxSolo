@@ -107,7 +107,7 @@ bool negotiate_telnet_parameter(void);
    api_tls_dir()  -  Where the API's TLS relay keeps the server identity
 
    15 Sep 26 dm - S.19.  Beside sd.conf: <its directory>/sd-tls, normally
-   /etc/sd-tls.  NOT under SDSYS, for two reasons measured in installsdai.sh:
+   /etc/sd-tls.  NOT under SDSYS, for two reasons measured in installsdcore.sh:
    the installer runs chown -R sdsys and chmod -R 755 over SDSYS, which would
    leave the key readable and fail the relay's owner check; and the sdsys
    account owns SDSYS, so it could rename a root-owned directory away and
