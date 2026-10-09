@@ -79,7 +79,7 @@ BASIC
 o="$(sess "$ACC" 'BASIC BP zzup zzgsub zzgcall')"
 printf '%s\n' "$o" | grep -q 'Compiled 3 program(s) with no errors' || { printf '%s\n' "$o" | tail -5; refuse "the probe programs did not compile"; }
 o="$(sess "$GLB" 'COPY FROM BP.OUT TO GLOBAL.BP.OUT zzgsub' SYNC.GLOBAL.CATALOG)"
-printf '%s\n' "$o" | grep -qx 'SYNC GLOBAL CATALOG DONE 1 catalogued 0 removed 0 refused' || { printf '%s\n' "$o" | tail -5; refuse "could not put a program in GLOBAL.BP.OUT"; }
+printf '%s\n' "$o" | grep -qx 'sync global catalog done 1 catalogued 0 removed 0 refused' || { printf '%s\n' "$o" | tail -5; refuse "could not put a program in GLOBAL.BP.OUT"; }
 o="$(sess "$ACC" 'CREATE.FILE ZZDATA DYNAMIC' 'WRITE-not-a-verb')"
 sess "$ACC" 'ED VOC ZZREC' >/dev/null 2>&1 || true
 "$H/bin/sd-solo" -stop >/dev/null 2>&1
@@ -88,16 +88,24 @@ sess "$ACC" 'ED VOC ZZREC' >/dev/null 2>&1 || true
 echo "# kept by verify-solo-upgrade" >> "$H/sd.conf"
 echo x > "$H/gplsrc/ZZ_MARKER"; echo x > "$H/bin/ZZ_MARKER"; echo x > "$H/tools/ZZ_MARKER"
 
-snap() {   # snap DIR  -> a digest of what must be kept
+snap() {   # snap DIR TAG -> a digest of what must be kept; the per-file list is kept in $W/snap.TAG so that
+           # a digest that differs can be reported file by file (8 Oct 26: the first run on a Solo said only
+           # that the digest differed, and the instrument rule is to show the state it compared)
   ( cd "$1" && {
-      find user_accounts -type f -print0 | sort -z | xargs -0 sha256sum
+      # 8 Oct 26: the account's own VOC (user_accounts/*/voc) is NOT byte-compared.  The upgrade rebuilds it on
+      #   purpose - UPDATE.ACCOUNTS ALL refreshes it from the shipped vocabulary and the case walk (PAL-1)
+      #   rewrites it as a case-insensitive file - so its data part %0 differs after every upgrade, and the first
+      #   run on a Solo measured exactly that one file as the only difference.  That its RECORDS survive is
+      #   covered by the sessions below (legs 5-8: the verbs, the passwords, the programs and the deny list all
+      #   work on the upgraded tree); a record-level VOC comparison is an open item.
+      find user_accounts -type f -not -path 'user_accounts/*/voc/*' -print0 | sort -z | xargs -0 sha256sum
       find '$cred' -type f -print0 | sort -z | xargs -0 sha256sum
       sha256sum sd.conf
       find solo.policy global.bp.out -type f -print0 | sort -z | xargs -0 sha256sum
-    } ) | sha256sum | cut -c1-64
+    } ) | tee "$W/snap.$2" | sha256sum | cut -c1-64
 }
 audit_lines="$(wc -l < "$H/audit")"
-kept_before="$(snap "$H")"
+kept_before="$(snap "$H" before)"
 echo "  kept-state digest before: $kept_before   (audit: $audit_lines lines)"
 
 # ---- 1. the upgrade runs and says so.
@@ -113,9 +121,14 @@ else
 fi
 
 # ---- 2. what must be kept is byte for byte what it was.
-kept_after="$(snap "$H")"
+kept_after="$(snap "$H" after)"
 [ "$kept_before" = "$kept_after" ] && leg "2 kept state is unchanged" "the digest of the account's files, \$cred, sd.conf, solo.policy and global.bp.out" 0 "$kept_after" \
   || leg "2 kept state is unchanged" "digest $kept_before" 1 "$kept_after"
+if [ "$kept_before" != "$kept_after" ]; then
+  echo "      files whose hash changed (path), and files that appeared or went:"
+  diff <(sed 's/^[0-9a-f]*  //' "$W/snap.before" | sort) <(sed 's/^[0-9a-f]*  //' "$W/snap.after" | sort) | sed -n 's/^[<>] /        appeared-or-gone: /p' | head -20
+  join -j 2 -o 0,1.1,2.1 <(sort -k2 "$W/snap.before") <(sort -k2 "$W/snap.after") | awk '$2 != $3 {print "        changed: " $1}' | head -30
+fi
 
 # ---- 3. the audit trail's old lines are still its first lines.
 if [ "$(head -n "$audit_lines" "$H/audit" | sha256sum | cut -c1-16)" = "$(head -n "$audit_lines" "$W"/tree.before-upgrade-*/audit | sha256sum | cut -c1-16)" ]; then

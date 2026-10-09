@@ -399,7 +399,7 @@ echo "Syncing the global catalogue ($SD -internal SYNC.GLOBAL.CATALOG)"
 sg_out="$(sdi SYNC.GLOBAL.CATALOG 2>&1)" || true
 sg_plain="$(printf '%s\n' "$sg_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 printf '%s\n' "$sg_plain" | tail -3
-printf '%s\n' "$sg_plain" | grep -qE '^SYNC GLOBAL CATALOG DONE [0-9]+ catalogued [0-9]+ removed 0 refused[[:space:]]*$' \
+printf '%s\n' "$sg_plain" | grep -qE '^sync global catalog done [0-9]+ catalogued [0-9]+ removed 0 refused[[:space:]]*$' \
   || fail "SYNC.GLOBAL.CATALOG did not print its DONE line with 0 refused"
 # LSOLO 38: a fresh stage with no global password must SAY so in the new words (and a managed one must not).
 if [ "$upgrade" -eq 0 ]; then
