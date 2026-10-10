@@ -625,7 +625,8 @@ python3-config --includes >/dev/null 2>&1 || refuse "the Python development head
 
 # ---------------------------------------------------------------- download and build
 say
-say "Downloading the source (main branch) to $CLONE_DIR"
+# 10 Oct 26  Said "(main branch)" whatever REPO_BRANCH was; a release zip's copy is pinned to a tag.
+say "Downloading the source ($REPO_BRANCH) to $CLONE_DIR"
 git ls-remote -q "$REPO_URL" >/dev/null 2>&1 || refuse "cannot reach $REPO_URL - check the network"
 rm -rf "$CLONE_DIR"
 git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$CLONE_DIR" 2>&1 | tail -2
