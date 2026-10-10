@@ -12,7 +12,7 @@ after the Linux user, and no commands to create accounts or grant access to
 them. It is the Linux counterpart of
 [SD Core Solo for Windows](https://github.com/dmontaine/SDCore4WindowsSolo).
 
-**Version LS1.1-3, not yet released.** It started on 29 September 2026 as a copy
+**Version LS1.1-3, released 9 October 2026.** It started on 29 September 2026 as a copy
 of SD Core for Linux L1.1-1. The one-account model, the passwords and ADMIN, the
 API login, the systemd user service, ssh into `sd`, the installer, the in-place
 upgrade (`bash installsdsolo.sh --upgrade`), the managed-mode server controls
