@@ -1,6 +1,120 @@
 Next release - in progress
 --------------------------
 
+18 Oct 26  SD CORE SOLO TAKES THE STABLE PART OF SD CORE 1.2-0.  Solo had
+           been SD Core's 1.1-3 plus its own changes.  SD Core has since
+           added a great deal to the language, the query processor, the file
+           system and the terminal, and the part of that work that does not
+           depend on a second user, a shell gate or the network is now in
+           Solo, so a program written against SD Core runs here, and a
+           person who knows SD Core finds the same commands.  It is on a
+           branch and has not been released.  Nothing of Solo's own was
+           taken out to make room for it.
+
+           What you get.
+
+             SD BASIC   TRY / CATCH / THROW with CAUGHT() and the @EXCEPTION
+                        names, and run time errors that arrive as exceptions
+                        you can catch (SYS.*, grouped); the SCREEN statement
+                        and its library (menus, dialogues, forms, tabs,
+                        tables, trees, text areas, mouse, colour, themes); a
+                        great many small statements and functions (FOR with
+                        a list and FOR EACH, SSELECTV, INPUT with NO.ECHO,
+                        RAW and a fill, INPUTIF, INPUTTRAP, EPOCH and the
+                        date functions, REGEX, MD5, string arithmetic,
+                        EREPLACE, SCAN, STRINGS, the ~= operator, PRECISION
+                        INHERIT, INMAT, MATWRITECSV and more); automatic
+                        includes, names with a double underscore, and the
+                        $MODE and OPTION words that make a program behave as
+                        a program from another multivalue system expects.
+             Data       Data collections: values that hold named elements and
+                        arrays, JPARSE() and JBUILD() for JSON, collection
+                        files, collections in dictionary items (E types) and
+                        in indices, and the debugger shows them.
+             Query      The query processor gains the additions of the
+                        openQM 4 manual (vertical reports, WHEN, BY.EXP,
+                        MODE, RANGE, ELEMENT, MEDIAN, RPT, IN and NOT.IN,
+                        LISTF with multifiles), saved and numbered lists
+                        (SAVE.LIST KEEP, GET.LIST DELETING, SORT.LIST,
+                        SHOW.LIST), and dictionary items that can link,
+                        branch and refer to one another.
+             Files      CREATING.SEQKEY, line terminator modes and triggers
+                        on directory files, CLEAR.FILE keeping the size of a
+                        NO.RESIZE file, read-only and non-transactional opens
+                        from the VOC, and directory-file record ids that may
+                        contain bytes 128 to 247 (the other bytes are still
+                        refused).
+             System     SYSTEM() and FILEINFO() keys numbered as the openQM 4
+                        manual numbers them, the Hot Spot Monitor and the
+                        PROFILER, LOCK.TRACER, lock and deadlock diagnostics
+                        (when a lock was taken, DEADLOCK=2), WHO USER, PSTAT
+                        USER, LISTU showing the account, CLEANUP, PHANTOMS and
+                        PHANTOM USER, phantom debugger variables, and new
+                        sd.conf parameters (their defaults are the old
+                        behaviour).
+             Terminal   The AccuTerm support and its eleven terminal types
+                        are gone.  On a terminal with an alternate screen the
+                        debugger takes the whole screen, and
+                        MESSAGE ... IMMEDIATE is shown on any terminal.
+
+           Faults that were open in Solo are closed as well.  A $internal
+           program keeps its privilege only if it comes from the global
+           catalogue or the session has ADMIN (a program a user compiled and
+           catalogued locally no longer runs as $internal without ADMIN).
+           _ICONV and _OCONV refuse a name that begins with a dollar sign.
+           A program that ends while holding objects in named common no
+           longer frees them twice.  Closing a TLS connection no longer ends
+           the process if the other side has already gone.  A server whose
+           client had gone away could spin at full processor load reading the
+           closed connection; it now stops.
+
+           Numbers that moved.  Solo's own messages that sat on numbers SD
+           Core now uses for other text were renumbered, with their text
+           unchanged: 11040 to 11054 are now 11900 to 11914, and 11060 to
+           11065 are now 11920 to 11925.  The ssh key request is the one a
+           client can see: its refusals are 11901, 11902 and 11903 (they were
+           11041, 11042 and 11043), and docs/SOLO_API.md says so.  Every
+           other message number is SD Core's, so a message means the same in
+           both products.
+
+           What Solo deliberately does NOT have yet, and why.
+             The full screen editors SED, IDE and CED.  They write the
+               records of a file you name, so they wait until every command
+               that does so has been checked against the VOC protection
+               (the entry below does that); they come in a later step.
+             The programs that read or write a file by operating system
+               path: OSCOPY, !OSCOPY, !IOSCOPY, SELECT.DIR, SET.MODE and the
+               functions ACCOUNT.PATH and VOCPATH.  Solo has no switch for
+               operating system access yet, and the answer is to be off
+               until the administrator turns it on, so these are absent.
+               For the same reason OPENTEMP, DIGEST of a file, the file keys
+               of OSPATH() and the log of SET.SOCKET.MODE TRACE answer
+               "permission denied".  OPENPATH, OPENSEQ, DIR() and a print
+               file's path behave as they did before.
+             The client library functions of QMClient and the client headers
+               for other languages.  They take request numbers that Solo's
+               ssh key request already uses; that has to be agreed with the
+               Windows product first.
+             Replication, INHIBIT.LOGIN, the NEWVOC.MODS loop at sign-on,
+               and the multi-user pieces of SD Core (per-account gates,
+               the shared account, SDNet).  Solo has one user.  The sd.conf
+               parameters PWDELAY, USERPOOL and LGNWAIT and the options
+               STACKED.ACCOUNT and INHERIT.OWNERSHIP are accepted and do
+               nothing.
+
+           One thing is NOT closed.  A print unit's SPOOLER string is still
+           run as a shell command by your own process (SD Core closed this
+           behind its shell gate).  That is what Solo has always done; it
+           waits for the operating system switch.
+
+           Because the shared memory layout changed, an installed Solo must
+           be stopped and started again on the new build.  The branch passes
+           the bootstrap and the free checks.  Of the SD Core test suites run
+           against it, the ones that touch the features above that Solo does
+           not have, or that start phantoms or assume a login name, fail for
+           those reasons; PROJECT_STATUS lists them, and four findings are
+           still being looked at.
+
 18 Oct 26  THE VOC AND THE SERVER'S FILES ARE PROTECTED FROM MORE COMMANDS.
            The fault is in LS1.1-3.
 
