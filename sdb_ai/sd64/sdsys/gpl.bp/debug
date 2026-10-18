@@ -18,6 +18,14 @@
 * 
 * 
 * START-HISTORY:
+* 13 Oct 26 dm  On the screen library (owner: "use the TUI on ced and debugger"): the full-screen display is drawn
+*               with its styles and $sl_put, help is its message box, and the whole screen is the terminal's
+*               ALTERNATE screen, on any terminal that has one.  The AccuTerm code (screen images through the 'sreg'
+*               capability, its mouse and its key rebinding) is removed, on the owner's instruction.
+* 12 Oct 26 dm  NO.SOURCE.WARNING in the VOC record $DEBUG.OPTIONS stops the "unable to find source" message (openQM 203).
+* 11 Oct 26 dm  A data collection variable is shown (kind, element count and its
+*               JSON text), and /name{path} and DUMP name{path} show the
+*               element the path names (sheet item 530).
 * 07 Oct 26 dm  PAL-1 stage 3a: the debugger process is $pdbg, lower case (the
 *               Windows port's 4d8136b2).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -42,24 +50,34 @@ $include syscom.h
 
 $include int$keys.h
 $include header.h
+$include sl.h
 
 deffun atvar(name) calling "!atvar"
+deffun dbg.atvar(name) local
 deffun dbg.info(mode, qualifier) local
 
 $define SOURCE.AREA            1
 
    wm1 = @crtwide - 1
    command.line = @crthigh - 1
-   data.area = command.line - DATA.AREA.LINES
-   source.area.lines = data.area -1 
+   msg.prefix = ''
+   if data.lines < 5 then data.lines = DATA.AREA.LINES      ;* a common block starts at 0
+   data.area = command.line - data.lines
+   source.area.lines = data.area -1
    return.key = seq(pterm(PT$INEWLINE,''))
    phantom = bitand(event, 0x80000000) # 0
 
-   if debug.initialised and not(phantom) then
-      screen.image = save.screen(0, 0, @crtwide, @crthigh)
-      if full.screen then restore.screen debug.screen.image, @true
+   * On a terminal that has an ALTERNATE screen the debugger takes the whole of it: the program's own screen is kept
+   * by the terminal and comes back when the debugger lets go.  alt.on is true between the two (initialise enters it
+   * itself the first time, to paint on it).  A terminal without one, or a session with no terminal, gets line mode.
+   alt.on = @false
+   if not(debug.initialised) then gosub initialise
+
+   alt.screen = full.screen and not(phantom)
+   if alt.screen and not(alt.on) then
+      display terminfo('smcup') : @(-1) :
+      alt.on = @true
    end
-   else gosub initialise
 
    * Find program details
 
@@ -72,7 +90,19 @@ $define SOURCE.AREA            1
 found.program:
    case.sensitive = bitand(program.flags(idx), HDR.CASE.SENSITIVE)
 
-   if rebind.string then display rebind.string :
+   if full.screen then gosub theme.in          ;* the library's styles for what follows (given back at exit.debug)
+   if alt.screen then gosub paint.data.area    ;* a fresh alternate screen: the messages of the last stop are shown again
+
+   * A WATCH with a condition (WATCH var op value, 14 Oct 26, openQM 45): the variable was assigned, but if the new value is not
+   * one the condition wants the program goes straight on, as the RUN command would, without showing anything
+
+   if bitand(event, DE$WATCH) and watch.op # '' then
+      gosub watch.test
+      if not(watch.met) then
+         gosub dbg.breakpoint(BRK$RUN, 0)
+         goto exit.debug
+      end
+   end
 
    * ------------------------------------------------------------
    * Display source program window
@@ -87,7 +117,6 @@ found.program:
 
       var.name = watch.var.name
       dump.path = ''    ;* 0499
-      mouse.action = @false
       gosub display.variable
    end
 
@@ -97,9 +126,20 @@ found.program:
    done = @false
    prompt ""
 
+   last.command = ''
+
    loop
       gosub get.input
       dump.path = ''
+
+      * A blank line repeats the last command, unless it is the keystroke
+      * that walks an array or the source (11 Oct 26 dm, openQM ref 21)
+
+      if command = '' then
+         if array.offset < 0 and src.pos = 0 and last.command # '' then command = last.command
+      end else
+         last.command = command
+      end
 
       if command = '' then
          if array.offset >= 0 then  ;* Show next element
@@ -200,6 +240,24 @@ found.program:
                case action = 'HELP' or u.command = '?'
                   gosub help
 
+               case u.command = '^'          ;* 16 Oct 26 (QM4 Fixes 550): non-printing characters as ^nnn, or as ? again
+                  expand.np = not(expand.np)
+                  message = sysmsg(if expand.np then 11388 else 11389)
+                  gosub emit.msg
+
+               case action = 'WINDOW' or action = 'WIN'     ;* 16 Oct 26 (QM4 Fixes 193)
+                  new.lines = trim(matchfield(u.command, '0A0X', 2))
+                  begin case
+                     case not(full.screen)
+                        message = sysmsg(6702) ;* Command format error
+                        gosub emit.err.msg
+                     case not(new.lines matches '1N0N') or new.lines < 5 or new.lines > MAX.DATA.AREA.LINES
+                        message = sysmsg(11390) ;* The data area must be 5 to 15 lines
+                        gosub emit.err.msg
+                     case 1
+                        gosub new.window
+                  end case
+
                case u.command[1] = '/' or u.command[1] = '?' or ~
                     u.command[1,1] = '/' or u.command[1,1] = '?'
                   begin case
@@ -209,14 +267,16 @@ found.program:
                         end else
                            var.name = command[2, 9999]
                         end
-                        if not(case.sensitive) then var.name = upcase(var.name)
-                        mouse.action = @false
-                        last.display = var.name
-                        gosub display.variable
+                        if var.name = '*' then
+                           gosub display.all           ;* 16 Oct 26 (QM4 Fixes 67): /* shows every variable of the program
+                        end else
+                           gosub fold.var.name
+                           last.display = var.name
+                           gosub display.variable
+                        end
 
                      case last.display # ''
                         var.name = last.display
-                        mouse.action = @false
                         gosub display.variable
                   end case
 
@@ -227,8 +287,14 @@ found.program:
                   n = trim(matchfield(u.command, '0A0X', 2))
                   begin case
                      case n = ''
-                        message = sysmsg(6701) ;* Line number or CLR required
-                        gosub emit.err.msg
+*                       11 Oct 26 dm (openQM ref 142): with no line number,
+*                       list the breakpoints that are set, as module.line
+                        if breakpoints = '' then
+                           message = sysmsg(11058) ;* No breakpoints are set
+                        end else
+                           message = sysmsg(11057, change(breakpoints, @fm, ' ')) ;* Breakpoints: xx
+                        end
+                        gosub emit.msg
 
                      case not(n matches '1N0N')
                         message = sysmsg(6702) ;* Command format error
@@ -289,13 +355,12 @@ found.program:
                case action = 'DUMP'
                   command = trim(command) ;* Tidy up embedded spaces
                   var.name = field(command, ' ', 2)
-                  if not(case.sensitive) then var.name = upcase(var.name)
+                  gosub fold.var.name
                   dump.path = field(command, ' ', 3, 999) ;* Allow spaces in path
                   if dump.path = '' then
                      message = sysmsg(6702) ;* Command format error
                      gosub emit.err.msg
                   end else
-                     mouse.action = @false
                      gosub display.variable
                   end
 
@@ -445,6 +510,7 @@ found.program:
                   done = @true
 
                case action = "UW" or action = "UNWATCH"
+                  watch.op = '' ; watch.val = ''
                   gosub dbg.watch(-1, 0)
 
                case (action = "V" or action = "VIEW") and full.screen and not(phantom)
@@ -453,7 +519,8 @@ found.program:
                case action = 'W' or action = 'WATCH'
                   var.name = field(command, ' ', 2)
                   if not(case.sensitive) then var.name = upcase(var.name)
-                  gosub watch
+                  gosub parse.watch.condition        ;* WATCH var op value (14 Oct 26, openQM 45)
+                  if watch.cond.ok then gosub watch
 
                case 1
 error:
@@ -466,13 +533,50 @@ error:
    repeat
 
 exit.debug:
-   if full.screen and not(phantom) then
-      debug.screen.image = save.screen(0, 0, @crtwide, @crthigh)
-      restore.screen screen.image, @true
-   end
+   if full.screen then gosub theme.out
+   gosub leave.alt
 
 exit.loop:
    return to exit.loop
+
+* **********************************************************************
+* THEME.IN / THEME.OUT  -  The screen library's styles for the debugger's own screen.  The theme belongs to the
+* debugged program, which has usually asked for none (mono): then, on a terminal with colour, the debugger
+* uses the 'classic' theme while it is up, so that it looks as it always has; any other theme is the program's
+* or the site's choice and is kept.  The library's context of the program is not touched: what is drawn goes
+* through a context of the debugger's own.
+
+theme.in:
+   call $sl_theme('name', '', '', '', '', dbg.theme)
+   dbg.themed = @false
+   if dbg.theme = '' or dbg.theme = 'mono' then
+      call $sl_theme('set', 'classic', '', '', '', dbg.r)
+      if dbg.r = 0 then dbg.themed = @true       ;* refused on a terminal with no colour: mono it stays
+   end
+   call $sl_scr('get', scr)
+   scr<SL.S.CLIP> = ''                           ;* a clip the program set is not the debugger's
+   title.attr = 'a'                              ;* bar: the title and the command line
+   command.attr = 'a'
+   source.attr = 't'                             ;* text: the source
+   highlight.source.attr = 'h'                   ;* highlight: the line about to run
+   breakpoint.source.attr = 'k'                  ;* hotkey: a line with a breakpoint (underlined in mono)
+   return
+
+* LEAVE.ALT  -  Give the terminal's main screen back (the program's), if the debugger was on the alternate one
+leave.alt:
+   if alt.on then
+      display terminfo('rmcup') :
+      alt.on = @false
+   end
+   return
+
+theme.out:
+   if dbg.themed then
+      call $sl_theme('set', dbg.theme, '', '', '', dbg.r)
+      if dbg.theme = '' then call $sl_theme('set', 'mono', '', '', '', dbg.r)
+      dbg.themed = @false
+   end
+   return
 
 * **********************************************************************
 * EMIT.MSG
@@ -481,20 +585,25 @@ emit.err.msg:
    crt @sys.bell :
 
 emit.msg:
+   if msg.prefix # '' then            ;* the name /* is showing the value of (QM4 Fixes 67)
+      message = msg.prefix : message
+      msg.prefix = ''
+   end
    if full.screen then
       ct = 0
       loop                           ;* 0309 Reworked this loop
       while len(message)
-         for i = 2 to DATA.AREA.LINES
+         for i = 2 to data.lines
             debug.data.area(i-1) = debug.data.area(i)
          next i
-         debug.data.area(5) = message[1,wm1]
+         debug.data.area(data.lines) = message[1,wm1]
          ct += 1
-         if rem(ct, DATA.AREA.LINES) = 0 then
+         if rem(ct, data.lines) = 0 then
             gosub paint.data.area
-            display @(0, command.line) : sysmsg(6710) :  ;* ---more---
+            call $sl_put(scr, 0, command.line, fmt(sysmsg(6710), wm1 : 'L'), command.attr)  ;* ---more---
+            display @(len(sysmsg(6710)), command.line) :
             s = upcase(keycode())
-            display @(0, command.line) : space(wm1) :
+            call $sl_put(scr, 0, command.line, space(wm1), command.attr)
             if s = 'Q' or s = char(27) then exit
             ct = 0
          end
@@ -509,63 +618,97 @@ emit.msg:
    return
 
 paint.data.area:
-   display command.attr : @(0,data.area) :
-   for i = 1 to DATA.AREA.LINES
-      display fmt(debug.data.area(i), wm1:'L')
+   for i = 1 to data.lines
+      call $sl_put(scr, 0, data.area + i - 1, fmt(debug.data.area(i), wm1 : 'L'), command.attr)
    next i
+   return
+
+* DISPLAY.ALL  -  /*  -  every variable of the program, locals first and then the common blocks it names, one to a line (a
+*                 matrix or a collection says what it is; /name goes into it).  Hidden names (*Arg1) are left out.
+display.all:
+   all.shown = 0
+   all.fields = dcount(symbols(idx), @fm)
+   for all.f = 1 to all.fields
+      all.values = dcount(symbols(idx)<all.f>, @vm)
+      all.first = 2                    ;* in a common block's field the first value is the number of its first variable
+      if all.f = 1 then all.first = 1
+      for all.v = all.first to all.values
+         all.subs = dcount(symbols(idx)<all.f, all.v>, @sm)
+         for all.s = 1 to all.subs
+            all.name = symbols(idx)<all.f, all.v, all.s>
+            if all.name # '' and all.name[1,1] # '*' then
+               var.name = all.name
+               msg.prefix = all.name : '  '
+               gosub display.variable
+               msg.prefix = ''
+               all.shown += 1
+            end
+         next all.s
+      next all.v
+   next all.f
+   if all.shown = 0 then
+      message = sysmsg(11391)         ;* There are no variables to show
+      gosub emit.msg
+   end
+   return
+
+* SHOW.NP  -  s as it is to be shown: a non-printing character is a ? or, after the ^ command, ^ and its decimal number  (16 Oct 26)
+show.np:
+   if expand.np then
+      np.t = ''
+      for np.i = 1 to len(s)
+         np.c = seq(s[np.i, 1])
+         if np.c < 32 or np.c = 127 then np.t := '^' : np.c else np.t := s[np.i, 1]
+      next np.i
+      s = np.t
+   end else
+      s = convert(banned, replacements, s)
+   end
+   return
+
+* The title bar, the source area, the data area and the command line, in the library's styles (the caller has the theme in)
+paint.layout:
+   call $sl_put(scr, 0, 0, space(@crtwide), title.attr)
+   for i = SOURCE.AREA to data.area - 1
+      call $sl_put(scr, 0, i, space(@crtwide), source.attr)
+   next i
+   for i = data.area to @crthigh - 1
+      call $sl_put(scr, 0, i, space(@crtwide - (i = @crthigh - 1)), command.attr)
+   next i
+   return
+
+* WINDOW n  -  the data area becomes n rows high (QM4 Fixes 193); the source area takes what is left
+new.window:
+   data.lines = new.lines + 0
+   data.area = command.line - data.lines
+   source.area.lines = data.area - 1
+   mat debug.data.area = ''
+   gosub theme.in
+   gosub paint.layout
+   gosub theme.out
+   gosub paint.data.area
+   gosub display.source
    return
 
 * ======================================================================
 * INITIALISE  -  Initialise common block
 
 initialise:
-   full.screen = terminfo('sreg') # ''
-   if full.screen then
-      if not(phantom) then
-         screen.image = save.screen(0, 0, @crtwide, @crthigh)
-      end
-
-      if upcase(@term.type[3]) = '-AT' and terminfo('kmous') # '' then
-         mouse.on = char(27):char(2):'1'
-         mouse.off = char(27):char(2):'0'
-      end
-
-      if option(OPT.DEBUG.REBIND.KEYS) then
-         * Construct key rebind string
-
-         s = char(27):char(2):'F':'NU0':terminfo('kf1'):char(13)     ;* F1
-         s := char(27):char(2):'F':'NU1':terminfo('kf2'):char(13)    ;* F2
-         s := char(27):char(2):'F':'NU2':terminfo('kf3'):char(13)    ;* F3
-         s := char(27):char(2):'F':'NU3':terminfo('kf4'):char(13)    ;* F4
-         s := char(27):char(2):'F':'NU4':terminfo('kf5'):char(13)    ;* F5
-         s := char(27):char(2):'F':'NU5':terminfo('kf6'):char(13)    ;* F6
-         s := char(27):char(2):'F':'NU6':terminfo('kf7'):char(13)    ;* F7
-         s := char(27):char(2):'F':'NU7':terminfo('kf8'):char(13)    ;* F8
-         s := char(27):char(2):'F':'NU:':terminfo('kf11'):char(13)   ;* F11
-         ! Ctrl-Fn not in terminfo. Cannot rebind Ctrl-F7, Ctrl-F8
-         s := char(27):char(2):'F':'KU4':terminfo('khome'):char(13)  ;* Home
-         s := char(27):char(2):'F':'KU5':terminfo('kend'):char(13)   ;* End
-         s := char(27):char(2):'F':'KU6':terminfo('kpp'):char(13)    ;* PgUp
-         s := char(27):char(2):'F':'KU7':terminfo('knp'):char(13)    ;* PgDown
-         ! Absent AccuTerm codes. Cannot rebind ctrl-PgUp, ctrl-PgDown
-         s := char(27):char(2):'F':'KU8':terminfo('kcub1'):char(13)  ;* Left
-         s := char(27):char(2):'F':'KU9':terminfo('kcuf1'):char(13)  ;* Right
-         s := char(27):char(2):'F':'KU2':terminfo('kich1'):char(13)  ;* Insert
-         s := char(27):char(2):'F':'KU3':terminfo('kdch1'):char(13)  ;* Delete
-         s := char(27):char(2):'F':'KU0':terminfo('kbs'):char(13)    ;* Backspace
-         s := char(27):char(2):'F':'KU:':terminfo('kcuu1'):char(13)  ;* Up
-         s := char(27):char(2):'F':'KU;':terminfo('kcud1'):char(13)  ;* Down
-         rebind.string = s
-      end
+   * Full screen: a real terminal (the kernel can read its window size) that has an alternate screen.  (Until
+   * 13 Oct 26 it was a terminal with the AccuTerm 'sreg' capability, which kept screen images, a mouse and key
+   * rebinding of its own; all of that has been removed.)
+   full.screen = @false
+   if not(phantom) then
+      if kernel(K$WINSIZE, '') # '' and terminfo('smcup') # '' and terminfo('rmcup') # '' then full.screen = @true
    end
 
-   * Display attributes
-
-   title.attr = @(IT$FGC, IT$BLACK) : @(IT$BGC, IT$WHITE)
-   source.attr = @(IT$FGC, IT$BRIGHT.WHITE) : @(IT$BGC, IT$BLUE)
-   highlight.source.attr = @(IT$FGC, IT$BRIGHT.WHITE) : @(IT$BGC, IT$BRIGHT.BLUE)
-   breakpoint.source.attr = @(IT$FGC, IT$BLACK) : @(IT$BGC, IT$YELLOW)
-   command.attr = @(IT$FGC, IT$BLACK) : @(IT$BGC, IT$WHITE)
+   * Display attributes: the style codes of the screen library (set at every entry, theme.in, because the theme
+   * is the program's to change)
+   title.attr = 'a'
+   source.attr = 'n'
+   highlight.source.attr = 'n'
+   breakpoint.source.attr = 'n'
+   command.attr = 'a'
 
    basic.chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$.%@"
 
@@ -579,29 +722,32 @@ initialise:
    debug.command.stack = ''
    mat debug.data.area = ''
 
+   * 16 Oct 26 dm - QM4 Fixes 193: WINDOW n in the VOC record $DEBUG.OPTIONS sets the height of the data area (5 to 15 rows)
+   expand.np = @false
+   data.lines = DATA.AREA.LINES
+   read init.options from @voc, '$debug.options' then
+      init.options = upcase(init.options)
+      for i = 1 to dcount(init.options, @fm)
+         if field(trim(init.options<i>), ' ', 1) = 'WINDOW' then
+            n = field(trim(init.options<i>), ' ', 2)
+            if n matches '1N0N' and n >= 5 and n <= MAX.DATA.AREA.LINES then data.lines = n + 0
+         end
+      next i
+      data.area = command.line - data.lines
+      source.area.lines = data.area - 1
+   end
+
    if full.screen then
-      * Set up initial display and save screen image
-
-      display @(-1) : title.attr : space(@crtwide) :
-
-      i = SOURCE.AREA
-      display source.attr :
-      loop
-         crt @(0,i) : space(@crtwide) :
-         i += 1
-      while i < data.area
-      repeat
-
-      display command.attr :
-      loop
-         crt @(0,i) : space(@crtwide - (i = @crthigh)) :
-         i += 1
-      while i < @crthigh
-      repeat
-
+      * Set up initial display and save screen image: the title bar, the source area, the data area and the
+      * command line, in the library's styles
+      gosub theme.in
       if not(phantom) then
-         debug.screen.image = save.screen(0, 0, @crtwide, @crthigh)
+         display terminfo('smcup') :             ;* the alternate screen, before anything is drawn
+         alt.on = @true
       end
+      display @(-1) :
+      gosub paint.layout
+      gosub theme.out
    end
 
    * Program source control
@@ -615,6 +761,7 @@ initialise:
    last.program = -1                      ;* Last used program entry (none)
    mat program.id = 0 ; program.id(0) = 0
    mat symbols = ""
+   mat equates = ""
 
    src.pos = 0
    array.offset = -1
@@ -648,7 +795,7 @@ get.input:
       image = space(wm1)
 
       if full.screen then
-         display command.attr : @(0, command.line) : space(wm1) :
+         call $sl_put(scr, 0, command.line, space(wm1), command.attr)
       end else display @(0) : @(-4) :
 
       first = @true
@@ -659,12 +806,18 @@ get.input:
          end
 
          ss = prefix : command[command.pan, command.width]
-         gosub zoned.update
-
-         i = prefix.len + x - command.pan
-         if i # csr.x then
-            display @(i) :
-            csr.x = i
+         if full.screen then
+            * the whole command line, in the library's style, and the cursor in it
+            i = prefix.len + x - command.pan
+            call $sl_put(scr, 0, command.line, fmt(ss, wm1 : 'L'), command.attr)
+            display @(i, command.line) :
+         end else
+            gosub zoned.update         ;* (it uses i: the cursor's place is worked out after it)
+            i = prefix.len + x - command.pan
+            if i # csr.x then
+               display @(i) :
+               csr.x = i
+            end
          end
 
          c = keycode()
@@ -847,8 +1000,14 @@ allocate.new.program:
       close program.file
    end
 
-   message = sysmsg(6711, source.path) ;* Unable to find source record xx
-   gosub emit.err.msg
+   * 12 Oct 26 dm - openQM 203: the keyword NO.SOURCE.WARNING in the VOC record $DEBUG.OPTIONS (one keyword to a
+   * line) leaves the message out.  The debugger is left just the same.
+   read debug.options from @voc, '$debug.options' then debug.options = upcase(debug.options) else debug.options = ''
+   locate 'NO.SOURCE.WARNING' in debug.options<1> setting n else n = 0
+   if not(n) then
+      message = sysmsg(6711, source.path) ;* Unable to find source record xx
+      gosub emit.err.msg
+   end
    debug.off
    return to exit.debug
 
@@ -892,6 +1051,7 @@ found.source.record:
       dim program.id(new.table.size)
       dim head(new.table.size)
       dim symbols(new.table.size)
+      dim equates(new.table.size)
 
       for idx = last.program to new.table.size
          program.id(idx) = 0
@@ -905,6 +1065,7 @@ found.spare.entry:
 !   s = convert(" ", @vm, dbg.info(0,0))   ;* Fetch symbols
    s = dbg.info(0,0)   ;* Fetch symbols
    symbols(idx) = field(s, @vm, 2, 9999999)
+   equates(idx) = dbg.info(7,0)   ;* Equate and $DEFINE tokens, only in a $MODE DEBUG.EQUATES program (16 Oct 26)
    program.name(idx) = s<1,1>
    program.flags(idx) = dbg.info(5,0)
 
@@ -972,7 +1133,7 @@ display.source:
       s = program.name(src.idx) : " : "
       if src.idx = idx then s := src.line : "." : sub.ref
       else s := src.line
-      display @(0, 0) : title.attr : fmt(s, wm1:'L') :
+      call $sl_put(scr, 0, 0, fmt(s, wm1 : 'L'), title.attr)
 
       n = src.line - idiv(source.area.lines, 2) ;* First line to display
       if n < 1 then n = 1
@@ -982,24 +1143,22 @@ display.source:
 *       convert "	" to "   " in s  charactes where hex "A8" x 3
       convert char(9):Char(27) to char(168):char(168):char(168) in s
 
-      j = SOURCE.AREA
-      display @(0, SOURCE.AREA) :
+      * One row of the source area for each line: its number (in the breakpoint style when it has a breakpoint)
+      * and its text (in the highlight style when it is the line about to run), padded to the width of the screen
       for i = 1 to source.area.lines
       until keyready()
          if n <= lines(src.idx) then
+            numcode = source.attr
             locate src.idx:'.':n in breakpoints<1> setting pos then
-               display breakpoint.source.attr :
-            end else
-               display source.attr:
+               numcode = breakpoint.source.attr
             end
-            display fmt(n, line.no.fmt) : ": " :
-
-            if n = line and src.idx = idx then display highlight.source.attr :
-            else display source.attr :
-
-            display s<i>[1, src.width] : @(IT$CLEOL)
+            numtxt = fmt(n, line.no.fmt) : ': '
+            txtcode = source.attr
+            if n = line and src.idx = idx then txtcode = highlight.source.attr
+            tx = fmt(s<i>[1, src.width], src.width : 'L')
+            call $sl_put(scr, 0, SOURCE.AREA + i - 1, numtxt : tx, str(numcode, len(numtxt)) : str(txtcode, src.width))
          end else
-            display source.attr : @(IT$CLEOL)
+            call $sl_put(scr, 0, SOURCE.AREA + i - 1, space(@crtwide), source.attr)
          end
          n += 1
       next i
@@ -1019,21 +1178,15 @@ display.source:
 
 help:
    if full.screen then
-      debug.screen.image = save.screen(0, 0, @crtwide, @crthigh)
-      
-      display source.attr : @(-1) :
-      s = change(sysmsg(6712), char(10), @fm) ;* Help text
-      loop
-         display remove(s, more)
-      while more
-      repeat
-      display @(0, 24) : sysmsg(6713) :  ;* Press RETURN to continue
-
-      loop
-         while seq(keyin()) # return.key
-      repeat
-
-      restore.screen debug.screen.image, @true
+      * The help text in a box over the screen (the library's message box puts back what was under it)
+      s = convert(char(13), '', sysmsg(6712))      ;* Help text
+      s = change(s, char(10), @vm)
+      hw = ''
+      hw<SL.W.D> = ''                              ;* no title
+      hw<SL.W.D + 1> = s                           ;* the lines
+      hw<SL.W.D + 2> = '&OK'
+      call $sl_msgbox('init', hw, scr, '', hb)     ;* over the debugger's own picture (scr is its shadow), which is
+      call $sl_msgbox('run', hw, scr, '', hb)      ;* put back, cell for cell, when it closes
    end else     ;* Not full screen
       display sysmsg(6714)  ;* Help text
    end
@@ -1044,20 +1197,25 @@ help:
 * VIEW
 
 view:
-   debug.screen.image = save.screen(0, 0, @crtwide, @crthigh)
-   restore.screen screen.image, @true
-   s = keycode()
-   screen.image = save.screen(0, 0, @crtwide, @crthigh)
-   restore.screen debug.screen.image, @true
+   if alt.on then
+      * The program's screen is behind the alternate one: show it until a key, then come back and draw again
+      display terminfo('rmcup') :
+      s = keycode()
+      display terminfo('smcup') : @(-1) :
+      call $sl_scr('get', scr)
+      scr<SL.S.CLIP> = ''
+      gosub paint.data.area
+      src.line = line
+      gosub display.source
+   end
    return
 
 * ======================================================================
 * ABORT.DEBUG:
 
 abort.debug:
-   if full.screen and not(phantom) then
-      restore.screen screen.image, @true
-   end
+   if full.screen then gosub theme.out
+   gosub leave.alt
    gosub dbg.stop(6716) ;* ABORT : Debugging terminated
    return
 
@@ -1065,9 +1223,8 @@ abort.debug:
 * STOP.DEBUG:
 
 stop.debug:
-   if full.screen and not(phantom) then
-      restore.screen screen.image, @true
-   end
+   if full.screen then gosub theme.out
+   gosub leave.alt
    gosub dbg.stop(6715) ;* STOP : Debugging terminated
    return
 
@@ -1098,7 +1255,75 @@ display.array.element:
    fpos = 0 ; vpos = 0 ; spos = 0
    goto display.data.common
 
+fold.var.name:
+   * Fold the case of var.name, but not of the path of a collection element, which
+   * is case sensitive: name{path}
+
+   if not(case.sensitive) then
+      brace.pos = index(var.name, '{', 1)
+      if brace.pos then
+         var.name = upcase(var.name[1, brace.pos - 1]) : var.name[brace.pos, 99999]
+      end else
+         var.name = upcase(var.name)
+      end
+   end
+   return
+
+* EQUATE.RESOLVE  -  An equate token of a $MODE DEBUG.EQUATES program stands for what it was equated to  (16 Oct 26, QM4 gap 218)
+*
+* In: var.name, perhaps with an index, a field position or a collection path after the token.
+* Out: var.name is the variable, element or field the token stood for, with what followed the token put back, so that the
+*      ordinary code takes it from there; or equ.const is true and equ.value is the constant the token stands for (a token of
+*      a number, a string or CHAR(n) is not a variable: it can be shown, not set or watched).  A name that is not a token is
+*      left alone.
+
+equate.resolve:
+   equ.const = @false
+   if equates(idx) = '' then return
+   equ.cut = len(var.name) + 1
+   for equ.i = 1 to len(var.name)
+      if index('({<', var.name[equ.i, 1], 1) then equ.cut = equ.i ; exit
+   next equ.i
+   equ.tok = var.name[1, equ.cut - 1]
+   locate equ.tok in equates(idx)<1,1> setting equ.pos else return
+   equ.def = equates(idx)<2, equ.pos>
+   equ.body = equ.def[2, 99999]
+   equ.rest = var.name[equ.cut, 99999]
+   begin case
+      case equ.def[1,1] = '4'      ;* a variable
+         var.name = equ.body : equ.rest
+      case equ.def[1,1] = '5'      ;* an @variable
+         var.name = '@' : equ.body : equ.rest
+      case equ.def[1,1] = '2'      ;* an element of a matrix: name row {col}
+         var.name = field(equ.body, ' ', 1) : '(' : field(equ.body, ' ', 2) : (if field(equ.body, ' ', 3) # '' then ',' : field(equ.body, ' ', 3) else '') : ')'
+      case equ.def[1,1] = '6'      ;* a field of a dynamic array variable: name field {value {subvalue}}
+         var.name = field(equ.body, ' ', 1) : '<' : field(equ.body, ' ', 2)
+         if field(equ.body, ' ', 3) # '' then var.name := ',' : field(equ.body, ' ', 3)
+         if field(equ.body, ' ', 4) # '' then var.name := ',' : field(equ.body, ' ', 4)
+         var.name := '>'
+      case equ.def[1,1] = '3'      ;* CHAR(n)
+         equ.const = @true ; equ.value = 'CHAR(' : equ.body : ')'
+      case 1                       ;* 0 a string, 1 a number
+         equ.const = @true ; equ.value = equ.body
+   end case
+   return
+
 display.variable:
+   gosub equate.resolve
+   if equ.const then
+      message = var.name : ' = ' : equ.value
+      gosub emit.msg
+      return
+   end
+   has.path = @false
+   brace.pos = index(var.name, '{', 1)
+   if brace.pos then   ;* An element of a collection: name{path}
+      var.path = var.name[brace.pos + 1, 99999]
+      if var.path[len(var.path), 1] = '}' then var.path = var.path[1, len(var.path) - 1]
+      var.name = var.name[1, brace.pos - 1]
+      has.path = @true
+   end
+
    if var.name matches '...<1N...>' then
       fpos = matchfield(var.name, '...<0N...', 3) + 0
       vpos = matchfield(var.name, '...<0N,0N...', 5) + 0
@@ -1122,7 +1347,7 @@ display.variable:
    if var.name[1,1] = '@' then
       message = var.name : ' = '
       var.name = upcase(var.name)
-      s = atvar(var.name)
+      s = dbg.atvar(var.name)
       if status() then message = sysmsg(6717) ;* Unrecognised @-variable
       else message := s
       gosub emit.msg
@@ -1146,10 +1371,8 @@ display.variable:
    end case
 
    find var.name in symbols(idx) setting f, v, sv else
-      if not(mouse.action) then
-         message = sysmsg(6718) ;* Variable not defined
-         gosub emit.err.msg
-      end
+      message = sysmsg(6718) ;* Variable not defined
+      gosub emit.err.msg
       return
    end
 
@@ -1205,7 +1428,21 @@ display.variable:
       end
    end
 
-   message = if mouse.action then var.name : '=' else ''
+   if has.path then
+      if var.dim or var.info<1> + 0 # V$COLL then
+         message = sysmsg(6719) ;* Index not allowed with scalar variable
+         gosub emit.err.msg
+         return
+      end
+      var.info = dbg.info(6, var.no : @fm : var.path)
+      if len(var.info) = 0 then
+         message = sysmsg(11131) ;* Element not found in the collection
+         gosub emit.err.msg
+         return
+      end
+   end
+
+   message = ''
 
 display.data.common:
    var.type = var.info<1> + 0   ;* Will not have set above if enter here
@@ -1241,8 +1478,9 @@ display.data.common:
          end
 
          if dump.path = '' then
-            s = convert(banned, replacements, s)
-            message := 'String (' : len(s) : ' bytes'
+            n.len = len(s)
+            gosub show.np
+            message := 'String (' : n.len : ' bytes'
             if rmv then message := ',R=' : rmv
             message := '): "' : s : '"'  ;* 0307
          end
@@ -1282,7 +1520,8 @@ display.data.common:
          s = field(var.info, @fm, 3, 99999)
          if fpos or vpos or spos then s = s<fpos,vpos,spos>
          if dump.path = '' then
-            s = convert(banned, replacements, s[1,10240])
+            s = s[1,10240]
+            gosub show.np
             message := 'Select list (' : var.info<2> : ' bytes): "' : s : '"'
          end
 
@@ -1306,6 +1545,27 @@ display.data.common:
 
       case var.type = V$PERSISTENT
          message := 'Persistent: '
+
+      case var.type = V$JSON.BOOLEAN
+         s = var.info<2>
+         message := 'Boolean: ' : s
+
+      case var.type = V$JSON.NULL
+         message := 'Null'
+
+      case var.type = V$COLL
+         * Field 2 is C or A, field 3 the number of elements, then the JSON text
+         s = field(var.info, @fm, 4, 9999999)
+         n = var.info<3> + 0
+         message := if var.info<2> = 'A' then 'Array' else 'Collection'
+         message := ' (' : n : ' element' : (if n = 1 then '' else 's') : ')'
+         if dump.path = '' then
+            t.len = len(s)
+            s = s[1, 10240]
+            gosub show.np
+            message := ': ' : s
+            if t.len > 10240 then message := '...'
+         end
    end case
 
    if dump.path = '' then
@@ -1339,6 +1599,12 @@ display.data.common:
 
 watch:
    watch.var.name = var.name
+   gosub equate.resolve
+   if equ.const then
+      message = sysmsg(6718) ;* Variable not defined: a token of a constant is not a variable
+      gosub emit.err.msg
+      return
+   end
 
    begin case
       case var.name matches "0X'('1N0N')'"
@@ -1390,7 +1656,7 @@ watch:
             gosub emit.err.msg
             return
          end
-         gosub dbg.watch(var.no, var.row)
+         arm.no = var.no ; arm.index = var.row ; gosub arm.watch
       end else  ;* Two index values
          if cols = 0 then
             message = sysmsg(6721) ;* Single dimensional matrix requires one index value
@@ -1407,20 +1673,126 @@ watch:
             gosub emit.err.msg
             return
          end
-         gosub dbg.watch(watch var.no, cols * (var.row - 1) + var.col)
+         arm.no = var.no ; arm.index = cols * (var.row - 1) + var.col ; gosub arm.watch
       end
    end else    ;* Scalar variable
-      gosub dbg.watch(var.no, 0)
+      arm.no = var.no ; arm.index = 0 ; gosub arm.watch
    end
 
+   return
+
+* ======================================================================
+* ARM.WATCH  -  Start watching variable arm.no (element arm.index of a matrix, 0 for a scalar), with the condition
+* that PARSE.WATCH.CONDITION found, if any
+
+arm.watch:
+   watch.var.no = arm.no
+   watch.index = arm.index
+   watch.op = watch.op.new
+   watch.val = watch.val.new
+   gosub dbg.watch(arm.no, arm.index)
+   return
+
+* ======================================================================
+* PARSE.WATCH.CONDITION  -  WATCH var {op value}.  Sets watch.op.new and watch.val.new (null for a plain WATCH) and
+* watch.cond.ok false, with the unrecognised command message, when there is an operator that is not one of the
+* relational operators or MATCHES, or no value after it.  LIKE and UNLIKE are not supported.
+
+parse.watch.condition:
+   watch.op.new = '' ; watch.val.new = '' ; watch.cond.ok = @true
+   w.op = upcase(field(command, ' ', 3))
+   if w.op = '' then return
+
+   if not(index(',=,EQ,#,NE,<,LT,>,GT,<=,LE,>=,GE,MATCHES,MATCH,', ',' : w.op : ',', 1)) then
+      message = sysmsg(6709) ;* Unrecognised command
+      gosub emit.err.msg
+      watch.cond.ok = @false
+      return
+   end
+
+   w.val = trim(field(command, ' ', 4, 999999))
+   if w.val = '' then
+      message = sysmsg(6709) ;* Unrecognised command
+      gosub emit.err.msg
+      watch.cond.ok = @false
+      return
+   end
+
+   * A quoted value is that text; anything else is taken as typed
+
+   q = w.val[1, 1]
+   if (q = '"' or q = "'") and len(w.val) > 1 and w.val[len(w.val), 1] = q then w.val = w.val[2, len(w.val) - 2]
+
+   watch.op.new = w.op
+   watch.val.new = w.val
+   return
+
+* ======================================================================
+* WATCH.TEST  -  Is the watched variable's new value one that the WATCH condition wants?  Sets watch.met.  A WATCH without
+* a condition, a value that cannot be read (an array, a file...) and an element the variable no longer has all count as met,
+* so the program stops as it always did.
+
+watch.test:
+   watch.met = @true
+   if watch.op = '' then return
+
+   w.info = dbg.info(1, watch.var.no)
+   if watch.index then w.info = dbg.info(2, watch.index)
+   w.type = w.info<1> + 0
+   begin case
+      case w.type = V$INTEGER or w.type = V$FLOATNUM
+         w.now = w.info<2>
+      case w.type = V$STRING
+         w.now = field(w.info, @fm, 3, 9999999)
+      case 1
+         return
+   end case
+
+   w.want = watch.val
+   begin case
+      case watch.op = '=' or watch.op = 'EQ' ; watch.met = (w.now = w.want)
+      case watch.op = '#' or watch.op = 'NE' ; watch.met = (w.now # w.want)
+      case watch.op = '<' or watch.op = 'LT' ; watch.met = (w.now < w.want)
+      case watch.op = '>' or watch.op = 'GT' ; watch.met = (w.now > w.want)
+      case watch.op = '<=' or watch.op = 'LE' ; watch.met = (w.now <= w.want)
+      case watch.op = '>=' or watch.op = 'GE' ; watch.met = (w.now >= w.want)
+      case 1 ; watch.met = (w.now matches w.want)     ;* MATCHES
+   end case
    return
 
 * ======================================================================
 * Set variable
 
 setvar:
+   gosub equate.resolve
+   if equ.const then
+      message = sysmsg(6718) ;* Variable not defined: a token of a constant is not a variable
+      gosub emit.err.msg
+      return
+   end
+* 16 Oct 26 dm - QM4 Fixes 239: the value may be an equate token that stands for a constant (a string, a number or CHAR(n)), as the
+*   name may be one.  A token of a variable is not a value here, so it is left to be refused as "Illegal value" as it was.
+   set.token.done = @false
+   if equates(idx) # '' and new.value # '' and not(index('"' : "'" : '\', new.value[1,1], 1)) and not(num(new.value)) then
+      set.save.name = var.name
+      var.name = new.value
+      gosub equate.resolve
+      if equ.const then
+         begin case
+            case equ.def[1,1] = '3' ; new.value = char(equ.body + 0)
+            case equ.def[1,1] = '1' and num(equ.body) ; new.value = equ.body + 0
+            case 1 ; new.value = equ.body
+         end case
+         set.token.done = @true
+      end
+      var.name = set.save.name
+   end
+
    c = new.value[1,1]
    begin case
+      case set.token.done
+         null
+
       case (c = '"' or c = "'" or c = '\') and len(new.value) > 1 and new.value[1] = c
          new.value = new.value[2,len(new.value)-2]
 
@@ -1555,10 +1927,11 @@ show.call.stack:
          case 1
             k = dcount(ss, @vm)
             for j = 2 to k
-               if rem(zz, DATA.AREA.LINES) = 0 then
-                  display @(0, command.line) : sysmsg(6710) :  ;* ---more---
+               if rem(zz, data.lines) = 0 then
+                  call $sl_put(scr, 0, command.line, fmt(sysmsg(6710), wm1 : 'L'), command.attr)  ;* ---more---
+                  display @(len(sysmsg(6710)), command.line) :
                   if upcase(keycode()) = 'Q' then return
-                  display @(0, command.line) : @(-4) :
+                  call $sl_put(scr, 0, command.line, space(wm1), command.attr)
                end
                ln = ss<1,j,2>
                if ln then message := ' @ ' : ln           ;* If no line no...
@@ -1609,6 +1982,19 @@ local subroutine dbg.watch(var, index)
       watch var, index
    end
    return
+end
+
+local function dbg.atvar(name)
+   * 16 Oct 26 dm - QM4 gap 251: evaluate @variables in the debugged phantom
+   * process rather than the local PDEBUG client process.
+   if phantom then
+      out.msg = 'ATVAR'
+      out.msg<2> = name
+      gosub send.message
+      return field(in.msg, @fm, 3, 99999)
+   end else
+      return atvar(name)
+   end
 end
 
 local function dbg.info(mode, qualifier)

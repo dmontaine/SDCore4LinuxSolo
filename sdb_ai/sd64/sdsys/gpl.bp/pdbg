@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm  cannot.debug: throws SYS.PROGRAM.NO_PDEBUG when a handler is there (QM4 Fixes 513).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -40,6 +41,8 @@ $include debug.h
 $include syscom.h
 
 $include int$keys.h
+
+deffun atvar(name) calling "!atvar"
 
    if not(debug.initialised) then
       * There should (hopefully) be a user sitting in PDEBUG waiting to
@@ -94,6 +97,12 @@ $include int$keys.h
 
       msg.type = in.msg<1>
       begin case
+         case msg.type = 'ATVAR'
+            s = atvar(in.msg<2>)
+            out.msg = 'ATVAR'
+            out.msg<2> = status()
+            out.msg<3> = s
+
          case msg.type = 'BRK'
             breakpoint in.msg<2>, in.msg<3>
             out.msg = 'BRK'
@@ -128,6 +137,9 @@ $include int$keys.h
 cannot.debug:
    release ipc.f
    void kernel(K$SUPPRESS.COMO,@false)
+   * 17 Oct 26 (QM4 Fixes 513): a process that has an exception handler for it gets SYS.PROGRAM.NO_PDEBUG, the message as
+   * its data, and the phantom goes on; without one the phantom ends as it always did.
+   if caught('SYS.PROGRAM.NO_PDEBUG', 3) then throw 'SYS.PROGRAM.NO_PDEBUG', sysmsg(6727)
    stop sysmsg(6727) ;* Phantom debugger not active
 end
 

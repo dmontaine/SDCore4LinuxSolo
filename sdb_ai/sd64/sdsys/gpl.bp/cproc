@@ -18,6 +18,15 @@
 * 
 * 
 * START-HISTORY:
+* 18 Oct 26 SD Core for Linux Solo (LSOLO 52) - carried from SD Core for Linux 5315c65
+*           (merge base c0802d7): KEEP.SELECT and CLEAR.SELECT, the .C- undo, COMMAND.LOGGING
+*           (K$CMDLOG.WRITE), CHAINED.SELECT, the $PRIVATE.VOC lookup, INPUTNULL, PHANTOM LOG
+*           and DATA, NO.PHANTOM.NOTIFY, LPTR and NO.PAGE on a catalogued name, the screen
+*           library's cleanup, RUN NO.PAGE, WHO USER, IF EXISTS / IN / NOT.IN / NO.CASE and
+*           LOGOUT n GROUP.  NOT carried: LOGTO RESET ALL, OPTION STACKED.ACCOUNT and the
+*           K$SET.ACCOUNT call in LOGTO (Solo has no LOGTO), the privileged-command list.
+* 15 Oct 26 dm QM4 gaps Q-16: KEEP.SELECT.  CLEAR.SELECT does not clear list 0 at the end of a command in which a
+*           program ran KEEP.SELECT (K$KEEP.SELECT, set by !keepselect, cleared as each outermost command starts).
 * 06 Oct 26 LSOLO 40 (parity audit) - Enter at the "Overwrite VOC record" prompt
 *           (5045) means N and the prompt shows (y/<n>); the full product's PAL-5.
 *           Message 10149 (F1) names LISTV, as the Windows port's does (PAL-3).
@@ -264,6 +273,13 @@ $define max.elements 500
 * 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - privileged_commands (the four verbs
 *   that needed root: CREATEA, DELACC, MODIFYA, MODIFY.PASSWORD; empty since LSOLO 4/5)
 *   and the logto.reset flag are gone with the code that read them.
+* 13 Oct 26 dm - THE SCREEN LIBRARY'S KEPT SCREEN (only its flag is read here).  A program that SCREEN OPENs and then ends
+*   without SCREEN CLOSE (a break, an error, STOP) leaves the terminal in the library's modes - mouse reports on, perhaps the
+*   cursor hidden - and the library's state, which lives in this common block, outlives it.  RESET.ENVIRONMENT, which runs
+*   before every prompt, asks $sl_cleanup to put the terminal back when this flag says the library still holds it.  The block
+*   is named, so its flag is 0 until $sl_scr sets it, and the call is never made on a system or a pass in which the
+*   library is not in use (the bootstrap passes, before $sl_cleanup is catalogued).  Same three names, same order, as $sl_scr.
+   common /slscr/ sl.ctx, sl.open, sl.resized
 
 restart.cproc:
    * Save the Proc common variables
@@ -301,6 +317,8 @@ restart.cproc:
    pa.line = 0
    dim pa.save(5)
    pa.depth = 0
+   cs.depth = 0                  ;* CLEAR.SELECT: command nesting depth...
+   cs.was.active = @false        ;* ...and was list 0 active before it
    unwinding = 0   ;* 1 = unwind current paragraph, 2 = unwind all
    echo.paragraph = @false
 
@@ -332,6 +350,7 @@ restart.cproc:
       xeq.command = ""
       data.queue = ""
       command.stack = ""
+      undo.n = 0 ; undo.text = ''     ;* 14 Oct 26 - the .C that .C- would undo (openQM item 296)
       command.stack.depth = min(max(config('CMDSTACK'), 20), 999)
       at.sentence = ""
       last.command = ""
@@ -470,7 +489,18 @@ restart.cproc:
 
          z = system(1005)
          s = oconv(idiv(z,86400), 'D2/DMY') : "_" : oconv(mod(z,86400), 'MTS')
-         execute "COMO ON PH" : @userno : "_" : convert('/:', '', s)
+
+         * 12 Oct 26 dm - openQM 364: PHANTOM LOG dirfile leaves the name of another directory file in the L record
+         ph.log.file = ''
+         filelock ipc.f
+         read ph.log.file from ipc.f, 'L':@userno then delete ipc.f, 'L':@userno else ph.log.file = ''
+         fileunlock ipc.f
+         ph.log.file = trim(ph.log.file)
+         if ph.log.file # '' then
+            execute "COMO ON PH" : @userno : "_" : convert('/:', '', s) : " IN " : ph.log.file
+         end else
+            execute "COMO ON PH" : @userno : "_" : convert('/:', '', s)
+         end
 
          display sysmsg(5010, @userno, oconv(mod(z,86400), 'MTS') : ' ' : oconv(idiv(z,86400), 'D4DMY[,A3]'))
          * Phantom xx started at hh:mm:ss dd mmm yyyy
@@ -508,6 +538,14 @@ restart.cproc:
          s = phantom.command<1>
          if s # '' then void kernel(K$SET.OPTIONS, s)
          del phantom.command<1>
+
+         * 12 Oct 26 dm - openQM 137: PHANTOM DATA left the parent's DATA queue in the D record; stack it here
+         read ph.data from ipc.f, 'D':@userno then
+            delete ipc.f, 'D':@userno
+            for ph.i = 1 to dcount(ph.data, @fm)
+               data ph.data<ph.i>
+            next ph.i
+         end
 
          fileunlock ipc.f
       end
@@ -701,7 +739,8 @@ restart.cproc:
 
 terminate.phantom:
       n = kernel(K$PPID, 0)
-      if n and fileinfo(ipc.f, FL$OPEN) then
+      * NO.PHANTOM.NOTIFY (15 Oct 26, openQM): a phantom that has set the option does not send the message
+      if n and fileinfo(ipc.f, FL$OPEN) and not(option(OPT.NO.PHANTOM.NOTIFY)) then
          * Send message to parent process
 
          x = 'M':n
@@ -767,6 +806,8 @@ connected.port:
          gosub stack.manipulation
          if at.command = "" then continue
       end
+
+      undo.n = 0      ;* 14 Oct 26 - a command that is run, or added with ?, ends the chance to undo a .C (item 296)
 
       if at.command[1] = '?' then
          if len(at.command) = 1 then
@@ -846,6 +887,7 @@ reset.environment:
 
    inline.prompts = ""     ;* Cast off inline prompts...
    inline.responses = ""   ;* ...and responses
+   void kernel(K$INPUT.NULL.SET, '')   ;* 14 Oct 26: INPUTNULL ends on return to the command prompt (openQM 408)
 
 para.reset.environment:
    i = ospath("", os$flush.cache)
@@ -863,6 +905,14 @@ para.reset.environment:
       if len(term.reset.string) then display term.reset.string :
       display @(IT$RLT) :   ;* 0277 Ensure line truncation off
       void kernel(K$SUPPRESS.COMO, @false)
+
+* 13 Oct 26 dm - a program left the screen library's screen open: mouse reporting off, cursor shown, style normal.  Only at
+*   command level 1: an EXECUTE inside a program that is using the library is a nested level, and not the prompt.
+      if sl.open and kernel(K$CPROC.LEVEL, 0) <= 1 then
+         void kernel(K$SUPPRESS.COMO, @true)
+         call $sl_cleanup
+         void kernel(K$SUPPRESS.COMO, @false)
+      end
 
       breakpoint BRK$CLEAR, 0
       breakpoints = ''
@@ -1240,6 +1290,20 @@ zoned.update:
 stack.manipulation:
    c = upcase(at.command[2,1])
 
+* 14 Oct 26 dm  openQM item 296.  .C- puts back what the .C before it changed.  .L and .? may come between; any other dot
+*   command, and any command that is run (the main loop clears UNDO.N), ends the chance.  A second .C- has nothing left.
+   if upcase(trimb(at.command)) = '.C-' then
+      if undo.n > 0 and undo.n <= dcount(command.stack, @fm) then
+         command.stack<undo.n> = undo.text
+         display fmt(undo.n, "2'0'R") : '  ' : undo.text
+      end else
+         display sysmsg(11259) ;* There is no .C to undo
+      end
+      undo.n = 0
+      goto exit.stack.command
+   end
+   if c # 'L' and c # '?' then undo.n = 0
+
    if at.command matches "'.'1A1N0X" then
       n = matchfield(at.command, "'.'1A1-3N0X", 3)
       at.command = matchfield(at.command, "'.'1A1-3N0X", 4)
@@ -1279,6 +1343,7 @@ stack.manipulation:
             i = 1
          end
 
+         undo.text = command.stack<n>     ;* 14 Oct 26 - what .C- would put back (item 296)
          loop
             j = index(s, arg1, i)
          while j
@@ -1287,6 +1352,7 @@ stack.manipulation:
          while i
          repeat
          command.stack<n> = s
+         undo.n = n
          display fmt(n, "2'0'R") : '  ' : s
  
       case c = "D"                                    ;* .D
@@ -1665,11 +1731,54 @@ proc.sentence.common:      ;* (Note: return to here from int.if)
       * We now either have a VOC entry in voc.rec or it's a null string
       * indicating that there was no VOC entry.
 
+      * 12 Oct 26 dm - openQM 1: a PRIVATE VOCABULARY, searched last.  A VOC record $PRIVATE.VOC  (X / file name)
+      * names a file of verb, sentence and paragraph records laid out as the VOC is; a command that is nowhere in
+      * the VOC is looked for there, in the same cases (as typed, lower, upper).  SD's own syntax.
+      if voc.rec = '' then
+         read pv.rec from voc, '$PRIVATE.VOC' then
+            if upcase(pv.rec[1,1]) = 'X' and pv.rec<2> # '' then
+               open pv.rec<2> to pv.f then
+                  read voc.rec from pv.f, verb else
+                     read voc.rec from pv.f, downcase(verb) else
+                        read voc.rec from pv.f, upcase(verb) else null
+                     end
+                  end
+                  close pv.f
+               end
+            end
+         end
+      end
+
 execute.command:
       * Save date and time of start of command for @DATE, @TIME, etc
 
       cproc.date = date()
       cproc.time = time()
+
+      * CLEAR.SELECT (10 Oct 26 dm, openQM ref 403): note whether list 0 is
+      * active before the command, so that a list the command makes is kept.
+      * Only the outermost command counts; a command that is left by a path
+      * that does not return through the end of this routine leaves the depth
+      * raised and so never clears anything, which is the safe way to fail.
+      cs.depth += 1
+      if cs.depth = 1 then
+         cs.was.active = selectinfo(0, 1)
+         void kernel(K$KEEP.SELECT, 0)    ;* KEEP.SELECT belongs to this command (15 Oct 26, QM4 gaps Q-16)
+      end
+      voc.via.k = @false      ;* Set by a K entry that hands over to the V entry in its fields 3 onwards (openQM 263)
+
+      * COMMAND.LOGGING (15 Oct 26 dm, QM4 gaps Q-8): when this session has it on, the command and where it came from go to
+      * the session's own log.  User: typed at the prompt; Cmd: the command line sd was started with; PA: a line of a
+      * paragraph; Exec: any other command run from inside one (EXECUTE, CHAIN, a menu).  Nothing happens when it is off.
+      * (An EXECUTE is run as a paragraph with no name, which is how it is told from a paragraph of the VOC.)
+      begin case
+         case in.paragraph and pa.name = '' ; cmd.origin = 'Exec'
+         case in.paragraph         ; cmd.origin = 'PA'
+         case cs.depth > 1         ; cmd.origin = 'Exec'
+         case system(1026) # ''    ; cmd.origin = 'Cmd'
+         case 1                    ; cmd.origin = 'User'
+      end case
+      void kernel(K$CMDLOG.WRITE, cmd.origin : @fm : new.sentence)
 
 reparse:
       voc.entry.type = upcase(voc.rec<1>)
@@ -1767,11 +1876,22 @@ reparse:
             begin case
                case dispatch.mode = "CA"  ;* Catalogued command
                   s = voc.rec<3>
+                  void kernel(K$CLASS.MAIN, 1)   ;* a class module named by a catalogued command is run through its MAIN (16 Oct 26, Fixes item 484)
                   call @s
                   s = ''   ;* Allow unload of object code
 
                case dispatch.mode = "CS"  ;* Catalogued subroutine
                   if option(OPT.RUN.NO.PAGE) then s = @(0,0)    ;* 0185 Inhibit pagination
+
+                  * 14 Oct 26 (openQM 263): a locally catalogued subroutine is found by the name of its VOC entry, which is the
+                  * name that was typed - but when the V entry was reached through a K entry (fields 3 onwards of the K), the
+                  * name typed is the K entry's, and the object is not found.  Its field 3 is the pathname of the object code
+                  * (a pathname is not a legal call name, so it cannot be called as it stands); the last part of it is the
+                  * name the program was catalogued under, which is also the name of its own VOC entry.
+                  if voc.via.k and index(voc.rec<3>, '/', 1) then verb = field(voc.rec<3>, '/', dcount(voc.rec<3>, '/'))
+                  voc.via.k = @false
+
+                  void kernel(K$CLASS.MAIN, 1)   ;* a class module named by a catalogued command is run through its MAIN (16 Oct 26, Fixes item 484)
                   call @verb
                   verb = ''       ;* 0541 Ensure link lost
 
@@ -1927,6 +2047,7 @@ reparse:
 
          case voc.entry.type[1,1] = "K" and len(trim(voc.rec<3>))
             voc.rec = field(voc.rec, @fm, 3, 99999)
+            voc.via.k = @true      ;* 14 Oct 26 (openQM 263): the V entry below was reached through a K entry
             goto reparse
 
          case 1
@@ -1954,6 +2075,7 @@ reparse:
                if z # '' then
                   voc.rec = 'V':@fm:'CA':@fm:verb
                   if option(OPT.RUN.NO.PAGE) then s = @(0,0)    ;* 0185 Inhibit pagination
+                  gosub scan.catalogued.options                 ;* 14 Oct 26 - LPTR and NO.PAGE, as RUN does (item 146)
                   goto reparse
                end
             end
@@ -1969,6 +2091,22 @@ reparse:
             unwinding = 2
             exit
       end case
+
+   * CHAINED.SELECT (14 Oct 26 dm, openQM refs 79 and 314): a GET.LIST, QSELECT, SEARCH, SELECT, SSELECT or SELECTINDEX
+   * that has made an active list executes the first command in the data queue, as the next command (it is chained
+   * in the way CHAIN chains); one that made no list leaves the queue empty.  Only when no CHAIN is already pending.
+   if option(OPT.CHAINED.SELECT) and xeq.command = '' and not(unwinding) then
+      if index(' GET.LIST QSELECT SEARCH SELECT SSELECT SELECTINDEX ', ' ' : upcase(verb) : ' ', 1) then
+         if selectinfo(0, SL$ACTIVE) then
+            if @data.pending then
+               input chained.cmd
+               xeq.command = chained.cmd
+            end
+         end else
+            cleardata
+         end
+      end
+   end
 
 exit.command:
    while len(xeq.command)
@@ -1986,6 +2124,18 @@ exit.command:
          end
       end
    repeat
+
+   * CLEAR.SELECT: the command has finished.  If a select list was waiting
+   * for it, it has had its chance, so clear it.
+
+   cs.depth -= 1
+   if cs.depth <= 0 then
+      cs.depth = 0
+      * KEEP.SELECT (15 Oct 26 dm, QM4 gaps Q-16): a program that meant to leave the list says so, and it is left
+      if cs.was.active and option(OPT.CLEAR.SELECT) and not(kernel(K$KEEP.SELECT, -1)) then clearselect 0
+      void kernel(K$KEEP.SELECT, 0)
+      cs.was.active = @false
+   end
 
    at.sentence = sentence.stack<1>
    del sentence.stack<1>
@@ -2371,6 +2521,7 @@ int.run:
 
 int.run.common:
    run.file.name = "bp"
+   run.no.page = @false
 
    * Get first name (file or record)
 
@@ -2395,6 +2546,7 @@ int.run.common:
 
          case keyword = kw$no.page
             s = @(0,0)                 ;* Inhibit pagination
+            run.no.page = @true        ;* and a heading may not turn it back on
 
          case 1
             if not(run.record.name.seen) then
@@ -2502,7 +2654,12 @@ int.run.common:
    run.pathname = fileinfo(run.file, fl$path) : @ds : run.record.name
    close run.file
 
+   * PAGINATE.ON.HEADING: RUN ... NO.PAGE stops a heading enabling pagination.
+   if run.no.page then i = kernel(K$PAGINATE, 2)
+
    run run.pathname
+
+   i = kernel(K$PAGINATE, 3)
 
    return
 
@@ -2747,10 +2904,14 @@ int.status:
 * INT.WHO  -  WHO (Internal verb 16)
 
 int.who:
+   * WHO USER also shows the user's login name (10 Oct 26 dm, openQM ref 289)
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+   who.user = if keyword = KW$USER then (' ' : @user) else ''
+
    if initial.account.path = account.path then
-      display @userno : ' ' : who
+      display @userno : ' ' : who : who.user
    end else
-      display sysmsg(5140, @userno, who, initial.account)
+      display sysmsg(5140, @userno, who, initial.account) : who.user
    end
 
    return
@@ -2780,6 +2941,24 @@ int.if:
    if.or = @true
 
    loop
+      nocase = @false
+
+      * 12 Oct 26 dm - openQM 28:  EXISTS file record  /  NOT.EXISTS file record  (SD's own syntax)
+      call @parser(PARSER$LOOK.AHEAD, token.type, s, keyword)
+      if token.type = PARSER$TOKEN and (upcase(s) = 'EXISTS' or upcase(s) = 'NOT.EXISTS') then
+         negate = (upcase(s) = 'NOT.EXISTS')
+         call @parser(PARSER$GET.TOKEN, token.type, s, keyword)        ;* The word
+         gosub get.if.value ; exists.file = s
+         gosub get.if.value ; exists.rec = s
+         rel.val = @false
+         open exists.file to exists.f then
+            readv exists.x from exists.f, exists.rec, 0 then rel.val = @true else null
+            close exists.f
+         end
+         if negate then rel.val = not(rel.val)
+         goto test.if.result
+      end
+
       call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
       begin case
          case token.type = PARSER$TOKEN
@@ -2797,6 +2976,30 @@ int.if:
          value.1 = ''
       end else
          call @parser(PARSER$GET.TOKEN, token.type, s, rel.op)
+
+         * 12 Oct 26 dm - openQM 230 and 426:  value IN v1 v2 ... {NO.CASE}  /  value NOT.IN v1 v2 ...
+         if token.type = PARSER$TOKEN and (upcase(s) = 'IN' or upcase(s) = 'NOT.IN') then
+            negate = (upcase(s) = 'NOT.IN')
+            in.list = ''
+            loop
+               call @parser(PARSER$LOOK.AHEAD, token.type, s, keyword)
+            until token.type = PARSER$END or keyword = KW$AND or keyword = KW$OR or upcase(s) = 'THEN' or upcase(s) = 'NO.CASE'
+               gosub get.if.value
+               in.list<-1> = s
+            repeat
+            call @parser(PARSER$LOOK.AHEAD, token.type, s, keyword)
+            if upcase(s) = 'NO.CASE' then
+               call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
+               nocase = @true
+            end
+            if nocase then
+               value.1 = upcase(value.1) ; in.list = upcase(in.list)
+            end
+            locate value.1 in in.list<0> setting in.pos then rel.val = @true else rel.val = @false
+            if negate then rel.val = not(rel.val)
+            goto test.if.result
+         end
+
          if (rel.op < KW$LOW.REL.OP) or (rel.op > KW$HIGH.REL.OP) then
             abort sysmsg(5172) ;* Relational operator missing in IF
          end
@@ -2819,7 +3022,14 @@ int.if:
          end case
          value.2 = s
       end
-   
+
+      * 12 Oct 26 dm - openQM 476:  NO.CASE after the second value makes the comparison ignore case
+      call @parser(PARSER$LOOK.AHEAD, token.type, s, keyword)
+      if upcase(s) = 'NO.CASE' then
+         call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
+         value.1 = upcase(value.1) ; value.2 = upcase(value.2)
+      end
+
       * Perform relational comparison
 
       on rel.op goto op.eq, op.ne, op.lt, op.le, op.ge, op.gt, op.like,
@@ -2887,6 +3097,19 @@ substitute.at.var:
    value = s
    gosub expand.at.vars
    s = value
+   return
+
+* Next token of an IF as a value: a word or a quoted string, @ variables expanded (12 Oct 26)
+get.if.value:
+   call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
+   begin case
+      case token.type = PARSER$TOKEN
+         if s[1,1] = "@" then gosub substitute.at.var
+      case token.type = PARSER$STRING
+         null
+      case 1
+         abort sysmsg(5171) ;* Value 1 missing in IF
+   end case
    return
 
 
@@ -3157,6 +3380,16 @@ int.logout:
             end
       
             call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
+
+            * 12 Oct 26 dm - openQM 386, SD's own syntax:  LOGOUT n GROUP  also logs out every phantom that
+            * process n started (the parent user number is value 5 of each K$USERS field).
+            if token.type # PARSER$END and upcase(s) = 'GROUP' then
+               users = kernel(K$USERS, 0)
+               for gi = 1 to dcount(users, @fm)
+                  if users<gi,K$USERS.PUID> + 0 = i and users<gi,K$USERS.UID> + 0 # i then z = logout(users<gi,K$USERS.UID> + 0, @false)
+               next gi
+               call @parser(PARSER$GET.TOKEN, token.type, s, keyword)
+            end
          until token.type = PARSER$END
          repeat
    end case
@@ -3682,6 +3915,48 @@ expand.at.vars:
 
    value = new.value : value
 
+   return
+
+* ======================================================================
+* scan.catalogued.options
+*
+* 14 Oct 26 dm  openQM item 146.  A program run by typing its catalogue name, not the name of a VOC verb, has the words
+*   LPTR and NO.PAGE after the name handled as RUN handles them: LPTR sends the output to printer 0, NO.PAGE stops the
+*   output being paginated.  Both stay in the sentence, so the program sees them if it scans its own command line.  A word
+*   inside quotation marks is not a keyword.  The words are looked for in the sentence as typed, split at spaces; the first
+*   is the program's own name.
+
+scan.catalogued.options:
+   sco.line = new.sentence : ' '      ;* the command line about to be executed (@SENTENCE is set after this)
+   sco.q = ''                ;* the quotation mark in force, if any
+   sco.w = ''                ;* the word being collected
+   sco.first = @true         ;* the first word is the program's name
+   for sco.i = 1 to len(sco.line)
+      sco.c = sco.line[sco.i, 1]
+      begin case
+         case sco.q # ''
+            sco.w := sco.c
+            if sco.c = sco.q then sco.q = ''
+         case sco.c = "'" or sco.c = '"' or sco.c = '\'
+            sco.q = sco.c
+            sco.w := sco.c
+         case sco.c = ' '
+            if sco.w # '' then
+               if not(sco.first) then
+                  begin case
+                     case upcase(sco.w) = 'LPTR'
+                        printer on
+                     case upcase(sco.w) = 'NO.PAGE'
+                        s = @(0,0)
+                  end case
+               end
+               sco.first = @false
+               sco.w = ''
+            end
+         case 1
+            sco.w := sco.c
+      end case
+   next sco.i
    return
 
 * ======================================================================

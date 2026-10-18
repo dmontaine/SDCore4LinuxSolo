@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 16 Oct 26 dm  QM4 Fixes 172: REPORTING shows how far a type conversion and an IMMEDIATE resize have got (messages 11386, 11387).
 * 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): the rebuild
 *               refuses a case-sensitive file that holds two ids differing only by
 *               case (10177, ER$TWIN) instead of silently dropping one; CASE is
@@ -84,6 +85,10 @@ $include err.h
    immediate = @false
    no.resize = -1
    binary = @false
+   next.value = -1                   ;* NEXT n: the next id WRITE ... CREATING.SEQKEY gives out (15 Oct 26)
+   next.query = @false
+   reporting = @false                ;* REPORTING: a progress line every REPORT.EVERY records, and the total (16 Oct 26)
+   report.every = 1000
 
    call @parser(PARSER$RESET, 0, @sentence, 0)
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb
@@ -202,6 +207,18 @@ $include err.h
          case keyword = KW$NO.RESIZE
             no.resize = @true
 
+         case keyword = KW$NEXT
+            * NEXT n sets, NEXT QUERY shows, the next sequential record id of a hashed file (15 Oct 26, CREATING.SEQKEY)
+            call @parser(parser$get.token, token.type, value, keyword)
+            begin case
+               case keyword = KW$QUERY
+                  next.query = @true
+               case value matches '1N0N'
+                  next.value = value + 0
+               case 1
+                  stop sysmsg(11349) ;* NEXT needs a number, or QUERY
+            end case
+
          case keyword = KW$SPLIT.LOAD
             dh.parameters = @true
             call @parser(parser$get.token, token.type, value, keyword)
@@ -231,7 +248,10 @@ $include err.h
 
          case keyword = KW$BINARY
             binary = @true
-   
+
+         case keyword = KW$REPORTING            ;* 16 Oct 26 dm - QM4 Fixes 172: show progress
+            reporting = @true
+
          case 1
             stop sysmsg(2018, token) ;* Unexpected token (xx)
       end case
@@ -280,17 +300,34 @@ $include err.h
       * invalid actions
 
       if no.resize >= 0 then
-         void fcontrol(old.fu, FC$NO.RESIZE, no.resize)
+         void fcontrol.int(old.fu, FCI$NO.RESIZE, no.resize)
       end
 
       if immediate then  ;* Perform rehashing for IMMEDIATE option
-         if fcontrol(old.fu, FC$SPLIT.MERGE, 0) then
+         if fcontrol.int(old.fu, FCI$SPLIT.MERGE, 0) then
             display sysmsg(6203, trimf(dict.flag : ' ' : file.name)) ;* Resizing %1
+            steps = 0
             loop
-            while fcontrol(old.fu, FC$SPLIT.MERGE, 0)
+            while fcontrol.int(old.fu, FCI$SPLIT.MERGE, 0)
+               steps += 1
+               if reporting and mod(steps, report.every) = 0 then display sysmsg(11387, steps) ;* %1 group moves so far
             repeat
+            if reporting then display sysmsg(11387, steps)
          end
       end
+   end
+
+   * NEXT n / NEXT QUERY: the counter of WRITE ... CREATING.SEQKEY.  The file is reopened, as it may have been rebuilt above.
+
+   if next.value >= 0 or next.query then
+      open dict.flag, file.name to old.fu else
+         stop sysmsg(1427, trimf(dict.flag : ' ' : file.name)) ;* Cannot open %1
+      end
+      if fileinfo(old.fu, FL$TYPE) # FL$TYPE.DH then
+         stop sysmsg(11350) ;* NEXT applies to a hashed file only
+      end
+      if next.value >= 0 then void fcontrol.int(old.fu, FCI$SET.SEQ.KEY, next.value)
+      if next.query then display sysmsg(11351, fileinfo(old.fu, FL$SEQ.KEY) + 1) ;* The next sequential record id is %1
    end
 
    @system.return.code = 0
@@ -378,6 +415,7 @@ convert.file:
    *   record on that path, about 2 us each (Handoff 61).
    twin.check = case.insensitive and not(old.case.insensitive)
 
+   rec.ct = 0
    select old.fu
    loop
       readnext id else exit
@@ -408,6 +446,8 @@ convert.file:
             end
          end
          write rec to new.fu, id
+         rec.ct += 1
+         if reporting and mod(rec.ct, report.every) = 0 then display sysmsg(11386, rec.ct) ;* %1 records converted so far
       end else
           display sysmsg(6171) ;* Error reading record from old file
 
@@ -423,6 +463,7 @@ convert.file:
       end
    repeat
 
+   if reporting then display sysmsg(11386, rec.ct)      ;* the total
    ak.list = ''
    if old.type = FL$TYPE.DH and new.type = FL$TYPE.DH then
       * Transfer trigger subroutine
@@ -437,6 +478,9 @@ convert.file:
          end
       end
 
+      * The counter of WRITE ... CREATING.SEQKEY goes to the new file (15 Oct 26): the next id is the last one used, and one more
+      seq.last = fileinfo(old.fu, FL$SEQ.KEY)
+      if seq.last > 0 then void fcontrol.int(new.fu, FCI$SET.SEQ.KEY, seq.last + 1)
 
       close new.fu
       void ospath("", OS$FLUSH.CACHE)

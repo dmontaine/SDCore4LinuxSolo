@@ -20,6 +20,10 @@
 	  * START-HISTORY:
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
+	  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's numbers 92, 97 to 117, 119 and 120, USR$GROUPED, the
+	  *               FCI$ names, the OPT. numbers to 60, the V$ and FL$ additions, as gplsrc/keys.h carries them.  NOT carried: K$LOGIN.UID (91),
+	  *               K$SH to K$PATH.IN (93-96), K$SD.ACCOUNTS (118), K$VOC.EDIT to K$EDIT.OS.OK (121-126), K$NET (127).  Solo's K$GLOBAL.SESSION (69)
+	  *               and USR$GLOBAL stay.
 	  * END-HISTORY
       *
       *  START-DESCRIPTION:
@@ -63,6 +67,10 @@
       $define IN$PANNING         0x00010000  ;* Panning input field
       $define IN$NO.ECHO.DATA    0x00020000  ;* Supress echo on input from DATA statements.
       $define IN$NO.CASE.INVERT  0x00040000  ;* Disable PTERM CASE inversion for the input session
+      $define IN$NO.ECHO         0x00080000  ;* NO.ECHO: no echo of typed characters (14 Oct 26, openQM 168)
+      $define IN$IF              0x00100000  ;* INPUTIF: only if input is waiting (14 Oct 26, openQM 584)
+      $define IN$FILL            0x00400000  ;* a fill string was given (K$INPUT.FILL.SET): fill the field with it (openQM 389)
+      $define IN$RAW             0x00200000 ;* INPUT ... RAW: exactly `length` characters, no interpretation of newline or erase (openQM 548)
 
       * KERNEL() function action keys
       $define K$INTERNAL         0       ;* Set/clear internal mode
@@ -89,6 +97,7 @@
       $define K$USERS.UNAME   6       ;* User login name
       $define K$USERS.DEV     7       ;* TTY name
       $define K$USERS.LOGIN   8       ;* Login time
+      $define K$USERS.ACCOUNT 9       ;* Account the session is in (14 Oct 26, sheet 24 and 29; empty until it enters one)
       $define K$CONFIG.DATA     16       ;* Configuration data
       $define K$LICENCE         17       ;* Validate licence data
       $define K$INIPATH         18       ;* Get ini file pathname
@@ -163,6 +172,42 @@
 *   say ($ADMIN and $GLOBAL both set it).  Get -1; set 1 / clear 0 from
 *   $internal code only.  gplsrc/keys.h carries the same note.
       $define K$GLOBAL.SESSION   69      ;* Signed in with $GLOBAL ($internal to set)
+*   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above).
+* 13 Oct 26 dm - The terminal's own size: kernel(K$WINSIZE, '') answers width, a
+*   field mark, height as the kernel last read them from the tty (start-up and
+*   every SIGWINCH), or null when it could not.  Must match gplsrc/keys.h.
+      $define K$WINSIZE         92       ;* The terminal's size from the tty
+* 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
+*   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
+*   own Linux permissions, and the kernel no longer carries those keys.
+*   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above); 92 is still free.
+* 14 Oct 26 dm - sheet items 24, 29 and 38 (LISTU).  K$SET.ACCOUNT: the account the session is in, for the user
+*   table; settable only from $internal (LOGIN, CPROC's logto, APISRVR), the name as it stands is returned.
+*   K$USER.PEAK: the most user table cells in use at once since SD started.  Must match gplsrc/keys.h.
+      $define K$SET.ACCOUNT     97       ;* Set the session's account name (user table)
+      $define K$USER.PEAK       98       ;* Peak number of users since SD started
+      $define K$INPUT.FILL.SET  99       ;* The fill string for the next INPUT / INPUT @ (14 Oct 26, openQM 389)
+      $define K$INPUT.FILL.GET  100      ;* ...and its pick-up by _INPUT / _INPUTAT, which forgets it
+      $define K$INPUT.NULL.SET  101      ;* INPUTNULL: set the character, old one returned (14 Oct 26, openQM 408)
+      $define K$INPUT.NULL.GET  102      ;* INPUTNULL: the character now
+      $define K$INPUT.TRAP.TEST 103      ;* _INPUTAT: is this typed character trapped by the caller's INPUTTRAP?
+      $define K$INPUT.TRAP.HIT  104      ;* the stub of INPUTTRAP: which label, and forget it
+      $define K$MAXMIN.POS.SET  105      ;* _MAXIMUM and _MINIMUM leave the position they found, for SYSTEM(1088) (15 Oct 26, Q-18)
+      $define K$PID.ALIVE       106      ;* 1 if the process with this id exists, 0 if not (15 Oct 26, Q-8, !login_inhibit)
+      $define K$KEEP.SELECT     107      ;* KEEP.SELECT flag of the running command: 1 set, 0 clear, -1 ask; the old value returns (15 Oct 26, Q-16)
+      $define K$CMDLOG          108      ;* COMMAND.LOGGING: 1 on, 0 off, -1 ask; the log's pathname when it is on, else null (15 Oct 26, Q-8)
+      $define K$CMDLOG.WRITE    109      ;* "origin<FM>command": one line in the command log if it is on (15 Oct 26, Q-8)
+      $define K$GROUP.PHANTOM   110      ;* Mark the phantom with this user number as grouped with this process: 1 if marked (15 Oct 26, Q-8, PHANTOM GROUP)
+      $define K$FORM.QUEUE      111      ;* unit * 1000 + queue: SP.ASSIGN gave form queue 'queue' to print unit 'unit' (15 Oct 26, Q-9)
+      $define K$NON.DURABLE.TXN 113      ;* 1: the next COMMIT is non-durable, a nested transaction goes to its parent (15 Oct 26, sheet 442)
+      $define K$USER.STATS      112     ;* File activity counts of a user (0: all): uid, 11 counts, when counting began, login name (15 Oct 26, Q-8)
+      $define K$PHANTOM.USER    114     ;* The next phantom() is to be this user number (one PHANTOMS keeps, not in use); 0 cancels (16 Oct 26, PHANTOM USER)
+      $define K$CLASS.MAIN      120     ;* 1: the next call may run a class module through its MAIN subroutine (CPROC, before it calls a catalogued command) (16 Oct 26, Fixes item 484)
+      $define K$IS.SDAPISRVR     25     ;* Is this process an API server?  (kernel.h K_IS_SDAPISRVR; named here 16 Oct 26)
+      $define K$RESET.ALL       119     ;* LOGTO ... RESET ALL: with a command, keep it and return to the bottom command processor, which takes it back with a null argument; 1 accepted, 0 refused (an API session) (16 Oct 26, Fixes item 30)
+      $define K$PROFILER        116     ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
+      $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
+      $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?
@@ -173,6 +218,9 @@
       $define PT$BINARY.IN       6       ;* Telnet binary mode, client -> server
       $define PT$BINARY.OUT      7       ;* Telnet binary mode, server -> client
       $define PT$TELNET          8       ;* Recognise TN_IAC on input?
+      $define PT$MARK            9       ;* Typed ctrl-\ ctrl-] ctrl-^ become SM VM FM?
+      $define PT$ERASE          10       ;* INPUT erase key: 0 default, 1-255 a character, 256 none
+      $define PT$CTRL.FILTER    11       ;* Discard control characters in INPUT and INPUT@?
 
       * OSPATH() action keys
       $define OS$PATHNAME        0       ;* Test if valid filename
@@ -190,6 +238,7 @@
       $define OS$DIR            12       ;* Return content of directory
       $define OS$MKDIR          13       ;* Create a directory
       $define OS$MKPATH         14       ;* Create a directory path
+      $define OS$OWNER          15       ;* Name of the user who owns the path (16 Oct 26)
       * 20240225 mab add chown to OSPATH function
       $define OS$CHOWN        100       ;* Chown on file / directory
 
@@ -198,6 +247,7 @@
 
       * @ABORT.CODE
       $define K$LOGOUT           3               ;* LOGOUT of phantom process
+      $define K$RESET.ALL.CODE   4               ;* LOGTO ... RESET ALL: every level was cast off and the bottom command processor called again
 
       * Kernel k_exit_cause values (from csrc kernel.h)
       $define K$EXIT.ABORT       3
@@ -211,6 +261,7 @@
       $define USR$CHGPHANT     0x0020    ;* Chargeable phantom
       $define USR$MSG.OFF      0x0040    ;* Messge reception disabled
       $define USR$GLOBAL       0x0100    ;* Signed in with $GLOBAL (ruling 33)
+      $define USR$GROUPED      0x0800    ;* (K$USERS only) a phantom grouped with its parent: logged out when the parent ends
 
       * USER_ENTRY events word
       $define EVT$LOGOUT       0x0001    ;* Forced logout - immediate termination
@@ -246,6 +297,7 @@
       $define FL$FLAGS.NORESIZE   0x00000008   ;* No splits/merges
       $define FL$FLAGS.NOCASE     0x00000010   ;* Case insensitive ids
       $define FL$FLAGS.TRUSTED    0x00000020   ;* Access requires trusted program
+      $define FL$FLAGS.COLLECTION 0x00000100   ;* Data collection file: records are collections (13 Oct 26)
 * 14 Sep 26 Windows port - RELEASE_1.1 5 D2.  Every hashed file is created
 *     NOCASE by the kernel (gplsrc/op_dio1.c), whatever flags it is given.
 *     KEEPCASE is a creation REQUEST, never a header bit (dh.h DHF_KEEPCASE,
@@ -352,6 +404,10 @@
       $define V$OBJCD        16
       $define V$OBJCDX       17
       $define V$PERSISTENT   18
+      $define V$COLL         19
+      ;* Not variable types: what DEBUG.INFO(6) says an element of a collection holds
+      $define V$JSON.BOOLEAN 20
+      $define V$JSON.NULL    21
 
       * Option flags (see also csrc options.h)
       $define OPT.UNASS.WARNING        0 ;* Treat unassigned variable as warning
@@ -373,7 +429,7 @@
       $define OPT.PICK.NULL           16 ;* Return null for null data in ML, MR and FMT()
       $define OPT.PICK.GRAND.TOTAL    17 ;* GRAND.TOTAL text on same line as values
       $define OPT.SUPPRESS.ABORT.MSG  18 ;* Suppress program details on abort
-      $define OPT.DEBUG.REBIND.KEYS   19 ;* Rebind AccuTerm keys on entry to debugger
+      $define OPT.DEBUG.REBIND.KEYS   19 ;* Reserved: no effect (it rebound AccuTerm keys on entry to the debugger)
       $define OPT.ED.NO.QUERY.FD      20 ;* Don't ask for confirmation on FD command in ED
       $define OPT.NO.SEL.LIST.QUERY   21 ;* Don't query use of select list
       $define OPT.CHAIN.KEEP.COMMON   22 ;* Keep unnamed common on CHAIN
@@ -387,6 +443,33 @@
       $define OPT.QUERY.PRIORITY.AND  30 ;* AND has priority over OR operator in query processor
       $define OPT.NO.DATE.WRAPPING    31 ;* Don't roll overlarge day number into next month
       $define OPT.PROC.A              32 ;* Treat Proc A command as in D3
+      $define OPT.SPACE.MCT           33 ;* Spaces in MCT conversion (kernel)
+      $define OPT.QUERY.STRING.COMP   34 ;* QPROC: EQ and NE are string comparisons
+      $define OPT.QUERY.STR.COMP.ALL  35 ;* QPROC: all relations on right aligned data are string comparisons
+      $define OPT.QUERY.SORT.NO.CASE  36 ;* QPROC: sorts are case insensitive
+      $define OPT.BACKSLASH.NOT.QUOTE 37 ;* Command parser: backslash is not a quote
+      $define OPT.DEFAULT.MV          38 ;* QPROC: C, D, I items with blank S/M are multivalued
+      $define OPT.CLEAR.SELECT        39 ;* Clear select list 0 after a command that did not make it
+      $define OPT.CATALOGUE.LOCAL     40 ;* CATALOG and DELETE.CATALOG default to the local catalogue
+      $define OPT.DIR.SEL.OMIT.HIDDEN 41 ;* Select of a directory file leaves out names that begin with a dot (kernel)
+      $define OPT.PICK.ML.CONV.MASK   42 ;* ML and MR: ( starts a parenthesised format mask, not round bracket negatives (kernel)
+      $define OPT.CHAINED.SELECT      43 ;* A select that finds something executes the first command in the data queue (cproc)
+      $define OPT.PAGINATE.ON.HEADING 44 ;* With RUN.NO.PAGE, a heading or footing enables pagination (kernel)
+      $define OPT.QUERY.FOOTER.PAUSE  47 ;* Pause for RETURN at end of a report with a page footer
+      $define OPT.FORCE.RELOAD        45 ;* An unload event also resets subroutine link variables (kernel)
+      $define OPT.INHERIT.MFILE.PATH  48 ;* CREATE.FILE puts a new subfile in the directory of the default subfile (createf)
+      $define OPT.GIT                 49 ;* .gitignore and .gitattributes are not mapped in a directory file (kernel)
+      $define OPT.DIR.DTM             50 ;* A write to a directory file moves the directory's date and time modified (kernel)
+      $define OPT.KEEP.OLD.OBJECT     51 ;* A failed compilation leaves the previous object code (basic)
+      $define OPT.NO.PHANTOM.NOTIFY   52 ;* A phantom does not tell its parent when it ends (cproc)
+      $define OPT.SPOOL.COMMAND       53 ;* Show the operating system command that prints (kernel)
+      $define OPT.ASSOC.ALL           54 ;* The query processor treats all fields as one association (qproc)
+      $define OPT.CORRELATIVE.NOCASE  55 ;* String operations in a correlative or I-type are case blind (kernel)
+      $define OPT.CORRELATIVE.REUSE   56 ;* Every operand of an array operation in a correlative or I-type is read as if REUSE() was applied (kernel)
+      $define OPT.QUERY.MERGE.PRINT   57 ;* A query to printer 0 leaves an already active printer on (qdisp)
+      $define OPT.COMMAND.LEVEL.LOCKS 58 ;* A file variable that goes keeps its locks until the program returns to the command processor (kernel)
+      $define OPT.STACKED.ACCOUNT     59 ;* An EXECUTE that changes account returns to the account it began in (cproc); accepted and inert in Solo (no LOGTO)
+      $define OPT.INHERIT.OWNERSHIP   60 ;* CREATE.FILE gives a new file the account directory's owner and group (kernel)
 
       * MKINDEX flag values (additive)
       $define MKI$CREATE               1 ;* Create indices
@@ -394,13 +477,17 @@
       $define MKI$NO.NULLS             4 ;* NO.NULLS (for create mode)
       $define MKI$NO.CASE              8 ;* NO.CASE (for create mode)
 
-      * FCONTROL() keys
-      $define FC$SET.JNL.FNO           1 ;* Set jnl_fno in file header
-      $define FC$KILL.JNL              2 ;* Disable journalling on open file
-      $define FC$SET.AKPATH            3 ;* Set akpath element of file header
-      $define FC$NON.TXN               4 ;* Set open file as non-transactional
-      $define FC$SPLIT.MERGE           5 ;* Force split/merge
-      $define FC$NO.RESIZE             6 ;* Set DHF_NO_RESIZE flag
+      * FCONTROL.INT() keys (the internal function; the public FCONTROL() has the openQM numbers, FC$ in keys.h).
+      * 15 Oct 26 dm - these were FC$ and FCONTROL; renamed so that keys.h can give FC$ its openQM meaning.
+      $define FCI$SET.JNL.FNO          1 ;* Set jnl_fno in file header
+      $define FCI$KILL.JNL             2 ;* Disable journalling on open file
+      $define FCI$SET.AKPATH           3 ;* Set akpath element of file header
+      $define FCI$NON.TXN              4 ;* Set open file as non-transactional
+      $define FCI$SPLIT.MERGE          5 ;* Force split/merge
+      $define FCI$NO.RESIZE            6 ;* Set DHF_NO_RESIZE flag
+      $define FCI$SET.MODE             7 ;* Set the permission bits of a record of a directory file: "id<FM>ooo" (15 Oct 26, Q-8)
+      $define FCI$SET.SEQ.KEY          8 ;* Set the next id of WRITE ... CREATING.SEQKEY (hashed files only)
+      $define FCI$GET.SEQ.KEY          9 ;* Take the next such id; a null string for a file that is not a hashed file
 
 
 

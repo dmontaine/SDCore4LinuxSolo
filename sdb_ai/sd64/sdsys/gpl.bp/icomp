@@ -18,6 +18,11 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm  QM4 Fixes 7: an L-type record can be used in an I-type, as link%item (link.reference; $linkref;
+*               the file expression of a link in in.trans; a link to a link in the dictionary of the file a
+*               TRANS() names).  Also: an undefined name that did not look like Fn stopped the compile with
+*               "Non-numeric where numeric required" at the F test, which BASIC does not short-circuit; it
+*               now gives message 2982.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
 *               dictionary read folds case, as typed then lower then upper; and an
 *               I-type's expression can name a field stored in lower case (it could
@@ -165,6 +170,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    at.vars = "ABORT.CODE"              ; at.offsets = SYSCOM.ABORT.CODE
    at.vars<-1> = "ABORT.MESSAGE"       ; at.offsets<-1> = SYSCOM.ABORT.MESSAGE
    at.vars<-1> = "ANS"                 ; at.offsets<-1> = SYSCOM.AT.ANS
+   at.vars<-1> = "BPV"                 ; at.offsets<-1> = SYSCOM.QPROC.BPV
    at.vars<-1> = "COMMAND"             ; at.offsets<-1> = SYSCOM.COMMAND
    at.vars<-1> = "COMMAND.STACK"       ; at.offsets<-1> = SYSCOM.COMMAND.STACK
    at.vars<-1> = "CONV"                ; at.offsets<-1> = SYSCOM.CONV
@@ -356,6 +362,9 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
 
    header.flags = HDR.ITYPE         ;* Option flags
    greatest.call.arg.count = 0
+   mode2 = 0                        ;* 16 Oct 26 (Fixes item 489): the string overlap modes in force, as bcomp's mode2 bits 0 to 2
+   str.ovl.used = @false            ;* ...and whether any of them has been named: then CHANGE, COUNT, INDEX and the like are preceded by OP.STROVL
+   time.ms = @false                 ;* $MODE TIME.MS: TIME() to the millisecond
 
    * Expression processing
 
@@ -363,6 +372,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    unary.minus = @false
 
    trans.stack = ""
+   link.dict.pending = ""           ;* 17 Oct 26 dm - see link.reference
+   collection.count.stack = ""      ;* 13 Oct 26 dm - data collections
 
    * Label table and jump opcode control data
    * _Tn = skip label for TOTAL() function
@@ -401,6 +412,54 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    end
 
    if print.code then print source
+
+   * 16 Oct 26 dm - Fixes item 489.  The expression may start with compiler modes: $MODE name{,name...} ; (one or more such
+   * settings).  They take the same effect as in a program.  Six are allowed; the I-type compiler does not read $BASIC.OPTIONS,
+   * and an I-type that is called from another cannot set modes.
+   loop
+      s = trimf(source)
+   until upcase(s[1,6]) # '$MODE '
+      i = index(s, ';', 1)
+      if i = 0 then exit            ;* Modes and nothing to evaluate: the expression is faulty, left to the tokenizer to say so
+      if depth > 1 then              ;* QPROC compiles the I-types it is asked for at depth 1; TRANS() of an I-type goes one deeper
+         err.msg = sysmsg(11396) ;* An I-type used by another I-type cannot set modes
+         goto error
+      end
+      mode.names = convert(' ', '', upcase(s[7, i - 7]))
+      mode.rest = s[i + 1, 999999]
+      for mk = 1 to dcount(mode.names, ',')
+         mnm = field(mode.names, ',', mk)
+         mneg = (mnm[1,1] = '-')
+         if mneg then mnm = mnm[2,99]
+         begin case
+            case mnm = ''
+               null
+            case mnm = 'CHANGE.NO.OVERLAP'
+               mode2 = if mneg then bitand(mode2, 6) else bitor(mode2, 1)
+               str.ovl.used = @true
+            case mnm = 'COUNT.OVERLAP'
+               mode2 = if mneg then bitand(mode2, 5) else bitor(mode2, 2)
+               str.ovl.used = @true
+            case mnm = 'INDEX.OVERLAP'
+               mode2 = if mneg then bitand(mode2, 3) else bitor(mode2, 4)
+               str.ovl.used = @true
+            case mnm = 'NOCASE.STRINGS'
+               if mneg then
+                  if bitand(header.flags, HDR.NOCASE) then header.flags -= HDR.NOCASE
+               end else
+                  header.flags = bitor(header.flags, HDR.NOCASE)
+               end
+            case mnm = 'TIME.MS'
+               time.ms = not(mneg)
+            case mnm = 'COMPATIBLE.APPEND'
+               null                 ;* About appending to a dynamic array in an assignment: an I-type has none
+            case 1
+               err.msg = sysmsg(11395, mnm) ;* %1 is not a mode an I-type can use
+               goto error
+         end case
+      next mk
+      source = mode.rest
+   repeat
 
    * Emit skeleton object header
 
@@ -609,6 +668,42 @@ get.token:
       u.look.ahead.token.string = u.token.strings(token.index)
    end
 
+   return
+
+* ======================================================================
+* JOIN.HYPHEN.NAME  -  A name, then - and another name or a number, that
+* together are the id of a dictionary item is one name (10 Oct 26 dm, openQM
+* ref 423).  TOKEN.STRING holds the name on entry; on exit it holds the joined
+* name and the tokens that made it up have been consumed.  If no item has the
+* joined id the expression is left alone, so A-B is still a subtraction.
+
+join.hyphen.name:
+   loop
+      jh.found = @false
+      if look.ahead.token = tkn.minus then
+         jh.next = tokens(token.index + 1)
+         if jh.next = tkn.name or jh.next = tkn.num then
+            jh.cand = token.string : '-' : token.strings(token.index + 1)
+            read jh.rec from dict.file, jh.cand then jh.found = @true
+            else
+               read jh.rec from dict.file, downcase(jh.cand) then
+                  jh.found = @true
+                  jh.cand = downcase(jh.cand)
+               end else
+                  read jh.rec from dict.file, upcase(jh.cand) then
+                     jh.found = @true
+                     jh.cand = upcase(jh.cand)
+                  end
+               end
+            end
+         end
+      end
+   while jh.found
+      gosub get.token         ;* The minus
+      gosub get.token         ;* The name or number
+      token.string = jh.cand
+      u.token.string = upcase(jh.cand)
+   repeat
    return
 
 * ======================================================================
@@ -1115,6 +1210,25 @@ expr:
    loop
       gosub get.expr.item
 
+      * A format string directly after a value, with no operator between them,
+      * is a format operation as it is in BASIC (10 Oct 26 dm, openQM ref 564).
+      * Insert the FMT operator that is not in the source.
+
+      if look.ahead.token = tkn.string then
+         priority = op.priority(tkn.fmt)
+         loop
+         while priority >= priority.stack(op.stack.depth)
+            opcode.byte = operator.stack(op.stack.depth)
+            gosub emit.simple
+            op.stack.depth -= 1
+         repeat
+         op.stack.depth += 1
+         operator.stack(op.stack.depth) = op(tkn.fmt)
+         priority.stack(op.stack.depth) = priority
+         gosub get.token              ;* The format string becomes the operand
+         continue
+      end
+
       * Check for operator using look ahead
 
    until look.ahead.token < tkn.low.operator
@@ -1173,16 +1287,23 @@ get.expr.item.again:
             opcode.byte = op.jfalse    ;* 0253
             gosub emit.jump
 
-            * Emit THEN clause
+            * Emit THEN clause.  10 Oct 26 dm (openQM ref 36): a THEN or an
+            * ELSE that is not there gives a null string, as in other
+            * multivalue systems, instead of a compile error.  (IF c ELSE x
+            * has no THEN part; IF c THEN x has no ELSE part.)
 
-            if u.look.ahead.token.string # "THEN" then
-               err.msg = sysmsg(2950) ;* THEN not found where expected in conditional expression
-               goto error
-            end
+            begin case
+               case u.look.ahead.token.string = "THEN"
+                  gosub get.token
+                  gosub expr          ;* Process THEN clause
 
-            gosub get.token
+               case u.look.ahead.token.string = "ELSE"
+                  opcode.byte = op.ldnull ; gosub emit.simple
 
-            gosub expr          ;* Process THEN clause
+               case 1
+                  err.msg = sysmsg(2950) ;* THEN not found where expected in conditional expression
+                  goto error
+            end case
 
             * Emit jump to exit label
 
@@ -1195,13 +1316,15 @@ get.expr.item.again:
             label.name = "_":jump.stack<1>:"E"
             gosub set.label
 
-            if u.look.ahead.token.string # "ELSE" then
-               err.msg = sysmsg(2951) ;* ELSE not found where expected in conditional expression
-               goto error
-            end
-            gosub get.token
+            if u.look.ahead.token.string = "ELSE" then
+               gosub get.token
 
-            gosub expr          ;* Process ELSE clause
+               gosub expr          ;* Process ELSE clause
+            end else
+               * No ELSE part: the value is the null string.  (A construct with
+               * neither THEN nor ELSE was refused above, with 2950.)
+               opcode.byte = op.ldnull ; gosub emit.simple
+            end
 
             * Emit exit label
             label.name = "_":jump.stack<1>:"X"
@@ -1218,6 +1341,7 @@ if.then.else.expr.abort:
 *           then upper; token.string becomes the id that matched, because it is
 *           written back and recorded as an embedded object name below.  The
 *           VOC fallback after it is unchanged.
+            gosub join.hyphen.name   ;* 10 Oct 26 dm, openQM ref 423
             read field.rec from dict.file, token.string else
                read field.rec from dict.file, downcase(token.string) then
                   token.string = downcase(token.string)
@@ -1229,6 +1353,29 @@ if.then.else.expr.abort:
                         read field.rec from @voc, u.token.string then
                            token.string = u.token.string
                         end else
+                           * 17 Oct 26 dm, QM4 Fixes 7: link%item names an item of the file an
+                           * L-type record in this dictionary points to.
+                           if index(token.string, '%', 1) then goto link.reference
+
+                           * 10 Oct 26 dm, openQM ref 547: a name that is F and
+                           * a number, and that no dictionary item has, is the
+                           * field of that number.  17 Oct 26: the tests are
+                           * nested, because BASIC does not stop at the first
+                           * false one, and any other undefined name (F is only
+                           * the start of this one) stopped the compile with
+                           * "Non-numeric where numeric required" instead of
+                           * the message below.
+                           if len(u.token.string) > 1 and u.token.string[1,1] = 'F' then
+                              fn = u.token.string[2,99]
+                              if num(fn) then
+                                 if not(index(fn, '.', 1)) and fn + 0 > 0 then
+                                    field.rec = ''
+                                    field.rec<1> = 'D'
+                                    field.rec<dict.loc> = fn + 0
+                                    goto have.field.rec
+                                 end
+                              end
+                           end
                            err.msg = sysmsg(2982, token.string) ;* Field 'xx' is not defined
                            goto error
                         end
@@ -1237,6 +1384,7 @@ if.then.else.expr.abort:
                end
             end
 
+have.field.rec:
             type = upcase(field.rec[1,1])
             begin case
                case type = 'D' or ((type = 'A' or type = 'S') and field.rec<dict.a.correlative> = '')
@@ -1247,6 +1395,15 @@ if.then.else.expr.abort:
                   end
 
                   gosub emit.field.load
+
+               case type = 'E'
+                  * 13 Oct 26 dm - an element of a data collection: the record is a collection, so this is
+                  * @RECORD{path}.  Field 2 is the path.
+                  n = SYSCOM.QPROC.RECORD ; gosub emit.ldsys
+                  opcode.string = field.rec<dict.loc> ; gosub emit.string.load
+                  n = 1 ; gosub emit.numeric.load       ;* One path component
+                  n = 3 ; gosub emit.numeric.load       ;* Function: get
+                  opcode.byte = OP.COLL ; gosub emit.simple
 
                case type = 'A' or type = 'S' or type = 'C'
                   * A/S-type item with correlative or C-type
@@ -1302,6 +1459,9 @@ if.then.else.expr.abort:
                      nested.source = nested.source[2,99999]
                   end
 
+* 17 Oct 26 dm: a link%item reference (link.reference, below) makes its TRANS() source and comes in here, so that
+* it is spliced into the token stream by the code that splices a nested I-type.
+splice.nested.source:
                   max.nested.tokens = 200
                   dim nested.tokens(max.nested.tokens)
                   dim nested.token.strings(max.nested.tokens)
@@ -1825,6 +1985,20 @@ in.total:
 
 in.trans:
          gosub get.token                ;* Read file name
+         if token = tkn.lbr and link.dict.pending # '' then
+            * 17 Oct 26 dm, QM4 Fixes 7: the file expression of a link (link.reference).  Only a link makes this form:
+            * it is not offered to an I-type as written.  The item name is looked up in the dictionary of the file field
+            * 3 of the link names, which is what link.dict.pending holds.
+            ins link.dict.pending before trans.stack<1>
+            link.dict.pending = ''
+            gosub expr                  ;* File name expression
+            gosub get.token
+            if token # tkn.rbr then
+               err.msg = sysmsg(2963) ;* Right bracket not found where expected
+               goto error
+            end
+            goto trans.file.read
+         end
          if token # tkn.string then     ;* It's not a quoted string
             if token # tkn.name then
                err.msg = sysmsg(2985) ;* Filename not found where expected in TRANS()
@@ -1847,6 +2021,7 @@ in.trans:
 
          opcode.string = token.string
          gosub emit.string.load         ;* File name
+trans.file.read:
          if look.ahead.token # tkn.comma then
             err.msg = sysmsg(2959) ;* Comma not found where expected
             goto error
@@ -1921,16 +2096,60 @@ parse.as.dictionary.name:
                read trans.dict.rec from trans.file.dict, token.string else
                   read trans.dict.rec from trans.file.dict, downcase(token.string) else
                      read trans.dict.rec from trans.file.dict, upcase(token.string) else
-                        err.msg = sysmsg(2024, token.string)  ;* 'xx' not found in dictionary
-                        goto error
+                        * 17 Oct 26 dm, QM4 Fixes 7: link%item in that dictionary is a link to a third file.  It is
+                        * compiled below as an I-type whose expression is the name, which this compiler resolves.
+                        trans.dict.rec = ''
+                        if index(token.string, '%', 1) then
+                           * (a different variable for each output: they are passed by reference)
+                           call $linkref(trans.file.dict, token.string, 1, tl.rec, tl.rest, tl.attr, trans.link.status, tl.detail)
+                           if trans.link.status = 0 then trans.dict.rec = 'I' : @fm : token.string
+                        end
+                        if trans.dict.rec = '' then
+                           err.msg = sysmsg(2024, token.string)  ;* 'xx' not found in dictionary
+                           goto error
+                        end
                      end
                   end
                end
 
+               trans.type = upcase(trans.dict.rec[1,1])
                begin case
-                  case trans.dict.rec[1,1] = 'D'   
+                  case trans.type = 'D'
                      n = trans.dict.rec<2>
                      gosub emit.numeric.load
+
+                  case trans.type = 'E'
+                     * 13 Oct 26 dm - an E-type item of a data collection file: the third argument is a path,
+                     * marked with a leading { so that _trans tells it from the object code of an I-type.
+                     opcode.string = '{' : trans.dict.rec<2>
+                     gosub emit.string.load
+
+                  case (trans.type = 'A' or trans.type = 'S') and trans.dict.rec<dict.a.correlative> = ''
+                     * 10 Oct 26 dm, openQM ref 182: an A or S item with no
+                     * correlative is a field position, as a D-type is.
+                     n = trans.dict.rec<dict.loc>
+                     gosub emit.numeric.load
+
+                  case trans.type = 'A' or trans.type = 'S' or trans.type = 'C'
+                     * 10 Oct 26 dm, openQM ref 182: an A, S or C item with an
+                     * expression is compiled as the same object code an I-type
+                     * gives, and evaluated against the record read by TRANS().
+                     call $dcomp(trans.file.dict,   ;* File var of dictionary
+                                 token.string,      ;* Record name
+                                 trans.dict.rec,    ;* Record to compile
+                                 z,                 ;* I-type format
+                                 z,                 ;* I-type conversion
+                                 z,                 ;* I-type S/M flag
+                                 z,                 ;* I-type association
+                                 z,                 ;* I-type is constant
+                                 depth + 1)         ;* Recursive compilation depth
+                     if trans.dict.rec<DICT.ITYPE.OBJECT> = '' then
+                        err.msg = sysmsg(2612, token.string) ;* Compilation error in %1
+                        goto error
+                     end
+
+                     opcode.string = trans.dict.rec<DICT.ITYPE.OBJECT>
+                     gosub emit.string.load
 
                   case trans.dict.rec[1,1] = 'I'
                      call @icomp(trans.file.dict,    ;* File var of dictionary
@@ -2004,6 +2223,23 @@ in.trim:
 
 in.none:
 intrinsic.common:
+         * 16 Oct 26 dm - Fixes item 489.  As in a program (bcomp, intrinsic.common): once an overlap mode has been named in this
+         * I-type, each call of the functions it touches is preceded by the modes then in force, a mask for OP.STROVL; and with
+         * $MODE TIME.MS, TIME() is SYSTEM(1020) / 1000.
+         if str.ovl.used then
+            i = intrinsic.stack<1>
+            if i = op.change or i = op.count or i = op.counts or i = op.index or i = op.indexs then
+               n = bitand(mode2, 7) ; gosub emit.numeric.load
+               opcode.byte = op.strovl ; gosub emit.simple
+            end
+         end
+         if time.ms and intrinsic.stack<1> = op.time then
+            n = 1020 ; gosub emit.numeric.load
+            opcode.byte = op.system ; gosub emit.simple
+            n = 1000 ; gosub emit.numeric.load
+            opcode.byte = op.div ; gosub emit.simple
+            goto intrinsic.end
+         end
          opcode.byte = intrinsic.stack<1> ;gosub emit.simple
 
 intrinsic.end:
@@ -2160,6 +2396,14 @@ intrinsic.end:
       end
    end
 
+   * Check for a data collection element: item{name, name}{name}  (13 Oct 26 dm)
+
+   if look.ahead.token = tkn.lcbr then
+      gosub emit.collection.path
+      n = 3 ; gosub emit.numeric.load       ;* Function: get
+      opcode.byte = op.coll ; gosub emit.simple
+   end
+
    * Check for substring extraction
 
    if look.ahead.token = tkn.lsqbr then
@@ -2194,6 +2438,35 @@ intrinsic.end:
       gosub emit.simple
    end
 
+   return
+
+*****************************************************************************
+* EMIT.COLLECTION.PATH  -  The {name, name}{name} after a data collection
+*
+* All the groups are one path (see bcomp's routine of the same name): the
+* components are pushed in order and then their number.  The next token is the
+* first {; afterwards we are past the last }.
+
+emit.collection.path:
+   ins 0 before collection.count.stack<1>
+   loop
+      gosub get.token         ;* Skip the {
+      loop
+         gosub expr
+         collection.count.stack<1> += 1
+      while look.ahead.token = tkn.comma
+         gosub get.token
+      repeat
+      if look.ahead.token # tkn.rcbr then
+         err.msg = sysmsg(11124) ;* Right curly bracket not found where expected
+         goto error
+      end
+      gosub get.token         ;* Skip the }
+   while look.ahead.token = tkn.lcbr
+   repeat
+   n = collection.count.stack<1>
+   del collection.count.stack<1>
+   gosub emit.numeric.load
    return
 
 *****************************************************************************
@@ -2423,6 +2696,75 @@ display.code:
    return
 
 *****************************************************************************
+* LINK.REFERENCE  -  link%item (17 Oct 26 dm, QM4 Fixes 7)
+*
+* TOKEN.STRING is a name with a % in it that no dictionary item has.  $LINKREF
+* finds the L-type record of the part before the first % and the display
+* properties of the item the whole name reaches (through any further links).
+* The reference means TRANS(file, id expression, item, "X"), and it is made
+* here at compile time: the source below is spliced into the token stream as a
+* nested I-type is.  A link with a file expression in field 4 has the file
+* expression for the TRANS() file name and field 3 for the dictionary its item is
+* looked up in; link.dict.pending carries that to in.trans, which takes it as it
+* reads the file name.  Changing a link means recompiling the I-types that use it.
+
+link.reference:
+   call $linkref(dict.file, token.string, 1, link.rec, link.rest, link.attr, link.status, link.detail)
+   begin case
+      case link.status = 0
+         null
+      case link.status = 2
+         err.msg = sysmsg(7271, link.detail<1>, link.detail<2>) ;* Cannot open xx dictionary for link xx
+      case link.status = 3
+         err.msg = sysmsg(11401, link.detail) ;* Links nested too deeply
+      case link.status = 4
+         err.msg = sysmsg(11402, link.detail) ;* Link xx names no file
+      case link.status = 5
+         err.msg = sysmsg(7272, link.detail) ;* Link item xx not found
+      case link.status = 6
+         err.msg = sysmsg(7274, link.detail) ;* Link item xx is not of a suitable type
+      case 1
+         err.msg = sysmsg(2982, token.string) ;* Field 'xx' is not defined: the part before the % is not a link
+   end case
+   if link.status then goto error
+
+   link.name = token.string[1, index(token.string, '%', 1) - 1]
+   link.id.expr = trim(link.rec<2>)
+   link.file.expr = trim(link.rec<4>)
+   if link.id.expr = '' then
+      err.msg = sysmsg(11403, link.name) ;* Link xx has no id expression
+      goto error
+   end
+   if index(link.id.expr, ';', 1) or index(link.file.expr, ';', 1) then
+      err.msg = sysmsg(11404, link.name) ;* The expressions of link xx cannot be compound
+      goto error
+   end
+   if index(link.rec<3>, '"', 1) then
+      err.msg = sysmsg(11402, link.name)
+      goto error
+   end
+
+   * The properties of what it reaches are the defaults for an I-type that begins with this reference
+
+   constant = @false
+   if first.field then
+      format = link.attr<2>
+      conversion = link.attr<3>
+      sm = link.attr<4>
+      assoc = link.attr<5>
+      first.field = @false
+   end
+
+   if link.file.expr = '' then
+      link.file.part = '"' : link.rec<3> : '"'
+   end else
+      link.file.part = '(' : link.file.expr : ')'
+      link.dict.pending = link.rec<3>
+   end
+   nested.source = 'TRANS(' : link.file.part : ',(' : link.id.expr : '),' : link.rest : ',"X")'
+   goto splice.nested.source
+
+* ======================================================================
 * ERROR  -  Report error
 
 error:

@@ -18,6 +18,19 @@
 * 
 * 
 * START-HISTORY:
+* 18 Oct 26 SD Core for Linux Solo (LSOLO 52): the changes of 11 to 15 Oct below, carried
+*           from SD Core for Linux 5315c65 (merge base c0802d7); the VOC guard
+*           (LSOLO 6) stays before the JSON unload write and the other writes.
+* 15 Oct 26 dm  CREATING.SEQKEY in the place of a record id (openQM 4): the editor takes the file's next sequential
+*               id (the counter WRITE ... CREATING.SEQKEY uses, through $seqkey) and edits a new record under it.
+* 14 Oct 26 dm  1.2-0 bundle A-11: EV on a compound I-type no longer corrupts a quoted string (openQM item 268: the
+*               string was cut from CURRENT.LINE with an index nothing had set); text, subvalue and value marks are
+*               accepted as typed input without NPRINT (item 320).
+* 11 Oct 26 dm  A record of a data collection file is edited as its JSON text, one
+*               element to a line (JB$PRETTY); filed or unloaded into a data
+*               collection file the lines go back as text, which the file parses
+*               and refuses if it is not a JSON object or array.  The editor died
+*               with "Data cannot be converted to a string" on such a record.
 * 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - saving, unloading into or deleting
 *           a VOC record needs ADMIN (ruling 14, !voc_guard), as in Solo for
 *           Windows.
@@ -66,6 +79,11 @@ $define COMMAND.STACK.DEPTH 99
    parser = "!PARSER"
    source.control = "SOURCE.CONTROL"
 
+* 15 Oct 26 dm  CREATING.SEQKEY on the command line goes into the list of ids as this word, which no id typed at a
+*   keyboard is, so that "CREATING.SEQKEY" in quotes (token type PARSER$STRING) is still the record of that name.
+   seq.mark = char(1) : 'SEQKEY'
+   seq.failed = @false
+
 * 11 Sep 26 Windows port - THE MINUS WAS MISSING (UPSTREAM_FIXES 11).  err.h:
 *   commands set the arithmetic INVERSE of the err.h value into
 *   @SYSTEM.RETURN.CODE, and CREATEA and DELACC write this identical preset as
@@ -102,6 +120,14 @@ $define COMMAND.STACK.DEPTH 99
       printing.chars := char(i)
    next i
 
+* 14 Oct 26 dm  openQM item 320: the text, subvalue and value marks (251 to 253) are accepted as typed, without NPRINT:
+*   they are what separates the parts of one line (a field) in the record being edited.  The field mark (254) and the
+*   item mark (255) are not: a field mark typed into a line would split it into two without the user seeing it, so those
+*   two still need NPRINT or a ^254 / ^255 escape.
+   for i = 251 to 253
+      printing.chars := char(i)
+   next i
+
    chunks = 0                      ;* No chunks allocated (includes free)
    free.chunks = 0                 ;* No free chunks
    free.chain = 0
@@ -116,6 +142,15 @@ $define COMMAND.STACK.DEPTH 99
    expand.non.printing = @false    ;* Replace by ^nnn?
    query.block.actions = @true
    match.case = @true
+   show.ev.position = @true        ;* In edit values mode the higher level positions are put before the line number
+
+* 16 Oct 26 dm - Fixes items 305 and 331: external commands.  $ED.OPTIONS names catalogued subroutines and the commands they
+*   handle (EXTERNAL name pattern {pattern...}); ext.names holds the subroutines and ext.patterns, for each, its patterns
+*   (value marks).  INFO is the array the subroutine is given (see external.command).
+   ext.names = ''
+   ext.patterns = ''
+   ext.count = 0
+   dim info(8)
 
    command.stack = ""
    help.text = ""
@@ -139,6 +174,10 @@ $define COMMAND.STACK.DEPTH 99
                   match.case = (s2 # 'OFF')
                case s = 'NPRINT'
                   allow.non.printing = (s2 = 'ON')
+               case s = 'NO.EV.POSITION'       ;* 16 Oct 26 (QM4 Fixes 375): no field and value numbers before a line number in EV
+                  show.ev.position = @false
+               case s = 'EXTERNAL'             ;* 16 Oct 26 (QM4 Fixes 305, 331): EXTERNAL name pattern {pattern ...}
+                  gosub parse.external.option
             end case
          next i
       end
@@ -200,10 +239,21 @@ $define COMMAND.STACK.DEPTH 99
       begin case
          case keyword = KW$NO.QUERY
             no.query = @true
+         case token.type = PARSER$TOKEN and upcase(token) = 'CREATING.SEQKEY'
+            id.list<-1> = seq.mark  ;* (in quotes it is a record id like any other)
          case 1
             id.list<-1> = token
       end case
    repeat
+
+   * CREATING.SEQKEY needs a file that can give an id: say so before any record is edited
+   if index(id.list, seq.mark, 1) then
+      call $seqkey(file, @false, seq.id, seq.why)
+      if seq.why # '' then
+         @system.return.code = -ER$ARGS
+         stop seq.why
+      end
+   end
 
    if id.list # '' then
       if id.list = '*' then gosub edit.all
@@ -211,7 +261,9 @@ $define COMMAND.STACK.DEPTH 99
          edit.from.list = @false    ;* Not a select list
          loop
             record.name = remove(id.list, more.ids)
-            gosub edit
+            seq.failed = @false
+            if record.name = seq.mark then gosub next.seq.key
+            if not(seq.failed) then gosub edit
          while more.ids
          repeat
       end
@@ -255,11 +307,27 @@ $define COMMAND.STACK.DEPTH 99
                gosub edit.all
                exit
             end
-            gosub edit
+            seq.failed = @false
+            if upcase(record.name) = 'CREATING.SEQKEY' then gosub next.seq.key
+            if not(seq.failed) then gosub edit
             first.record = @false
          repeat
       end
    end
+
+   return
+
+*****************************************************************************
+* NEXT.SEQ.KEY  -  CREATING.SEQKEY was asked for in the place of a record id
+*
+* record.name becomes the file's next sequential id, taken now, as the edit begins.  If none can be given the reason is
+* displayed and seq.failed is set, so that the caller edits nothing.
+
+next.seq.key:
+   call $seqkey(file, @true, seq.id, seq.why)
+   seq.failed = (seq.why # '')
+   if seq.failed then display seq.why
+   else record.name = seq.id
 
    return
 
@@ -354,6 +422,10 @@ edit:
       display sysmsg(1433, record.name, status()) ;* Record 'xx' is locked by user xx
       return
    end then
+      * A record of a data collection file is a collection: take its JSON text, a line to an element
+      jt = jtype(rec)
+      if jt = 'collection' or jt = 'array' then rec = convert(char(10), @fm, jbuild(rec, JB$PRETTY))
+
       s = rec[1,1]
       if len(dict.flag) and listindex('A,C,I,S', ',', s) then
          rec = trim(field(rec, @fm, 1, DICT.SYS.INFO - 1), @fm, 'T')
@@ -777,6 +849,13 @@ parse.command:
          if prestore.position = 0 then
             del command.stack<COMMAND.STACK.DEPTH>
             ins raw.command before command.stack<1>
+         end
+
+         * An external command (Fixes items 305 and 331) takes the line before the standard commands do, and can replace one
+
+         if ext.count then
+            gosub external.command
+            if ext.done then continue
          end
 
          begin case
@@ -1255,7 +1334,7 @@ e:
                   case c = '"' or c = "'" or c = '\'
                      j = index(s[1,9999999], c, 2)
                      if j = 0 then j = len(s)
-                     rec := current.line[i,j]
+                     rec := s[1,j]       ;* 14 Oct 26 (openQM item 268): was current.line[i,j], with I never assigned
                      s = s[j+1,9999999]
 
                   case parenthesis.level
@@ -1791,6 +1870,9 @@ l:
          end
 
          close n.file
+
+         jt = jtype(s)   ;* A record of a data collection file: its JSON text, a line to an element
+         if jt = 'collection' or jt = 'array' then s = convert(char(10), @fm, jbuild(s, JB$PRETTY))
 
          n.lines = dcount(s, @fm)
 
@@ -2624,7 +2706,13 @@ u:
             release n.file, new.record
             goto abort.unload
          end
-         write s to n.file, new.record
+         * A data collection file takes the lines as JSON text, and refuses text that is not
+         if fileinfo(n.file, FL$COLLECTION) then s = convert(@fm, char(10), s)
+         write s to n.file, new.record on error
+            message = sysmsg(6598, status(), os.error()) ;* Write error %1 - Data not saved
+            gosub error
+            goto abort.unload
+         end
          display sysmsg(6586, n.lines, new.file, new.record)
          * %1 lines unloaded to %2 %3
 
@@ -3117,7 +3205,9 @@ find.line:
 
 show.lines:
    gosub find.line
+   gosub ev.prefix
    loop
+      display ev.pfx :
       if lines > 9999 then display fmt(n, len(lines) : "'0'R") :
       else display fmt(n, "4'0'R") :
       begin case
@@ -3146,11 +3236,30 @@ show.lines:
    return
 
 *****************************************************************************
+* EV.PREFIX  -  In edit values mode, the numbers of the field (and value) being edited, put before a line number: 3.0004 is
+*               line 4 of the value list of field 3, 3.2.0004 line 4 of the subvalues of value 2 of field 3.  Nothing outside EV,
+*               or with the NO.EV.POSITION option of $ED.OPTIONS.  (16 Oct 26, QM4 Fixes 375)
+
+ev.prefix:
+   ev.pfx = ''
+   if show.ev.position then
+      begin case
+         case ev.depth = 1
+            ev.pfx = ev.posn(1) : '.'
+         case ev.depth = 2
+            ev.pfx = ev.posn(1) : '.' : ev.posn(2) : '.'
+      end case
+   end
+   return
+
+*****************************************************************************
 * SHOW.CURRENT  -  Show current line
 
 show.current:
    if posn = 0 then return
 
+   gosub ev.prefix
+   display ev.pfx :
    if lines > 9999 then display fmt(posn, len(lines) : "'0'R") :
    else display fmt(posn, "4'0'R") :
    begin case
@@ -3481,7 +3590,10 @@ save.record:
 
    if write.allowed then
       saved.ok = @true
-      writeu rec to n.file,new.record
+      out.rec = rec
+      * A data collection file takes the lines as JSON text
+      if fileinfo(n.file, FL$COLLECTION) then out.rec = convert(@fm, char(10), rec)
+      writeu out.rec to n.file,new.record
       on error
          saved.ok = @false
          if status() = ER$TRIGGER then
@@ -3600,6 +3712,111 @@ save.oops.rec:
       oops.rec := @fm : chunk(ch)
       ch = chunk.next(ch)
    repeat
+
+   return
+
+* ======================================================================
+* PARSE.EXTERNAL.OPTION  -  EXTERNAL name pattern {pattern ...}  in $ED.OPTIONS  (16 Oct 26, QM4 Fixes items 305 and 331)
+*
+* rec<i> is the line.  The patterns follow the subroutine name, separated by spaces; one with a space in it is in double quotes.
+* Several can be given without quotes, one after another.  A pattern is a MATCHES template or a plain constant: the command
+* line has to match it, whatever the case.  A line with no name or no pattern is ignored, as an unrecognised option is.
+
+parse.external.option:
+   ext.line = trim(rec<i>)
+   ext.nm = downcase(field(ext.line, ' ', 2))
+   ext.rest = trimf(field(ext.line, ' ', 3, 99999))
+   ext.pats = ''
+   loop
+   while ext.rest # ''
+      if ext.rest[1,1] = '"' then
+         ext.j = index(ext.rest, '"', 2)
+         if ext.j = 0 then ext.j = len(ext.rest) + 1
+         ext.pats<1,-1> = ext.rest[2, ext.j - 2]
+      end else
+         ext.j = index(ext.rest, ' ', 1)
+         if ext.j = 0 then ext.j = len(ext.rest) + 1
+         ext.pats<1,-1> = ext.rest[1, ext.j - 1]
+      end
+      ext.rest = trimf(ext.rest[ext.j + 1, 99999])
+   repeat
+   if ext.nm # '' and ext.pats # '' then
+      ext.names<-1> = ext.nm
+      ext.patterns<-1> = ext.pats
+      ext.count += 1
+   end
+
+   return
+
+* ======================================================================
+* EXTERNAL.COMMAND  -  Is the command one of the external commands?  If so, run its subroutine  (16 Oct 26 dm, items 305 and 331)
+*
+* Sets ext.done when the command was an external one, whatever came of it.  The subroutine is called with two arguments, INFO and
+* ERROR (the openQM contract):
+*    INFO(1) file name including DICT   INFO(2) record id   INFO(3) the data being edited (the record, or the level being
+*    edited in EV)   INFO(4) current line, 0 at the top   INFO(5) and (6) block start and end, 0 if not set   INFO(7) the command
+*    as it was typed   INFO(8) edit values depth (0 normal, 1 values, 2 subvalues; 3, the elements of a compound I-type, counts as 2)
+* If ERROR is set true it has failed and the editor changes nothing; otherwise the editor takes INFO(3) as the data and
+* INFO(4) to (6) as the positions, which are kept inside the record.  OOPS undoes what the subroutine did.
+
+external.command:
+   ext.done = @false
+   u.cmd = upcase(command)
+   ext.found = 0
+   for ext.i = 1 to ext.count
+      for ext.j = 1 to dcount(ext.patterns<ext.i>, @vm)
+         ext.p = upcase(ext.patterns<ext.i,ext.j>)
+         if u.cmd = ext.p or u.cmd matches ext.p then ext.found = ext.i
+      next ext.j
+   until ext.found
+   next ext.i
+   if not(ext.found) then return
+
+   ext.done = @true
+   ext.sub = ext.names<ext.found>
+
+   gosub save.oops.rec                     ;* So that OOPS can undo it
+   gosub assemble.record                   ;* rec is the record as it is now
+   info(1) = full.file.name
+   info(2) = record.name
+   info(3) = rec
+   info(4) = posn
+   info(5) = block.top
+   info(6) = block.bottom
+   info(7) = raw.command
+   info(8) = if ev.depth = 3 then 2 else ev.depth
+   ext.err = @false
+
+   call @ext.sub(mat info, ext.err)
+
+   if ext.err then
+      rec = ''
+      message = sysmsg(11397, ext.sub) ;* External command %1 failed
+      gosub error
+      oops.command = ''
+      return
+   end
+
+   if info(3) # rec then
+      rec = info(3)
+      hd = head
+      gosub release.chunks
+      lines = if rec = '' then 0 else dcount(rec, @fm)
+      gosub split.into.chunks
+      record.updated = @true
+   end
+   rec = ''
+
+   posn = info(4) + 0
+   if posn < 0 then posn = 0
+   if posn > lines then posn = lines
+   block.top = info(5) + 0
+   if block.top < 0 then block.top = 0
+   if block.top > lines then block.top = lines
+   block.bottom = info(6) + 0
+   if block.bottom < 0 then block.bottom = 0
+   if block.bottom > lines then block.bottom = lines
+   if posn then gosub get.current
 
    return
 

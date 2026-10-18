@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 13 Oct 26 dm  BY / BY.DSND field {NO.CASE} sorts the pick list (it is passed to SELECT,
+*               list 11); Return pages forward in a record; Esc-Z pages back (openQM page).
+* 12 Oct 26 dm  X deletes the item being shown, after asking; one taken from the
+*               pick list is taken off it (openQM 450).
 * 12 Sep 26 dm  The hold-file VOC id is $hold (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -58,11 +62,31 @@ $include keyin.h
    item.name = ''
    lptr = 0
    numbering = @false
+   sort.clause = ''              ;* 13 Oct 26 dm - openQM 'SP.VIEW file BY field'
+   sort.state = 0                ;* 1 = a field name must follow BY, 2 = NO.CASE may follow it
+   sort.no.case = @false         ;* The NO.CASE qualifier: SELECT has no such word, so OPTION QUERY.SORT.NO.CASE does it
 
    loop
       call @parser(PARSER$MFILE, token.type, token, keyword)
    until token.type = PARSER$END
       begin case
+         case sort.state = 1 and keyword = KW$NO.CASE
+            sort.no.case = @true          ;* Before the field name
+
+         case sort.state = 1
+            sort.clause := ' ' : token
+            sort.state = 2
+
+         case sort.state = 2 and keyword = KW$NO.CASE
+            sort.no.case = @true          ;* After it
+            sort.state = 0
+
+         case keyword = KW$BY or keyword = KW$BY.DSND
+            if sort.clause # '' then stop sysmsg(2018, token) ;* Unexpected token (xx)
+            by.token = token
+            sort.clause = ' ' : token
+            sort.state = 1
+
          case keyword = KW$DICT
             call @parser(PARSER$MFILE, token.type, token, keyword)
             if token.type = PARSER$END then stop 'File name required'
@@ -86,6 +110,8 @@ $include keyin.h
             stop sysmsg(2018, token ) ;* Unexpected token (xx)
       end case
    repeat
+
+   if sort.state = 1 then stop sysmsg(7266, by.token) ;* Expected field name after xx
 
    if file.name = '' then
       * If we have just one name, resolve whether we are looking at a single
@@ -132,12 +158,30 @@ $include keyin.h
    void bindkey('', -5)
    i = bindkey(char(27):'V', K$PAGE.UP)
    i = bindkey(char(27):'v', K$PAGE.UP)
+   i = bindkey(char(27):'Z', K$PAGE.UP)    ;* 13 Oct 26 dm - the page's Esc-Z, up one page in a record
+   i = bindkey(char(27):'z', K$PAGE.UP)
    i = bindkey(char(27):'<', K$HOME)
    i = bindkey(char(27):'>', K$END)
    
    if item.name = '' then
-      sselect data.f to 11
-      readlist item.list from 11 else null
+      if sort.clause = '' then
+         sselect data.f to 11
+      end else
+         * 13 Oct 26 dm - openQM: the sort clause has the form of a query processor BY / BY.DSND clause.
+         * Like openQM's, it makes the default select list and so replaces any that was active.
+         turn.off = sort.no.case and not(option(OPT.QUERY.SORT.NO.CASE))
+         if turn.off then execute 'OPTION QUERY.SORT.NO.CASE ON' capturing junk
+         execute 'SELECT ' : file.name : sort.clause capturing sort.output
+         if turn.off then execute 'OPTION QUERY.SORT.NO.CASE OFF' capturing junk
+         readlist item.list from 0 else
+            item.list = ''
+            if not(index(sort.output, 'selected', 1)) then   ;* Not the 'n record(s) selected' line: an error
+               display sort.output
+               stop
+            end
+         end
+      end
+      if sort.clause = '' then readlist item.list from 11 else null
       pick.pos = ''
       loop
          call !pick(item.name,
@@ -146,7 +190,19 @@ $include keyin.h
                     file.name,
                     pick.pos)
       until item.name = ''
+         item.deleted = @false
          gosub show.item
+
+         if item.deleted then
+            * Take it off the list, and keep the cursor about where it was
+            locate item.name in item.list<1> setting i then del item.list<i>
+            if item.list = '' then exit
+            sel = field(pick.pos, '.', 2) + 0
+            if sel > dcount(item.list, @fm) then sel = dcount(item.list, @fm)
+            if sel < 1 then sel = 1
+            per.page = @crthigh - 3
+            pick.pos = (sel - 1 - rem(sel - 1, per.page)) : '.' : sel
+         end
       repeat
    end else
       gosub show.item
@@ -189,7 +245,7 @@ show.item:
       if data.offset > 0 then data.prompt := 'Previous/'
       if pan > 1 then data.prompt := 'Left/'
       if more.right then data.prompt := 'Right/'
-      data.prompt := 'Top/Bottom/Spool/Quit: '
+      data.prompt := 'Top/Bottom/Spool/X-delete/Quit: '
 
       display @(0, info.line) : @(-13) : fmt(info.text, info.fmt) :
       display @(0,prompt.line) : fmt(data.prompt, info.fmt) : @(-14) :
@@ -234,10 +290,49 @@ show.item:
             gosub spool.item
             gosub show.data.page
 
+         case c = 'X'
+            gosub delete.item
+            if item.deleted then exit
+            gosub show.data.page
+
          case 1
             display @sys.bell :
       end case
    repeat
+
+   return
+
+* ======================================================================
+* delete.item  -  Delete the item being shown, after asking (12 Oct 26 dm,
+* openQM 450: hold file items can be deleted). Sets item.deleted.
+
+delete.item:
+   item.deleted = @false
+
+   prompt.text = sysmsg(11105, item.name, file.name) ;* Delete xx from xx (Y/N)?
+   display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
+   display @(len(prompt.text), prompt.line) :
+   if upcase(keycode()) # 'Y' then return
+
+   readvu dummy from data.f, item.name, 0 locked
+      prompt.text = sysmsg(11073, item.name) ;* Record 'xx' is locked by another user and was not deleted
+      display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
+      c = keycode()
+      return
+   end then
+      delete data.f, item.name
+      on error
+         prompt.text = sysmsg(3222, status(), item.name) ;* Error xx deleting record xx
+         display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
+         release data.f, item.name
+         c = keycode()
+         return
+      end
+      item.deleted = @true
+   end else
+      release data.f, item.name
+      item.deleted = @true     ;* It has gone already
+   end
 
    return
 
@@ -350,6 +445,21 @@ show.printer:
             end
          end
          destination = sysmsg(7149, name) ;* File name     : xx
+
+*     10 Oct 26 dm (openQM ref 560): modes 0, 4, 5 and 6 had no destination
+*     line at all, and mode 6 is a printer and a hold file both.
+      case mode = 0
+         destination = sysmsg(11047) ;* Display
+      case mode = 4
+         destination = sysmsg(11048) ;* Standard error
+      case mode = 5
+         destination = sysmsg(11049) ;* Auxiliary port
+      case mode = 6
+         if name = '' then destination = sysmsg(7147) ;* Using default printer
+         else destination = sysmsg(7130, name)
+         hold.name = '$hold P' : lptr
+         if bitand(flags, PU$FLG.NEXT) then hold.name := ' ' : sysmsg(7148)
+         destination := '  ' : sysmsg(7149, hold.name)
    end case
    display @(col,11) : destination : @(-4) :
 
@@ -370,6 +480,7 @@ map.keys:
       case n = K$PAGE.DOWN  ; c = 'N'
       case n = K$LEFT       ; c = 'L'
       case n = K$RIGHT      ; c = 'R'
+      case n = K$RETURN     ; c = 'N'     ;* 13 Oct 26 dm - Return pages forward in a record
       case n = K$HOME       ; c = 'T'
       case n = K$END        ; c = 'B'
       case n = CTRL.B       ; c = 'L'

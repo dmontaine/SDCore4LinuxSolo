@@ -3,6 +3,9 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's FILEINFO keys 1021-1040 (FL$HOLDERS moves to 1100), the
+      *               SYSTEM, OSPATH, SRT$, ML$, FC$, VT$, PU$, SKT$ and JP$/JB$ constants.  NOT carried: ACC$SH to ACC$NET (fields 7-12 and 15),
+      *               FL$TYPE.NET, SKT$INFO.TLS.SPKI, SD_FILE_PRIVATE.
       * 09 Sep 26 dm  add ACC$TIER (5) and ACC$PRIOR.TIER (6), matching the
       *               Windows port.  PRE_RELEASE 18.
       * rev 0.9-2 Mar 25 mab add sdpyobj
@@ -66,11 +69,42 @@
       $define FL$NO.RESIZE   1018  ;* Resizing inhibited?
       $define FL$UPDATE      1019  ;* File update counter
       $define FL$ENCRYPTED   1020  ;* File uses encryption
-*     11 Sep 26 - the Windows port's PRE_RELEASE_FIXES 16.  Which sessions hold
-*     this file open, as printable text - "12 (don)", or several separated by
-*     commas.  Empty when nothing else has it, which is a real answer and not a
-*     failure: the obstacle is this session's own cached reference.
-      $define FL$HOLDERS     1021  ;* Sessions holding this file open
+*     17 Oct 26 - 1021 is the openQM FL$WHO: the user numbers of the other sessions
+*     that hold this file open, a field mark between them, null for none (the caller
+*     is left out unless it has the file open through more than one file variable).
+*     Until then 1021 was FL$HOLDERS, the Windows port's text form ("12 (don)", or
+*     several separated by commas), which SD's own programs print in "cannot gain
+*     exclusive access" messages; it is at 1100 now.  Empty when nothing else has the
+*     file, which is a real answer and not a failure: the obstacle is this session's
+*     own cached reference.
+      $define FL$WHO         1021  ;* User numbers of the sessions holding this file open
+      $define FL$HOLDERS     1100  ;* The same as text, "12 (don), 14 (ann)", for messages
+*     12 Oct 26 - the openQM FILEINFO() keys above 1021, numbered as the openQM 4
+*     manual numbers them; mirrored from gplsrc/keys.h, which says what each does
+*     in SD.  FL$COLLECTION was 1022 until then (an unreleased guess).
+      $define FL$NETFILE     1022  ;* QMNet file?
+      $define FL$SEQTYPE     1023  ;* Sequential file sub-type
+      $define FL$SEQTYPE.PORT  1
+      $define FL$SEQTYPE.CHDEV 2
+      $define FL$SEQTYPE.FIFO  3
+      $define FL$SEQTYPE.DRIVE 4
+      $define FL$REPLICATED  1024  ;* Replication targets
+      $define FL$NOMAP       1025  ;* Directory file, id translation off?
+      $define FL$ECS         1026  ;* Created in ECS mode?
+      $define FL$ECS.MAP.NAME 1027 ;* ECS map name
+      $define FL$ENCODING    1028  ;* Data encoding of a directory file
+      $define FL$LAST.PART   1029  ;* Last part of a distributed file
+      $define FL$INDEX.SCAN  1030  ;* Index scanning operations supported?
+      $define FL$SEQ.KEY     1031  ;* Sequential record id
+      $define FL$NON.TXN     1032  ;* Opened NON.TRANSACTIONAL?
+      $define FL$SYNC        1033  ;* Opened with SYNC?
+      $define FL$ID.CASING   1034  ;* "L" or "U" for forced id casing
+      $define FL$COLLECTION  1035  ;* Data collection file?
+      $define FL$OWNER       1036  ;* Owner of the file (Windows only)
+      $define FL$TEMP        1037  ;* Temporary file?
+      $define FL$TXN.UPDATE  1038  ;* Updated in the current transaction?
+      $define FL$LOCKS       1039  ;* Locks the caller holds in this file
+      $define FL$CONSTRAINTS 1040  ;* Data integrity constraints?
       
       * PRINTER.SETTING() function keys
       * This function is obsolete - Use GETPU() and SETPU()
@@ -191,6 +225,9 @@
       $define PU$FLG.PCL            0x00002000   ;* PCL printer
       $define PU$FLG.DUPLEX.LONG    0x00004000   ;* Duplex, long edge binding
       $define PU$FLG.DUPLEX.SHORT   0x00008000   ;* Duplex, short edge binding
+      $define PU$FLG.INFORM         0x00020000   ;* Say the output file's name at the start of a job (modes 3, 6)
+      $define PU$FLG.EJECT          0x00040000   ;* End the job with a form feed
+      $define PU$FLG.FF.ONLY        0x00080000   ;* FORM.FEED FF: a bare form feed between pages, not CR FF
       $define PU$FORM                  9
       $define PU$BANNER               10
       $define PU$LOCATION             11
@@ -213,6 +250,13 @@
       $define PU$NEWLINE            1016
       $define PU$PRINTER.NAME       1017
       $define PU$FILE.NAME          1018
+      $define PU$SEQNO              1019
+      $define PU$FORM.QUEUE         1020
+      $define PU$FORM.FEED          1021
+      $define PU$ENCODING           1022
+      $define PU$FONT               1023
+      $define PU$PATHNAME           1024
+      $define PU$FONT.SIZE          1025
       $define PU$LINENO             2000
       
       * SETNLS key values
@@ -259,8 +303,26 @@
       *   opened with SKT$TLS: base64("p=tls-exporter,," + binding); "" otherwise.
       $define SKT$INFO.TLS.CBIND       8    ;* SCRAM c= for this TLS session
       $define SKT$INFO.FAMILY.IPV4     1    ;* Socket address family IPV4
-      $define SKT$INFO.FAMILY.IPV6     2    ;* Socket address family IPV6     
+      $define SKT$INFO.FAMILY.IPV6     2    ;* Socket address family IPV6
+      * 15 Oct 26 dm - QM4 gaps Q-5, SELECT.SOCKET().  SKT$INFO.EVENTS is SD's own number; the events are openQM's.
+      $define SKT$INFO.EVENTS          9    ;* SET.SOCKET.MODE: events to watch.  SOCKET.INFO: the letters last found
+      $define SKT$INFO.TRACE           10   ;* SET.SOCKET.MODE: pathname of a log of the data sent and received (null turns it off)
+      $define SKT$READ.EVENT           1    ;* Data to read, a connection waiting on a server socket, or the peer closed
+      $define SKT$WRITE.EVENT          2    ;* Data can be sent
+      $define SKT$EXCEPTION.EVENT      4    ;* An exception condition
       
+      * JPARSE() and JBUILD() modes (13 Oct 26, data collections), mirrored from gplsrc/keys.h
+      $define JP$NULL                  1    ;* A JSON null is read as a null string
+      $define JP$UNQUOTED.NAME         2    ;* Element names may be unquoted
+      $define JB$INVALID               1    ;* A value JSON cannot hold is saved as null
+      $define JB$NULL                  2    ;* A null string is saved as null
+      $define JB$NUM                   4    ;* A string that is a number is saved as one
+      $define JB$SQUOTE.NAME           8    ;* Names in single quotes
+      $define JB$NOQUOTE.NAME          16   ;* Names with no quotes
+      $define JB$SQUOTE.VALUE          32   ;* String values in single quotes
+      $define JB$NOQUOTE.VALUE         64   ;* String values with no quotes
+      $define JB$PRETTY                128  ;* SD's own: one element to a line, indented (used by CT)
+
       * OBJINFO() keys
       $define OI$ISOBJ                 0    ;* Is descriptor an object
       $define OI$CLASS                 1    ;* Class name
@@ -425,5 +487,130 @@
       $define SYS$LOGIN_TIME  1030  ;*   Login time as date      $define SYS$ 86400 + time
       $define SYS$OS_PID      1031  ;*   Operating system process id
       $define SYS$BRK_PT_FLG  1032  ;*   Test and clear break pending flag
+      $define SYS$USERS         35  ;*   Current number of users
+      $define SYS$CSV.MODE    1043  ;*   CSV.MODE setting, 1 - 3 (14 Oct 26)
+      $define SYS$CSV.DELIM   1046  ;*   CSV delimiter (14 Oct 26)
+      $define SYS$START_TIME  1045  ;*   Time SD was started, Unix epoch
+      $define SYS$GUID        1047  ;*   Globally unique identifier
       $define SYS$SYS_TYPE    9010  ;*   Return "SD"
-      $define SYS$MAX_STR     9011  ;*   Return MAX_STRING_SIZE - max string / record length         
+      $define SYS$MAX_STR     9011  ;*   Return MAX_STRING_SIZE - max string / record length
+      $define SYS$EXCEPTION   9012  ;*   @EXCEPTION: name of the exception last thrown
+      $define SYS$EXC_DATA    9013  ;*   @EXCEPTION.DATA
+      $define SYS$EXC_ORIGIN  9014  ;*   @EXCEPTION.ORIGIN: program name, field mark, line
+      $define SYS$EXC_STACK   9015  ;*   @EXCEPTION.STACK: call stack when SAVING.STACK
+      $define SYS$SEQNO       9016  ;*   @SEQNO: number of the last SETPTR AS NEXT hold file
+*     12 Oct 26 - the openQM 4 SYSTEM() keys added with FILEINFO keys 1022-1040 (the manual lists numbers and
+*     meanings, not token names; these names follow the ones above).  Those that name a feature SD does not
+*     have answer as openQM does without it.
+      $define SYS$TIMESLICE   13    ;*   Relinquish timeslice: always 1
+      $define SYS$CPROC_LEVEL 16    ;*   Command processor level (@LEVEL)
+      $define SYS$USER_NO     22    ;*   User number (@USERNO), the same as 18
+      $define SYS$CALLER      33    ;*   Name of the program that called this subroutine
+      $define SYS$TZ_OFFSET   1019  ;*   Offset of the local time zone from UTC, in seconds
+      $define SYS$COMO_ON     1033  ;*   COMO file active?
+      $define SYS$COMO_SUSP   1034  ;*   COMO output suspended? (never in SD)
+      $define SYS$EPOCH       1035  ;*   Seconds since 1 Jan 1970 UTC
+      $define SYS$FILE_USERS  1037  ;*   Open files and the users that have them open
+      $define SYS$LOGIN_EPOCH 1038  ;*   Login time as an epoch value
+      $define SYS$NOCASE_OS   1040  ;*   OS file names case insensitive? (never on Linux)
+      $define SYS$ECS         1044  ;*   ECS mode? (never in SD)
+      $define SYS$USB         1051  ;*   USB installation? (never in SD)
+      $define SYS$CHILD_COUNT 1052  ;*   Number of direct child phantoms
+      $define SYS$MAX_USERNO  1053  ;*   Highest user number
+      $define SYS$PACKAGES    1054  ;*   Active packages (none in SD)
+      $define SYS$USER_COUNTS 1056  ;*   Users now: interactive, API, iPhantom, other phantom, and the peak (14 Oct 26)
+      $define SYS$PARENT      1057  ;*   Parent process user number
+      $define SYS$CHILDREN    1058  ;*   Direct child phantoms' user numbers
+      $define SYS$GROUPED.CHILDREN 1073 ;* Those grouped with this process (PHANTOM GROUP): logged out when it ends
+      $define SYS$TXN_CACHE   1065  ;*   The transaction cache
+      $define SYS$FORM.QUEUE  1066  ;*   The last form queue SP.ASSIGN gave to a print unit, -1 if none (15 Oct 26)
+      $define SYS$PRECISION   1070  ;*   The PRECISION setting
+      $define SYS$OSREAD.INFO 1071  ;*   STATUS array of the file the last OSREAD read (15 Oct 26, _system)
+      $define SYS$CALL_DEPTH  1076  ;*   Current CALL depth
+      $define SYS$GROUP_NAMES 1077  ;*   Names of the user's groups
+      $define SYS$GROUP_NBRS  1078  ;*   Numbers of the user's groups
+      $define SYS$FROM_PROC   1080  ;*   Started from a Proc? (never in SD)
+      $define SYS$EPOCH_MS    1081  ;*   Epoch time in milliseconds
+      $define SYS$TIME_MS_LCL 1082  ;*   Time of day in milliseconds, local time
+      $define SYS$DEADLOCK    1083  ;*   The last deadlock this process was in: a field for each process, user number, file, record id
+
+*     12 Oct 26 - OSPATH() keys from the openQM 4 manual that do not clash with SD's own numbers (the rest of
+*     SD's OS$ names are in the internal program header int$keys.h and keep the older numbering).
+      $define OS$FULLPATHX    4     ;*   Full path name keeping the case: the same as OS$FULLPATH, which keeps it on Linux
+      $define OS$INFO         20    ;*   Information in the form of the STATUS statement's array
+*     16 Oct 26 - QM4 Fixes item 233.  OSPATH() in a program that is not internal takes the openQM 4 manual's keys 0 to 18 (9 is
+*     OS$FULLPATHX as well as 4).  Its names that int$keys.h does not use are here; OS$OPEN (6 in the manual, 11 in the internal
+*     OSPATH) and OS$OWNER (18, 15 there) are not named here, so give those two as the numbers 6 and 18.
+      $define OS$PARENT       10    ;*   The parent directory
+      $define OS$UID          11    ;*   Owner's user number, 0 if the path is not there
+      $define OS$GID          12    ;*   Group number
+      $define OS$MODES        15    ;*   Permission bits as a decimal number
+      $define OS$IS.FILE      16    ;*   Is the path a file?
+      $define OS$IS.DIR       17    ;*   Is the path a directory?
+
+*     15 Oct 26 - SYSTEM() keys of the openQM 4 manual (QM4 gaps bundle Q-18), named here by what they return.
+      $define SYS$TYPEAHEAD   14    ;*   Characters waiting to be read (a snapshot for piped input)
+      $define SYS$UNIQUE.TIME 19    ;*   A unique value from the date and time: two five digit numbers, a letter on a repeat
+      $define SYS$UNIQUE.DATE 21    ;*   A unique value from the date and a sequence number that starts again each day
+      $define SYS$PROGRAM     45    ;*   The name of the running program: its pathname if it was run from a source file
+      $define SYS$SEQUENCE    1048  ;*   A sequence number unique across all sessions until SD restarts
+      $define SYS$HUSH        1049  ;*   Is HUSH in effect?
+      $define SYS$SIGNAMMED   1062  ;*   Has SIGNAL() been raised for this process?  Reading it clears it
+      $define SYS$MAXMINPOS   1088  ;*   Position (field, value, subvalue, value mark delimited) of the element MAXIMUM() or MINIMUM() returned
+      $define SYS$GROUP.SIZE  1067  ;*   The default group size of a dynamic file, in bytes
+      $define SYS$CASING      1086  ;*   Is case sensitivity of string comparisons on in this program?
+
+*     15 Oct 26 - the sort rules of SORT.COMPARE(), MERGELIST() and SORT() (QM4 gaps bundles Q-1, Q-2 and Fixes item 371).
+*     The SRT$ values are the openQM 4 manual's.  The ML$ values are SD's own: the manual names the tokens and says they are added to the SRT$ ones.
+      $define SRT$LEFT        0     ;*   Left justified: character by character from the start
+      $define SRT$RIGHT       1     ;*   Right justified: integers as numbers
+      $define SRT$COMPOUND    2     ;*   Alternating numeric and text elements
+      $define SRT$RIGHT.FLOAT 3     ;*   As SRT$RIGHT, any number as a number
+      $define SRT$STRICT      4     ;*   As SRT$COMPOUND, but 28 and 028 differ
+      $define SRT$DESCENDING  16    ;*   The result of a comparison is reversed
+      $define SRT$UNIQUE      32    ;*   SORT(): duplicate key values are ignored
+      $define SRT$NOCASE      64    ;*   Case is ignored
+      $define SRT$DATA        128   ;*   SORT(): sort has an associated data element
+      $define ML$INTER        8     ;*   MERGELIST: the items in both lists
+      $define ML$UNION        16    ;*   MERGELIST: the items in either list, once each
+      $define ML$DIFF         24    ;*   MERGELIST: the items in the first list and not the second
+      $define ML$UNSORTED     32    ;*   MERGELIST: the lists are not in order, so put them in order first
+* 15 Oct 26 dm - The actions of FCONTROL(), with the openQM 4 manual's numbers (action 5, the field access test, has no token
+* here: the manual's heading for it did not survive; use the number).  FC$SYNC and FC$CRLF are named so that a program
+* written for openQM compiles.  FC$SYNC (forced writes of a hashed file) and FC$CRLF (the line terminator mode of a directory or a
+* sequential file) work since 16 Oct 26; both were refused with a message before.  The manual spells the fourth mode FC$CRLF.NOCR in
+* its table and FC$CRLF.NO.CR in its text: both are here.
+      $define FC$SYNC         1     ;*   Forced writes: the previous state is returned; -1 asks without changing
+      $define FC$SET.SEQ.KEY  2     ;*   Set the next id that WRITE ... CREATING.SEQKEY gives out
+      $define FC$GET.SEQ.KEY  3     ;*   Take the next such id
+      $define FC$CRLF         4     ;*   Line terminator mode of a directory or sequential file: the previous mode is returned; -1 asks
+      $define FC$VALID.ID     6     ;*   Is the qualifier a valid record id for the file?
+      $define FC$MINMOD       7     ;*   Set the minimum modulus of a hashed file
+      $define FC$CRLF.LF      0     ;*   The modes of FC$CRLF
+      $define FC$CRLF.CRLF    1
+      $define FC$CRLF.BOTH    2
+      $define FC$CRLF.NOCR    3
+      $define FC$CRLF.NO.CR   3     ;*   (the same, spelt as the manual's text spells it)
+
+* 16 Oct 26 - VARTYPE() values
+      $define VT$UNASSIGNED   0
+      $define VT$INTEGER      2
+      $define VT$FLOATNUM     3
+      $define VT$SUBR         4
+      $define VT$STRING       5
+      $define VT$FILE.REF     6
+      $define VT$ARRAY        7
+      $define VT$COMMON       8
+      $define VT$IMAGE        9
+      $define VT$BTREE        10
+      $define VT$SELLIST      11
+      $define VT$PMATRIX      12
+      $define VT$SOCK         13
+      $define VT$LOCALVARS    14
+      $define VT$OBJ          15
+      $define VT$OBJCD        16
+      $define VT$OBJCDX       17
+      $define VT$PERSISTENT   18
+      $define VT$COLLECTION   19
+      $define VT$SORT         20
+

@@ -38,9 +38,9 @@
 *                For this to work, the list must be sorted on this column.
 *                Specifying INDEX.COL as zero inhibits shortcut searches.
 *
-* If used in a SDTerm session (SDConsole or SDTerm), the screen region
-* used for the picklist display will be saved and restored.  Other telnet
-* connections must provide their own display restore mechanism.
+* The box is drawn over whatever is on the screen and is not put back: the
+* program that wants the screen under it restored must redraw it (or use the
+* screen library's own dialogues, which keep a picture of what they cover).
 *
 * END-DESCRIPTION
 *
@@ -59,8 +59,6 @@ $include keyin.h
 equ KEY.WIDTH to 10
 equ KEY.FMT   to "10L"
 
-   imaging = terminfo('sreg') # ''
-
    value = ''
 
    if index.col then
@@ -74,8 +72,6 @@ equ KEY.FMT   to "10L"
 
    if num.items = 0 then   ;* Nothing to display
       left = int(@crtwide/2) - 10; box.top = 11 ; box.height = 3
-
-      if imaging then image = save.screen(left, box.top, 23, 3)
 
       display @(left, box.top)     : '=======================' :
       display @(left, box.top + 1) : '| No items to display |' :
@@ -120,10 +116,6 @@ equ KEY.FMT   to "10L"
    * Draw outline of box
 
    ln = box.top - 1
-
-   if imaging then
-      image = save.screen(left, ln, data.width + 4, box.height + 2);
-   end
 
    display @(left, ln) : str('=', data.width + 4) :
    for i = 1 to box.height
@@ -231,10 +223,6 @@ equ KEY.FMT   to "10L"
 
 abort.picklist:
    display @(-14) :
-
-   if imaging and not(unassigned(image)) then
-      restore.screen image, @true
-   end
 
    return
 

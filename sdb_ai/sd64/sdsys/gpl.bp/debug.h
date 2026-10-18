@@ -39,9 +39,12 @@ $define INITIAL.PROGRAMS      10    ;* Initial size of program matrices
 $define INITIAL.CHUNKS        50    ;* Initial size of source chunk matrices
 $define CHUNK.LOAD           100    ;* Lines per chunk
 $define MAX.BREAKPOINTS       20    ;* Also in op_debug.c
-$define DATA.AREA.LINES        5
+$define DATA.AREA.LINES        5    ;* The data area's usual height; WINDOW n (5 to 15) changes it
+$define MAX.DATA.AREA.LINES   15
 
    common /$debug/ debug.initialised,
+                   data.lines,                 ;* Height of the data area in full screen mode (0 until the first entry)
+                   expand.np,                  ;* The ^ command: show non-printing characters as ^nnn
                    full.screen,                ;* Full screen mode?
                    title.attr,
                    source.attr,
@@ -51,7 +54,7 @@ $define DATA.AREA.LINES        5
                    debug.screen.image,
                    debug.command.stack,
                    debug.overlay,
-                   debug.data.area(DATA.AREA.LINES), ;* The data area
+                   debug.data.area(MAX.DATA.AREA.LINES), ;* The data area
 
                    array.name,
                    array.offset,               ;* Position of rolling display
@@ -73,11 +76,20 @@ $define DATA.AREA.LINES        5
                    head(INITIAL.PROGRAMS),
                    lines(INITIAL.PROGRAMS),
                    symbols(INITIAL.PROGRAMS),
+                   equates(INITIAL.PROGRAMS),       ;* The equate and $DEFINE tokens of a $MODE DEBUG.EQUATES program: names @VM.. @FM values @VM..
                    program.flags(INITIAL.PROGRAMS),  ;* Header flags
                    last.program,
 
                    breakpoints,    ;* Stored as programindex.line, FM delimited
                    watch.var.name,              ;* Name of watched variable
+                   watch.var.no,                ;* ... its variable number (14 Oct 26, WATCH var op value)
+                   watch.index,                 ;* ... the element number of a matrix element, else 0
+                   watch.op,                    ;* The condition's operator, null for an unconditional WATCH
+                   watch.val,                   ;* ... and its value
+                   watch.op.new,                ;* Parsed from the WATCH command, taken into watch.op when it is armed
+                   watch.val.new,
+                   arm.no,                      ;* Passed to arm.watch
+                   arm.index,
 
                    system.variables,
                    basic.chars,                 ;* Valid characters in names

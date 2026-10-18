@@ -227,6 +227,28 @@ $define KW$ENCRYPT        211
 $define KW$GROUP          212
 $define KW$TELNET         213
 $define KW$INTERNAL       214
+$define KW$ABSENT.IGNORE  215   ;* 10 Oct 26  1.2-0 (openQM ref 25)
+$define KW$SORTED.SAMPLE  216   ;* 10 Oct 26  1.2-0 (openQM ref 438)
+$define KW$COL.HDR.SPACE  217   ;* 10 Oct 26  1.2-0 (openQM ref 467)
+$define KW$FOR            218   ;* 10 Oct 26  1.2-0 (openQM ref 190)
+$define KW$KEEP           219   ;* 11 Oct 26  1.2-0 (openQM ref 387)
+$define KW$NUM.SUP        220   ;* 11 Oct 26  1.2-0 (openQM ref 242)
+$define KW$STRINGS        221   ;* 12 Oct 26  1.2-0 (openQM refs 141, 447)
+$define KW$SORT.SUP       222   ;* 13 Oct 26  1.2-0 (openQM ref 495)
+$define KW$COLLECTION     223   ;* 13 Oct 26  1.2-0 (data collection files)
+$define KW$ELEMENT        224   ;* 13 Oct 26  1.2-0 (data collection element path in a query)
+$define KW$MEDIAN         225   ;* 15 Oct 26  QM4 gaps Q-20 (report the median of a field)
+$define KW$RPT            226   ;* 15 Oct 26  QM4 gaps Q-20 (repeat a single valued field on each line)
+$define KW$XML            227   ;* 16 Oct 26  QM4 gap 211 (the report as XML)
+$define KW$ELEMENTS       228   ;* 16 Oct 26  ... XML ELEMENTS: each field an element, not an attribute
+$define KW$WITH.DTD       229   ;* 16 Oct 26  ... the DTD before the data
+$define KW$DTD.ONLY       230   ;* 16 Oct 26  ... the DTD and no data
+$define KW$WITH.SCHEMA    231   ;* 16 Oct 26  ... the schema before the data
+$define KW$SCHEMA.ONLY    232   ;* 16 Oct 26  ... the schema and no data
+$define KW$MODE           233   ;* 16 Oct 26  QM4 gap 231 (report the most frequent value of a field)
+$define KW$RANGE          234   ;* 16 Oct 26  QM4 gap 231 (report the difference between the largest and the smallest value)
+$define KW$IN             235   ;* 16 Oct 26  QM4 gap 94 (selection clause operator: field IN {NO.CASE} listname | "filename id")
+$define KW$NOT.IN         236   ;* 16 Oct 26  QM4 gap 94 (selection clause operator: field NOT.IN {NO.CASE} listname | "filename id")
 
 * ----------------------------------------------------------------------
 * !PARSER action key values
