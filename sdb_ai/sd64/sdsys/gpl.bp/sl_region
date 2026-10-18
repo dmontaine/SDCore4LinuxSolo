@@ -1,0 +1,68 @@
+* SL_REGION
+* Screen library, region layer: save what is under a rectangle and put it back.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 12 Oct 26 dm  New.
+* 12 Oct 26 dm  Saves the style of every cell (SL.S.ATTRS) when the context has them, and puts the
+*               rectangle back through $sl_put so that the shadow follows.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call $sl_region(op, scr, x, y, w, h, saved)
+*
+*     op      'save' or 'restore'
+*     scr     the screen context (sl.h): SL.S.SHADOW is what the program believes is on the
+*             screen, SL.S.ATTRS the style of each cell (or SL.S.RATTR, which rows are in reverse
+*             video, for a context that has no ATTRS: SED's).  The terminal cannot be asked, so the
+*             program supplies it.
+*     x y     the left column and top row of the rectangle (both from 0)
+*     w h     its width and height
+*     saved   'save' returns it: value r + 1 is the text of the rectangle's row r, subvalue 2 the
+*             style code of each of its cells.  'restore' draws it again at x, y with $sl_put,
+*             which also puts it back in the shadow.
+*
+*   A row outside the screen (SL.S.H) is saved as blanks and not drawn.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine sl_region(op, scr, x, y, w, h, saved)
+$catalog $sl_region
+
+$include sl.h
+
+   if op = 'save' then
+      saved = ''
+      for r = 0 to h - 1
+         t = fmt(scr<SL.S.SHADOW, y + r + 1>[x + 1, w], w : 'L')
+         ar = scr<SL.S.ATTRS, y + r + 1>
+         if ar # '' then
+            a = ar : str('n', w + x)
+            a = a[x + 1, w]
+         end else
+            c = 'n'
+            if scr<SL.S.RATTR, y + r + 1> = 'R' then c = 'r'
+            a = str(c, w)
+         end
+         saved<1, r + 1, 1> = t
+         saved<1, r + 1, 2> = a
+      next r
+      return
+   end
+
+   if op = 'restore' then
+      for r = 0 to h - 1
+         if y + r < 0 or y + r >= scr<SL.S.H> then continue   ;* clipped
+         call $sl_put(scr, x, y + r, saved<1, r + 1, 1>, saved<1, r + 1, 2>)
+      next r
+   end
+
+   return
+end
+
+* END-CODE

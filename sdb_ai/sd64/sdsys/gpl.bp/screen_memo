@@ -1,0 +1,94 @@
+* SCREEN_MEMO
+* The subroutine that SCREEN MEMO calls: add a text area of several lines (an editor, or a viewer) to a form.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 12 Oct 26 dm  New.
+* 13 Oct 26 dm  SYNTAX name (the text is coloured as that language) and LNUM (line numbers down the left).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SCREEN MEMO f, id, text {AT x,y} {SIZE w,h} {READONLY} {WRAP} {SYNTAX name} {LNUM}
+*
+*   is compiled into
+*
+*   call !screen_memo(f, id, text, x, y, w, h, readonly, wrap, syntax, lnum, ret, status)
+*
+*     f id      the form and the widget's name in it (as SCREEN LABEL)
+*     text      what it starts with: one line to a field (a linefeed ends a line too).  Null for an empty area.
+*     x y       the place of the area from the form's top left corner, default 1,1
+*     w h       its size: the last column is a scroll bar, so w is the text's width plus one.  Default as
+*               wide as the longest line needs, at most 60, and as many rows as there are lines, between 3 and 8.
+*     readonly  a viewer: the cursor keys, Page Up and Page Down, Home and End move through the text, and
+*               nothing can be typed or deleted
+*     wrap      a long line is wrapped at a blank (or in a word longer than the width) instead of the area
+*               panning sideways; the text itself is not changed
+*     syntax    the name of a language $sl_syntax knows (sd.basic, c, json, markdown, sh, python, or one a
+*               site added in &sed.syntax&): the text is drawn in the syntax styles of the theme in force
+*               (the mono theme has none; classic, blue, dark and light do).  A name it does not know is
+*               not an error: the text is drawn plain
+*     lnum      a column of line numbers down the left, as wide as the number of the last line needs, one
+*               more for a blank; the width given in SIZE includes it
+*     status    0 added; 1 not (ELSE)
+*
+*   Typing, Return (which splits the line), Backspace and Delete edit; Ctrl-A and Ctrl-E (or Home and End) go
+*   to the ends of the row, Ctrl-K cuts to the end of the line, Ctrl-P and Ctrl-U move a word back and on.  Ctrl-G sets
+*   the mark (the selection runs from it to the cursor), Ctrl-X cuts and Ctrl-C or Ctrl-O copies it, Ctrl-V
+*   pastes, Ctrl-Z undoes and Ctrl-Y does again, Ctrl-F (or Ctrl-T) finds text, Ctrl-B finds it backwards and Ctrl-N the next one ($sl_memo has the
+*   whole account).  Without WRAP a long line is not wrapped: the area pans sideways with the cursor.
+*   SCREEN GET f, id answers the text, one line to a field, and SCREEN SET f, id VALUE t replaces it.
+*   SCREEN VALUES does not include a memo (it can be long): ask for it with SCREEN GET.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine screen_memo(f, id, text, ax, ay, sw, sh, readonly, wrap, syntax, lnum, ret, status)
+$catalog !screen_memo
+
+   ret = ''
+   status = 1
+   lines = convert(char(10), @fm, text)
+   n = dcount(lines, @fm)
+   widest = 0
+   for i = 1 to n
+      if len(lines<i>) > widest then widest = len(lines<i>)
+   next i
+   mw = widest + 1
+   if lnum # '' then mw += len(n) + 1          ;* the line numbers
+   if mw > 60 then mw = 60
+   if mw < 10 then mw = 10
+   mh = n
+   if mh > 8 then mh = 8
+   if mh < 3 then mh = 3
+   if sw # '' then mw = sw + 0
+   if sh # '' then mh = sh + 0
+
+   w = collection()
+   w{'id'} = id
+   x = 1
+   y = 1
+   if ax # '' then x = ax + 0
+   if ay # '' then y = ay + 0
+   w{'x'} = x
+   w{'y'} = y
+   w{'w'} = mw
+   w{'h'} = mh
+   w{'value'} = lines
+   w{'readonly'} = (readonly # '')
+   w{'wrap'} = (wrap # '')
+   w{'lnum'} = (lnum # '')
+   nl = 0
+   if syntax # '' then call $sl_syntax('index', downcase(trim(syntax)), '', '', '', nl)
+   w{'synlang'} = nl + 0
+   call $sl_memo('init', w, '', '', r)
+   call $sl_wadd(f, w, ok)
+   if ok then status = 0
+
+   return
+end
+
+* END-CODE

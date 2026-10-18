@@ -1,0 +1,45 @@
+* SCREEN_KEY
+* The subroutine that SCREEN KEY calls: read one key, by name.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 12 Oct 26 dm  New.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SCREEN KEY {TIMEOUT s} RETURNING k {THEN ... ELSE ...}
+*
+*   is compiled into
+*
+*   call !screen_key(timeout, ret, status)
+*
+*     timeout  seconds to wait; left out, for ever
+*     ret      the key's name: up down left right home end pgup pgdn ins del bs tab btab enter esc
+*              f1 to f12, ctrl-a to ctrl-z (those with no name of their own), or the character itself.
+*              The terminal's own terminfo entry decides what a sequence means ($sl_key).  A report of the
+*              mouse (once SCREEN OPEN has switched reporting on) is the name mouse: SCREEN MOUSE then says
+*              what it was.
+*     status   0 a key; 1 the time ran out or the input has ended (ELSE)
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine screen_key(timeout, ret, status)
+$catalog !screen_key
+
+   ret = ''
+   call $sl_key(timeout, ret)
+   if ret = 'resize' then
+      call $sl_scr('get', scr)                 ;* makes the kept picture the terminal's size and draws it again
+      call $sl_scr('put', scr)
+   end
+   status = if ret = '' then 1 else 0
+
+   return
+end
+
+* END-CODE

@@ -1,0 +1,56 @@
+* SCREEN_REFRESH
+* The subroutine that SCREEN REFRESH calls: repaint the terminal from the shadow.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 12 Oct 26 dm  New.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SCREEN REFRESH {RETURNING v}
+*
+*   is compiled into
+*
+*   call !screen_refresh(ret, status)
+*
+*   Clears the terminal and draws every row of the shadow again: for a program that has written to the
+*   terminal behind the library's back, or after the user redrew the screen.  The library notices a
+*   change of the terminal's size by itself (SCREEN KEY, SCREEN WAIT and every other statement look): it
+*   makes its picture the new size, keeping what still fits, and draws it again.  RETURNING holds
+*   resized if that has happened since SCREEN REFRESH was last called, so that a program that placed
+*   things by the old size can lay them out again; otherwise it holds null.  Without SCREEN OPEN there
+*   is no shadow: nothing is drawn and the status is 1.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine screen_refresh(ret, status)
+$catalog !screen_refresh
+
+$include sl.h
+
+   ret = ''
+   status = 1
+   if system(25) then return                  ;* a phantom has no terminal: nothing is drawn
+   call $sl_scr('get', scr)
+   if not(scr<SL.S.OWNED>) then return
+
+   * ($sl_scr('get') has already made the picture the terminal's size and drawn it again, if the size had changed)
+   call $sl_scr('resized', was)
+   if was then
+      ret = 'resized'
+   end else
+      call $sl_repaint(scr)
+   end
+
+   call $sl_scr('put', scr)
+   status = 0
+
+   return
+end
+
+* END-CODE
