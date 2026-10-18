@@ -7,8 +7,11 @@
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/tui-render-probe.py --sandbox <dir>
 #
-# The <dir> is a sandbox built by sandbox-txnfail.py --keep and STARTED
+# The <dir> was a sandbox built by the full product's sandbox-txnfail.py --keep and STARTED
 # (SD_CONFIG=<dir>/sd.conf <dir>/sys/bin/sd -start, its sdlnxd killed).
+# 18 Oct 26 - NEVER RUN IN SOLO, and not runnable on sandbox-fromtree.py's sandbox as it stands: it
+# wants an account <dir>/accounts/box and a pseudo-terminal session that Solo's sign-on would ask a
+# password of.  sandbox-txnfail.py here is now a Solo suite on that tool and builds no such sandbox.
 # No sudo, never the live system.  Exit 0 measured, 2 could not run.  It gives
 # NUMBERS, not a verdict: the threshold is stated beside them and the decision
 # is written into PROJECT_STATUS, where it can be argued with.

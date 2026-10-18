@@ -1,15 +1,38 @@
 #!/usr/bin/env python3
 #
 # sandbox-txnfail.py - P.6: the step-2 fixes that only an INDUCED FAILURE can
-#                      exercise (A1, A3, A5, A6), run in a private sandbox SD,
+#                      exercise (A1, A3, A5, A6), run in a private Solo sandbox,
 #                      each against a mutant build that reverts it.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-txnfail.py --dir <empty scratch dir>
-#   python3 .../sandbox-txnfail.py --dir <dir> --keep      leave the sandbox built
+#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-txnfail.py --dir <empty scratch dir>
+#   python3 .../sandbox-txnfail.py --dir <dir> --keep      leave the sandbox started
+#   python3 .../sandbox-txnfail.py --dir <dir> --clean     remove <dir> at the end (default: leave it, say how big)
 #
 # NO SUDO, AND NEVER THE LIVE SYSTEM.  Exit 0 every decisive row passed on the
 # fixed build AND went red on its mutant; 1 a row failed or a mutant did not go
 # red; 2 it could not run (or refused to).
+#
+# START-HISTORY:
+# 18 Oct 26 dm  Rewritten on sandbox-fromtree.py (this directory), which builds a
+#               key-patched copy of the tree and stages it with solo-stage.sh.  The
+#               file had been renamed from the full product's on 29 Sep 26 and
+#               never run: it copied the full product's /usr/local/sdsys and a
+#               /home/sd account, and its check_admin patch matched nothing in
+#               Solo, so it stopped at its first patch.  The probes and the three
+#               mutant lists are unchanged; what changed is where they run (the
+#               sandbox's SDSYS, through the internal door, since Solo has no
+#               other account worth building) and how a mutant is run (its
+#               binary is put in the sandbox's bin, because Solo finds its home
+#               from its own executable's path).  A5 is run at two limits a
+#               kilobyte apart and its red row counts "another status than 8506"
+#               as a form of red (said apart from index damage): the old rule
+#               could not go red at 32768, where the mutant shows only the other
+#               status, which its own comment said was one of the forms.  First
+#               run in Solo, 18 Oct 26: 26 rows, the fix green and each mutant
+#               red; at 32768 the mutant differs only in status (8006), at 33792
+#               it loses index entries, keeps losing them and hangs - the
+#               full product's own record of the two limits, reproduced.
+# END-HISTORY
 #
 # ===========================================================================
 # WHY A SANDBOX
@@ -17,15 +40,12 @@
 # Every one of these needs a commit, a truncate or an index write to FAIL part
 # way, and the record says what that looks like on the live system when a fix
 # is wrong: a stranded lock that survives OFF (queue 27) and the 11 Sep wedge.
-# PROJECT_STATUS P.6: "sandbox work, not DON work".  The sandbox is the 11 Sep
-# recipe made repeatable:
-#   - a copy of this sd64 tree with SD_SHM_KEY/SD_SEM_KEY moved to 0x716d0901/
-#     0902 (live is 0301/0302) and check_admin() stubbed - IN THE COPY ONLY;
-#   - a copy of /usr/local/sdsys (minus $cred and audit, which are root-only)
-#     with the sandbox binaries in its bin;
-#   - a private sd.conf named by SD_CONFIG (inipath.c);
-#   - a copy of the invoking user's own account, registered in the copy.
-# The live segment is printed before and after and must not change.
+# PROJECT_STATUS P.6: "sandbox work, not DON work".  The sandbox is
+# sandbox-fromtree.py's: its own shared-memory keys (0x53434CA1/A2, the live
+# Solo is 0x53434C11/12), a copy of this tree, staged by solo-stage.sh.  The
+# mutants are two more builds of the same tree with one fix reverted each, and
+# are run by putting their sd-solo in the sandbox's bin.  The live segments are
+# printed before and after and must not change.
 #
 # ===========================================================================
 # WHAT EACH ROW MEASURES (the fix, and what its mutant does instead)
@@ -62,41 +82,24 @@
 # the fixed build AND on its mutant, so this probe cannot see it.  Printed.
 #
 # THE SANDBOX'S sdlnxd IS KILLED AFTER -start (by executable path): its
-# periodic check would run "sd -cleanup" mid-run.
+# periodic check would run "sd -cleanup" mid-run.  sandbox-fromtree.py does it.
 
 import argparse
-import getpass
+import importlib.util
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-SD64 = os.path.dirname(HERE)
-LIVE_SYS = "/usr/local/sdsys"
-# 02 Oct 26 - SD Core's own key family (gplsrc/sddefs.h); ipcs prints lower case.
-#   Solo's live pair is 0x53434C11/12, its sandbox 0x53434CA1/A2 (the
-#   multi-user SD Core for Linux uses 0x53434C01/02 and 0x53434C91/92).
-LIVE_KEYS = ("0x53434c11", "0x53434c12")
-BOX_KEYS = ("0x53434ca1", "0x53434ca2")
-ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+HERE = os.path.dirname(os.path.realpath(__file__))
+_spec = importlib.util.spec_from_file_location("sbx", os.path.join(HERE, "sandbox-fromtree.py"))
+sbx = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(sbx)
+say, die = sbx.say, sbx.die
 
 PASS = FAIL = 0
-
-
-def say(s=""):
-    print(s)
-    sys.stdout.flush()
-
-
-def die(msg):
-    """Could not run, or refused to: exit 2.  SystemExit still runs the
-    teardown in main()'s finally block."""
-    say(msg)
-    sys.exit(2)
 
 
 def ck(name, ok, detail=""):
@@ -108,41 +111,11 @@ def ck(name, ok, detail=""):
     say("  [%s] %s%s" % ("PASS" if ok else "FAIL", name, (": " + detail) if detail else ""))
 
 
-def sh(cmd, **kw):
-    return subprocess.run(cmd, capture_output=True, text=True, **kw)
-
-
-def ipcs_keys():
-    out = sh(["ipcs", "-m", "-s"]).stdout
-    # Both families: SD Core's 0x5343xxxx and the inherited 0x716d0x0x.
-    return sorted(set(k.lower() for k in re.findall(r"0x(?:5343[0-9a-f]{4}|716d0[0-9]0[12])", out, re.I)))
-
-
-def replace_once(path, old, new, label):
-    with open(path, "r", encoding="utf-8") as f:
-        text = f.read()
-    n = text.count(old)
-    if n != 1:
-        die("sandbox-txnfail: CANNOT RUN - %s: expected exactly one match in %s, found %d"
-                         % (label, path, n))
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(text.replace(old, new))
-    say("    patched %s (%s)" % (os.path.relpath(path, os.path.dirname(os.path.dirname(path))), label))
-
-
 # ---------------------------------------------------------------------------
-# The patches.  Each must match exactly once, or the run refuses: a patch that
-# matched nothing would build a "mutant" identical to the fix and every red
-# control would silently pass.
-
-SANDBOX_PATCHES = [
-    ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x53434C11", "#define SD_SHM_KEY 0x53434CA1", "sandbox shm key"),
-    ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x53434C12", "#define SD_SEM_KEY 0x53434CA2", "sandbox sem key"),
-    ("gplsrc/sd.c",
-     '  if (geteuid() != 0) {\n    fprintf(stderr, "Command requires administrator privileges\\n");\n    exit(1);\n  }\n',
-     '  fprintf(stderr, "sd: SANDBOX BUILD - check_admin stubbed\\n");\n',
-     "check_admin stub"),
-]
+# The mutants.  Each patch must match exactly once, or the build refuses: a
+# patch that matched nothing would build a "mutant" identical to the fix and
+# every red control would silently pass.  (The sandbox's own patches - the key
+# pair - are sandbox-fromtree.py's and go into every build.)
 
 MUTANT_A = [  # A6 both sites, A1, A5
     ("gplsrc/op_seqio.c",
@@ -166,7 +139,7 @@ MUTANT_B = [  # A3 alone: with A3 reverted the commit never fails, so A1 cannot 
 ]
 
 # ---------------------------------------------------------------------------
-# The BASIC probes, written into the sandbox account's bp.
+# The BASIC probes, written into the sandbox's bp (SDSYS is the account).
 
 PROBES = {
 "zza6": r"""* ZZA6 - A6: WEOFSEQ and OPENSEQ OVERWRITE must report a failed truncate.
@@ -306,167 +279,116 @@ end
 }
 
 
-class Box:
-    def __init__(self, root, user):
-        self.root = root
-        self.sys = os.path.join(root, "sys")
-        self.acct = os.path.join(root, "accounts", "box")
-        self.conf = os.path.join(root, "sd.conf")
-        self.user = user
+class Rig:
+    """The sandbox plus the binary currently in its bin.  A mutant is run by copying its sd-solo over the sandbox's
+    (Solo finds its home from its own executable's path, so a mutant cannot run from its own build directory);
+    the fixed binary is kept beside the sandbox and put back."""
 
-    def env(self):
-        e = dict(os.environ)
-        e["SD_CONFIG"] = self.conf
-        return e
+    def __init__(self, root, bins):
+        self.box = sbx.Box(root)
+        self.root = self.box.root
+        self.bins = bins            # {"fixed": path, "mutA": path, "mutB": path}
+        self.current = "fixed"
 
-    def session(self, binary, lines, limit=None, timeout=120):
-        body = "\nTERM 200,9999\n" + "".join(l + "\n" for l in lines) + "OFF\n"
-        cmd = [binary]
-        if limit:
-            cmd = [sys.executable, "-c",
-                   "import os,resource,signal,sys; signal.signal(signal.SIGXFSZ, signal.SIG_IGN); "
-                   "resource.setrlimit(resource.RLIMIT_FSIZE, (%d, %d)); os.execv(sys.argv[1], sys.argv[1:])"
-                   % (limit, limit), binary]
-        say("    > %s%s: %s" % (os.path.relpath(binary, self.root),
-                               (" (RLIMIT_FSIZE=%d, SIGXFSZ ignored)" % limit) if limit else "",
-                               " | ".join(lines)))
-        try:
-            p = subprocess.run(cmd, input=body, capture_output=True, text=True, cwd=self.acct,
-                               env=self.env(), timeout=timeout)
-        except subprocess.TimeoutExpired:
+    def use(self, which):
+        """Make `which` the running binary (a stop, a copy, a start), unless it already is."""
+        if which == self.current:
+            return
+        self.box.stop()
+        shutil.copy2(self.bins[which], self.box.sd + ".new")
+        os.replace(self.box.sd + ".new", self.box.sd)
+        self.current = which
+        say("    binary now: %s (%s)" % (which, self.bins[which]))
+        self.box.start()
+
+    def restart(self):
+        self.box.stop()
+        self.box.start()
+
+    def session(self, lines, which="fixed", limit=None, timeout=120):
+        self.use(which)
+        say("    > [%s]%s %s" % (which, (" (RLIMIT_FSIZE=%d, SIGXFSZ ignored)" % limit) if limit else "", " | ".join(lines)))
+        rc, out, left = self.box.session(lines, limit=limit, timeout=timeout)
+        if out == "TIMEOUT":
             say("      | TIMEOUT after %d s - the session was killed" % timeout)
-            self.kill_daemons()
             return "TIMEOUT"
-        out = ANSI.sub("", p.stdout + p.stderr)
+        if ":TERM 200,9999" not in out:
+            say("      | THE SESSION DID NOT RUN (no ':TERM 200,9999' echo; marker left: %s)" % left)
         for l in out.splitlines():
             if re.match(r"^(ZZA|CONTROL|DEVICE|OVERWRITE|[0-9A-F]{8}:|There are|User |\s+\d+\s+\d+ )", l):
                 say("      | " + l)
         return out
 
-    def start(self):
-        binary = os.path.join(self.sys, "bin", "sd-solo")
-        with open(os.path.join(self.root, "start.log"), "w") as log:
-            subprocess.run([binary, "-start"], stdout=log, stderr=log, env=self.env())
-        time.sleep(1)
-        self.kill_daemons()
-
-    def stop(self):
-        binary = os.path.join(self.sys, "bin", "sd-solo")
-        with open(os.path.join(self.root, "stop.log"), "w") as log:
-            subprocess.run([binary, "-stop"], stdout=log, stderr=log, env=self.env())
-        self.kill_daemons()
-
-    def kill_daemons(self):
-        for pid in os.listdir("/proc"):
-            if not pid.isdigit():
-                continue
-            try:
-                exe = os.readlink("/proc/%s/exe" % pid)
-            except OSError:
-                continue
-            if exe.startswith(self.root + os.sep):
-                os.kill(int(pid), signal.SIGTERM)
-                say("    killed sandbox process %s (%s)" % (pid, os.path.basename(exe)))
-
-
-def build(tree_dir, patches):
-    say("  build %s" % tree_dir)
-    shutil.copytree(SD64, tree_dir, ignore=shutil.ignore_patterns("bin", "gplobj", "terminfo", "__pycache__"))
-    os.makedirs(os.path.join(tree_dir, "bin"))
-    os.makedirs(os.path.join(tree_dir, "gplobj"))
-    for rel, old, new, label in patches:
-        replace_once(os.path.join(tree_dir, rel), old, new, label)
-    p = sh(["make"], cwd=tree_dir)
-    if p.returncode != 0 or not os.path.exists(os.path.join(tree_dir, "bin", "sd-solo")):
-        say(p.stdout[-2000:] + p.stderr[-2000:])
-        die("sandbox-txnfail: CANNOT RUN - make failed in %s" % tree_dir)
-    say("    make exit 0, bin/sd-solo built")
-
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", required=True, help="an EMPTY or absent scratch directory")
-    ap.add_argument("--keep", action="store_true")
+    ap.add_argument("--keep", action="store_true", help="leave the sandbox started")
+    ap.add_argument("--clean", action="store_true", help="remove the directory at the end")
     a = ap.parse_args()
-    root = os.path.abspath(a.dir)
-    user = getpass.getuser()
-    live_acct = os.path.join("/home/sd/user_accounts", user)
-
-    say("sandbox-txnfail")
-    say("  tree        : %s" % SD64)
-    say("  sandbox     : %s" % root)
-    say("  user        : %s (uid %d)" % (user, os.getuid()))
-    say("  account copy: %s" % live_acct)
-    before = ipcs_keys()
-    say("  IPC keys before: %s" % " ".join(before))
     if os.getuid() == 0:
-        die("sandbox-txnfail: REFUSED - run it as an ordinary user; root would reach the live system's files.")
-    if any(k in before for k in BOX_KEYS):
-        die("sandbox-txnfail: REFUSED - sandbox keys %s already exist; tear the old sandbox down first." % " ".join(BOX_KEYS))
+        die("sandbox-txnfail: REFUSED - run it as an ordinary user; Solo never runs as root")
+    root = os.path.abspath(a.dir)
+    sbx.refuse_inside_a_solo_tree(root)
+
+    say("sandbox-txnfail (Solo)")
+    say("  tree        : %s" % sbx.SD64)
+    say("  sandbox     : %s" % root)
+    say("  keys        : %s %s (%s=%s)" % (sbx.BOX_KEYS[0], sbx.BOX_KEYS[1], sbx.KEYSET_VAR, sbx.KEYSET))
+    before = sbx.live_snapshot()
+    sbx.show_live("before", before)
+    held = [k for k in sbx.BOX_KEYS if k in sbx.ipcs_rows()]
+    if held:
+        die("sandbox-txnfail: REFUSED - sandbox keys %s are held; stop the old sandbox first" % " ".join(held))
     if os.path.exists(root) and os.listdir(root):
         die("sandbox-txnfail: REFUSED - %s is not empty." % root)
-    if not os.path.isdir(live_acct) or not os.path.isdir(LIVE_SYS):
-        die("sandbox-txnfail: CANNOT RUN - %s or %s is missing." % (live_acct, LIVE_SYS))
     os.makedirs(root, exist_ok=True)
 
-    box = Box(root, user)
+    rig = None
     try:
-        say("\n=== 1. build: the sandbox tree and two mutants")
-        build(os.path.join(root, "fixed"), SANDBOX_PATCHES)
-        build(os.path.join(root, "mutA"), SANDBOX_PATCHES + MUTANT_A)
-        build(os.path.join(root, "mutB"), SANDBOX_PATCHES + MUTANT_B)
+        say("\n=== 1. build: the sandbox (sandbox-fromtree.py all) and two mutants")
+        r = subprocess.run([sys.executable, os.path.join(HERE, "sandbox-fromtree.py"), root, "all"],
+                           capture_output=True, text=True, errors="replace", timeout=1800)
+        say("\n".join("    | " + l for l in r.stdout.splitlines()[-12:]))
+        if r.returncode != 0 or "[PASS] THIRD.COMPILE" not in r.stdout or "[FAIL]" in r.stdout:
+            die("sandbox-txnfail: CANNOT RUN - the sandbox bootstrap did not pass (exit %d)" % r.returncode)
+        sbx.build(os.path.join(root, "mutA"), os.path.join(root, "make-mutA.log"), MUTANT_A)
+        sbx.build(os.path.join(root, "mutB"), os.path.join(root, "make-mutB.log"), MUTANT_B)
+        bins = {"fixed": os.path.join(root, "fixed-sd-solo"),
+                "mutA": os.path.join(root, "mutA", "bin", "sd-solo"),
+                "mutB": os.path.join(root, "mutB", "bin", "sd-solo")}
+        shutil.copy2(os.path.join(root, "sys", "bin", "sd-solo"), bins["fixed"])
+        rig = Rig(root, bins)
+        box = rig.box
+        sysd = box.sys
 
-        say("\n=== 2. the sandbox system and account")
-        shutil.copytree(LIVE_SYS, box.sys, ignore=shutil.ignore_patterns("$cred", "audit", "dumps"))
-        os.makedirs(os.path.join(box.sys, "$cred"))
-        os.makedirs(os.path.join(box.sys, "dumps"))
-        open(os.path.join(box.sys, "audit"), "w").close()
-        for b in ("sd-solo", "sdlnxd"):
-            shutil.copy2(os.path.join(root, "fixed", "bin", b), os.path.join(box.sys, "bin", b))
-        shutil.copytree(live_acct, box.acct, ignore=shutil.ignore_patterns("stacks"))
-        reg = os.path.join(box.sys, "accounts")
-        for r in os.listdir(reg):
-            os.remove(os.path.join(reg, r))
-        with open(os.path.join(reg, user), "w") as f:
-            f.write("%s\n\nsdu_%s\n\nPROGRAMMER" % (box.acct, user))
-        with open(os.path.join(reg, "sdsys"), "w") as f:
-            f.write("%s\n\nsdsys" % box.sys)
-        with open(box.conf, "w") as f:
-            f.write("[sd]\nSDSYS=%s\nGRPSIZE=2\nNUMUSERS=20\nSORTMEM=4096\nERRLOG=50\nUSRDIR=%s\nGRPDIR=%s\nDUMPDIR=%s\n"
-                    % (box.sys, os.path.dirname(box.acct), os.path.join(root, "groups"), os.path.join(box.sys, "dumps")))
-        say("    sys, account 'box' (registered as %s), sd.conf written" % user)
+        say("\n=== 2. start, and the probes")
         box.start()
-        after = ipcs_keys()
-        say("  IPC keys after start: %s" % " ".join(after))
+        rows = sbx.ipcs_rows()
         ck("S0 the sandbox has its own keys and the live keys are untouched",
-           all(k in after for k in BOX_KEYS) and all((k in after) == (k in before) for k in LIVE_KEYS))
-
-        fixed = os.path.join(box.sys, "bin", "sd-solo")
-        mutA = os.path.join(root, "mutA", "bin", "sd-solo")
-        mutB = os.path.join(root, "mutB", "bin", "sd-solo")
-        bp = os.path.join(box.acct, "bp")
+           all(k in rows for k in sbx.BOX_KEYS) and all(before[k] == rows.get(k) for k in before))
         for name, src in PROBES.items():
-            with open(os.path.join(bp, name), "w") as f:
+            with open(os.path.join(sysd, "bp", name), "w") as f:
                 f.write(src)
-        out = box.session(fixed, ["CREATE.FILE zza1d DIRECTORY", "CREATE.FILE zza1h", "CREATE.FILE zza5",
-                                  "BASIC BP " + " ".join(n.upper() for n in PROBES)]
+        out = rig.session(["CREATE.FILE zza1d DIRECTORY", "CREATE.FILE zza1h", "CREATE.FILE zza5",
+                           "BASIC BP " + " ".join(n.upper() for n in PROBES)]
                           + ["CATALOG BP %s LOCAL" % n for n in PROBES])
         ck("S1 every probe compiled", "Compiled %d program(s) with no errors" % len(PROBES) in out)
 
         # ---- A6 and L1 -------------------------------------------------------
         say("\n=== 3. A6 (and L1): a failed truncate is reported, and leaves no lock")
-        ro = os.path.join(box.acct, "zza6ro.dat")
+        ro = os.path.join(sysd, "zza6ro.dat")
         results = {}
-        for label, binary in (("fixed", fixed), ("mutant", mutA)):
-            box.stop(); box.start()
+        for label, which in (("fixed", "fixed"), ("mutant", "mutA")):
+            rig.restart()
             with open(ro, "w") as f:
                 f.write("OLDCONTENT")
             os.chmod(ro, 0o444)
-            out = box.session(binary, ["ZZA6"])
+            out = rig.session(["ZZA6"], which)
             os.chmod(ro, 0o644)
             with open(ro) as f:
                 kept = f.read()
-            locks = box.session(fixed, ["LIST.READU"])
+            locks = rig.session(["LIST.READU"], "fixed")
             results[label] = (out, kept, locks)
         out, kept, locks = results["fixed"]
         ck("A6.0 control: a regular file truncates (content AB)", "CONTROL content=AB" in out)
@@ -480,18 +402,18 @@ def main():
 
         # ---- A3 and A1 -------------------------------------------------------
         say("\n=== 4. A3 and A1: a commit that fails part way says so and puts back what it wrote")
-        d = os.path.join(box.acct, "zza1d")
-        errlog = os.path.join(box.sys, "errlog")
+        d = os.path.join(sysd, "zza1d")
+        errlog = os.path.join(sysd, "errlog")
 
-        def txn_run(binary):
+        def txn_run(which):
             os.chmod(d, 0o755)
-            box.session(fixed, ["ZZA1S"])
+            rig.session(["ZZA1S"], "fixed")
             n0 = os.path.getsize(errlog) if os.path.exists(errlog) else 0
             os.chmod(d, 0o555)
             say("    zza1d is now mode %o" % (os.stat(d).st_mode & 0o7777))
-            out = box.session(binary, ["ZZA1T", "LIST.READU"])
+            out = rig.session(["ZZA1T", "LIST.READU"], which)
             os.chmod(d, 0o755)
-            back = box.session(fixed, ["ZZA1R"])
+            back = rig.session(["ZZA1R"], "fixed")
             with open(errlog, errors="replace") as f:
                 f.seek(n0)
                 new = f.read()
@@ -500,103 +422,120 @@ def main():
                     say("      errlog| " + l.strip())
             return out, back, new
 
-        out, back, new = txn_run(fixed)
+        out, back, new = txn_run("fixed")
         ck("A3.1 the commit fails out loud", "Delete error in transaction commit" in out and "ZZA1T.COMMIT.RETURNED" not in out)
         ck("A1.1 both DH writes are put back", "ZZA1R k1=OLDK1 k2=OLDK2 r1=OLDR1" in back)
         ck("A1.2 errlog names the undo", "3 record(s) restored" in new)
         say("    A1 lock half (NOT SCORED): LIST.READU after the failure said: %s"
             % ("no locks" if "There are no active" in out else "locks listed"))
-        out, back, new = txn_run(mutA)
+        out, back, new = txn_run("mutA")
         ck("A1.1R RED: without the undo the commit is left half applied", "ZZA1R k1=NEWK1 k2=NEWK2 r1=OLDR1" in back)
         say("    A1 lock half on the mutant (NOT SCORED): %s" % ("no locks" if "There are no active" in out else "locks listed"))
-        out, back, new = txn_run(mutB)
+        out, back, new = txn_run("mutB")
         ck("A3.1R RED: with a bare remove() the commit returns 0", "ZZA1T.COMMIT.RETURNED status=0" in out)
         ck("A3.2R RED: and the 'deleted' record is still there", "r1=OLDR1" in back)
 
         # ---- A5 --------------------------------------------------------------
         say("\n=== 5. A5: index node allocation failing under RLIMIT_FSIZE")
-        box.session(fixed, ["ZZA5D", "CREATE.INDEX zza5 lkey", "ZZA5W 1 40", "BUILD.INDEX zza5 lkey"])
-        base = box.session(fixed, ["ZZA5V"])
+        rig.session(["ZZA5D", "CREATE.INDEX zza5 lkey", "ZZA5W 1 40", "BUILD.INDEX zza5 lkey"], "fixed")
+        base = rig.session(["ZZA5V"], "fixed")
         ck("A5.0 baseline: 40 records, index exact", "ZZA5V data.records=40 index.missing=0 index.wrong=0" in base)
         snap = os.path.join(root, "zza5.base")
-        shutil.copytree(os.path.join(box.acct, "zza5"), snap)
-        ak = os.path.join(box.acct, "zza5", "%2")
-        limit = os.path.getsize(ak) + 2 * 4096
-        vocmax = max(os.path.getsize(os.path.join(box.acct, "voc", x)) for x in os.listdir(os.path.join(box.acct, "voc")))
-        limit = max(limit, vocmax + 4096)
-        say("    index subfile %%2 = %d bytes; largest voc subfile %d; limit %d" % (os.path.getsize(ak), vocmax, limit))
-        found = {}
-        for label, binary in (("fixed", fixed), ("mutant", mutA)):
-            shutil.rmtree(os.path.join(box.acct, "zza5"))
-            shutil.copytree(snap, os.path.join(box.acct, "zza5"))
-            w = box.session(binary, ["ZZA5W 41 300"], limit=limit)
-            v1 = box.session(fixed, ["ZZA5V"])
-            w2 = box.session(fixed, ["ZZA5W 601 640"])
-            v2 = box.session(fixed, ["ZZA5V"])
-            m = re.search(r"ok=(\d+) failed=(\d+) first.status=(\d*)", w)
-            found[label] = (m.groups() if m else None, v1, w2, v2)
-        g, v1, w2, v2 = found["fixed"]
-        ck("A5.1 writes past the limit were REPORTED, with 8506 (get_ak_node)", g is not None and int(g[1]) > 0 and g[2] == "8506", str(g))
-        if g:
-            ck("A5.2 the index misses exactly the reported failures, no wrong entries",
-               ("index.missing=%s index.wrong=0" % g[1]) in v1)
-            ck("A5.3 and keeps working: 40 more writes, still exact apart from those",
-               "ok=40 failed=0" in w2 and ("index.missing=%s index.wrong=0" % g[1]) in v2)
-        gm, mv1, mw2, mv2 = found["mutant"]
-        say("    mutant reported %s; status %s where the fix gives 8506" % (str(gm), gm[2] if gm else "?"))
-        # The first run of this script found the mutant did not finish 41..600
-        # inside 120 s where the fix did at once.  Measured again here, bounded.
-        hung = {}
-        for label, binary in (("fixed", fixed), ("mutant", mutA)):
-            shutil.rmtree(os.path.join(box.acct, "zza5"))
-            shutil.copytree(snap, os.path.join(box.acct, "zza5"))
-            t0 = time.time()
-            w = box.session(binary, ["ZZA5W 41 600"], limit=limit, timeout=60)
-            hung[label] = (w == "TIMEOUT")
-            say("    %s, 41..600 under the limit: %s in %.1f s"
-                % (label, "TIMEOUT" if hung[label] else "finished", time.time() - t0))
-        ck("A5.4 the fix finishes 41..600 under the limit", not hung["fixed"])
-        # RED, IN EITHER OF ITS TWO FORMS.  At some limits the mutant's
-        # unchecked grow shows only as a different status; at others it loses
-        # index entries it reported as written, keeps losing them after the
-        # limit is lifted, or never finishes.  The first measured run (32768)
-        # showed none of it and the next (33792) showed all three, so one of
-        # them is required, not a particular one.
-        silent = False
-        if gm:
-            mm = re.search(r"index.missing=(\d+)", mv1)
-            silent = bool(mm) and int(mm.group(1)) != int(gm[1])
-        mm2 = re.search(r"index.missing=(\d+)", mv2)
-        mm1 = re.search(r"index.missing=(\d+)", mv1)
-        drift = bool(mm1 and mm2) and int(mm2.group(1)) != int(mm1.group(1))
-        say("    mutant: silent index loss=%s, loss after the limit lifted=%s, hang=%s" % (silent, drift, hung["mutant"]))
-        ck("A5.R RED: without the grow check the index is damaged or the write never finishes",
-           silent or drift or hung["mutant"])
+        shutil.copytree(os.path.join(sysd, "zza5"), snap)
+        ak = os.path.join(sysd, "zza5", "%2")
+        vocmax = max(os.path.getsize(os.path.join(sysd, "voc", x)) for x in os.listdir(os.path.join(sysd, "voc")))
+        limit0 = max(os.path.getsize(ak) + 2 * 4096, vocmax + 4096)
+        say("    index subfile %%2 = %d bytes; largest voc subfile %d; first limit %d" % (os.path.getsize(ak), vocmax, limit0))
+        # WHERE THE LIMIT FALLS DECIDES HOW THE MUTANT SHOWS (the record above: 32768 gave only another status, 33792
+        # gave index loss, loss after the limit was lifted, and a hang), so two limits a kilobyte apart are run, the
+        # fixed rows are required at both, and the mutant has to go red in some form at one of them.
+        red_forms = {}
+        for limit in (limit0, limit0 + 1024):
+            found = {}
+            for label, which in (("fixed", "fixed"), ("mutant", "mutA")):
+                shutil.rmtree(os.path.join(sysd, "zza5"))
+                shutil.copytree(snap, os.path.join(sysd, "zza5"))
+                w = rig.session(["ZZA5W 41 300"], which, limit=limit)
+                v1 = rig.session(["ZZA5V"], "fixed")
+                w2 = rig.session(["ZZA5W 601 640"], "fixed")
+                v2 = rig.session(["ZZA5V"], "fixed")
+                m = re.search(r"ok=(\d+) failed=(\d+) first.status=(\d*)", w)
+                found[label] = (m.groups() if m else None, v1, w2, v2)
+            g, v1, w2, v2 = found["fixed"]
+            ck("A5.1 @%d writes past the limit were REPORTED, with 8506 (get_ak_node)" % limit,
+               g is not None and int(g[1]) > 0 and g[2] == "8506", str(g))
+            if g:
+                ck("A5.2 @%d the index misses exactly the reported failures, no wrong entries" % limit,
+                   ("index.missing=%s index.wrong=0" % g[1]) in v1)
+                ck("A5.3 @%d and keeps working: 40 more writes, still exact apart from those" % limit,
+                   "ok=40 failed=0" in w2 and ("index.missing=%s index.wrong=0" % g[1]) in v2)
+            gm, mv1, mw2, mv2 = found["mutant"]
+            say("    mutant reported %s; status %s where the fix gives 8506" % (str(gm), gm[2] if gm else "?"))
+            # The first run of the full product's script found the mutant did not finish 41..600
+            # inside 120 s where the fix did at once.  Measured again here, bounded.
+            hung = {}
+            for label, which in (("fixed", "fixed"), ("mutant", "mutA")):
+                shutil.rmtree(os.path.join(sysd, "zza5"))
+                shutil.copytree(snap, os.path.join(sysd, "zza5"))
+                t0 = time.time()
+                w = rig.session(["ZZA5W 41 600"], which, limit=limit, timeout=60)
+                hung[label] = (w == "TIMEOUT")
+                say("    %s, 41..600 under the limit: %s in %.1f s"
+                    % (label, "TIMEOUT" if hung[label] else "finished", time.time() - t0))
+            ck("A5.4 @%d the fix finishes 41..600 under the limit" % limit, not hung["fixed"])
+            # THE FORMS OF RED: the mutant's unchecked grow (a) loses index entries it reported as written, (b) keeps
+            # losing them after the limit is lifted, (c) never finishes, or (d) is reported with another status than
+            # the fix's 8506 - the weakest, the only one at 32768, and a status is not damage, so it is said apart.
+            silent = False
+            if gm:
+                mm = re.search(r"index.missing=(\d+)", mv1)
+                silent = bool(mm) and int(mm.group(1)) != int(gm[1])
+            mm2 = re.search(r"index.missing=(\d+)", mv2)
+            mm1 = re.search(r"index.missing=(\d+)", mv1)
+            drift = bool(mm1 and mm2) and int(mm2.group(1)) != int(mm1.group(1))
+            status_only = bool(gm and g and gm[2] != g[2])
+            red_forms[limit] = {"silent index loss": silent, "loss after the limit lifted": drift,
+                                "hang": hung["mutant"], "another status than 8506": status_only}
+            say("    mutant @%d: %s" % (limit, ", ".join("%s=%s" % kv for kv in red_forms[limit].items())))
+        data_red = any(v for f in red_forms.values() for k, v in f.items() if k != "another status than 8506")
+        any_red = any(v for f in red_forms.values() for v in f.values())
+        ck("A5.R RED: without the grow check the write is reported differently, or the index is damaged, or it never finishes",
+           any_red)
+        say("    A5.R went red by %s" % ("DATA (index loss or a hang) at some limit" if data_red
+                                         else "STATUS ONLY at both limits (another status than 8506; no index damage seen)"))
         say("    A5 UNEXERCISED: the free-node read-failure path (the double-allocation damage) needs a transient read error.")
     finally:
         say("\n=== teardown")
-        try:
-            box.stop()
-        except Exception as e:
-            say("    stop: %s" % e)
-        left = ipcs_keys()
-        for k, flag in zip(BOX_KEYS, ("-M", "-S")):
-            if k in left:
-                sh(["ipcrm", flag, k])
-                say("    ipcrm %s %s" % (flag, k))
-        final = ipcs_keys()
-        say("  IPC keys after teardown: %s" % " ".join(final))
-        ck("T0 no sandbox key is left and the live keys are as they were",
-           not any(k in final for k in BOX_KEYS) and all((k in final) == (k in before) for k in LIVE_KEYS))
-        if not a.keep:
+        if rig is not None:
+            try:
+                rig.use("fixed")
+            except Exception as e:
+                say("    restoring the fixed binary: %s" % e)
+            if not a.keep:
+                rig.box.stop()
+            else:
+                say("    --keep: SD left started (stop it with: python3 %s %s stop)"
+                    % (os.path.join(HERE, "sandbox-fromtree.py"), root))
+        elif os.path.isdir(os.path.join(root, "sys")):
+            sbx.Box(root).stop()
+        after = sbx.live_snapshot()
+        sbx.show_live("after", after)
+        rows = sbx.ipcs_rows()
+        ck("T0 no sandbox key is left (unless --keep) and the live keys are as they were",
+           (a.keep or not any(k in rows for k in sbx.BOX_KEYS)) and all(before[k] == after[k] for k in before))
+        if a.clean:
             for dirpath, dirnames, files in os.walk(root):
                 for n in dirnames + files:
                     try:
-                        os.chmod(os.path.join(dirpath, n), 0o755)
+                        if not os.path.islink(os.path.join(dirpath, n)):
+                            os.chmod(os.path.join(dirpath, n), 0o755)
                     except OSError:
                         pass
             shutil.rmtree(root, ignore_errors=True)
             say("  removed %s" % root)
+        else:
+            say("  %s left in place (%d entries); remove it yourself, after stopping the sandbox if --keep"
+                % (root, sum(len(d) + len(f) for _, d, f in os.walk(root))))
 
     say("\n  passed: %d   failed: %d" % (PASS, FAIL))
     if PASS == 0:
