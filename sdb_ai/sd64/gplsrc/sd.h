@@ -20,6 +20,8 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * 29 Sep 26 dm  load_language() is init_messages(): English only.
  * 29 Sep 26 SD Core for Linux Solo - GetHomePath(), GetDefaultSysdir().
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the prototypes of netfiles.c (S.65) and of the
+ *               OS-access and edit gates of op_sh.c (S.63, S.64), which Solo does not carry.
  * END-HISTORY
  * 
 */
@@ -74,6 +76,8 @@ typedef struct BTREE_HEADER BTREE_HEADER;
 typedef struct PMATRIX_HEADER PMATRIX_HEADER;
 typedef struct SOCKVAR SOCKVAR;
 typedef struct OBJDATA OBJDATA;
+typedef struct COLL_HEADER COLL_HEADER;
+typedef struct COLL_ENTRY COLL_ENTRY;
 
 /* ======================================================================
    Standard includes needed everywhere                                    */
@@ -185,7 +189,7 @@ bool GetHomePath(char * buff, int buff_len);
 bool GetDefaultSysdir(char * buff, int buff_len);
 
 /* KERNEL.C */
-int16_t assign_user_no(int16_t user_table_index);
+int16_t assign_user_no(int16_t user_table_index, bool interactive);
 bool init_kernel(void);
 int16_t in_group(char * name);
 char * account(void);
@@ -235,6 +239,13 @@ void k_error(char msg[], ...);
 void k_quit(void);
 void k_err_pu(void);
 int k_line_no(int32_t offset, u_char * xcbase);
+void try_level_gone(void);                   /* op_jumps.c: TRY frames of a returned level */
+void exc_value(int which, DESCRIPTOR * descr); /* op_jumps.c: @EXCEPTION and friends */
+bool exc_sys_can_catch(const char * name);       /* op_jumps.c: would a throw of this SYS.* exception find a handler? */
+void exc_sys_throw(const char * name, const char * text); /* op_jumps.c: throw it; returns only if nothing can catch it */
+bool k_can_resume(void);                         /* kernel.c: does a dispatch loop stand ready to take a system exception? */
+void k_resume_exception(void);                   /* kernel.c: go back to it (does not return) */
+void txn_rollback_to(int depth);                 /* txn.c: roll back the transactions begun since the nesting depth was depth */
 char * k_var_name(DESCRIPTOR * descr);
 void log_message(char * msg);
 void audit_message(char * msg);
@@ -258,6 +269,13 @@ void k_num_array2(void(op(void)), int16_t default_value);
 void k_release(DESCRIPTOR * p);
 void k_deref_image(SCREEN_IMAGE * image);
 void k_deref_string(STRING_CHUNK * str);
+void coll_deref(COLL_HEADER * h);
+bool coll_record_in(DESCRIPTOR * d);
+bool coll_record_text(DESCRIPTOR * d);
+void coll_debug_json(COLL_HEADER * h);
+COLL_ENTRY * coll_debug_find(COLL_HEADER * root, char * path, int32_t len);
+int32_t url_encode_top(void);
+int32_t url_decode_top(void);
 int k_get_c_string(DESCRIPTOR * descr, char * s, int max_bytes);
 void k_incr_refct(DESCRIPTOR * p);
 void k_put_c_string(char * s, DESCRIPTOR * descr);
@@ -279,6 +297,7 @@ u_int32_t GetUnsignedInt(DESCRIPTOR * descr);
 /* MESSAGES.C */
 bool init_messages(void);
 char * sysmsg(int msg_no);
+int sysmsg_number_of(const char * p);
 
 /* NETFILES.C removed - SDNet (plan G4). sdnet.h is a different file (the
    socket/termios portability header) and stays. */
@@ -288,11 +307,20 @@ void * load_object(char * name, bool abort_on_error);
 void unload_object(void * obj_hdr);
 void unload_all(void);
 bool is_global(void * obj_hdr);
+void stale_objects(void);
+bool object_is_stale(void * obj_hdr);
+void * refresh_subr_object(void * obj_hdr);
 void invalidate_object(void);
 void * find_object(int32_t id);
 STRING_CHUNK * hsm_dump(void);
 void hsm_enter(void);
 void hsm_on(void);
+/* 14 Oct 26 - sheet item 491: count a file operation against the running program (object.c) */
+#define HSM_OPEN 0
+#define HSM_READ 1
+#define HSM_WRITE 2
+#define HSM_DELETE 3
+void hsm_io(int what);
 
 /* OBJPROG.C */
 OBJDATA * create_objdata(u_char * obj);
@@ -304,16 +332,55 @@ void free_common(ARRAY_HEADER * addr);
 void free_array(ARRAY_HEADER * hdr_addr);
 void delete_common(ARRAY_HEADER * ahdr);
 
+/* OP_EXEC.C */
+void stdfil_shared_restore(void);
+
+/* PROFILER.C: the application event profiler (16 Oct 26, QM4 gap 66) */
+#define PROF_CALL     0x0001
+#define PROF_OPEN     0x0002
+#define PROF_READ     0x0004
+#define PROF_WRITE    0x0008
+#define PROF_DELETE   0x0010
+#define PROF_OPENSEQ  0x0020
+#define PROF_READSEQ  0x0040
+#define PROF_WRITESEQ 0x0080
+#define PROF_EXECUTE  0x0100
+#define PROF_OBJECT   0x0200
+#define PROF_TYPES    10
+#define PROF_ALL      0x03FF
+Public int16_t prof_mask init(0);
+void prof_set(int16_t mask);
+void prof_event(int16_t bit, const char* qual, int qlen);
+void prof_dump(DESCRIPTOR* result);
+/* The hooks the opcodes use: nothing at all unless a profile is on. */
+#define ProfEvent(bit, qual, qlen) do { if (prof_mask & (bit)) prof_event((bit), (qual), (qlen)); } while (0)
+#define ProfFile(bit, fv) do { if (prof_mask & (bit)) prof_file_event((bit), (fv)); } while (0)
+void prof_file_event(int16_t bit, FILE_VAR * fvar);
+
+/* OP_LOCK.C: OPTION COMMAND.LEVEL.LOCKS */
+Public bool explicit_close init(FALSE); /* op_close() is releasing the file variable: park_fvar() leaves it alone */
+bool park_fvar(FILE_VAR * fvar);
+void release_parked_fvars(int16_t level);
+
 /* OP_BTREE.C */
 bool bt_get_string(DESCRIPTOR * descr, char ** s);
 void btree_to_string(DESCRIPTOR * descr);
 void free_btree_element(BTREE_ELEMENT * element, int16_t keys);
 
 /* OP_DIO1.C */
+#define VOC_FLAGS_LEN 15  /* Longest field 6 of an F-type VOC entry that open_file() reads */
 void dio_close(FILE_VAR * fvar);
 bool get_voc_file_reference(char * voc_name, bool get_dict_name,
-                            char * path);
+                            char * path, char * vflags);
 void flush_dh_cache(void);
+
+/* OP_DIO3.C - line terminator modes of directory and sequential files (16 Oct 26, QM4 Fixes item 452) */
+u_char crlf_from_vflags(const char * vflags);
+/* ...and the trigger function of a directory file (16 Oct 26, QM4 Fixes item 177) */
+void dir_trigger_open(FILE_VAR * fvar, const char * dirpath);
+void dir_trigger_close(FILE_VAR * fvar);
+int dir_set_trigger(FILE_VAR * fvar, const char * name, int modes);
+bool is_dir_header(const char * name);
 
 /* OP_DIO2.C */
 bool delete_path(char * path);
@@ -345,7 +412,9 @@ bool check_lock(FILE_VAR * fvar, char * id, int16_t id_len);
 int16_t lock_record(FILE_VAR *, char * id, int16_t id_len, bool update,
                       u_int32_t txn_id, bool no_wait);
 bool unlock_record(FILE_VAR *, char * id, int16_t id_len);
+char * deadlock_info_string(int * len);
 void unlock_txn(u_int32_t txn);
+void transfer_txn_locks(u_int32_t from, u_int32_t to); /* 15 Oct 26: a non-durable child commit hands its locks to the parent */
 void clear_lock_wait(void);
 void rebuild_llt(void);
 
@@ -396,6 +465,7 @@ void freescrn(SCREEN_IMAGE * image);
 void break_key(void);
 int16_t keyin(int timeout);
 bool keyready(void);
+int32_t type_ahead_count(void);
 bool write_socket(char * str, int bytes, bool flush);
 bool to_outbuf(char * str, int bytes);
 void lock_beep(void);

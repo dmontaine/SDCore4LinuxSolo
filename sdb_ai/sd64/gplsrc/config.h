@@ -37,7 +37,7 @@ struct CONFIG {
   int16_t max_users;               /* User limit */
   char sysdir[MAX_PATHNAME_LEN+1];
   int16_t cmdstack;                /* CMDSTACK: Command stack depth */
-  bool deadlock;                   /* DEADLOCK: Trap deadlocks */
+  bool deadlock;                   /* DEADLOCK: 0 allow, 1 trap deadlocks, 2 trap and save the locks */
   u_int16_t debug;                 /* DEBUG:    Controls debug features */
   int errlog;                      /* ERRLOG:   Max errlog size in bytes, 0 if disabled */
   int16_t fds_limit;               /* FDS */
@@ -45,6 +45,12 @@ struct CONFIG {
   int16_t fixusers_range;          /*          ...Number of users */
   int16_t jnlmode;                 /* JNLMODE:  Journalling mode */
   char jnldir[MAX_PATHNAME_LEN+1]; /* JNLDIR:   Journal file directory */
+  int16_t lgnwait;                 /* LGNWAIT:  Tenths of a second a login waits for a spare user number */
+  int16_t userpool;                /* USERPOOL: Highest user number to allocate; 0 = lowest free number first */
+  int16_t usplit;                  /* USPLIT:   1 = interactive users take the lowest free user number, all other processes the highest (15 Oct 26) */
+  int16_t cleanup;                 /* CLEANUP:  Seconds between scans for processes that ended abnormally, 30 to 3600, default 300 (16 Oct 26) */
+  int16_t phantoms_base;           /* PHANTOMS: Lowest user number reserved for PHANTOM ... USER n, and... (16 Oct 26) */
+  int16_t phantoms_range;          /*           ...how many are reserved; 0 = none */
   int16_t maxidlen;                /* MAXIDLEN: Maximum record id length */
   int16_t netfiles;                /* NETFILES:
                                       0x0001    Allow outgoing NFS
@@ -59,6 +65,9 @@ struct CONFIG {
  };
 
 
+/* The most closed dynamic files DHCACHE may ask to be kept open (the cache is in op_dio1.c) */
+#define MAX_DH_CACHE_SIZE 1024
+
 /* Config parameters loaded per process to allow local changes */
 
 #define MAX_SH_CMD_LEN 80
@@ -66,6 +75,7 @@ struct PCFG  {
 /* 14 Sep 26 dm - S.18: api_login (APILOGIN) removed; config.c ignores the key. */
   unsigned int codepage;                /* CODEPAGE: Set console codepage */
   bool create_user;                     /* allow create account to create os user */
+  int16_t dhcache;                      /* DHCACHE:  Closed dynamic files kept open for quick reopening */
   char dumpdir[MAX_PATHNAME_LEN+1];     /* DUMPDIR:  Directory for process dump files */
   bool exclrem;                         /* EXCLREM:  Exclude remote files from ACCOUNT.SAVE? */
   int16_t filerule;                     /* FILERULE: Rules for special filename formats */
@@ -76,12 +86,15 @@ struct PCFG  {
   char grpdir[MAX_PATHNAME_LEN+1];      /* GRPDIR:   Parent Directory for group accounts */
   int16_t grpsize;                      /* GRPSIZE:  Default group size (1-8) */
   int16_t intprec;                      /* INTPREC:  Precision for INT() etc */
+  bool invcase;                         /* INVCASE:  Initial case inversion of terminal input */
   int16_t lptrhigh;                     /* LPTRHIGH: Default printer lines */
   int16_t lptrwide;                     /* LPTRWIDE: Default printer width */
   int maxcall;                          /* MAXCALL:  Maximum call depth */
+  int32_t maxrlock;                     /* MAXRLOCK: Record locks one process may hold, 0 = no limit */
   bool must_lock;                       /* MUSTLOCK: Enforce locking rules */
   int16_t objects;                      /* OBJECTS:  Max loaded objects */
   int32_t objmem;                       /* OBJMEM:   Object size limit, zero = none */
+  int16_t pwdelay;                      /* PWDELAY:  Seconds paused after a failed network login */
   int16_t sdclient_mode;                /* SDCLIENT: 0 = any, 1 = no open/exec, 2 = restricted call */
   int16_t reccache;                     /* RECCACHE: Record cache size */
   bool ringwait;                        /* RINGWAIT: Wait if ring buffer full */
@@ -90,10 +103,12 @@ struct PCFG  {
   char sh1[MAX_SH_CMD_LEN+1];           /* SH1:      Command to run single shell */
   int32_t sortmem;                      /* SORTMEM: Limit on in-memory sort size */
   int16_t sortmrg;                      /* SORTMRG: Number of files in merge */
+  char screentheme[32+1];               /* SCREENTHEME: the screen library's default theme (13 Oct 26) */
   char sortworkdir[MAX_PATHNAME_LEN+1]; /* SORTWORK */
   char spooler[MAX_PATHNAME_LEN+1];     /* SPOOLER: Non-default spooler */
   char tempdir[MAX_PATHNAME_LEN+1];     /* TEMPDIR */
   char terminfodir[MAX_PATHNAME_LEN+1]; /* TERMINFO */
+  char timezone[64+1];                  /* TIMEZONE: the zone the epoch functions use, null = the process's own TZ (15 Oct 26) */
   bool txchar;                          /* TXCHAR */
 /* 20240219 mab create-account based on type (user / group / other) */  
   char usrdir[MAX_PATHNAME_LEN+1];      /* USRDIR:   Parent Directory for user accounts */

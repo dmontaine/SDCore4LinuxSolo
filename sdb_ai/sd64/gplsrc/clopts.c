@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 15 Oct 26 dm  show_status(): the buffer for the start time was one byte short for its "not recorded" text (gcc warned on every
+ *               build); 64 bytes now.
+ * 15 Oct 26 dm  pid_is_alive(): process_exists() for kernel(K_PID_ALIVE) (QM4 gaps Q-8, INHIBIT.LOGIN).
  * 18 Sep 26 reap_lost_user() and cleanup() strcpy()'d a shared-segment
  *           username into a stack buffer without a bound; now memcpy of
  *           MAX_USERNAME_LEN with an explicit terminator (the Windows
@@ -35,6 +38,7 @@
  * -K         Kill user(s)
  * -RECOVER   Recover users
  * -U         Show users
+ * -STATUS    Version, start time and process counts
  *
  * END-DESCRIPTION
  *
@@ -44,6 +48,8 @@
 #include <signal.h>
 #include "sd.h"
 #include "locks.h"
+#include "revstamp.h"
+#include <time.h>
 
 
 Private void kill_process(USER_ENTRY* uptr);
@@ -124,6 +130,47 @@ void show_users() {
              (int)(uptr->puid), origin, uptr->username);
     }
   }
+
+  unbind_sysseg();
+}
+
+/* ======================================================================
+   show_status()  -  Version, start time and process counts (SD -STATUS)  */
+
+void show_status() {
+  int i;
+  int users = 0;
+  int phantoms = 0;
+  int api = 0;
+  USER_ENTRY* uptr;
+  time_t started;
+  char when[64]; /* 15 Oct 26: was 40, and the "not recorded" text below is 40 characters and its NUL (gcc -Wstringop-overflow) */
+
+  if (!attach_shared_memory()) {
+    printf("SD (%s) is not active.\n", SD_REV_STAMP);
+    return;
+  }
+
+  for (i = 1; i <= sysseg->max_users; i++) {
+    uptr = UPtr(i);
+    if (uptr->uid > 0) {
+      if (uptr->flags & USR_PHANTOM)
+        phantoms++;
+      else if (uptr->flags & USR_SDAPISRVR)
+        api++;
+      else
+        users++;
+    }
+  }
+
+  started = (time_t)sysseg->start_time;
+  if (started > 0)
+    strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", localtime(&started));
+  else
+    strcpy(when, "not recorded (started by an older build)");
+  printf("SD (%s)\n", SD_REV_STAMP);
+  printf("Started   %s\n", when);
+  printf("Users     %d interactive, %d phantom, %d API, limit %d\n", users, phantoms, api, (int)sysseg->max_users);
 
   unbind_sysseg();
 }
@@ -356,6 +403,13 @@ void suspend_resume(bool suspend) {
 
 Private bool process_exists(int pid) {
   return (!kill(pid, 0) || (errno == EPERM));
+}
+
+/* 15 Oct 26 dm - QM4 gaps Q-8, K_PID_ALIVE: the same liveness test as cleanup(), for a BASIC program that holds a session's
+   process id (!login_inhibit).  A session that was killed leaves its user table slot behind until "sd -cleanup" or LOGOUT
+   reaps it, so "the table has an entry with that number and process id" is not enough to call the session alive.        */
+bool pid_is_alive(int pid) {
+  return (pid > 0) && process_exists(pid);
 }
 
 /* ====================================================================== */

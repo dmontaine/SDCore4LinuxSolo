@@ -154,7 +154,7 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
 
   StartExclusive(FILE_TABLE_LOCK, 20);
   fptr->stats.writes++;
-  sysseg->global_stats.writes++;
+  NoteStat(writes);
   group = dh_hash_group(fptr, id, id_len);
   lock_slot = GetGroupWriteLock(dh_file, group);
   fptr->upd_ct++;
@@ -504,6 +504,9 @@ exit_dh_write:
       }
     }
   }
+
+  if (dh_err == 0)
+    dh_forced_write(dh_file); /* a file in forced write mode (Fixes item 102) */
 
   return (dh_err == 0);
 }

@@ -48,12 +48,13 @@ struct RLOCK_ENTRY {
   int32_t id_hash;    /* Record's hash value */
   int32_t fvar_index; /* Cross-ref to FILE_VAR */
   u_int32_t txn_id;   /* Transaction id (0 if outside transaction) */
+  int32_t lock_time;  /* time() when the lock was acquired (openQM item 487) */
   int16_t id_len;
   int16_t pad; /* Pad to 4 byte multiple */
   char id[MAX_ID_LEN];
 };
 
-#define RLPtr(n)                                            \
+#define RLPtr(n)                                           \
   ((RLOCK_ENTRY*)((((char*)sysseg) + sysseg->rlock_table) + \
                   ((n - 1) * sysseg->rlock_entry_size)))
 
@@ -79,6 +80,7 @@ struct LLT_ENTRY {
   char id[1];         /* The record id */
 };
 Public LLT_ENTRY* llt_head init(NULL);
+Public int32_t llt_count init(0); /* Entries on the chain above: the record locks this process holds (MAXRLOCK) */
 
 /* ==================== GROUP LOCKS ==================== */
 

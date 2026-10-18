@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's keys 92, 97 to 117, 119 and 120.  Not carried: K_SH, K_OS_EXEC,
+ *               K_PATH_OK, K_PATH_IN, K_SD_ACCOUNTS, K_VOC_EDIT, K_BP_EDIT, K_DICT_EDIT, K_EDIT_OK, K_EDIT_KIND, K_EDIT_OS_OK, K_NET, K_LOGIN_UID.
+ *               K_GLOBAL_SESSION (69) and Solo's K_ASSUME_USER stay.
+ * 16 Oct 26 dm  K_PHANTOM_USER: PHANTOM USER n takes the user number n from those PHANTOMS keeps (QM4 gaps).
  * 31 Dec 23 SD launch - prior history suppressed
  * 28 Jul 24 mab remove op_cnctport() / CONNECT.PORT not supported
  * 11 Sep 26 dm  LOGOUT() reaps a slot whose process is gone and returns 2
@@ -49,6 +53,8 @@
  * START-CODE
  */
 
+#include <time.h>
+#include <unistd.h>
 #include "sd.h"
 #include "revstamp.h"
 #include "header.h"
@@ -61,6 +67,8 @@
 #include "dh_int.h"
 #include "locks.h"
 
+extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
+
 #include <sys/wait.h>
 #include <pwd.h>
 #include <grp.h>
@@ -71,8 +79,14 @@ Public bool case_sensitive;
 /* 09 Sep 26 dm - the IsAdmin() declaration went with the function.  See
    linuxlb.c for why it is gone rather than merely unused.                    */
 bool recover_users(void);
+bool pid_is_alive(int pid);
 void set_date(int32_t);
 
+#define INPUT_FILL_MAX 3
+Private char input_fill[INPUT_FILL_MAX + 1] = ""; /* K_INPUT_FILL_SET / _GET (sheet item 389) */
+Private int16_t phantom_requested_user = 0;           /* PHANTOM USER n (16 Oct 26): the user number the next phantom() is to take, 0 for any */
+Private char input_null_char = '\0';               /* INPUTNULL (sheet item 408): '\0' for none */
+Private char *reset_all_command = NULL;            /* LOGTO ... RESET ALL (item 30): the command the bottom command processor is to run */
 Private bool run_exe(char *exe_name, char *cmd_line);
 
 /* ======================================================================
@@ -101,6 +115,7 @@ void op_kernel() {
      K$IS.PHANTOM         Is this a phantom process
      K$TERM.TYPE          Terminal type name
      K$USERNAME           User name
+     K$WINSIZE            The terminal's size as the kernel last read it from the tty
      K$DATE.CONV          Set default date conversion
      K$PPID               Get parent process id
      K$USERS              Get user list
@@ -203,6 +218,11 @@ void op_kernel() {
     case K_PAGINATE:
       if ((n = descr->data.value) < 0) { /* Enquiry */
         result.data.value = (tio.dsp.flags & PU_PAGINATE) != 0;
+      } else if (n == 2) { /* RUN NO.PAGE: headings never paginate */
+        tio.dsp.flags |= PU_HF_NO_PAGE;
+        tio.dsp.flags &= ~PU_PAGINATE;
+      } else if (n == 3) { /* Lift the above */
+        tio.dsp.flags &= ~PU_HF_NO_PAGE;
       } else { /* Set pagination state */
         if (n) {
           tio.dsp.flags |= PU_PAGINATE;
@@ -231,12 +251,29 @@ void op_kernel() {
       break;
 
     case K_CRTHIGH:
+      tio_check_resize();
       result.data.value = tio.dsp.lines_per_page;
       break;
 
     case K_CRTWIDE:
+      tio_check_resize();
       result.data.value = tio.dsp.width;
       break;
+
+    /* 13 Oct 26 dm - the terminal's own size, as the kernel last read it from
+       the tty: width, a field mark, height; null if it never could (no tty, or
+       a terminal that says 0 by 0).  See linuxio.c and K_WINSIZE in keys.h.   */
+    case K_WINSIZE: {
+      int cols;
+      int rows;
+
+      if (console_window_size(&cols, &rows)) {
+        sprintf(s, "%d%c%d", cols, FIELD_MARK, rows);
+        k_put_c_string(s, &result);
+      } else {
+        k_put_c_string("", &result);
+      }
+    } break;
 
     case K_SET_DATE:
       GetInt(descr);
@@ -363,9 +400,10 @@ void op_kernel() {
           if (result.data.str.saddr != NULL)
             ts_copy_byte(FIELD_MARK);
 
-          ts_printf("%d%c%d%c%s%c%d%c%d%c%s%c%s%c%d", (int)(uptr->uid), VALUE_MARK, (int)(uptr->pid), VALUE_MARK, 
-                    uptr->ip_addr, VALUE_MARK, (int)(uptr->flags), VALUE_MARK, uptr->puid, VALUE_MARK,
-                    uptr->username, VALUE_MARK, uptr->ttyname, VALUE_MARK, uptr->login_time);
+          ts_printf("%d%c%d%c%s%c%d%c%d%c%s%c%s%c%d%c%s", (int)(uptr->uid), VALUE_MARK, (int)(uptr->pid), VALUE_MARK,
+                    uptr->ip_addr, VALUE_MARK, (int)(uptr->flags | (uptr->grouped ? USR_GROUPED : 0)), VALUE_MARK, uptr->puid, VALUE_MARK,
+                    uptr->username, VALUE_MARK, uptr->ttyname, VALUE_MARK, uptr->login_time, VALUE_MARK,
+                    uptr->account);   /* 14 Oct 26: the ninth value (sheet 24, 29) */
           if (n)
             break;
         }
@@ -391,8 +429,12 @@ void op_kernel() {
       break;
 
     case K_CPROC_LEVEL:
-      if (descr->data.value > 0)
+      if (descr->data.value > 0) {
+        /* 12 Oct 26: a command level just entered starts without PTERM CTRL.FILTER */
+        if (descr->data.value > cproc_level)
+          ctrl_filter[(int16_t)(descr->data.value) & 63] = FALSE;
         cproc_level = (int16_t)(descr->data.value);
+      }
       result.data.value = cproc_level;
       break;
       
@@ -461,6 +503,117 @@ void op_kernel() {
       result.data.value = (my_uptr->flags & USR_GLOBAL) != 0;
       break;
 
+    /* 14 Oct 26 dm - sheet items 24, 29 and 38.  K_SET_ACCOUNT: the account the session is in, for the user table
+       (LISTU, !LISTU).  Set only from a $internal program, like K_SET_USERNAME; the name as it stands is returned,
+       so a refused caller is told what it still is.  An overlength name (k_get_c_string answers -1) sets nothing.
+       K_USER_PEAK: the most user table cells in use at once since SD started.                                */
+    case K_SET_ACCOUNT:
+      {
+        char aname[MAX_ACCOUNT_NAME_LEN + 1];
+
+        if ((process.program.flags & HDR_INTERNAL) && (k_get_c_string(descr, aname, MAX_ACCOUNT_NAME_LEN) >= 0))
+          strcpy((char *)(my_uptr->account), aname);
+      }
+      k_put_c_string((char *)(my_uptr->account), &result);
+      break;
+
+    case K_USER_PEAK:
+      result.data.value = (int32_t)(sysseg->users_peak);
+      break;
+
+    /* 14 Oct 26 dm - sheet item 389: the fill string of INPUT var, length, fill (see keys.h). */
+    case K_INPUT_FILL_SET:
+      {
+        char fillbuf[INPUT_FILL_MAX + 1];
+        int fl = k_get_c_string(descr, fillbuf, INPUT_FILL_MAX);
+
+        strcpy(input_fill, (fl >= 0) ? fillbuf : "");
+      }
+      k_put_c_string("", &result);
+      break;
+
+    case K_INPUT_FILL_GET:
+      k_put_c_string(input_fill, &result);
+      input_fill[0] = '\0';
+      break;
+
+    /* 14 Oct 26 dm - sheet item 408: INPUTNULL and INPUTTRAP (see keys.h) */
+    case K_INPUT_NULL_SET:
+      {
+        char nullbuf[8];
+        char old[2];
+
+        old[0] = input_null_char;
+        old[1] = '\0';
+        if (k_get_c_string(descr, nullbuf, 7) >= 0)
+          input_null_char = nullbuf[0]; /* the first character; a null string cancels */
+        k_put_c_string(old, &result);
+      }
+      break;
+
+    case K_INPUT_NULL_GET:
+      {
+        char cur[2];
+
+        cur[0] = input_null_char;
+        cur[1] = '\0';
+        k_put_c_string(cur, &result);
+      }
+      break;
+
+    case K_INPUT_TRAP_TEST:
+      {
+        char typed[8];
+        struct PROGRAM *caller = process.program.prev; /* the program that executed the INPUT @ (we are in _INPUTAT) */
+        char *p;
+
+        result.data.value = 0;
+        if ((caller != NULL) && (caller->itrap_chars[0] != '\0') && (k_get_c_string(descr, typed, 7) == 1) &&
+            ((p = strchr(caller->itrap_chars, typed[0])) != NULL)) {
+          int pos = (int)(p - caller->itrap_chars) + 1;
+
+          caller->itrap_hit = (int16_t)((pos > caller->itrap_n) ? caller->itrap_n : pos);
+          result.data.value = 1;
+        }
+      }
+      break;
+
+    case K_INPUT_TRAP_HIT:
+      result.data.value = process.program.itrap_hit;
+      process.program.itrap_hit = 0;
+      break;
+
+    case K_MAXMIN_POS_SET:
+      if (k_get_c_string(descr, maxmin_pos, (int)sizeof(maxmin_pos) - 1) < 0)
+        maxmin_pos[0] = '\0';
+      break;
+
+    case K_CLASS_MAIN: /* 16 Oct 26, QM4 Fixes item 484: see keys.h */
+      GetInt(descr);
+      class_main_ok = (descr->data.value != 0);
+      break;
+
+    case K_RESET_ALL: /* 16 Oct 26, QM4 Fixes item 30: see keys.h */
+      s[0] = '\0';
+      if (k_get_c_string(descr, s, sizeof(s) - 1) > 0) {
+        if (is_sdApiSrvr) {
+          result.data.value = 0; /* Refused: nothing to go back to */
+        } else {
+          if (reset_all_command != NULL)
+            free(reset_all_command);
+          reset_all_command = strdup(s);
+          k_exit_cause = K_RESET_ALL_EXIT;
+          result.data.value = 1;
+        }
+      } else { /* Take the kept command back */
+        k_put_c_string((reset_all_command != NULL) ? reset_all_command : "", &result);
+        if (reset_all_command != NULL) {
+          free(reset_all_command);
+          reset_all_command = NULL;
+        }
+      }
+      break;
+
     case K_FILESTATS:
       GetInt(descr);
       if (descr->data.value) { /* Reset counters */
@@ -502,6 +655,254 @@ void op_kernel() {
 
     case K_CLEANUP:
       result.data.value = recover_users();
+      break;
+
+    /* 15 Oct 26 dm - QM4 gaps Q-8.  Is the process with this id still there?  (The user table keeps a killed session's
+       slot until "sd -cleanup", so INHIBIT.LOGIN's setter is judged by the process, not by the table.)  1 or 0.        */
+    case K_PID_ALIVE:
+      GetInt(descr);
+      result.data.value = pid_is_alive((int)(descr->data.value));
+      break;
+
+    /* 15 Oct 26 dm - QM4 gaps Q-8, COMMAND.LOGGING.  See keys.h.  The file is the user's own (mode 0600), and is opened
+       with O_NOFOLLOW so that a link left in its place is not written through. */
+    case K_NON_DURABLE_TXN:
+      GetInt(descr);
+      txn_nondurable = (descr->data.value != 0);
+      result.data.value = txn_nondurable;
+      break;
+
+    case K_PHANTOM_USER:
+      /* PHANTOM USER n: see keys.h.  op_phantom() takes the number and checks it against PHANTOMS and the user map. */
+      GetInt(descr);
+      phantom_requested_user = (int16_t)descr->data.value;
+      result.data.value = 1;
+      break;
+
+    case K_LOCK_TRACE: {
+      /* LOCK.TRACER (see keys.h).  Only an administrator changes it.  Starting makes an EMPTY locktrace file in the system
+         directory - owner the caller, group the system directory's, mode 0620, so that the administrator reads it and the
+         users of SD append to it - and refuses a link or a file that is not a plain one in its place.                  */
+      int lt_arg;
+      struct stat lt_dir;
+      char lt_path[MAX_PATHNAME_LEN + 1];
+      char lt_dirpath[MAX_PATHNAME_LEN + 1];
+      int lt_fd;
+
+      GetInt(descr);
+      lt_arg = (int)descr->data.value;
+      if (lt_arg == -1) {
+        result.data.value = sysseg->lock_trace;
+      } else if (!(my_uptr->flags & USR_ADMIN)) {
+        result.data.value = -1;
+      } else if (lt_arg == 0) {
+        sysseg->lock_trace = 0;
+        result.data.value = 0;
+      } else {
+        result.data.value = -1;
+        if (snprintf(lt_path, sizeof(lt_path), "%s%clocktrace", sysseg->sysdir, DS) < (int)sizeof(lt_path)) {
+          lt_fd = open(lt_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0620);
+          if (lt_fd >= 0) {
+            (void)fchmod(lt_fd, 0620);
+            snprintf(lt_dirpath, sizeof(lt_dirpath), "%s", sysseg->sysdir);
+            if (stat(lt_dirpath, &lt_dir) == 0)
+              (void)fchown(lt_fd, (uid_t)-1, lt_dir.st_gid);
+            close(lt_fd);
+            sysseg->lock_trace = 1;
+            result.data.value = 1;
+          }
+        }
+      }
+    } break;
+
+    case K_PROFILER:
+      /* The application event profiler of this process (see keys.h and profiler.c).  Anyone may profile their own process. */
+      GetInt(descr);
+      if (descr->data.value == -2) {
+        prof_dump(&result);
+      } else {
+        if (descr->data.value >= 0)
+          prof_set((int16_t)(descr->data.value & PROF_ALL));
+        result.data.value = prof_mask;
+      }
+      break;
+
+    case K_PROFILER_USER: {
+      /* Start or stop the profiler in another process.  The administrator only: what a profile holds is the files another
+         user's programs open and the commands they execute. */
+      int32_t pu_arg;
+      int16_t pu_user;
+      int16_t pu_i;
+      USER_ENTRY* pu_ptr;
+
+      GetInt(descr);
+      pu_arg = descr->data.value;
+      pu_user = (int16_t)(pu_arg / 4096);
+      result.data.value = -1;
+      if ((my_uptr->flags & USR_ADMIN) && (pu_arg > 0)) {
+        result.data.value = 0;
+        StartExclusive(SHORT_CODE, 66);
+        for (pu_i = 1; pu_i <= sysseg->max_users; pu_i++) {
+          pu_ptr = UPtr(pu_i);
+          if ((pu_ptr->uid == pu_user) && (pu_user > 0)) {
+            pu_ptr->prof_request = (int16_t)((pu_arg & 2048) ? (0x4000 | (pu_arg & PROF_ALL)) : 0);
+            pu_ptr->events |= EVT_PROFILER;
+            result.data.value = 1;
+            break;
+          }
+        }
+        EndExclusive(SHORT_CODE);
+      }
+    } break;
+
+    case K_USER_STATS: {
+      int16_t us_i;
+      USER_ENTRY* us_ptr;
+      int32_t us_n;
+
+      InitDescr(&result, STRING);
+      result.data.str.saddr = NULL;
+      ts_init(&(result.data.str.saddr), 128);
+      GetInt(descr);
+      us_n = descr->data.value; /* A user number, or zero for all */
+      for (us_i = 1; us_i <= sysseg->max_users; us_i++) {
+        us_ptr = UPtr(us_i);
+        if (((us_n == 0) && (us_ptr->uid > 0)) || ((us_n != 0) && (us_ptr->uid == us_n))) {
+          if (result.data.str.saddr != NULL)
+            ts_copy_byte(FIELD_MARK);
+          ts_printf("%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%s", (int)(us_ptr->uid), VALUE_MARK,
+                    (int)(us_ptr->ustats.opens), VALUE_MARK, (int)(us_ptr->ustats.reads), VALUE_MARK,
+                    (int)(us_ptr->ustats.writes), VALUE_MARK, (int)(us_ptr->ustats.deletes), VALUE_MARK,
+                    (int)(us_ptr->ustats.clears), VALUE_MARK, (int)(us_ptr->ustats.selects), VALUE_MARK,
+                    (int)(us_ptr->ustats.ak_reads), VALUE_MARK, (int)(us_ptr->ustats.ak_writes), VALUE_MARK,
+                    (int)(us_ptr->ustats.ak_deletes), VALUE_MARK, (int)(us_ptr->ustats.splits), VALUE_MARK,
+                    (int)(us_ptr->ustats.merges), VALUE_MARK, (int)(us_ptr->ustats.reset), VALUE_MARK,
+                    us_ptr->username);
+          if (us_n)
+            break;
+        }
+      }
+      ts_terminate();
+    } break;
+
+    case K_FORM_QUEUE: {
+      int32_t fq_unit, fq_queue;
+
+      GetInt(descr);
+      fq_unit = descr->data.value / 1000;
+      fq_queue = descr->data.value % 1000;
+      result.data.value = 0;
+      if ((descr->data.value >= 0) && (fq_unit <= HIGH_PRINT_UNIT)) {
+        form_queue_of[fq_unit] = (int16_t)fq_queue;
+        last_form_queue = (int16_t)fq_queue;
+        result.data.value = 1;
+      }
+    } break;
+
+    case K_GROUP_PHANTOM: {
+      /* PHANTOM GROUP: the phantom with this user number, if it is one this process started, is to be logged out when this
+         process ends (ReleaseLicence).  Returns 1 if it was marked, 0 if not. */
+      int16_t gu;
+      USER_ENTRY* gptr;
+
+      GetInt(descr);
+      gu = (int16_t)descr->data.value;
+      result.data.value = 0;
+      StartExclusive(SHORT_CODE, 69);
+      gptr = UserPtr(gu);
+      if ((gptr != NULL) && (gptr->puid == process.user_no) && (gptr->uid == gu)) {
+        gptr->grouped = 1;
+        result.data.value = 1;
+      }
+      EndExclusive(SHORT_CODE);
+    } break;
+
+    case K_CMDLOG: {
+      char* cl_dir;
+      char cl_name[MAX_PATHNAME_LEN + 1];
+      char cl_cwd[MAX_PATHNAME_LEN + 1];
+      int cl_fd;
+
+      GetInt(descr);
+      n = descr->data.value;
+      if (n == 0) {
+        cmdlog_path[0] = '\0';
+      } else if ((n > 0) && (cmdlog_path[0] == '\0')) {
+        /* The account directory, never TEMPDIR: that is /tmp unless sd.conf says otherwise (config.c fills it in), a
+           directory every user can write to, where another user could make the file first and be handed the log. */
+        if (getcwd(cl_cwd, sizeof(cl_cwd)) == NULL)
+          cl_cwd[0] = '\0';
+        cl_dir = cl_cwd;
+        if ((cl_dir[0] != '\0') &&
+            (snprintf(cl_name, sizeof(cl_name), "%s%cclog.%d.log", cl_dir, DS, (int)process.user_no) < (int)sizeof(cl_name))) {
+          cl_fd = open(cl_name, O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW | O_CLOEXEC, 0600);
+          if (cl_fd >= 0) {
+            close(cl_fd);
+            strcpy(cmdlog_path, cl_name);
+          }
+        }
+      }
+      k_put_c_string(cmdlog_path, &result);
+    } break;
+
+    case K_CMDLOG_WRITE: {
+      char cw_line[4200];
+      char cw_cmd[4096 + 1];
+      int cw_n;
+      int cw_fd;
+      char* cw_p;
+      char* cw_origin;
+      char* cw_command;
+
+      result.data.value = 0;
+      if (cmdlog_path[0] != '\0') {
+        if (k_get_c_string(descr, cw_cmd, (int)sizeof(cw_cmd) - 1) < 0)
+          cw_cmd[0] = '\0';
+        cw_p = strchr(cw_cmd, FIELD_MARK); /* origin, then the command */
+        if (cw_p != NULL) {
+          *cw_p++ = '\0';
+          cw_origin = cw_cmd;
+          cw_command = cw_p;
+        } else {
+          cw_origin = "";
+          cw_command = cw_cmd;
+        }
+        {
+          char* q;
+
+          for (q = cw_command; *q != '\0'; q++) { /* one line per command: control characters become spaces */
+            if (((u_char)*q < 32) || ((u_char)*q == 127))
+              *q = ' ';
+          }
+          for (q = cw_origin; *q != '\0'; q++) {
+            if (((u_char)*q < 32) || ((u_char)*q == 127))
+              *q = ' ';
+          }
+        }
+        cw_n = snprintf(cw_line, sizeof(cw_line), "%ld\t%d\t%s\t%s\t%s\n", (long)time(NULL), (int)process.user_no,
+                        (char*)(my_uptr->username), cw_origin, cw_command);
+        if (cw_n > 0) {
+          if (cw_n > (int)sizeof(cw_line) - 1) {
+            cw_n = (int)sizeof(cw_line) - 1;
+            cw_line[cw_n - 1] = '\n';
+          }
+          cw_fd = open(cmdlog_path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
+          if (cw_fd >= 0) {
+            if (write(cw_fd, cw_line, (size_t)cw_n) == (ssize_t)cw_n)
+              result.data.value = 1;
+            close(cw_fd);
+          }
+        }
+      }
+    } break;
+
+    /* 15 Oct 26 dm - QM4 gaps Q-16.  The KEEP.SELECT flag: set by the statement (!keepselect), cleared and read by CPROC. */
+    case K_KEEP_SELECT:
+      GetInt(descr);
+      n = descr->data.value;
+      result.data.value = keep_select ? 1 : 0;
+      if (n >= 0)
+        keep_select = (n != 0);
       break;
 
     case K_OBJKEY:
@@ -725,11 +1126,15 @@ void op_phantom() {
   USER_ENTRY *uptr;
   int16_t phantom_user_index;
   int16_t phantom_uid = 0;
+  int16_t requested_user;
   char path[MAX_PATHNAME_LEN + 1];
   char option[15 + 1];
   int cpid;
 
   /* Reserve a user table entry for the phantom process */
+
+  requested_user = phantom_requested_user; /* PHANTOM USER n: asked for once, for this phantom only */
+  phantom_requested_user = 0;
 
   StartExclusive(SHORT_CODE, 38);
   phantom_user_index = 0;
@@ -737,10 +1142,21 @@ void op_phantom() {
     uptr = UPtr(i);
     if (uptr->uid == 0) /* Spare cell */
     {
-      phantom_uid = assign_user_no(i);
+      if (requested_user != 0) {
+        /* 16 Oct 26 dm - PHANTOM USER n.  The number has to be one PHANTOMS keeps, and nobody may hold it; if either fails no
+           cell is taken and phantom() answers 0.                                                                       */
+        if ((sysseg->phantoms_range == 0) || (requested_user < sysseg->phantoms_base) ||
+            (requested_user >= sysseg->phantoms_base + sysseg->phantoms_range) || *(UMap(requested_user)))
+          break;
+        *(UMap(requested_user)) = i;
+        phantom_uid = requested_user;
+      } else
+        phantom_uid = assign_user_no(i, FALSE);
       uptr->uid = phantom_uid;
       uptr->puid = process.user_no;
+      uptr->grouped = 0;
       strcpy((char *)(uptr->username), (char *)(my_uptr->username));
+      strcpy((char *)(uptr->account), (char *)(my_uptr->account));   /* 14 Oct 26: starts in its parent's account */
       phantom_user_index = i;
       break;
     }
@@ -764,11 +1180,13 @@ void op_phantom() {
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/" SD_SERVER_NAME, sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should also be logged with more detail */
-      k_error("Overflowed path/filename length in op_phantom()!");
-      goto exit_op_phantom;
+      /* 16 Oct 26 (openQM 280): this is the CHILD.  It used to report the error and go on through the rest of the function as
+         a second copy of the program that called PHANTOM, with the user cell reserved for a phantom that never started. */
+      _exit(1);
     }
     sprintf(option, "-p%d", phantom_user_index);
     execl(path, path, option, NULL);
+    _exit(1); /* execl() only returns when it failed: the same */
   } else if (cpid == -1) { /* Error */
     *(UMap(uptr->uid)) = 0;
     uptr->uid = 0; /* Release reserved user cell */

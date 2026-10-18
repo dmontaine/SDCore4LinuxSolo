@@ -86,6 +86,10 @@
 #define ER_NOT_PHANTOM 1016    /* Not a phantom process */
 #define ER_CONNECTED   1017    /* Device already connected */
 #define ER_INVA_ITYPE  1018    /* Invalid I-type */
+#define ER_BUILD_ERROR 1019    /* JBUILD(): a value has no JSON form */
+#define ER_PARSE_ERROR 1020    /* JPARSE(): not a JSON object or array */
+#define ER_ROLLBACK    1021    /* STATUS() after END TRANSACTION: the transaction was rolled back */
+#define ER_COMMIT_FAIL 1022    /* STATUS() after END TRANSACTION: an error occurred during the commit (not produced: a failed commit aborts) */
 #define ER_MAX_STRING  1900    /* Max String (record) Size */
 
 /* 20xx  Catalog management errors */
@@ -157,6 +161,9 @@
    case-sensitive file it is asked to rebuild holds two ids that differ only
    by case, so the rebuild (which would keep only one) is refused. */
 #define ER_TWIN        3042    /* Two record ids differ only by case */
+/* 12 Oct 26 dm - openQM 4 manual's number (ER$MAXRLOCK).  Raised when a process holds MAXRLOCK record
+   locks and asks for another; the statement's ON ERROR clause is taken, or it aborts. */
+#define ER_MAXRLOCK    3060    /* MAXRLOCK record lock limit reached */
 
 /* 4000 - 4999   SDClient errors */
 #define ER_SRVRMEM     4000    /* Insufficient memory for packet buffer */

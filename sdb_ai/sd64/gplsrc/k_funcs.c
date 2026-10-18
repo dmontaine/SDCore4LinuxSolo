@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 16 Oct 26 dm  k_release() offers a file variable whose last reference has gone to park_fvar() (OPTION COMMAND.LEVEL.LOCKS)
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -217,6 +218,10 @@ DESCRIPTOR* k_dereference(DESCRIPTOR* p) /* Descriptor to be dereferenced */
 
     case OBJ:
       p->data.objdata->ref_ct++;
+      break;
+
+    case COLL:
+      p->data.coll->ref_ct++;
       break;
   }
 
@@ -631,6 +636,7 @@ void k_get_value(DESCRIPTOR* p) {
     case SELLIST:
     case SOCK:
     case OBJ: /* 0473 */
+    case COLL:
       break;
 
     case UNASSIGNED:
@@ -703,6 +709,10 @@ void k_incr_refct(DESCRIPTOR* p) {
     case OBJ:
       p->data.objdata->ref_ct++;
       break;
+
+    case COLL:
+      p->data.coll->ref_ct++;
+      break;
   }
 }
 
@@ -720,6 +730,9 @@ bool k_is_num(DESCRIPTOR* p) {
   bool dp = FALSE;      /* Decimal point seen */
   char* q;
   bool digit_seen = FALSE;
+  int16_t exp_state = 0; /* NUMERIC.EXPONENT: 0 none, 1 after E, 2 digits seen */
+  bool exp_sign = FALSE;
+  int16_t exp_val = 0;
 
   str_hdr = p->data.str.saddr;
   if (str_hdr == NULL)
@@ -728,6 +741,20 @@ bool k_is_num(DESCRIPTOR* p) {
   do {
     for (i = str_hdr->bytes, q = str_hdr->data; i > 0; i--) {
       c = *(q++);
+
+      if (exp_state) { /* In the exponent: [+|-] digits and nothing else */
+        if ((c >= '0') && (c <= '9')) {
+          exp_val = (exp_val * 10) + (c - '0');
+          if (exp_val > 308)
+            goto non_numeric;
+          exp_state = 2;
+        } else if (exp_state == 1 && !exp_sign && (c == '+' || c == '-')) {
+          exp_sign = TRUE;
+        } else {
+          goto non_numeric;
+        }
+        continue;
+      }
 
       if ((c >= '0') && (c <= '9')) {
         digit_seen = TRUE;
@@ -751,6 +778,15 @@ bool k_is_num(DESCRIPTOR* p) {
             digits++; /* Assume a zero before the decimal point */
             break;
 
+          case 'E':
+          case 'e':
+            /* 123.45E-2 - only with OPTION NUMERIC.EXPONENT, and only
+               after at least one digit                               */
+            if (!Option(OptNumericExponent) || !digit_seen)
+              goto non_numeric;
+            exp_state = 1;
+            break;
+
           default:
             goto non_numeric;
         }
@@ -758,7 +794,7 @@ bool k_is_num(DESCRIPTOR* p) {
     }
   } while ((str_hdr = str_hdr->next) != NULL);
 
-  if (!digit_seen)
+  if (!digit_seen || exp_state == 1)
     goto non_numeric;
 
 is_numeric:
@@ -925,12 +961,12 @@ void k_num_array2(
   /* Ensure that both arguments are strings */
 
   arg2 = e_stack - 1;
-  reuse2 = arg2->flags & DF_REUSE;
+  reuse2 = ReuseFlag(arg2);
   k_get_string(arg2);
   src2_str = arg2->data.str.saddr;
 
   arg1 = e_stack - 2;
-  reuse1 = arg1->flags & DF_REUSE;
+  reuse1 = ReuseFlag(arg1);
   k_get_string(arg1);
   src1_str = arg1->data.str.saddr;
 
@@ -1225,8 +1261,10 @@ void k_release(DESCRIPTOR* p) {
 
     case FILE_REF:
       fvar = p->data.fvar;
-      if (--(fvar->ref_ct) == 0)
-        dio_close(fvar);
+      if (--(fvar->ref_ct) == 0) {
+        if (!park_fvar(fvar)) /* OPTION COMMAND.LEVEL.LOCKS keeps a file whose locks are wanted open */
+          dio_close(fvar);
+      }
       break;
 
     case ARRAY:
@@ -1252,6 +1290,10 @@ void k_release(DESCRIPTOR* p) {
     case BTREE:
       btree = p->data.btree;
       if (--(btree->ref_ct) == 0) {
+        if (btree->pad != 0) {
+          void free_sort_session(int16_t id);
+          free_sort_session(btree->pad);
+        }
         if (btree->head != NULL)
           free_btree_element(btree->head, btree->keys);
         k_free(btree);
@@ -1280,6 +1322,10 @@ void k_release(DESCRIPTOR* p) {
     case OBJ:
       objdata = p->data.objdata;
       free_object(objdata);
+      break;
+
+    case COLL:
+      coll_deref(p->data.coll);
       break;
 
     case OBJCDX:
@@ -1319,6 +1365,10 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
   bool num_array;
   register int32_t temp;
   bool trailing_space;
+  int16_t exp_state = 0; /* NUMERIC.EXPONENT: 0 none, 1 after E, 2 digits seen */
+  bool exp_sign = FALSE;
+  bool exp_neg = FALSE;
+  int16_t exp_val = 0;
 
   num_array = FALSE;
   dp = 0;
@@ -1336,6 +1386,34 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
     do {
       for (i = str_chnk->bytes, q = str_chnk->data; i > 0; i--) {
         c = *(q++);
+
+        if (exp_state) {
+          /* In the exponent of 123.45E-2: [+|-] digits, then only
+             trailing spaces (or an array mark when arrays are allowed) */
+          if ((c >= '0') && (c <= '9')) {
+            if (trailing_space)
+              goto non_numeric;
+            exp_val = (exp_val * 10) + (c - '0');
+            if (exp_val > 308)
+              goto non_numeric;
+            exp_state = 2;
+            continue;
+          } else if (exp_state == 1 && !exp_sign && !trailing_space &&
+                     (c == '+' || c == '-')) {
+            exp_sign = TRUE;
+            exp_neg = (c == '-');
+            continue;
+          } else if (exp_state == 2 && c == ' ') {
+            trailing_space = TRUE;
+            continue;
+          } else if (!(IsMark(c) && process.numeric_array_allowed)) {
+            goto non_numeric;
+          }
+          /* A mark: fall through to start the next array element */
+          exp_state = 0;
+          exp_sign = exp_neg = FALSE;
+          exp_val = 0;
+        }
 
         if ((c >= '0') && (c <= '9')) {
           if (trailing_space)
@@ -1415,6 +1493,15 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
               dplace = 0.1;
               break;
 
+            case 'E':
+            case 'e':
+              /* 123.45E-2 - only with OPTION NUMERIC.EXPONENT, and only
+                 after at least one digit of the mantissa              */
+              if (!Option(OptNumericExponent) || digits == 0)
+                goto non_numeric;
+              exp_state = 1;
+              break;
+
             default:
               goto non_numeric;
           }
@@ -1424,6 +1511,9 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
       str_chnk = str_chnk->next;
     } while (str_chnk != NULL);
 
+    if (exp_state == 1) /* E with no exponent digits */
+      goto non_numeric;
+
     if (num_array) /* We have found a numeric array */
     {
       p->flags |= reuse_flag;
@@ -1432,6 +1522,15 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
 
     if ((digits | dp) == 0)
       goto non_numeric;
+
+    if (exp_state == 2) {
+      /* Apply the exponent: the result is always a floating point number */
+      if (!floating) {
+        floating = TRUE;
+        float_value = (double)value;
+      }
+      float_value *= pow(10.0, (double)(exp_neg ? -exp_val : exp_val));
+    }
 
     /* Release string chunks */
 

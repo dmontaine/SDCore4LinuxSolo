@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  txn_rollback_to(): an exception thrown out of a TRY clause rolls back the
+ *           transactions begun inside it (op_jumps.c exc_raise(), QM4 Fixes 354).
+ * 12 Oct 26 dm  txn_file_updated() (FILEINFO FL$TXN.UPDATE) and txn_cache_report()
+ *           (SYSTEM(1065)): read-only walks of the cache and of the cache each
+ *           enclosing transaction is holding on txn_stack.
  *  9 Sep 26 Linux port - a commit that fails half way now PUTS BACK the records
  *           it had already applied, and no longer holds their locks for the
  *           life of the process.  UPSTREAM_FIXES 32 (plan A1).  Restore each
@@ -97,6 +102,11 @@ Private bool journalled_txn; /* Journalled update in this txn? */
 
 int txn_depth = 0;           /* Also accessed by op_sys.c */
 
+/* 15 Oct 26 dm - QM4 gaps (NON.DURABLE.TXN, QMTxn mode 4; sheet 442).  Set by K_NON_DURABLE_TXN just before a COMMIT and
+   cleared by that COMMIT whether it used it or not: the COMMIT of a transaction that is nested in another then hands its
+   cached updates and its locks to the parent instead of applying them to the files.  Accessed by op_kernel.c. */
+int txn_nondurable = 0;
+
 /* A1 - THE COMMENT HERE SAID "Also needed by dh_jnl.c" AND THAT FILE DOES NOT
    EXIST IN THIS TREE (grep says txn.c is the only user).  It is now
    load-bearing - NON-ZERO MEANS "a commit is in flight under this id", which is
@@ -162,6 +172,7 @@ Private TXN_UNDO* undo_head = NULL;
 Private TXN_CACHE* alloc_txn(int16_t id_len);
 Private void rollback(void);
 Private void end_txn_level(void);
+Private void merge_into_parent(void);
 Private void clear_parent(int16_t fno, char* id, int16_t id_len);
 Private void capture_undo(FILE_VAR* fvar, char* id, int16_t id_len);
 Private void replay_undo(void);
@@ -224,6 +235,22 @@ void op_txncmt() {
 
   commit_txn_id = process.txn_id;
   process.txn_id = 0;
+
+  /* A non-durable commit of a nested transaction: nothing is applied, the parent inherits it all */
+
+  if (txn_nondurable) {
+    txn_nondurable = 0;
+    if (txn_stack != NULL) {
+      merge_into_parent();
+      transfer_txn_locks(commit_txn_id, txn_stack->txn_id);
+      commit_txn_id = 0;
+      txn_head = NULL;
+      txn_tail = NULL;
+      end_txn_level();
+      process.status = 0;
+      return;
+    }
+  }
 
   /* Commit all actions */
 
@@ -308,7 +335,7 @@ void op_txncmt() {
             /* Increment statistics and transaction counters */
 
             StartExclusive(FILE_TABLE_LOCK, 50);
-            sysseg->global_stats.deletes++;
+            NoteStat(deletes);
             fptr = FPtr(fvar->file_id);
             fptr->upd_ct++;
             EndExclusive(FILE_TABLE_LOCK);
@@ -412,6 +439,8 @@ void op_txncmt() {
 
   end_txn_level();
 
+  process.status = 0; /* 14 Oct 26 (openQM 19): STATUS() after END TRANSACTION is 0 for a commit; op_txnend() sets ER_ROLLBACK */
+
 exit_op_txncmt:
   return;
 }
@@ -424,6 +453,7 @@ void op_txnend() {
     k_error(sysmsg(1424));
 
   rollback();
+  process.status = ER_ROLLBACK; /* 14 Oct 26 (openQM 19): reached by ROLLBACK and by running into END TRANSACTION; COMMIT skips this */
 }
 
 /* ======================================================================
@@ -478,6 +508,16 @@ void txn_abort() {
 }
 
 /* ======================================================================
+   txn_rollback_to()  -  Roll back the transactions begun since the nesting
+   depth was depth (TRY records it; an exception thrown out of the clause
+   calls this). Silent, unlike txn_abort(): the program goes on.          */
+
+void txn_rollback_to(int depth) {
+  while ((process.txn_id != 0) && (txn_depth > depth))
+    rollback();
+}
+
+/* ======================================================================
    txn_close()  -  Close file in transaction                              */
 
 bool txn_close(FILE_VAR* fvar) {
@@ -499,6 +539,76 @@ bool txn_close(FILE_VAR* fvar) {
 
 exit_txn_close:
   return status;
+}
+
+/* ======================================================================
+   txn_file_updated()  -  Has the file had a write or a delete cached in
+   the current transaction (this level, or one it is nested in)?          */
+
+bool txn_file_updated(FILE_VAR* fvar) {
+  TXN_CACHE* txn;
+  TXN_STACK* stk;
+
+  if (process.txn_id == 0)
+    return FALSE;
+
+  for (txn = txn_head; txn != NULL; txn = txn->next) {
+    if ((txn->mode != TXN_CLOSE) && (txn->fvar->file_id == fvar->file_id))
+      return TRUE;
+  }
+
+  for (stk = txn_stack; stk != NULL; stk = stk->next) {
+    for (txn = stk->txn_head; txn != NULL; txn = txn->next) {
+      if ((txn->mode != TXN_CLOSE) && (txn->fvar->file_id == fvar->file_id))
+        return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+/* ======================================================================
+   txn_cache_report()  -  SYSTEM(1065): the cached actions, one per field,
+   as four values: transaction number, file number, record id and W or D.
+   The innermost transaction first, then each one it is nested in.  A
+   file close held in the cache is not an action on a record and is left
+   out.  Null when there is no transaction.                               */
+
+STRING_CHUNK* txn_cache_report(void) {
+  STRING_CHUNK* str = NULL;
+  TXN_CACHE* txn;
+  TXN_STACK* stk;
+  u_int32_t id;
+
+  if (process.txn_id == 0)
+    return NULL;
+
+  ts_init(&str, 256);
+
+  id = process.txn_id;
+  for (txn = txn_head; txn != NULL; txn = txn->next) {
+    if (txn->mode == TXN_CLOSE)
+      continue;
+    if (str != NULL)
+      ts_copy_byte(FIELD_MARK);
+    ts_printf("%u%c%d%c%.*s%c%s", (unsigned)id, VALUE_MARK, (int)(txn->fvar->file_id), VALUE_MARK, (int)(txn->id_len),
+              txn->id, VALUE_MARK, (txn->mode == TXN_DELETE) ? "D" : "W");
+  }
+
+  for (stk = txn_stack; stk != NULL; stk = stk->next) {
+    id = stk->txn_id;
+    for (txn = stk->txn_head; txn != NULL; txn = txn->next) {
+      if (txn->mode == TXN_CLOSE)
+        continue;
+      if (str != NULL)
+        ts_copy_byte(FIELD_MARK);
+      ts_printf("%u%c%d%c%.*s%c%s", (unsigned)id, VALUE_MARK, (int)(txn->fvar->file_id), VALUE_MARK,
+                (int)(txn->id_len), txn->id, VALUE_MARK, (txn->mode == TXN_DELETE) ? "D" : "W");
+    }
+  }
+
+  (void)ts_terminate();
+  return str;
 }
 
 /* ======================================================================
@@ -794,6 +904,57 @@ Private void rollback() {
   /* Exit from this transaction */
 
   end_txn_level();
+}
+
+/* ======================================================================
+   merge_into_parent()  -  A non-durable commit: the cached actions of the
+   running transaction become actions of the one it is nested in.
+
+   Each action is placed after the parent's own, as if the parent had done it: a write or delete of a record the parent has
+   already cached replaces that entry (the later action wins, as txn_write() and txn_delete() make it win inside one
+   transaction), and a record the parent has not touched gets the child's entry, moved over whole.  A deferred close moves
+   over too.  Afterwards the child's list is empty (the caller clears it).  Nothing reaches a file.                     */
+
+Private void merge_into_parent() {
+  TXN_STACK* stk = txn_stack;
+  TXN_CACHE* txn;
+  TXN_CACHE* next;
+  TXN_CACHE* p;
+  STRING_CHUNK* str;
+  bool nocase;
+  bool found;
+
+  for (txn = txn_head; txn != NULL; txn = next) {
+    next = txn->next;
+    found = FALSE;
+
+    if (txn->mode != TXN_CLOSE) {
+      nocase = (FPtr(txn->fvar->file_id)->flags & DHF_NOCASE) != 0;
+      for (p = stk->txn_head; p != NULL; p = p->next) {
+        if ((p->mode != TXN_CLOSE) && (p->fvar->file_id == txn->fvar->file_id) && (p->id_len == txn->id_len) &&
+            (IdMatch(p->id, txn->id, txn->id_len))) {
+          /* The parent's entry takes the child's action and the child's data (its reference moves across) */
+          if ((p->mode == TXN_WRITE) && ((str = p->str) != NULL) && (--(str->ref_ct) == 0))
+            s_free(str);
+          p->mode = txn->mode;
+          p->str = (txn->mode == TXN_WRITE) ? txn->str : NULL;
+          found = TRUE;
+          break;
+        }
+      }
+    }
+
+    if (found) {
+      k_free(txn);
+    } else {
+      txn->next = NULL;
+      if (stk->txn_head == NULL)
+        stk->txn_head = txn;
+      else
+        stk->txn_tail->next = txn;
+      stk->txn_tail = txn;
+    }
+  }
 }
 
 /* ======================================================================

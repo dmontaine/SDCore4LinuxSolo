@@ -17,6 +17,13 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote SELECT and the S.63 OS-access test on DIR();
+ *               DIR() still gives STATUS() a value of its own (0, ER_FNF or ER_PERM) as Core's S.63 commit made it do.
+ * 16 Oct 26 dm  dir_select() closes the oldest cached file and tries again when opendir() fails at the open-file limit (QM4 Fixes 279).
+ * 15 Oct 26 dm  $MODE SELECTV default select list variable (openQM item 85): readnext() takes P_DEF_SELLIST, an unassigned
+ *               default variable being an empty list
+ * 15 Oct 26 dm  $MODE PICK.SELECT (QM4 gaps Q-16): op_selectv() moves an active list 0 to its target;
+ *               transfer_list0() is the body of op_selecte(), which both now call
  * 10 Sep 26 dm  Parity audit: dir_select() tests the character after '%'
  *               before consuming it, so a trailing '%' cannot walk the stack
  *               (the Windows port's fix; UPSTREAM_FIXES 35).
@@ -63,6 +70,7 @@ void op_dcount(void);
 
 Private void readnext(int16_t mode);
 Private bool dir_select(FILE_VAR* fvar, int16_t list_no);
+Private void transfer_list0(DESCRIPTOR* tgt_descr);
 
 /* ====================================================================== */
 
@@ -404,6 +412,15 @@ Private void readnext(int16_t mode)
   descr = e_stack - 1;
   for (d = descr; d->type == ADDR; d = d->data.d_addr) {
   }
+
+  /* 15 Oct 26 dm - $MODE SELECTV (openQM item 85): the list is the program's default select list variable. Until a
+     SELECT has given it a list there is no list, which is a list that is not active: take the ELSE clause. */
+  if ((op_flags & P_DEF_SELLIST) && d->type == UNASSIGNED) {
+    k_pop(1); /* The unassigned variable */
+    status = 1;
+    goto exit_readnext_null;
+  }
+
   if (d->type == SELLIST) {
     saved_status = process.status;
 
@@ -558,11 +575,24 @@ Private void readnext(int16_t mode)
     }
   }
 
+  /* 14 Oct 26 dm - $MODE PICK.READNEXT (openQM item 418): a list variable that has no more items takes the ELSE
+     clause and the id variable is left as it was */
+  if ((op_flags & P_PICK_RDNX) && status) {
+    k_pop(2); /* The (empty) string and the address of the target */
+    goto exit_readnext;
+  }
+
   op_stor(); /* Store the id string */
 
   goto exit_readnext;
 
 exit_readnext_null:
+
+  /* 14 Oct 26 dm - $MODE PICK.READNEXT (openQM item 418): the id variable is left as it was */
+  if (op_flags & P_PICK_RDNX) {
+    k_pop(1);
+    goto exit_readnext;
+  }
 
   /* Set target as null string */
 
@@ -743,16 +773,10 @@ void op_selecte() {
      |=============================|=============================|
  top |  Select list variable       |                             |
      |=============================|=============================|
-                    
+
  */
 
-  DESCRIPTOR* src_descr;
   DESCRIPTOR* tgt_descr;
-  STRING_CHUNK* src_hdr;
-  STRING_CHUNK* src_str;
-  STRING_CHUNK* tgt_str;
-  int16_t offset; /* Offset into current source chunk */
-  int16_t bytes_remaining;
 
   /* Get target address */
 
@@ -761,6 +785,23 @@ void op_selecte() {
     tgt_descr = tgt_descr->data.d_addr;
   k_release(tgt_descr);
   k_pop(1);
+
+  transfer_list0(tgt_descr);
+}
+
+/* ======================================================================
+   transfer_list0()  -  Move the unprocessed items of list 0 to a select list variable
+
+   The target has been released.  Used by SELECTE and, under $MODE PICK.SELECT, by SELECTV when list 0 is active
+   (15 Oct 26, QM4 gaps Q-16, which also moved this out of op_selecte()).  */
+
+Private void transfer_list0(DESCRIPTOR* tgt_descr) {
+  DESCRIPTOR* src_descr;
+  STRING_CHUNK* src_hdr;
+  STRING_CHUNK* src_str;
+  STRING_CHUNK* tgt_str;
+  int16_t offset; /* Offset into current source chunk */
+  int16_t bytes_remaining;
 
   /* Transfer unprocessed items in select list 0 to the target variable */
 
@@ -854,6 +895,14 @@ void op_selectv() {
     tgt_descr = tgt_descr->data.d_addr;
   k_release(tgt_descr);
 
+  /* $MODE PICK.SELECT: with the default list active, SELECTV moves it to the target and looks at nothing else, the file
+     variable included (15 Oct 26, QM4 gaps Q-16) */
+
+  if ((op_flags & P_PICK_SEL) && SelectList(0)->data.str.saddr != NULL) {
+    transfer_list0(tgt_descr);
+    goto selectv_status;
+  }
+
   /* Get file variable / dynamic array */
 
   descr = e_stack - 2;
@@ -923,6 +972,7 @@ void op_selectv() {
     descr->data.value = record_count;
   }
 
+selectv_status:
   k_pop(1); /* 0293 Moved to be in both processing paths */
   k_dismiss();
 
@@ -974,7 +1024,85 @@ void op_sselect() {
   descr = e_stack - 2;
   k_get_value(descr); /* 0208 */
 
-  k_recurse(pcode_sselct, 2);
+  /* 11 Oct 26 - SSELECT now takes the sort mode as a third argument; none here */
+
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = 0;
+
+  k_recurse(pcode_sselct, 3);
+}
+
+/* ======================================================================
+   op_sselectm()  -  SSELECT with RIGHT.ALIGNED and/or DESCENDING
+
+   11 Oct 26  openQM refs 243 and 367.  Mode: 1 right aligned, 2 descending
+   (the BT_ flags of SORTINIT).                                           */
+
+void op_sselectm() {
+  /* Stack:
+
+     |=============================|=============================|
+     |            BEFORE           |           AFTER             |
+     |=============================|=============================|
+ top |  Sort mode                  | Status 0=ok                 |
+     |-----------------------------|-----------------------------|
+     |  Select list number         |                             |
+     |-----------------------------|-----------------------------|
+     |  File variable              |                             |
+     |=============================|=============================|
+ */
+
+  DESCRIPTOR* descr;
+  int16_t list_no;
+
+  process.op_flags = 0;
+  process.status = 0;
+
+  descr = e_stack - 1;
+  GetInt(descr);
+
+  descr = e_stack - 2;
+  GetInt(descr);
+  list_no = (int16_t)(descr->data.value);
+
+  if (InvalidSelectListNo(list_no))
+    k_select_range_error();
+
+  descr = e_stack - 3;
+  k_get_value(descr);
+
+  k_recurse(pcode_sselct, 3);
+}
+
+/* ======================================================================
+   op_sselectv()  -  Select records from a file, sorted by id, into a SELLIST variable   (14 Oct 26, openQM 209) */
+
+void op_sselectv() {
+  /* Stack:
+
+     |=============================|=============================|
+     |            BEFORE           |           AFTER             |
+     |=============================|=============================|
+ top |  Sort mode                  | Status 0=ok                 |
+     |-----------------------------|-----------------------------|
+     |  ADDR of select list var    |                             |
+     |-----------------------------|-----------------------------|
+     |  File variable / dyn array  |                             |
+     |=============================|=============================|
+ */
+
+  DESCRIPTOR* descr;
+
+  process.op_flags = 0;
+  process.status = 0;
+
+  descr = e_stack - 1;
+  GetInt(descr);
+
+  descr = e_stack - 3;
+  k_get_value(descr);
+
+  k_recurse(pcode_sselctv, 3);
 }
 
 /* ======================================================================
@@ -1091,12 +1219,23 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
   DIR* dfu;
   struct dirent* dp;
   struct stat statbuf;
+  int retries;
 
   fptr = FPtr(fvar->file_id);
   strcpy(pathname, (char*)(fptr->pathname));
   path_len = strlen(pathname);
 
-  if ((dfu = opendir(pathname)) != NULL) {
+  /* 16 Oct 26 (openQM 279): at the operating system's limit of open files opendir() fails and the list was left empty
+     with nothing said.  dio_open() closes the oldest file the FDS system holds and tries again; so does this. */
+  dfu = opendir(pathname);
+  for (retries = 0; (dfu == NULL) && ((errno == EMFILE) || (errno == ENFILE)) && (retries < 8); retries++) {
+    FDS_close();
+    dfu = opendir(pathname);
+  }
+  if ((dfu == NULL) && ((errno == EMFILE) || (errno == ENFILE)))
+    k_error("Cannot read the directory %s: too many files are open", pathname);
+
+  if (dfu != NULL) {
     if (pathname[path_len - 1] == DS)
       pathname[path_len - 1] = '\0';
 
@@ -1111,6 +1250,14 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
          */
         break; /* TODO: Work out the correct way of exiting this function with an error */
       }
+      /* 12 Oct 26 (openQM item 445): OPTION DIR.SEL.OMIT.HIDDEN leaves out the names that begin with a dot */
+      if (Option(OptDirSelOmitHidden) && dp->d_name[0] == '.')
+        continue;
+
+      /* 16 Oct 26 (QM4 Fixes item 177): %header% holds the directory file's trigger, and is not a record */
+      if (is_dir_header(dp->d_name))
+        continue;
+
       if (stat(name, &statbuf))
         continue; /* 1.3-8  Carry on rather than end */
 
@@ -1236,6 +1383,12 @@ void op_dir() {
 
   ts_init(&result, 1024);
 
+  /* 13 Oct 26: STATUS() is 0 unless this call says otherwise.  It was never set here, so an empty directory read
+     as "cannot read directory" in a session whose last operation had left a status behind (SELECT.DIR's test
+     is "no entries and STATUS() not 0"); found by the S.63 suite's SELECT.DIR sub row.  (Carried to Solo 18 Oct 26
+     without the S.63 gate that came in the same commit.)                                                         */
+  process.status = 0;
+
   descr = e_stack - 1;
   path_len = k_get_c_string(descr, pathname, MAX_PATHNAME_LEN);
   if (path_len > 0) {
@@ -1278,8 +1431,19 @@ void op_dir() {
         ts_copy_c_string(name);
         ts_copy_byte(VALUE_MARK);
         ts_copy_byte(mode);
+        /* 12 Oct 26 (openQM item 366): a third value, the size in bytes */
+        {
+          char size_text[32];
+          snprintf(size_text, sizeof(size_text), "%lld", (long long)statbuf.st_size);
+          ts_copy_byte(VALUE_MARK);
+          ts_copy_c_string(size_text);
+        }
       }
       closedir(dfu);
+    } else {
+      /* a directory that cannot be opened says so in STATUS(), which is what tells it from an empty one */
+      process.os_error = OSError;
+      process.status = (process.os_error == ENOENT) ? ER_FNF : ER_PERM;
     }
   }
 

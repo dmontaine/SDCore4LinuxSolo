@@ -101,7 +101,7 @@ bool dh_delete(DH_FILE* dh_file, /* File descriptor */
 
   StartExclusive(FILE_TABLE_LOCK, 4);
   fptr->stats.deletes++;
-  sysseg->global_stats.deletes++;
+  NoteStat(deletes);
   group = dh_hash_group(fptr, id, id_len);
   lock_slot = GetGroupWriteLock(dh_file, group);
   fptr->upd_ct++;
@@ -375,6 +375,9 @@ exit_dh_delete:
       k_free(obuff);
   }
   /* -------------------- */
+
+  if (dh_err == 0)
+    dh_forced_write(dh_file); /* a file in forced write mode (Fixes item 102) */
 
   return (dh_err == 0);
 }

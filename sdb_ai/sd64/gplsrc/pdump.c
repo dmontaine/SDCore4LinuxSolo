@@ -17,9 +17,13 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file branch of dump_variable().
  * 31 Dec 23 SD launch - prior history suppressed
  * 14 Sep 26 dm  The dump file is created 0600 with O_NOFOLLOW, and a failure
  *               names the path and the reason (PORT_ADOPTION 25).
+ * 12 Oct 26 dm  An object variable is followed by the object's persistent
+ *               variables, with their names where the class module's symbol
+ *               table gives them (openQM item 125).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -61,6 +65,7 @@ Private void dump_variable(DESCRIPTOR* descr,
                            int16_t indent);
 Private void print_string(STRING_CHUNK* str);
 Private void dump_syscom_var(char* tag, int16_t offset);
+Private void dump_object(OBJDATA* objdata, int16_t indent);
 
 /* ====================================================================== */
 
@@ -159,6 +164,35 @@ void pdump() {
 
   fprintf(fu, "\nSTATUS() = %d, OS.ERROR() = %d\n", process.status,
           process.os_error);
+
+  /* 12 Oct 26 (openQM item 569): the environment of the process.  The file is created 0600, but a value is
+     left out when its name suggests a secret (password, secret, token or key in it). */
+  {
+    extern char** environ;
+    char** ep;
+    char ename[64 + 1];
+    char* eq;
+    int k;
+    bool secret;
+
+    fprintf(fu, "\nEnvironment\n");
+    for (ep = environ; ep != NULL && *ep != NULL; ep++) {
+      eq = strchr(*ep, '=');
+      k = (eq != NULL) ? (int)(eq - *ep) : (int)strlen(*ep);
+      if (k > 64)
+        k = 64;
+      memcpy(ename, *ep, k);
+      ename[k] = '\0';
+      for (i = 0; ename[i] != '\0'; i++)
+        ename[i] = (char)((ename[i] >= 'a' && ename[i] <= 'z') ? ename[i] - 32 : ename[i]);
+      secret = (strstr(ename, "PASS") != NULL) || (strstr(ename, "SECRET") != NULL) ||
+               (strstr(ename, "TOKEN") != NULL) || (strstr(ename, "KEY") != NULL);
+      if (secret)
+        fprintf(fu, "  %.*s=(not shown)\n", k, *ep);
+      else
+        fprintf(fu, "  %s\n", *ep);
+    }
+  }
 
   /* SYSCOM data */
 
@@ -480,9 +514,12 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
             break;
           rmv_offset += str->bytes;
         }
-        fprintf(fu, "%s: String (rmv=%d): \"", s, rmv_offset);
+        fprintf(fu, "%s: String (len=%d, rmv=%d): \"", s,
+                (descr->data.str.saddr != NULL) ? (int)descr->data.str.saddr->string_len : 0, rmv_offset);
       } else {
-        fprintf(fu, "%s: String: \"", s);
+        /* 12 Oct 26 (openQM item 22): the length is shown, so a string cut short by the dump is seen to be */
+        fprintf(fu, "%s: String (len=%d): \"", s,
+                (descr->data.str.saddr != NULL) ? (int)descr->data.str.saddr->string_len : 0);
       }
       print_string(descr->data.str.saddr);
       break;
@@ -607,6 +644,11 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
       fprintf(fu, "%s: Socket\n", s);
       break;
 
+    case COLL:
+      fprintf(fu, "%s: %s of %d element(s)\n", s, descr->data.coll->is_array ? "Array in a collection" : "Data collection",
+              (int)descr->data.coll->count);
+      break;
+
     case LOCALVARS:
       ahdr = descr->data.ahdr_addr;
       lsub_level = 0;
@@ -663,6 +705,7 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
 
     case OBJ:
       fprintf(fu, "%s: Object\n", s);
+      dump_object(descr->data.objdata, indent + 2); /* openQM item 125 */
       break;
 
     case PERSISTENT:
@@ -703,6 +746,77 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
                       com_var_name, indent + 2);
       }
       break;
+  }
+}
+
+/* ======================================================================
+   dump_object()  -  The persistent data of an object variable
+
+   12 Oct 26 dm  openQM item 125.  The values an object holds between calls to
+   its methods - its public and private variables - live in obj_vars, an array
+   that does not say what the variables are called.  The names are in the
+   symbol table of the class module, in a block of names for each group of
+   variables, and the block is not numbered in the object.  The group that has
+   as many names as the array has rows is taken; if no group does, the
+   variables are shown by number.  A class module has the one group of
+   persistent variables (a COMMON block of the same size would be mistaken for
+   it, and the names then wrong, not the values).  An object that holds an
+   object is followed four levels down and no further (the indent, kept under
+   12 so that a name still fits dump_variable's 80 character line), so one
+   that holds itself cannot loop.                                           */
+
+Private void dump_object(OBJDATA* objdata, int16_t indent) {
+  ARRAY_HEADER* ahdr;
+  char* p;
+  char* q;
+  char* block;
+  char name[40 + 1];
+  int rows;
+  int n_names;
+  int i;
+
+  if ((objdata == NULL) || (objdata->obj_vars == NULL) || (indent > 12))
+    return;
+
+  ahdr = objdata->obj_vars;
+  rows = (int)(ahdr->rows);
+  if (rows <= 0)
+    return;
+
+  /* Find the block of names that is the right size */
+
+  block = NULL;
+  if (objdata->objprog != NULL) {
+    p = (char*)(objdata->objprog) + ((OBJECT_HEADER*)(objdata->objprog))->sym_tab_offset;
+    while ((p = strchr(p, FIELD_MARK)) != NULL) {
+      p++; /* Skip field mark */
+      while (IsDigit(*p))
+        p++; /* ...and the block number */
+      n_names = 0; /* a value mark before the first name, subvalue marks between the rest */
+      for (q = p; (*q != '\0') && (*q != FIELD_MARK); q++) {
+        if ((*q == VALUE_MARK) || (*q == SUBVALUE_MARK))
+          n_names++;
+      }
+      if (n_names == rows) {
+        block = p;
+        break;
+      }
+    }
+  }
+
+  for (i = 1, p = block; i <= rows; i++) {
+    if (p != NULL) {
+      p++; /* Skip the mark before the name */
+      q = name;
+      while ((!IsMark(*p)) && (*p != '\0') && ((q - name) < 40))
+        *(q++) = *(p++);
+      *q = '\0';
+      while ((!IsMark(*p)) && (*p != '\0'))
+        p++; /* A name longer than we show */
+    } else {
+      sprintf(name, "%d", i);
+    }
+    dump_variable(Element(ahdr, i), 0, name, indent);
   }
 }
 
@@ -751,6 +865,14 @@ Private void dump_syscom_var(char* tag, int16_t offset) {
 
   descr = Element(process.syscom, offset);
   dump_variable(descr, -1, tag, 2);
+}
+
+/* ======================================================================
+   op_pdump()  -  PDUMP statement: a process dump file of this process
+   (12 Oct 26, openQM item 439)                                           */
+
+void op_pdump() {
+  pdump();
 }
 
 /* END-CODE */

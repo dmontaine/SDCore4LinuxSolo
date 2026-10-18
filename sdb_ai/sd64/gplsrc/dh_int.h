@@ -107,6 +107,7 @@ bool dh_delete(DH_FILE* dh_file, char id[], int16_t id_len);
 
 /* DH_FILE.C */
 void dh_fsync(DH_FILE* dh_file, int16_t subfile);
+void dh_forced_write(DH_FILE* dh_file);
 bool dh_init(void);
 void dh_close_file(OSFILE fu);
 void dh_close_subfile(DH_FILE* dh_file, int16_t subfile);
@@ -125,6 +126,7 @@ bool dh_write_group(DH_FILE* dh_file,
                     char* buff,
                     int16_t bytes);
 int32_t dh_get_overflow(DH_FILE* dh_file, bool have_group_lock);
+int32_t dh_seq_key(DH_FILE* dh_file, int action, int32_t n); /* dh_misc.c: the sequential id counter (15 Oct 26) */
 void dh_free_overflow(DH_FILE* dh_file, int32_t ogrp);
 bool dh_flush_header(DH_FILE* dh_file);
 int16_t dh_get_group_lock(DH_FILE* dh_file, int32_t group, bool write_lock);
@@ -160,5 +162,7 @@ int16_t txn_read(FILE_VAR* fvar,
 #define TXC_FOUND 1   /* Record found in cache */
 #define TXC_DELETED 2 /* Record deleted in cache */
 bool txn_write(FILE_VAR* fvar, char* id, int16_t id_len, STRING_CHUNK* str);
+bool txn_file_updated(FILE_VAR* fvar);      /* FILEINFO(FL$TXN.UPDATE) */
+STRING_CHUNK* txn_cache_report(void);       /* SYSTEM(1065)            */
 
 /* END-CODE */

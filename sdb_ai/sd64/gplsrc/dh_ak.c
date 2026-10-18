@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file refusals.
+ * 15 Oct 26 dm  create_ak() and delete_ak() write DH_HEADER_SHARED_SIZE bytes of the primary header, not the whole of it, so that
+ *               they cannot put an old sequential id counter (CREATING.SEQKEY) over a newer one.
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * END-HISTORY
@@ -480,12 +483,20 @@ void op_akenable() {
   DH_FILE *dh_file;
   DH_AK_HEADER ak_hdr;
   int16_t subfile;
+  bool disable = FALSE;
+  DESCRIPTOR *flags_descr;
 
-  /* AK number */
+  /* AK number.  15 Oct 26 dm - DISABLE.INDEX: a negative number is the AK number -1 - n, to be disabled instead of enabled.
+     A disabled AK is not updated (the AK subroutine skips it) and is not used by the query processor (INDICES() says it needs
+     a rebuild); BUILD.INDEX enables it again. */
 
   descr = e_stack - 1;
   GetInt(descr);
   akno = (int16_t)(descr->data.value);
+  if (akno < 0) {
+    disable = TRUE;
+    akno = -1 - akno;
+  }
 
   /* File */
 
@@ -493,7 +504,7 @@ void op_akenable() {
   k_get_file(descr);
   fvar = descr->data.fvar;
 
-  if (fvar->type == DYNAMIC_FILE) {
+  if (fvar->type == DYNAMIC_FILE && akno < MAX_INDICES) {
     dh_file = fvar->access.dh.dh_file;
 
     if (dh_file->ak_map & (1 << akno)) {
@@ -504,10 +515,24 @@ void op_akenable() {
           goto exit_ak_enable;
         }
 
-        ak_hdr.flags |= AK_ENABLED;
+        if (disable)
+          ak_hdr.flags &= ~AK_ENABLED;
+        else
+          ak_hdr.flags |= AK_ENABLED;
 
         if (!dh_write_group(dh_file, subfile, 0, (char *)&ak_hdr, DH_AK_HEADER_SIZE)) {
           goto exit_ak_enable;
+        }
+
+        /* The flags this process has for the open file (the dh cache shares them between its variables) */
+        if (dh_file->ak_data != NULL && akno < (int16_t)(dh_file->ak_data->rows)) {
+          flags_descr = AKData(dh_file, akno, AKD_FLGS);
+          if (flags_descr->type == INTEGER) {
+            if (disable)
+              flags_descr->data.value &= ~AK_ENABLED;
+            else
+              flags_descr->data.value |= AK_ENABLED;
+          }
         }
       }
     }
@@ -1797,9 +1822,9 @@ Private int16_t create_ak(char *data_path,          /* Data file path name */
     } while (dict_rec_len != 0);
   }
 
-  /* Write modified primary header */
+  /* Write modified primary header (15 Oct 26: all but the sequential id counter, which is not ours - see DH_HEADER_SHARED_SIZE) */
 
-  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SIZE)) {
+  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SHARED_SIZE)) {
     goto exit_create_ak;
   }
 
@@ -1890,9 +1915,9 @@ Private bool delete_ak(char *pathname, /* File path name */
     header.akpath[0] = '\0';
   }
 
-  /* Write primary subfile header */
+  /* Write primary subfile header (15 Oct 26: all but the sequential id counter - see DH_HEADER_SHARED_SIZE) */
 
-  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SIZE)) {
+  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SHARED_SIZE)) {
     goto exit_delete_ak;
   }
 
@@ -1968,7 +1993,7 @@ Private bool ak_write(DH_FILE *dh_file, /* File descriptor */
   rj = (flags & AK_RIGHT) != 0;
   nocase = (flags & AK_NOCASE) != 0;
   fptr->stats.ak_writes++;
-  sysseg->global_stats.ak_writes++;
+  NoteStat(ak_writes);
 
   /* Examine record to determine space requirements */
 
@@ -2828,7 +2853,7 @@ Private void ak_delete(DH_FILE *dh_file, /* File descriptor */
   rj = (flags & AK_RIGHT) != 0;
   nocase = (flags & AK_NOCASE) != 0;
   fptr->stats.ak_deletes++;
-  sysseg->global_stats.ak_deletes++;
+  NoteStat(ak_deletes);
 
   /* Lock the AK subfile */
 
@@ -3095,7 +3120,7 @@ Private STRING_CHUNK *ak_read(DH_FILE *dh_file, /* File descriptor */
   nocase = (flags & AK_NOCASE) != 0;
   ak_upd = fptr->ak_upd;
   fptr->stats.ak_reads++;
-  sysseg->global_stats.ak_reads++;
+  NoteStat(ak_reads);
 
   /* Lock the AK subfile */
 

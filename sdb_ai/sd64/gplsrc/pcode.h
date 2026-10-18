@@ -35,12 +35,14 @@ Pcode(cconv)     /* CCONV(SRC, CONV) */
 Pcode(chain)     /* CHAIN() */
 Pcode(data)      /* DATA(STRING) */
 Pcode(dellist)   /* DELLIST(NAME) */
+Pcode(expand)    /* EXPAND(FILE.NAME, ID, FVAR) */
 Pcode(fold)      /* FOLD(STRING, WIDTH) */
 Pcode(formcsv)   /* FORMCSV(STR) */
 Pcode(formlst)   /* FORMLIST(SRC, LIST.NO) */
 Pcode(getlist)   /* DELLIST(NAME, LIST.NO) */
 Pcode(getmsg)    /* GETMSG() */
 Pcode(hf)        /* HF(PU, PGNO, HF.IN) */
+Pcode(holdlog)   /* HOLDLOG(UNIT, OPENING, PATHNAME) */
 Pcode(iconv)     /* ICONV(SRC, CONV) */
 Pcode(in)        /* IN(TIMEOUT) */
 Pcode(indices)   /* INDICES(MAT AK.DATA, AKNO) */
@@ -69,7 +71,8 @@ Pcode(repmul)    /* REPMUL(DYN.ARRAY, F, V, S, VAL) */
 Pcode(repsub)    /* REPSUB(DYN.ARRAY, F, V, S, VAL) */
 Pcode(repsubst)  /* REPSUBST(DYN.ARRAY, F, V, S, P, Q, VAL) */
 Pcode(savelst)   /* SAVELIST(NAME, LIST.NO) */
-Pcode(sselct)    /* SSELECT(FVAR, LIST.NO) */
+Pcode(sselct)    /* SSELECT(FVAR, LIST.NO, SORT.MODE) */
+Pcode(sselctv)   /* SSELECTV(FVAR, LIST.VAR, SORT.MODE) (14 Oct 26, openQM 209) */
 Pcode(subst)     /* SUBSTITUTE(STR, OLD.LIST, NEW.LIST, DELIMITER) */
 Pcode(substrn)   /* SUBSTRNG(STR, START, LENGTH) */
 Pcode(sum)       /* SUM(STR) */

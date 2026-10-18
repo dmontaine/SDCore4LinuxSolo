@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Oct 26 dm do_input(): end of file was tested against a stale errno, so after
+ *           any earlier EAGAIN a session whose client had gone looped for ever.
  * 07 Oct 26 dm PAL-1 stage 3a: the API command processor is $apisrvr, lower case.
  * 15 Sep 26 dm S.19: every API connection goes through a TLS 1.3 relay
  *           (sd_tlssrv.c), started after the peer is recorded; the Ack moved
@@ -61,6 +63,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
+#include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -87,6 +90,20 @@ Private void do_input(void);
 Private bool input_handler_enabled = TRUE;
 Private bool piped_input = FALSE;
 Private bool connection_lost = FALSE;
+
+/* 13 Oct 26 dm - THE TERMINAL'S OWN SIZE.  Until now SD never asked the tty how big it was: the display was terminfo's 120 by
+   36 unless the user typed TERM w,h or the environment happened to carry COLUMNS and LINES, so a program on an 80 by 24 terminal
+   drew for 120 by 36 (LIST paged at 36 lines, @(x, y) past the real edge went off the screen).  The tty is asked at start-up
+   and again at every SIGWINCH, and the answer becomes the display's width and lines per page.  TERM w,h still sets them by
+   hand, and holds until the next resize.  Nothing is read when there is no tty (a pipe, a phantom, the API).
+   win_cols and win_rows are what the tty last said (0 0: it has not been able to); winch_seen is set when the display has
+   changed and its data lines per page (set_data_lines() in op_tio.c, which is not safe in a signal handler) are yet to be
+   worked out.                                                                                                             */
+Private int win_cols = 0;
+Private int win_rows = 0;
+Private volatile sig_atomic_t winch_seen = 0;
+Private bool read_window_size(void);
+Private void winch_handler(int sig);
 
 /* Keyboard */
 
@@ -293,7 +310,7 @@ bool start_connection(int unused) {
      account without that paragraph had every typed letter case-flipped, which
      was measured on install 80bd15c (PTERM DISPLAY "Case inversion: On") and
      made a lower-case record id arrive upper case. */
-  case_inversion = FALSE;
+  case_inversion = pcfg.invcase; /* INVCASE, off unless the administrator turns it on (openQM item 399) */
   set_term(TRUE);
 
   /* Set up signal handler */
@@ -366,7 +383,7 @@ bool init_console() {
     }
   }
 
-  case_inversion = FALSE;   /* 13 Sep 26 dm - off by default; see the socket path */
+  case_inversion = pcfg.invcase;   /* 13 Sep 26 dm - off by default; see the socket path.  INVCASE=1 turns it on. */
   set_term(TRUE);
 
   fstat(0, &statbuf);
@@ -389,6 +406,66 @@ bool init_console() {
     fcntl(0, F_SETFL, stdin_modes | O_NONBLOCK | O_ASYNC);
   }
 
+  /* 13 Oct 26 dm - the terminal's own size, now and at every resize (see win_cols above) */
+
+  if (read_window_size())
+    winch_seen = 1;
+  signal(SIGWINCH, winch_handler);
+
+  return TRUE;
+}
+
+/* ======================================================================
+   read_window_size()  -  Ask the tty how big it is
+   Returns TRUE and sets the display's width and lines per page if it said.
+   Only ioctl() and plain stores, so it is safe in a signal handler.  The
+   least width and depth are LOGIN's (MIN.WIDTH 20, MIN.DEPTH 10).         */
+
+Private bool read_window_size() {
+  struct winsize ws;
+
+  if ((ioctl(0, TIOCGWINSZ, &ws) != 0) || (ws.ws_col == 0) || (ws.ws_row == 0))
+    return FALSE;
+
+  win_cols = ws.ws_col;
+  win_rows = ws.ws_row;
+  tio.dsp.width = (win_cols < 20) ? 20 : win_cols;
+  tio.dsp.lines_per_page = (win_rows < 10) ? 10 : win_rows;
+  return TRUE;
+}
+
+/* ======================================================================
+   winch_handler()  -  SIGWINCH: the terminal has been resized            */
+
+Private void winch_handler(sig) int sig;
+{
+  (void)sig;
+  if (read_window_size())
+    winch_seen = 1;
+}
+
+/* ======================================================================
+   console_resized()  -  Has the display changed since the data lines per
+   page were last worked out?  Answers once per change.                    */
+
+Public bool console_resized() {
+  if (!winch_seen)
+    return FALSE;
+  winch_seen = 0;
+  return TRUE;
+}
+
+/* ======================================================================
+   console_window_size()  -  What the tty last said its size was
+   Returns FALSE (and leaves *cols and *rows alone) if it never has.       */
+
+Public bool console_window_size(cols, rows) int *cols;
+int *rows;
+{
+  if ((win_cols == 0) || (win_rows == 0))
+    return FALSE;
+  *cols = win_cols;
+  *rows = win_rows;
   return TRUE;
 }
 
@@ -496,6 +573,26 @@ bool keyready() {
 
   input_handler_enabled = TRUE;
   return TRUE;
+}
+
+/* ======================================================================
+   type_ahead_count()  -  Characters waiting to be read (SYSTEM(14), 15 Oct 26, QM4 gaps Q-18)
+
+   The one the kernel has taken from the terminal ahead of time, the ring buffer the input signal handler fills, and what
+   the operating system still holds for stdin.  For piped input the third is whatever is in the pipe now, so the figure
+   is a snapshot (the manual calls it unreliable for piped input, and so it is here).                                    */
+
+int32_t type_ahead_count() {
+  int32_t n;
+  int waiting = 0;
+
+  input_handler_enabled = FALSE;
+  n = (type_ahead >= 0) ? 1 : 0;
+  n += (ring_in - ring_out + RING_SIZE) % RING_SIZE;
+  if (ioctl(0, FIONREAD, &waiting) == 0 && waiting > 0)
+    n += waiting;
+  input_handler_enabled = TRUE;
+  return n;
 }
 
 int16_t keyin(timeout) int timeout; /* Milliseconds */
@@ -612,6 +709,24 @@ exit_keyin:
      moments before it was re-enabled will be picked up later.         */
 
   input_handler_enabled = TRUE;
+
+  /* 12 Oct 26 (openQM item 155): PTERM MARK - ctrl-\ (28), ctrl-] (29) and
+     ctrl-^ (30) typed at the keyboard are the subvalue, value and field marks,
+     in that order (openQM item 254 had the first two swapped). */
+  if (mark_input) {
+    switch ((u_char)c) {
+      case 28:
+        c = SUBVALUE_MARK;
+        break;
+      case 29:
+        c = VALUE_MARK;
+        break;
+      case 30:
+        c = FIELD_MARK;
+        break;
+    }
+  }
+
   return (int16_t)((u_char)c);
 }
 
@@ -626,6 +741,7 @@ void io_handler(int sig) {
 Private void do_input() {
   char c;
   int16_t n;
+  ssize_t got;
   static bool last_was_cr = TRUE; /* May need to skip leading NUL/LF */
 
 again:
@@ -637,10 +753,17 @@ again:
     if (n == ring_out)
       return; /* Ring buffer is full */
 
-    if (read(0, &c, 1) <= 0) {
-      if (errno == EAGAIN)
-        goto again; /* 0429 io_handler() stole our data */
+    got = read(0, &c, 1);
 
+    /* 15 Oct 26 - errno is only meaningful after a read that returned -1.  End of file (0) leaves it as it was, so an
+       EAGAIN left by any earlier call (a lock attempt that failed, a write that would have blocked) made this test
+       send an ended connection round the loop for ever: poll said hung up, read said nothing, errno still said try
+       again.  Two API sessions busy on one file left servers running at 100% of a processor after their clients had
+       gone.                                                                                                      */
+    if ((got < 0) && (errno == EAGAIN))
+      goto again; /* 0429 io_handler() stole our data */
+
+    if (got <= 0) {
       connection_lost = TRUE;     /* Lost connection */
       k_exit_cause = K_TERMINATE; /* 0393 */
       c = 0;                      /* 0338 */
@@ -737,20 +860,13 @@ int16_t y;
 int16_t w;
 int16_t h;
 {
-  char *p;
-  char *q;
+  /* 13 Oct 26: the terminal no longer keeps the image.  It used to be asked to, with the 'sreg' capability, by
+     AccuTerm and by SDTerm, neither of which SD supports now; SAVE.SCREEN() gives an image that holds nothing
+     outside this process and RESTORE.SCREEN writes nothing.  (The library's SCREEN statement keeps its own
+     shadow of what it draws and puts it back itself.) */
   static int32_t image_id = 0;
-  int n;
 
-  if (connection_type == CN_SOCKET) {
-    scrn->id = image_id++;
-    p = sdtgetstr("sreg");
-    if (p != NULL) {
-      q = tparm(&n, p, (int)(scrn->id), (int)x, (int)y, (int)w, (int)h);
-      write_socket(q, n, TRUE);
-    }
-  }
-
+  scrn->id = image_id++;
   return TRUE;
 }
 
@@ -759,17 +875,7 @@ int16_t h;
 void restore_screen(scrn, restore_cursor) SCREEN_IMAGE *scrn;
 bool restore_cursor;
 {
-  char *p;
-  char *q;
-  int n;
-
-  if (connection_type == CN_SOCKET) {
-    p = sdtgetstr("rreg");
-    if (p != NULL) {
-      q = tparm(&n, p, (int)(scrn->id), (int)(scrn->x), (int)(scrn->y), (int)restore_cursor);
-      write_socket(q, n, TRUE);
-    }
-  }
+  /* nothing: see save_screen() */
 }
 
 /* Interludes to map onto Windows style interfaces */

@@ -41,6 +41,7 @@ Public char* entry_dir init(NULL); /* Current directory on entry */
 Public bool is_bootstrap init(FALSE);  /* Bootstrap build (install process) */
 Public bool is_phantom init(FALSE);  /* Process is a phantom */
 Public bool is_sdApiSrvr init(FALSE); /* Process is a sdApiSrvr */
+Public bool class_main_ok init(FALSE); /* Set by op_run() and op_chain() for the one k_call() they make: a class module may run its MAIN (16 Oct 26, Fixes item 484) */
 Public bool is_nt init(FALSE);       /* Windows NT/2000/XP? */
 
 Public int phantom_user_index init(0); /* User table index for phantom */
@@ -88,7 +89,9 @@ Public char* primary_collation init(NULL); /* Points to above map if active,
 Public DESCRIPTOR* watch_descr init(NULL);
 
 Public int16_t cproc_level init(0);
-Public bool rtnlist init(FALSE);
+Public int32_t login_delay init(0); /* Tenths of a second this login waited for a user entry, LGNWAIT; SYSTEM(1036) */Public bool rtnlist init(FALSE);
+Public bool keep_select init(FALSE); /* KEEP.SELECT ran in this command: the command processor does not clear list 0 on return (15 Oct 26, Q-16) */
+Public char cmdlog_path[MAX_PATHNAME_LEN + 1] init(""); /* COMMAND.LOGGING ON: the pathname of this process's command log, null when off (15 Oct 26, Q-8) */
 
 Public bool map_dir_ids init(TRUE); /* Map illegal characters in names */
 
@@ -123,6 +126,22 @@ struct PROGRAM {
   int32_t col1;
   int32_t col2;
   int16_t precision;
+  int16_t csv_mode;  /* CSV.MODE 1 - 3 (14 Oct 26, openQM 173): copied to a called program, so it persists through calls */
+  char csv_delim;    /* ... and its delimiter, a comma by default (openQM 200) */
+  char itrap_chars[17]; /* INPUTTRAP (14 Oct 26, openQM 408): the characters trapped when typed alone for INPUT @ or INPUTFIELD, "" for none */
+  int16_t itrap_n;      /* ... how many labels the statement named (a character past the last label takes the last one) */
+  int32_t itrap_stub;   /* ... the offset in the object code of the stub that jumps to the label; 0 for none */
+  int16_t itrap_hit;    /* ... set by _INPUTAT to the label number when a trapped character was typed, 0 for none */
+  u_char str_ovl;    /* $MODE CHANGE.NO.OVERLAP / COUNT.OVERLAP / INDEX.OVERLAP (15 Oct 26, QM4 gaps Q-16): SO_* bits set by OP_STROVL before the call */
+#define SO_CHANGE_NO_OVERLAP 0x01 /* CHANGE, EREPLACE and SWAP skip a matched occurrence whole instead of one byte on */
+#define SO_COUNT_OVERLAP 0x02     /* COUNT and COUNTS find overlapping occurrences */
+#define SO_INDEX_OVERLAP 0x04     /* INDEX and INDEXS find overlapping occurrences */
+  bool has_stacked;  /* EXECUTE ... STACKLIST: list 0 as it was is held here until the command returns (openQM 61) */
+  DESCRIPTOR stacked_list;
+  int32_t stacked_count;
+  int32_t stacked_ptr; /* where READNEXT had got to in it: bytes from the start of the list string, -1 for not started */
+  bool has_stdfil;     /* EXECUTE: the $STDFIL common block's element (the @STDFIL of $MODE STDFIL.SHARED) is held here, and the command */
+  DESCRIPTOR stdfil_saved; /* ...runs with a fresh one; k_return() puts it back (16 Oct 26, QM4 gap 225) */
   u_char* saved_c_base;
   int32_t saved_pc_offset;
   char saved_prompt_char;
@@ -168,6 +187,18 @@ struct PROCESS {
 #define P_ULOCK 0x0008    /* ULOCK opcode executed       ** See int$keys.h */
 #define P_READONLY 0x0010 /* READONLY opcode executed */
 #define P_PICKREAD 0x0020 /* PICKREAD opcode executed */
+#define P_NON_TXN 0x0040  /* OPEN / OPENPATH ... NON.TRANSACTIONAL (openQM item 64) */
+#define P_TRAIL 0x0080    /* SUBSTRA is a trailing substring assignment, var[n] = expr (openQM item 41) */
+#define P_OPEN_ZERO 0x0100 /* OPEN / OPENPATH under $MODE OPEN.FAIL.ZERO.FVAR: a failed open sets the file variable to 0 (item 514) */
+#define P_SYNC 0x0200      /* OPEN / OPENPATH ... SYNC: forced writes (QM4 Fixes item 102).  The bit READNEXT uses for P_PICK_RDNX; never both */
+#define P_PICK_RDNX 0x0200 /* READNEXT under $MODE PICK.READNEXT: the id variable is left alone when the ELSE clause is taken (item 418) */
+#define P_THEN_ELSE 0x0400 /* WRITE / DELETE has a THEN / ELSE clause under $MODE WRITE.DELETE.THEN.ELSE: a trigger failure takes ELSE (openQM items 368, 496) */
+#define P_TEMPFILE 0x0800 /* OPENTEMP: open_file() marks the file variable FV_TEMP, so that closing it deletes the file (openQM items 431, 440) */
+#define P_MATCMP 0x1000  /* MATSTR makes a comparison key for IF MAT a = MAT b (openQM item 111) */
+#define P_PICK_SEL 0x2000 /* SELECTV under $MODE PICK.SELECT: an active list 0 is moved to the target variable (QM4 gaps Q-16) */
+#define P_SEQKEY 0x4000   /* WRITE ... CREATING.SEQKEY id.var: the "record id" operand is the address of a variable that is given the file's next sequential id (15 Oct 26) */
+#define P_DEF_SELLIST 0x8000 /* READNEXT under $MODE SELECTV with no FROM: the list is the program's default select list variable, and one that has never been given a list is an empty list (openQM item 85) */
+#define P_AUTOLOCK 0x8000 /* WRITE, MATWRITE or DELETE under $MODE AUTOLOCK: take an update lock on a record not locked (QM4 gap 213); the bit READNEXT uses for P_DEF_SELLIST, never both */
 #define P_REC_LOCKS (P_LLOCK | P_ULOCK) /* Either LLOCK or ULOCK */
   bool numeric_array_allowed;           /* Opcode allows numeric arrays? */
   int32_t status;                       /* Value from STATUS() function */
@@ -192,6 +223,7 @@ Public int16_t k_exit_cause; /* Kernel dispatch loop exit cause */
 #define K_EXIT_RECURSIVE 0x0005 /* RETURN from recursive code */
 #define K_LOGOUT 0x0006         /* Logout process on final return */
 #define K_TOGGLE_TRACER 0x0007  /* Enter or leave trace mode */
+#define K_RESET_ALL_EXIT 0x0008 /* LOGTO ... RESET ALL: unwind to the bottom command processor (16 Oct 26) */
 #define K_CHAIN_PROC 0x0010     /* Chain to a PROC */
 /* Special causes */
 #define K_QUIT 0x0020      /* Ctrl-C */

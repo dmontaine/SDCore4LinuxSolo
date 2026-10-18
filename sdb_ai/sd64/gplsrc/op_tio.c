@@ -17,7 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
- * 15 Jun 24 mab remove or disable op_ttyset and op_ttyget 
+ * 16 Oct 26 dm  end_attribute(): @(-6), @(-12), @(-14) and @(-59) use eblink, edim, erev and ebold when the terminfo entry has them
+ * 15 Jun 24 mab remove or disable op_ttyset and op_ttyget
  * 31 Dec 23 SD launch - prior history suppressed
  * 28 Jul 24 mab remove  op_ttyset and op_ttyget TTYGET/TTYSET not supported
  * END-HISTORY
@@ -129,6 +130,7 @@ void op_getprompt(void);
 
 /* Internal functions */
 Private int colour_map(int user_colour);
+Private char *end_attribute(char *cap);
 Private void keyedit_trap_exit(int mode);
 Private void capture(char *s, int16_t n);
 Private void emitn(char *tgt, char *src, int rpt);
@@ -167,6 +169,8 @@ void op_at() {
   char arg2_str[MAX_PATHNAME_LEN + 1];
   char *p;
   char *q;
+
+  tio_check_resize(); /* 13 Oct 26: the bounds below are the terminal's */
 
   arg1 = e_stack - 2;
   GetInt(arg1);
@@ -263,7 +267,7 @@ void op_at() {
         break;
 
       case IT_EBLINK: /* @(-6)  -  End flashing text */
-        p = sdtgetstr("sgr0");
+        p = end_attribute("eblink");
         break;
 
       case IT_CUB: /* @(-9,n)  -  Cursor backspace */
@@ -289,7 +293,7 @@ void op_at() {
         break;
 
       case IT_EHALF: /* @(-12)  -  End half intensity mode */
-        p = sdtgetstr("sgr0");
+        p = end_attribute("edim");
         break;
 
       case IT_SREV: /* @(-13)  -  Start reverse video */
@@ -297,7 +301,7 @@ void op_at() {
         break;
 
       case IT_EREV: /* @(-14)  -  End reverse video */
-        p = sdtgetstr("sgr0");
+        p = end_attribute("erev");
         break;
 
       case IT_SUL: /* @(-15)  -  Start underline */
@@ -339,17 +343,9 @@ void op_at() {
         break;
 
       case IT_E80: /* @(-29)  -  Set 80 columns */
-        if (is_SDTerm) {
-          sprintf(s, "\x1B[29Q");
-          p = s;
-        }
-        break;
-
       case IT_E132: /* @(-30)  -  Set 132 columns */
-        if (is_SDTerm) {
-          sprintf(s, "\x1B[30Q");
-          p = s;
-        }
+        /* There is no terminfo capability for these: SDTerm, the only terminal that had a sequence for them, is
+           no longer supported (13 Oct 26), so they write nothing. */
         break;
 
       case IT_RIC: /* @(-31)  -  Reset inhibit cursor */
@@ -398,14 +394,10 @@ void op_at() {
         break;
 
       case IT_EBOLD: /* @(-59)  -  End bold mode */
-        p = sdtgetstr("sgr0");
+        p = end_attribute("ebold");
         break;
 
-      case IT_SCREEN: /* @(-256, n)  -  Set screen shape */
-        if (is_SDTerm) {
-          sprintf(s, "\x1B[256;%dQ", at2);
-          p = s;
-        }
+      case IT_SCREEN: /* @(-256, n)  -  Set screen shape: SDTerm only, so now nothing (13 Oct 26) */
         break;
 
       case IT_ACMD: /* @(-108)  -  Execute asynchronous command */
@@ -450,6 +442,18 @@ Private void emitn(char *tgt, char *src, int rpt) {
     tgt += n;
   }
   *tgt = '\0';
+}
+
+/* ------------------------------------ */
+/* End one attribute with the terminal's own capability for it (eblink, edim, erev, ebold: QM4 Fixes item 47), or, when the
+   terminal does not define it, with sgr0, which ends every attribute and every colour.  A stock entry defines none of them,
+   so what a terminal does is unchanged until its entry (terminfo.mods) says otherwise.                                      */
+Private char *end_attribute(char *cap) {
+  char *p = sdtgetstr(cap);
+
+  if ((p == NULL) || (*p == '\0'))
+    p = sdtgetstr("sgr0");
+  return p;
 }
 
 /* ------------------------------------ */
@@ -652,6 +656,24 @@ void op_expandhf() {
 /* ======================================================================
    op_footing()  -  FOOTING opcode                                        */
 
+/* hf_paginate()  -  set or clear pagination after a heading / footing change.
+   On the display unit, with RUN.NO.PAGE and without PAGINATE.ON.HEADING, a
+   heading or footing does not turn pagination on; and RUN ... NO.PAGE
+   (PU_HF_NO_PAGE) stops it whatever the options.                        */
+
+Private void hf_paginate(PRINT_UNIT *pu) {
+  if ((pu->heading != NULL) || (pu->footing != NULL)) {
+    if (pu == &tio.dsp) {
+      if (pu->flags & PU_HF_NO_PAGE)
+        return;
+      if (Option(OptRunNoPage) && !Option(OptPaginateOnHeading))
+        return;
+    }
+    pu->flags |= PU_PAGINATE;
+  } else
+    pu->flags &= ~PU_PAGINATE;
+}
+
 void op_footing() {
   /* Stack:
 
@@ -682,10 +704,7 @@ void op_footing() {
 
   /* We paginate if either the heading or the footing is not null */
 
-  if ((pu->heading != NULL) || (pu->footing != NULL))
-    pu->flags |= PU_PAGINATE;
-  else
-    pu->flags &= ~PU_PAGINATE;
+  hf_paginate(pu);
 
   set_data_lines(pu);
 }
@@ -755,10 +774,7 @@ Private void heading(bool eject) {
 
   /* We paginate if either the heading or the footing is not null */
 
-  if ((pu->heading != NULL) || (pu->footing != NULL))
-    pu->flags |= PU_PAGINATE;
-  else
-    pu->flags &= ~PU_PAGINATE;
+  hf_paginate(pu);
 
   if (eject) /* 0203 */
   {
@@ -1115,6 +1131,7 @@ Private void getkey(bool invert, int timeout) /* -ve = none */
     k_error(sysmsg(1702));
 
   k = keyin((timeout < 0) ? 0 : timeout);
+  tio_check_resize(); /* 13 Oct 26: the terminal may have been resized while we waited */
   if ((k == 0) && (k_exit_cause & K_INTERRUPT)) { /* Break key, etc.  Process and then repeat */
     pc--;
     return;
@@ -1783,6 +1800,32 @@ void op_getpu() {
         k_put_c_string(pu->newline, &result);
         break;
 
+      case PU_SEQNO: /* 12 Oct 26: number of the last NEXT hold file, as in its name; null if none */
+        k_put_c_string(pu->seqno, &result);
+        break;
+
+      /* 12 Oct 26: keys 1020 to 1025 of the openQM 4 manual */
+      case PU_FORM_QUEUE: /* The queue the last SP.ASSIGN for this unit named; 0 if there has been none */
+        result.data.value = ((pu->unit >= 0) && (pu->unit <= HIGH_PRINT_UNIT)) ? form_queue_of[pu->unit] : 0;
+        break;
+
+      case PU_FONT_SIZE: /* GDI mode only */
+        result.data.value = 0;
+        break;
+
+      case PU_FORM_FEED: /* What print_header() sends between pages: CR FF, or FF alone with FORM.FEED FF */
+        k_put_c_string((pu->flags & PU_FF_ONLY) ? "\f" : "\r\f", &result);
+        break;
+
+      case PU_ENCODING: /* English only */
+      case PU_FONT:
+        k_put_c_string("", &result);
+        break;
+
+      case PU_PATHNAME: /* The file the output is going to, while one is open */
+        k_put_c_string(pu->file.pathname, &result);
+        break;
+
       case PU_LINENO:
         n = (int16_t)(pu->line + 1);
         if (n > pu->data_lines_per_page)
@@ -2337,6 +2380,30 @@ void op_pterm() {
       result.data.value = telnet_negotiation;
       break;
 
+    case PT_MARK: /* Typed ctrl-\ ctrl-] ctrl-^ become subvalue, value and field marks */
+      GetInt(descr);
+      new_value = descr->data.value;
+      if (new_value >= 0)
+        mark_input = (new_value != 0);
+      result.data.value = mark_input;
+      break;
+
+    case PT_ERASE: /* INPUT's erase key: 0 default, 1-255 a character, 256 none; -1 only asks */
+      GetInt(descr);
+      new_value = descr->data.value;
+      if ((new_value >= 0) && (new_value <= 256))
+        erase_key = (int16_t)new_value;
+      result.data.value = erase_key;
+      break;
+
+    case PT_CTRL_FILTER: /* Discard control characters in INPUT and INPUT@; one setting per command level */
+      GetInt(descr);
+      new_value = descr->data.value;
+      if (new_value >= 0)
+        ctrl_filter[cproc_level & 63] = (new_value != 0);
+      result.data.value = ctrl_filter[cproc_level & 63];
+      break;
+
     default:
       k_error(sysmsg(1707));
   }
@@ -2473,18 +2540,8 @@ void op_savescrn() {
    freescrn()  -  Free a screen image descriptor                          */
 
 void freescrn(SCREEN_IMAGE *image) {
-  char *p;
-  char *q;
-  int n;
-
-  if ((connection_type == CN_SOCKET) || (connection_type == CN_PORT)) {
-    p = sdtgetstr("dreg");
-    if (p != NULL) {
-      q = tparm(&n, p, (int)(image->id));
-      write_socket(q, n, TRUE);
-    }
-  }
-
+  /* (A screen image was kept by the terminal, AccuTerm or SDTerm, and was deleted there with the 'dreg'
+     capability.  Neither is supported now: an image holds nothing outside this process.  13 Oct 26) */
   if (image->buffer != NULL)
     k_free(image->buffer);
   k_free(image);
@@ -2560,7 +2617,14 @@ Private int como_open(char name[]) {
   if (ValidFileHandle(tio.como_file))
     como_close();
 
-  tio.como_file = dio_open(name, DIO_REPLACE);
+  /* 12 Oct 26 (openQM item 8): a path that begins >> is appended to, and made if it is not there */
+  if (name[0] == '>' && name[1] == '>') {
+    tio.como_file = dio_open(name + 2, DIO_OVERWRITE);
+    if (ValidFileHandle(tio.como_file))
+      lseek(tio.como_file, 0, SEEK_END);
+  } else {
+    tio.como_file = dio_open(name, DIO_REPLACE);
+  }
   if (!ValidFileHandle(tio.como_file))
     return ER_FNF;
 
@@ -3232,6 +3296,22 @@ exit_handle_break:
 }
 
 /* ======================================================================
+   tio_check_resize()  -  The terminal's size has changed
+
+   linuxio.c reads the tty's size at start-up and in its SIGWINCH handler, and
+   there it can set the display's width and lines per page but not work out
+   its data lines per page (set_data_lines() walks the heading and footing and
+   is not safe in a signal handler).  That is done here, at a place where the
+   program is not in the middle of changing the display: before an @ function,
+   at the end of a line, before waiting for a key, and when the display's size
+   is asked for.                                                             */
+
+void tio_check_resize() {
+  if (console_resized())
+    set_data_lines(&tio.dsp);
+}
+
+/* ======================================================================
    tio_init()  -  Initialise tio subsystem                                */
 
 bool tio_init() {
@@ -3286,6 +3366,8 @@ int tio_printf(char *template_string, ...) {
 /* ====================================================================== */
 
 Private void tio_new_line() {
+  tio_check_resize(); /* 13 Oct 26: the page length below is the terminal's */
+
   /* 0083 Do newline here rather than in tio_display_string */
 
   if (capturing)
@@ -3406,6 +3488,7 @@ PRINT_UNIT *tio_set_printer(int16_t unit, int16_t mode, int16_t lines_per_page, 
     p->weight = 0;               /* Medium */
     strcpy(p->symbol_set, "8U"); /* Roman-8 */
     strcpy(p->newline, "\n");
+    p->seqno[0] = '\0';
     p->printer_name = NULL;
     p->file_name = NULL;
     p->banner = NULL;

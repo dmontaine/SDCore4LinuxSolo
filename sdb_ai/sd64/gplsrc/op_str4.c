@@ -18,6 +18,8 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 12 Oct 26 dm  MATCHES and MATCHFIELD set INMAT() to the number of the template that matched (1.2-0, 315)
+ * 15 Oct 26 dm  $MODE COUNT.OVERLAP and INDEX.OVERLAP: count() and op_index() find overlapping occurrences (QM4 gaps Q-16)
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -42,6 +44,7 @@
  * START-CODE
  */
 
+#include <openssl/evp.h>   /* before sd.h: descr.h defines OBJ, which turns OpenSSL's OBJ_dup into 15_dup */
 #include "sd.h"
 #include "header.h"
 
@@ -247,10 +250,15 @@ void op_index() {
           goto exit_op_index;
         }
 
-        src_bytes_remaining = isrc_bytes_remaining;
-        offset += ioffset;
-        src = isrc;
-        src_str = isrc_str;
+        /* $MODE INDEX.OVERLAP: the next occurrence may start inside this one, so the search goes on from the byte after
+           the start of the match, which is where the outer loop already points */
+
+        if (!(process.program.str_ovl & SO_INDEX_OVERLAP)) {
+          src_bytes_remaining = isrc_bytes_remaining;
+          offset += ioffset;
+          src = isrc;
+          src_str = isrc_str;
+        }
       no_match:;
       } else /* Matching single character substring */
       {
@@ -317,6 +325,7 @@ void op_matbuild() {
 
   int32_t start_index;
   int32_t end_index;
+  bool zero_added;
 
   DESCRIPTOR tgt_descr;
 
@@ -424,6 +433,7 @@ void op_matbuild() {
     }
   }
 
+  zero_added = FALSE;
   if ((mat_descr->type == ARRAY) && !(a_hdr->flags & AH_PICK_STYLE)) {
     /* Now add the zero element, if it is not null */
 
@@ -435,6 +445,7 @@ void op_matbuild() {
       k_get_string(&src_descr);
 
       if (src_descr.data.str.saddr != NULL) {
+        zero_added = TRUE;
         if (tgt_descr.data.str.saddr != NULL) {
           /* Copy delimiter to target string */
 
@@ -456,12 +467,135 @@ void op_matbuild() {
 
   ts_terminate();
 
+  /* 14 Oct 26 (openQM item 454): INMAT() after MATBUILD, and so after MATWRITE (a MATBUILD and a WRITE), is the index of
+     the final element included, as the matrix is indexed by the program; 0 if the zero element of a default style matrix
+     was not null and so was added.                                                                                    */
+  if (zero_added)
+    process.inmat = 0;
+  else if (mat_descr->type == PMATRIX)
+    process.inmat = end_index - (pm_hdr->base_offset - 1);
+  else
+    process.inmat = end_index;
+
   k_dismiss(); /* Delimiter string */
   k_pop(2);    /* Ending and starting index */
   k_dismiss(); /* Array */
 
   /* Move result string to top of stack */
 
+  *(e_stack++) = tgt_descr;
+}
+
+/* ======================================================================
+   op_matstr()  -  MATSTR() function   (12 Oct 26, openQM item 509, the description the owner supplied)
+
+   A dynamic array from a whole matrix.  A two dimensional matrix gives a
+   field for each row and a value for each column.  A one dimensional one
+   gives a field for each element, as MATBUILD does (trailing null elements
+   left off).  The zero element is not used.  Marks already in the data are
+   not escaped.
+
+     Stack:   top  matrix (an ADDR)                       -> the string     */
+
+Private void matstr_element(ARRAY_HEADER* a_hdr, int32_t indx) {
+  ARRAY_CHUNK* a_chunk;
+  DESCRIPTOR src_descr;
+  STRING_CHUNK* src_str;
+
+  a_chunk = a_hdr->chunk[indx / MAX_ARRAY_CHUNK_SIZE];
+  InitDescr(&src_descr, ADDR);
+  src_descr.data.d_addr = &(a_chunk->descr[indx % MAX_ARRAY_CHUNK_SIZE]);
+  (void)k_dereference(&src_descr);
+  if (src_descr.type != UNASSIGNED) {
+    k_get_string(&src_descr);
+    for (src_str = src_descr.data.str.saddr; src_str != NULL; src_str = src_str->next)
+      ts_copy(src_str->data, src_str->bytes);
+    k_release(&src_descr);
+  }
+}
+
+void op_matstr() {
+  DESCRIPTOR* mat_descr;
+  DESCRIPTOR* descr;
+  PMATRIX_HEADER* pm_hdr;
+  ARRAY_HEADER* a_hdr;
+  ARRAY_CHUNK* a_chunk;
+  DESCRIPTOR tgt_descr;
+  int32_t rows;
+  int32_t cols;
+  int32_t base = 0;
+  int32_t r;
+  int32_t c;
+  int32_t last;
+  bool cmp;
+
+  mat_descr = e_stack - 1;
+  while (mat_descr->type == ADDR)
+    mat_descr = mat_descr->data.d_addr;
+
+  switch (mat_descr->type) {
+    case ARRAY:
+      a_hdr = mat_descr->data.ahdr_addr;
+      rows = a_hdr->rows;
+      cols = a_hdr->cols;
+      break;
+
+    case PMATRIX:
+      pm_hdr = mat_descr->data.pmatrix;
+      a_hdr = pm_hdr->com_descr->data.ahdr_addr;
+      rows = pm_hdr->rows;
+      cols = pm_hdr->cols;
+      base = pm_hdr->base_offset - 1;
+      break;
+
+    default:
+      k_error(sysmsg(1236));
+      return;
+  }
+
+  InitDescr(&tgt_descr, STRING);
+  tgt_descr.data.str.saddr = NULL;
+  ts_init(&tgt_descr.data.str.saddr, 64);
+
+  /* 12 Oct 26 dm  openQM item 111, IF MAT A = MAT B: the compiler sets P_MATCMP so that the string is a
+     comparison key, not a value to use: the shape in front, rows and columns, and every element kept,
+     trailing empty ones too, so that two matrices give the same string only if they are equal.      */
+  cmp = (process.op_flags & P_MATCMP) != 0;
+  process.op_flags &= ~P_MATCMP;
+  if (cmp) {
+    char shape[40];
+    snprintf(shape, sizeof(shape), "%d,%d:", (int)rows, (int)cols);
+    ts_copy_c_string(shape);
+  }
+
+  if (cols == 0) { /* One dimensional: as MATBUILD with an FM */
+    last = rows;
+    while (!cmp && (last >= 1)) {
+      a_chunk = a_hdr->chunk[(last + base) / MAX_ARRAY_CHUNK_SIZE];
+      descr = &(a_chunk->descr[(last + base) % MAX_ARRAY_CHUNK_SIZE]);
+      if ((descr->type != STRING) || (descr->data.str.saddr != NULL))
+        break;
+      last--;
+    }
+    for (r = 1; r <= last; r++) {
+      if (r > 1)
+        ts_copy_byte(FIELD_MARK);
+      matstr_element(a_hdr, r + base);
+    }
+  } else { /* Two dimensional: a field for each row, a value for each column */
+    for (r = 1; r <= rows; r++) {
+      if (r > 1)
+        ts_copy_byte(FIELD_MARK);
+      for (c = 1; c <= cols; c++) {
+        if (c > 1)
+          ts_copy_byte(VALUE_MARK);
+        matstr_element(a_hdr, (r - 1) * cols + c + base);
+      }
+    }
+  }
+
+  ts_terminate();
+  k_dismiss(); /* The matrix address */
   *(e_stack++) = tgt_descr;
 }
 
@@ -974,6 +1108,131 @@ exit_trimb:
 }
 
 /* ======================================================================
+   op_trimw()  -  Trim whitespace from string
+
+   11 Oct 26  openQM ref 302.  Like TRIM() but for every white space
+   character (space, tab, line feed, carriage return, form feed, vertical
+   tab): leading and trailing white space is removed and each run inside
+   the string becomes one space.                                          */
+
+void op_trimw() {
+  /* Stack:
+
+     |=============================|=============================|
+     |            BEFORE           |           AFTER             |
+     |=============================|=============================|
+ top |  Source string              |  Result string              |
+     |=============================|=============================|
+ */
+
+  DESCRIPTOR *src_descr;       /* Source string descriptor */
+  DESCRIPTOR result;           /* Result string descriptor */
+  STRING_CHUNK *src_str;       /* Current source chunk */
+  char *src;                   /* Ptr to current byte */
+  int16_t src_bytes_remaining; /* Remaining bytes in this chunk */
+
+  bool front_of_string = TRUE;
+  bool white_pending = FALSE;
+  char c;
+
+  src_descr = e_stack - 1;
+  k_get_string(src_descr);
+  src_str = src_descr->data.str.saddr;
+  if (src_str == NULL)
+    goto exit_trimw; /* Null source */
+
+  InitDescr(&result, STRING);
+  result.data.str.saddr = NULL;
+
+  ts_init(&result.data.str.saddr, min(64, src_str->string_len));
+
+  while (src_str != NULL) {
+    src_bytes_remaining = src_str->bytes;
+    src = src_str->data;
+
+    while (src_bytes_remaining-- > 0) {
+      c = *(src++);
+      if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v') {
+        white_pending = !front_of_string;
+      } else {
+        if (white_pending) {
+          ts_copy_byte(' ');
+          white_pending = FALSE;
+        }
+        front_of_string = FALSE;
+        ts_copy_byte(c);
+      }
+    }
+
+    src_str = src_str->next;
+  }
+
+  ts_terminate();
+
+  k_dismiss(); /* Dismiss source string */
+
+  *(e_stack++) = result;
+
+exit_trimw:
+  return;
+}
+
+/* ======================================================================
+   op_md5()  -  MD5() function
+
+   12 Oct 26  openQM ref 63.  The MD5 message digest of the string, as 32
+   lower case hexadecimal characters (the owner supplied the openQM
+   description).  Uses OpenSSL's EVP interface.                           */
+
+void op_md5() {
+  /* Stack:
+
+     |=============================|=============================|
+     |            BEFORE           |           AFTER             |
+     |=============================|=============================|
+ top |  Source string              |  Digest, 32 hex characters  |
+     |=============================|=============================|
+ */
+
+  DESCRIPTOR *src_descr;
+  STRING_CHUNK *src_str;
+  EVP_MD_CTX *ctx;
+  unsigned char digest[EVP_MAX_MD_SIZE];
+  unsigned int digest_len = 0;
+  char hex[2 * EVP_MAX_MD_SIZE + 1];
+  unsigned int i;
+
+  src_descr = e_stack - 1;
+  k_get_string(src_descr);
+  src_str = src_descr->data.str.saddr;
+
+  ctx = EVP_MD_CTX_new();
+  if (ctx == NULL || EVP_DigestInit_ex(ctx, EVP_md5(), NULL) != 1) {
+    if (ctx != NULL)
+      EVP_MD_CTX_free(ctx);
+    k_error("MD5() is not available");
+    return;
+  }
+
+  while (src_str != NULL) {
+    if (src_str->bytes > 0)
+      EVP_DigestUpdate(ctx, src_str->data, (size_t)src_str->bytes);
+    src_str = src_str->next;
+  }
+
+  EVP_DigestFinal_ex(ctx, digest, &digest_len);
+  EVP_MD_CTX_free(ctx);
+
+  for (i = 0; i < digest_len; i++)
+    sprintf(hex + 2 * i, "%02x", digest[i]);
+  hex[2 * digest_len] = '\0';
+
+  k_dismiss();                      /* Dismiss the source string */
+  k_put_c_string(hex, e_stack);
+  e_stack++;
+}
+
+/* ======================================================================
    op_trimf()  -  Trim leading spaces from string                         */
 
 void op_trimf() {
@@ -1366,9 +1625,14 @@ Private void count(bool dcount) /* Doing DCOUNT? */
 
         ct++;
 
-        src_bytes_remaining = isrc_bytes_remaining;
-        src = isrc;
-        src_str = isrc_str;
+        /* $MODE COUNT.OVERLAP (COUNT only, never DCOUNT): the next occurrence may start inside this one, so the search
+           goes on from the byte after the start of the match, where the outer loop already points */
+
+        if (dcount || !(process.program.str_ovl & SO_COUNT_OVERLAP)) {
+          src_bytes_remaining = isrc_bytes_remaining;
+          src = isrc;
+          src_str = isrc_str;
+        }
 
       no_match:;
       } else /* Matching single character substring */
@@ -1424,6 +1688,7 @@ Private void matches(bool matchfield) {
   char *q;
   int16_t return_component; /* Component number for MATCHFIELD */
   bool match = FALSE;
+  int32_t template_no = 0; /* Which value mark delimited template is being tried */
 
   if (matchfield) {
     descr = e_stack - 1;
@@ -1457,12 +1722,16 @@ Private void matches(bool matchfield) {
     if (q != NULL)
       *q = '\0';
 
+    template_no++;
     match = match_template(src_string, p, 0, return_component);
     if (match)
       break;
 
     p = q + 1;
   } while (q != NULL);
+
+  /* INMAT() is the number of the template that matched, 0 if none did (1.2-0, item 315) */
+  process.inmat = match ? template_no : 0;
 
   if (matchfield) {
     if (match && (component_start != NULL)) /* Item found */
@@ -1805,6 +2074,513 @@ bool match_template(char *string,
 
 match_found:
   return TRUE;
+}
+
+/* ======================================================================
+   String arithmetic and REGEX()   (12 Oct 26, openQM items 391, 468, 510)
+
+   SADD SSUB SMUL SDIV SCMP work on numbers held as strings of any length,
+   with an optional sign and decimal point: no rounding, no floating point.
+   SDIV gives 15 decimal places, truncated, trailing zeros dropped.  SCMP
+   answers -1, 0 or 1.  A string that is not a number counts as zero.
+
+   REGEX(string, pattern) is 1 if the POSIX extended regular expression
+   matches anywhere in the string, else 0.  A pattern that begins (?i)
+   ignores case.  A pattern that does not compile is a run-time error.     */
+
+#include <regex.h>
+
+typedef struct SNUM {
+  int neg;
+  int scale;   /* digits after the decimal point */
+  int n;       /* digits held */
+  char* d;     /* the digits, most significant first, value = d / 10^scale */
+} SNUM;
+
+/* The bytes of the string at the top of the stack, as a NUL terminated copy (malloc) */
+Private char* top_string_copy(DESCRIPTOR* descr, int* lenp) {
+  STRING_CHUNK* str;
+  char* buf;
+  int len = 0;
+  int pos = 0;
+
+  k_get_string(descr);
+  for (str = descr->data.str.saddr; str != NULL; str = str->next)
+    len += str->bytes;
+  buf = (char*)malloc((size_t)len + 1);
+  if (buf == NULL)
+    return NULL;
+  for (str = descr->data.str.saddr; str != NULL; str = str->next) {
+    memcpy(buf + pos, str->data, (size_t)str->bytes);
+    pos += str->bytes;
+  }
+  buf[len] = '\0';
+  if (lenp != NULL)
+    *lenp = len;
+  return buf;
+}
+
+Private void snum_parse(const char* s, SNUM* v) {
+  const char* p = s;
+  int i;
+  int seen_dot = 0;
+  int bad = 0;
+
+  v->neg = 0;
+  v->scale = 0;
+  v->n = 0;
+  v->d = (char*)malloc(strlen(s) + 2);
+  while (*p == ' ')
+    p++;
+  if (*p == '-') {
+    v->neg = 1;
+    p++;
+  } else if (*p == '+') {
+    p++;
+  }
+  for (; *p != '\0'; p++) {
+    if (*p >= '0' && *p <= '9') {
+      v->d[v->n++] = *p;
+      if (seen_dot)
+        v->scale++;
+    } else if (*p == '.' && !seen_dot) {
+      seen_dot = 1;
+    } else if (*p == ' ') {
+      continue;
+    } else {
+      bad = 1;
+      break;
+    }
+  }
+  if (bad || v->n == 0) {
+    v->n = 1;
+    v->d[0] = '0';
+    v->scale = 0;
+    v->neg = 0;
+  }
+  /* drop leading zeros, keeping at least scale+1 digits */
+  i = 0;
+  while (i < v->n - 1 && v->d[i] == '0' && v->n - i > v->scale + 1)
+    i++;
+  if (i) {
+    memmove(v->d, v->d + i, (size_t)(v->n - i));
+    v->n -= i;
+  }
+}
+
+Private void snum_pad(SNUM* v, int scale) { /* raise the scale by appending zeros */
+  int add = scale - v->scale;
+  if (add > 0) {
+    v->d = (char*)realloc(v->d, (size_t)(v->n + add + 1));
+    memset(v->d + v->n, '0', (size_t)add);
+    v->n += add;
+    v->scale = scale;
+  }
+}
+
+/* compare magnitudes of two digit strings of the same scale */
+Private int mag_cmp(const char* a, int an, const char* b, int bn) {
+  int i = 0;
+  int j = 0;
+  while (i < an - 1 && a[i] == '0')
+    i++;
+  while (j < bn - 1 && b[j] == '0')
+    j++;
+  if ((an - i) != (bn - j))
+    return ((an - i) > (bn - j)) ? 1 : -1;
+  return memcmp(a + i, b + j, (size_t)(an - i)) < 0 ? -1 : (memcmp(a + i, b + j, (size_t)(an - i)) > 0 ? 1 : 0);
+}
+
+/* result = a + b (digit strings of equal scale, no sign); returns malloc'd, length in *rn */
+Private char* mag_add(const char* a, int an, const char* b, int bn, int* rn) {
+  int n = ((an > bn) ? an : bn) + 1;
+  char* r = (char*)malloc((size_t)n + 1);
+  int carry = 0;
+  int i = an - 1;
+  int j = bn - 1;
+  int k = n - 1;
+  while (k >= 0) {
+    int s = carry + ((i >= 0) ? a[i--] - '0' : 0) + ((j >= 0) ? b[j--] - '0' : 0);
+    r[k--] = (char)('0' + s % 10);
+    carry = s / 10;
+  }
+  *rn = n;
+  return r;
+}
+
+/* result = a - b where |a| >= |b| */
+Private char* mag_sub(const char* a, int an, const char* b, int bn, int* rn) {
+  char* r = (char*)malloc((size_t)an + 1);
+  int borrow = 0;
+  int i = an - 1;
+  int j = bn - 1;
+  int k = an - 1;
+  while (k >= 0) {
+    int s = (a[i--] - '0') - borrow - ((j >= 0) ? b[j--] - '0' : 0);
+    if (s < 0) {
+      s += 10;
+      borrow = 1;
+    } else {
+      borrow = 0;
+    }
+    r[k--] = (char)('0' + s);
+  }
+  *rn = an;
+  return r;
+}
+
+/* Build the result string: sign, integer part, point, fraction, trailing zeros of the fraction dropped */
+Private void snum_format(int neg, const char* d, int n, int scale, char* out) {
+  int i = 0;
+  int ip;
+  int fp;
+  char* o = out;
+
+  while (i < n - 1 && d[i] == '0' && n - i > scale + 1)
+    i++;
+  ip = n - i - scale; /* integer digits */
+  fp = scale;
+  /* trim trailing zeros of the fraction */
+  while (fp > 0 && d[n - 1 - (scale - fp)] == '0')
+    fp--;
+  {
+    int nonzero = 0;
+    int k;
+    for (k = i; k < n; k++)
+      if (d[k] != '0')
+        nonzero = 1;
+    if (neg && nonzero)
+      *o++ = '-';
+  }
+  if (ip <= 0)
+    *o++ = '0';
+  else {
+    memcpy(o, d + i, (size_t)ip);
+    o += ip;
+  }
+  if (fp > 0) {
+    int k;
+    *o++ = '.';
+    for (k = 0; k < fp; k++)
+      *o++ = d[i + (ip > 0 ? ip : 0) + k];
+  }
+  *o = '\0';
+}
+
+Private void sarith(int which) { /* 0 add, 1 sub, 2 mul, 3 div, 4 cmp */
+  DESCRIPTOR* a_descr = e_stack - 2;
+  DESCRIPTOR* b_descr = e_stack - 1;
+  char* as;
+  char* bs;
+  SNUM x;
+  SNUM y;
+  char* res = NULL;
+  int rn = 0;
+  int rneg = 0;
+  int rscale = 0;
+  char* out;
+  int cmp;
+
+  bs = top_string_copy(b_descr, NULL);
+  as = top_string_copy(a_descr, NULL);
+  if (as == NULL || bs == NULL) {
+    free(as);
+    free(bs);
+    k_error("Insufficient memory for string arithmetic");
+    return;
+  }
+  snum_parse(as, &x);
+  snum_parse(bs, &y);
+  free(as);
+  free(bs);
+
+  if (which == 4) { /* compare */
+    int sc = (x.scale > y.scale) ? x.scale : y.scale;
+    snum_pad(&x, sc);
+    snum_pad(&y, sc);
+    {
+      int xz = (mag_cmp(x.d, x.n, "0", 1) == 0);
+      int yz = (mag_cmp(y.d, y.n, "0", 1) == 0);
+      if (xz) x.neg = 0;
+      if (yz) y.neg = 0;
+    }
+    if (x.neg != y.neg)
+      cmp = x.neg ? -1 : 1;
+    else {
+      cmp = mag_cmp(x.d, x.n, y.d, y.n);
+      if (x.neg)
+        cmp = -cmp;
+    }
+    free(x.d);
+    free(y.d);
+    k_dismiss();
+    k_dismiss();
+    InitDescr(e_stack, INTEGER);
+    (e_stack++)->data.value = cmp;
+    return;
+  }
+
+  if (which == 0 || which == 1) {
+    int sc = (x.scale > y.scale) ? x.scale : y.scale;
+    int yneg = (which == 1) ? !y.neg : y.neg;
+    snum_pad(&x, sc);
+    snum_pad(&y, sc);
+    rscale = sc;
+    if (x.neg == yneg) {
+      res = mag_add(x.d, x.n, y.d, y.n, &rn);
+      rneg = x.neg;
+    } else if (mag_cmp(x.d, x.n, y.d, y.n) >= 0) {
+      res = mag_sub(x.d, x.n, y.d, y.n, &rn);
+      rneg = x.neg;
+    } else {
+      res = mag_sub(y.d, y.n, x.d, x.n, &rn);
+      rneg = yneg;
+    }
+  } else if (which == 2) {
+    int i;
+    int j;
+    int* t = (int*)calloc((size_t)(x.n + y.n + 1), sizeof(int));
+    res = (char*)malloc((size_t)(x.n + y.n + 1));
+    for (i = x.n - 1; i >= 0; i--)
+      for (j = y.n - 1; j >= 0; j--)
+        t[i + j + 1] += (x.d[i] - '0') * (y.d[j] - '0');
+    for (i = x.n + y.n - 1; i > 0; i--) {
+      t[i - 1] += t[i] / 10;
+      t[i] %= 10;
+    }
+    rn = x.n + y.n;
+    for (i = 0; i < rn; i++)
+      res[i] = (char)('0' + t[i]);
+    free(t);
+    rneg = x.neg != y.neg;
+    rscale = x.scale + y.scale;
+  } else { /* divide: 15 decimal places */
+    int sc = (x.scale > y.scale) ? x.scale : y.scale;
+    int places = 15;
+    char* num;
+    int nn;
+    char* rem;
+    int remn = 0;
+    int i;
+
+    snum_pad(&x, sc);
+    snum_pad(&y, sc);
+    if (mag_cmp(y.d, y.n, "0", 1) == 0) {
+      free(x.d);
+      free(y.d);
+      k_error("Division by zero in SDIV()");
+      return;
+    }
+    nn = x.n + places;
+    num = (char*)malloc((size_t)nn + 1);
+    memcpy(num, x.d, (size_t)x.n);
+    memset(num + x.n, '0', (size_t)places);
+    res = (char*)malloc((size_t)nn + 1);
+    rem = (char*)calloc((size_t)(y.n + 3), 1);
+    rem[0] = '0';
+    remn = 1;
+    for (i = 0; i < nn; i++) {
+      int q = 0;
+      char* r2;
+      int r2n;
+      /* rem = rem * 10 + digit */
+      rem = (char*)realloc(rem, (size_t)remn + 2);
+      rem[remn++] = num[i];
+      while (mag_cmp(rem, remn, y.d, y.n) >= 0) {
+        r2 = mag_sub(rem, remn, y.d, y.n, &r2n);
+        free(rem);
+        rem = r2;
+        remn = r2n;
+        q++;
+      }
+      res[i] = (char)('0' + q);
+    }
+    rn = nn;
+    free(num);
+    free(rem);
+    rneg = x.neg != y.neg;
+    rscale = places;
+  }
+
+  out = (char*)malloc((size_t)rn + 8);
+  snum_format(rneg, res, rn, rscale, out);
+  free(res);
+  free(x.d);
+  free(y.d);
+  k_dismiss();
+  k_dismiss();
+  k_put_c_string(out, e_stack);
+  e_stack++;
+  free(out);
+}
+
+/* EREPLACE(string, old, new {, occurrence {, start}})  (12 Oct 26, openQM item 472, the description the owner supplied).
+   With a non-null OLD it is CHANGE() exactly, except that an occurrence count below 1 means all; with a null OLD the
+   result is NEW put in front of STRING.  Stack as for op_change(), whose body does the work.                       */
+void op_change(void);
+
+void op_ereplace() {
+  DESCRIPTOR* d;
+  int old_len;
+  char* src;
+  char* nw;
+  char* buf;
+  int sl = 0;
+  int nl = 0;
+
+  d = e_stack - 4;
+  k_get_string(d);
+  old_len = (d->data.str.saddr == NULL) ? 0 : (int)d->data.str.saddr->string_len;
+
+  if (old_len > 0) {
+    d = e_stack - 2;
+    GetInt(d);
+    if (d->data.value < 1)
+      d->data.value = -1;
+    op_change();
+    return;
+  }
+
+  src = top_string_copy(e_stack - 5, &sl);
+  nw = top_string_copy(e_stack - 3, &nl);
+  if (src == NULL || nw == NULL) {
+    free(src);
+    free(nw);
+    k_error("Insufficient memory for EREPLACE()");
+    return;
+  }
+  buf = (char*)malloc((size_t)(sl + nl) + 1);
+  memcpy(buf, nw, (size_t)nl);
+  memcpy(buf + nl, src, (size_t)sl);
+  free(src);
+  free(nw);
+  k_dismiss();
+  k_dismiss();
+  k_dismiss();
+  k_dismiss();
+  k_dismiss();
+  k_put_string(buf, sl + nl, e_stack);
+  e_stack++;
+  free(buf);
+}
+
+/* FIX(number {, precision {, mode}})  (12 Oct 26, openQM item 472, the description the owner supplied)
+   The number as a string with PRECISION decimal places (default: the program's PRECISION), rounded to the nearest
+   when MODE is 0 or left out, cut off when MODE is not 0.  Stack: top mode, then precision (-1 = default), number. */
+void op_fix() {
+  DESCRIPTOR* d;
+  int mode;
+  int prec;
+  double x;
+  long double scaled;
+  long double p10 = 1.0L;
+  int i;
+  int neg;
+  char buf[96];
+  unsigned long long whole;
+  unsigned long long ip;
+  unsigned long long fp;
+
+  d = e_stack - 1;
+  GetInt(d);
+  mode = (int)d->data.value;
+  d = e_stack - 2;
+  GetInt(d);
+  prec = (int)d->data.value;
+  if (prec < 0)
+    prec = process.program.precision;
+  if (prec > 14)
+    prec = 14;
+  d = e_stack - 3;
+  GetNum(d);
+  x = (d->type == INTEGER) ? (double)d->data.value : d->data.float_value;
+
+  neg = (x < 0);
+  if (neg)
+    x = -x;
+  for (i = 0; i < prec; i++)
+    p10 *= 10.0L;
+  scaled = (long double)x * p10;
+  if (scaled > 1.8e18L) { /* beyond what 64 bits can hold: leave it to the default format */
+    snprintf(buf, sizeof(buf), "%.*f", prec, neg ? -x : x);
+  } else {
+    /* the small epsilon stops 2.675 (really 2.67499999...) rounding the wrong way */
+    whole = (unsigned long long)(mode == 0 ? (scaled + 0.5L + 1e-9L * (scaled > 1 ? scaled : 1)) : (scaled + 1e-9L * (scaled > 1 ? scaled : 1)));
+    ip = whole;
+    fp = 0;
+    if (prec > 0) {
+      unsigned long long div = 1;
+      for (i = 0; i < prec; i++)
+        div *= 10ULL;
+      ip = whole / div;
+      fp = whole % div;
+      if (neg && whole != 0)
+        snprintf(buf, sizeof(buf), "-%llu.%0*llu", ip, prec, fp);
+      else
+        snprintf(buf, sizeof(buf), "%llu.%0*llu", ip, prec, fp);
+    } else {
+      if (neg && whole != 0)
+        snprintf(buf, sizeof(buf), "-%llu", ip);
+      else
+        snprintf(buf, sizeof(buf), "%llu", ip);
+    }
+  }
+
+  k_dismiss();
+  k_dismiss();
+  k_dismiss();
+  k_put_c_string(buf, e_stack);
+  e_stack++;
+}
+
+void op_sadd() { sarith(0); }
+void op_ssub() { sarith(1); }
+void op_smul() { sarith(2); }
+void op_sdiv() { sarith(3); }
+void op_scmp() { sarith(4); }
+
+void op_regex() {
+  /* Stack:   top  pattern        below  string */
+  char* pat;
+  char* str;
+  regex_t re;
+  int flags = REG_EXTENDED | REG_NOSUB;
+  int rc;
+  int result = 0;
+  char* p;
+
+  pat = top_string_copy(e_stack - 1, NULL);
+  str = top_string_copy(e_stack - 2, NULL);
+  if (pat == NULL || str == NULL) {
+    free(pat);
+    free(str);
+    k_error("Insufficient memory for REGEX()");
+    return;
+  }
+  p = pat;
+  if (strncmp(p, "(?i)", 4) == 0) {
+    flags |= REG_ICASE;
+    p += 4;
+  }
+  rc = regcomp(&re, p, flags);
+  if (rc != 0) {
+    char msg[200];
+    char text[300];
+    regerror(rc, &re, msg, sizeof(msg));
+    snprintf(text, sizeof(text), "REGEX(): %s", msg);
+    free(pat);
+    free(str);
+    k_error(text);
+    return;
+  }
+  result = (regexec(&re, str, 0, NULL, 0) == 0) ? 1 : 0;
+  regfree(&re);
+  free(pat);
+  free(str);
+  k_dismiss();
+  k_dismiss();
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = result;
 }
 
 /* END-CODE */

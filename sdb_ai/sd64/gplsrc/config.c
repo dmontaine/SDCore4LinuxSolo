@@ -24,6 +24,9 @@
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
  * 29 Sep 26 SD Core for Linux Solo - USRDIR, GRPDIR and SDSYS default to
  *               folders in the installation's own folder (inipath.c).
+ * 16 Oct 26 dm  NUMLOCKS is range checked, 1 to 32767 (QM4 Fixes 532): the lock table's cells and counts are int16, so a bigger value wrapped.
+ * 16 Oct 26 dm  CLEANUP (seconds between scans for lost processes) and PHANTOMS (user numbers reserved for PHANTOM USER n), QM4 gaps.
+ * 15 Oct 26 dm  USPLIT (QM4 gaps Q-19): interactive users take the lowest user number, other processes the highest.
  * 15 Sep 26 dm  S.24: the TMP fallback is bounded; it came from the environment
  *               and was strcpy'd into a MAX_PATHNAME_LEN+1 field.
  * 02 Oct 26 dm  S.53: BACKUPDIR accepted and ignored (SET.BACKUP.DIRECTORY).
@@ -31,6 +34,8 @@
  *
  * Handles parsing of the configuration file.
  * 
+ *  CLEANUP=n     Seconds between scans for processes that ended abnormally, 30 to 3600 (default 300)
+ *  PHANTOMS=u,n  n user numbers from u are kept for phantoms started with PHANTOM USER
  *  DEADLOCK=n    Trap deadlocks?
  *  DEBUG=n       Debug features enabled? (bit flags)
  *  FDS=n         Set FDS limit (default is no limit)
@@ -39,6 +44,7 @@
  *  GRPSIZE=n     Default group size when creating a dynamic file
  *  MAXIDLEN=63   Maximum record id len
  *  MUSTLOCK=1    Must hold update or file lock to write or delete record
+ *  INVCASE=1     Terminal input case inversion on at login (default = 0)
  *  NETFILES=0    Allow remote files?
  *                  0x0001   Allow outgoing NFS
  *                  0x0002   Allow incoming Q_M_Net
@@ -47,6 +53,7 @@
  *  OBJECTS=n     Limit on loaded object code count (0 = no limit)
  *  OBJMEM=n      Limit on locade object size (kb, 0 = no limit)
  *  SDCLIENT=n    SDClient rules (0=all, 1=no call/exec, 2=restricted call)
+ *  SCREENTHEME=name  The screen library's default theme: mono, classic or blue (default none = mono)
  *  SDSYS=path    SDSYS directory path
  *  SAFEDIR=1     Use careful update to directory files
  *  SORTMEM=n     Threshold for disk based sort (units of 1kb)
@@ -74,6 +81,7 @@ Private bool rangecheck(char* param,
                         int min_val,
                         int max_val,
                         char* errmsg);
+Private bool ranges_overlap(int lo1, int count1, int lo2, int count2);
 
 /* ====================================================================== */
 
@@ -86,9 +94,11 @@ struct CONFIG* read_config(char* errmsg) {
   struct CONFIG* cfg;
   double flt;
   int n;
+  int numlocks_asked = 100; /* NUMLOCKS as written: cfg->numlocks is int16 and would wrap before it was checked */
   bool status = FALSE;
   int n2;
   int n3;
+  int hi_user;
   struct stat statbuf;
   char home[MAX_PATHNAME_LEN + 1];
   bool home_ok;
@@ -106,6 +116,7 @@ struct CONFIG* read_config(char* errmsg) {
 
   pcfg.codepage = 0;      /* CODEPAGE: Console code page */
   pcfg.create_user = 1;   /* allow create.account to create os user */
+  pcfg.dhcache = 10;      /* DHCACHE:  Closed dynamic files kept open: the fixed 10 until 1.2-0 (openQM item 90) */
   pcfg.dumpdir[0] = '\0'; /* DUMPDIR:  Directory for process dump files */
   pcfg.exclrem = 0;       /* EXCLREM:  Exclude remote files in ACCOUNT.SAVE? */
   pcfg.filerule = 0;      /* FILERULE: File name rules (special forms) */
@@ -124,25 +135,30 @@ struct CONFIG* read_config(char* errmsg) {
        >= MAX_PATHNAME_LEN + 1))
     pcfg.grpdir[0] = '\0';
   pcfg.grpsize = 1;               /* GRPSIZE:  Default group size */
-  pcfg.intprec = 13;              /* INTPREC:  Precision for INT() etc */
+  pcfg.intprec = 11;              /* INTPREC:  Precision for INT() etc. 13 until 1.2-0 (openQM 2.6-9, item 6) */
+  pcfg.invcase = FALSE;           /* INVCASE:  Initial state of terminal input case inversion (item 399) */
   pcfg.lptrhigh = 66;             /* LPTRHIGH: Default printer lines */
   pcfg.lptrwide = 80;             /* LPTRWIDE: Default printer width */
   pcfg.maxcall = 10000;           /* MAXCALL:  Maximum call depth */
+  pcfg.maxrlock = 0;              /* MAXRLOCK: Record locks per process, 0 = no limit (openQM item 313) */
   pcfg.must_lock = FALSE;         /* MUSTLOCK: Enforce locking rules */
   pcfg.objects = 0;               /* OBJECTS:  Max loaded objects */
   pcfg.objmem = 0;                /* OBJMEM:   Max loaded object size */
+  pcfg.pwdelay = 3;               /* PWDELAY:  Seconds after a failed network login.  SD's own 3 (openQM's is 5) */
   pcfg.sdclient_mode = 0;         /* SDCLIENT: Client capabilities */
   pcfg.reccache = 0;              /* RECCACHE: Record cache size */
   pcfg.ringwait = TRUE;           /* RINGWAIT: Wait if ring buffer full */
   pcfg.safedir = FALSE;       /* SAFE_DIR: User careful update to dir files */
   pcfg.sh[0] = '\0';          /* SH:       Command to run interactive shell */
   pcfg.sh1[0] = '\0';         /* SH1:      Command to run single shell */
-  pcfg.sortmem = 1048576;     /* SORTMEM:  1Mb default switch to disk sort */
+  pcfg.sortmem = 4194304;     /* SORTMEM:  4Mb default switch to disk sort (1Mb until 1.2-0; openQM item 535) */
   pcfg.sortmrg = 4;           /* SORTMRG:  Files merged in one pass */
+  pcfg.screentheme[0] = '\0'; /* SCREENTHEME: the screen library's own default (mono) */
   pcfg.sortworkdir[0] = '\0'; /* SORTWORK: Use Q_MSYS directory */
   pcfg.tempdir[0] = '\0';     /* TEMPDIR:  Temporary directory */
   pcfg.spooler[0] = '\0';     /* SPOOLER:  Default spooler name */
   pcfg.terminfodir[0] = '\0'; /* TERMINFO: Use default location */
+  pcfg.timezone[0] = '\0';    /* TIMEZONE: the epoch functions use the process's own TZ (15 Oct 26, QM4 gaps Q-3) */
   pcfg.txchar = TRUE;         /* TXCHAR:   Enable ansi/oem translation */
 /* 20240219 mab create-account based on type (user / group / other) */   
   if (!home_ok ||
@@ -157,6 +173,12 @@ struct CONFIG* read_config(char* errmsg) {
   cfg->numfiles = 80;
   cfg->numlocks = 100;
   cfg->maxidlen = 63;
+  cfg->lgnwait = 0;                /* LGNWAIT:  No wait when the user limit is reached (openQM item 46) */
+  cfg->userpool = MIN_HI_USER_NO;  /* USERPOOL: Highest user number to allocate (openQM item 551) */
+  cfg->usplit = 0;                 /* USPLIT:   Plain allocation (QM4 gaps Q-19, 15 Oct 26) */
+  cfg->cleanup = 300;              /* CLEANUP:  A scan for lost processes every five minutes, as before the parameter (16 Oct 26) */
+  cfg->phantoms_base = 0;          /* PHANTOMS: No user numbers reserved for PHANTOM USER n */
+  cfg->phantoms_range = 0;
   cfg->fds_limit = SHRT_MAX;
   cfg->max_users = 1;
 
@@ -205,9 +227,11 @@ struct CONFIG* read_config(char* errmsg) {
       else if (sscanf(rec, "CREATUSR=%d", &n) == 1)
         pcfg.create_user = (n != 0);
       else if (sscanf(rec, "DEADLOCK=%d", &n) == 1)
-        cfg->deadlock = (n != 0);
+        cfg->deadlock = n; /* 0, 1 or 2: rangecheck below (openQM item 500) */
       else if (sscanf(rec, "DEBUG=%d", &n) == 1)
         cfg->debug |= n;
+      else if (sscanf(rec, "DHCACHE=%d", &n) == 1)
+        pcfg.dhcache = n;
       else if (strncmp(rec, "DUMPDIR=", 8) == 0)
         strcpy(pcfg.dumpdir, rec + 8);
       else if (sscanf(rec, "ERRLOG=%d", &n) == 1)
@@ -234,10 +258,14 @@ struct CONFIG* read_config(char* errmsg) {
         strncpy(pcfg.grpdir, rec + 7,MAX_PATHNAME_LEN+1); 
       else if (sscanf(rec, "INTPREC=%d", &n) == 1)
         pcfg.intprec = n;
+      else if (sscanf(rec, "INVCASE=%d", &n) == 1)
+        pcfg.invcase = (n != 0);
       else if (strncmp(rec, "JNLDIR=", 7) == 0)
         strcpy(cfg->jnldir, rec + 7);
       else if (sscanf(rec, "JNLMODE=%d", &n) == 1)
         cfg->jnlmode = n;
+      else if (sscanf(rec, "LGNWAIT=%d", &n) == 1)
+        cfg->lgnwait = n;
       else if (sscanf(rec, "LPTRHIGH=%d", &n) == 1)
         pcfg.lptrhigh = n;
       else if (sscanf(rec, "LPTRWIDE=%d", &n) == 1)
@@ -246,14 +274,18 @@ struct CONFIG* read_config(char* errmsg) {
         pcfg.maxcall = n;
       else if (sscanf(rec, "MAXIDLEN=%d", &n) == 1)
         cfg->maxidlen = n;
+      else if (sscanf(rec, "MAXRLOCK=%d", &n) == 1)
+        pcfg.maxrlock = n;
       else if (sscanf(rec, "MUSTLOCK=%d", &n) == 1)
         pcfg.must_lock = n != 0;
       else if (sscanf(rec, "NETFILES=%d", &n) == 1)
         cfg->netfiles |= n;
       else if (sscanf(rec, "NUMFILES=%d", &n) == 1)
         cfg->numfiles = n;
-      else if (sscanf(rec, "NUMLOCKS=%d", &n) == 1)
+      else if (sscanf(rec, "NUMLOCKS=%d", &n) == 1) {
+        numlocks_asked = n;
         cfg->numlocks = n;
+      }
       else if (sscanf(rec, "OBJECTS=%d", &n) == 1)
         pcfg.objects = n;
       else if (sscanf(rec, "OBJMEM=%d", &n) == 1)
@@ -265,6 +297,8 @@ struct CONFIG* read_config(char* errmsg) {
         cfg->portmap_base_user = n2;
         cfg->portmap_range = n3;
       } 
+      else if (sscanf(rec, "PWDELAY=%d", &n) == 1)
+        pcfg.pwdelay = n;
       else if (sscanf(rec, "SDCLIENT=%d", &n) == 1)
         pcfg.sdclient_mode |= n;
 /* 14 Sep 26 dm - S.18.  APILOGIN is RETIRED: it chose between login_user()'s
@@ -310,13 +344,27 @@ struct CONFIG* read_config(char* errmsg) {
         strcpy(pcfg.spooler, rec + 8);
       else if (strncmp(rec, "STARTUP=", 8) == 0)
         strcpy(cfg->startup, rec + 8);
+      else if (strncmp(rec, "SCREENTHEME=", 12) == 0) {
+        strncpy(pcfg.screentheme, rec + 12, sizeof(pcfg.screentheme) - 1);
+        pcfg.screentheme[sizeof(pcfg.screentheme) - 1] = '\0';
+      }
       else if (strncmp(rec, "TEMPDIR=", 8) == 0)
         strcpy(pcfg.tempdir, rec + 8);
       else if (strncmp(rec, "TERMINFO=", 9) == 0)
         strcpy(pcfg.terminfodir, rec + 9);
       else if (sscanf(rec, "TXCHAR=%d", &n) == 1)
         pcfg.txchar = (n != 0);
- /* 20240219 mab create-account based on type (user / group / other) */          
+      else if (sscanf(rec, "USERPOOL=%d", &n) == 1)
+        cfg->userpool = n;
+      else if (sscanf(rec, "USPLIT=%d", &n) == 1)
+        cfg->usplit = n;
+      else if (sscanf(rec, "CLEANUP=%d", &n) == 1)
+        cfg->cleanup = n;               /* 30 to 3600: rangecheck below (16 Oct 26) */
+      else if (sscanf(rec, "PHANTOMS=%d,%d", &n, &n2) == 2) {
+        cfg->phantoms_base = n;         /* checked against the highest user number and FIXUSERS / PORTMAP below */
+        cfg->phantoms_range = n2;
+      }
+ /* 20240219 mab create-account based on type (user / group / other) */
       else if (strncmp(rec, "USRDIR=", 7) == 0)
         strncpy(pcfg.usrdir, rec + 7,MAX_PATHNAME_LEN+1);        
       else if (sscanf(rec, "YEARBASE=%d", &n) == 1)
@@ -370,15 +418,20 @@ struct CONFIG* read_config(char* errmsg) {
     goto exit_read_config;
   }
 
+  /* The highest user number is the greater of USERPOOL and the licence's user count
+    (sysseg.c), 1023 unless USERPOOL says otherwise. */
+
+  hi_user = max(cfg->max_users, cfg->userpool);
+
   if ((cfg->portmap_range) &&
-      (cfg->portmap_base_user + cfg->portmap_range - 1 > MIN_HI_USER_NO)) {
-    sprintf(errmsg, "PORTMAP user numbers extend beyond %d.", MIN_HI_USER_NO);
+      (cfg->portmap_base_user + cfg->portmap_range - 1 > hi_user)) {
+    sprintf(errmsg, "PORTMAP user numbers extend beyond %d.", hi_user);
     goto exit_read_config;
   }
 
   if (cfg->fixusers_base) {
-    if (cfg->fixusers_base + cfg->fixusers_range - 1 > MIN_HI_USER_NO) {
-      sprintf(errmsg, "FIXUSERS user numbers extend beyond %d.", MIN_HI_USER_NO);
+    if (cfg->fixusers_base + cfg->fixusers_range - 1 > hi_user) {
+      sprintf(errmsg, "FIXUSERS user numbers extend beyond %d.", hi_user);
       goto exit_read_config;
     }
 
@@ -396,12 +449,41 @@ struct CONFIG* read_config(char* errmsg) {
     }
   }
 
+  /* PHANTOMS (16 Oct 26): the user numbers PHANTOM ... USER n may take must exist and must not be numbers FIXUSERS or PORTMAP reserve */
+
+  if (cfg->phantoms_base || cfg->phantoms_range) {
+    if ((cfg->phantoms_base < 1) || (cfg->phantoms_range < 1) ||
+        (cfg->phantoms_base + cfg->phantoms_range - 1 > hi_user)) {
+      sprintf(errmsg, "PHANTOMS user numbers must lie between 1 and %d.", hi_user);
+      goto exit_read_config;
+    }
+    if (cfg->fixusers_base &&
+        ranges_overlap(cfg->phantoms_base, cfg->phantoms_range, cfg->fixusers_base, cfg->fixusers_range)) {
+      sprintf(errmsg, "PHANTOMS and FIXUSERS user numbers overlap.");
+      goto exit_read_config;
+    }
+    if (cfg->portmap_range &&
+        ranges_overlap(cfg->phantoms_base, cfg->phantoms_range, cfg->portmap_base_user, cfg->portmap_range)) {
+      sprintf(errmsg, "PHANTOMS and PORTMAP user numbers overlap.");
+      goto exit_read_config;
+    }
+  }
+
   /* ERRLOG must be at least 10kb for file trim to work in log_message() */
 
   if ((cfg->errlog != 0) && (cfg->errlog < 10240))
     cfg->errlog = 10240;
 
-  if (!rangecheck("GRPSIZE", pcfg.grpsize, 1, MAX_GROUP_SIZE, errmsg) ||
+  if (!rangecheck("DEADLOCK", cfg->deadlock, 0, 2, errmsg) ||
+      !rangecheck("DHCACHE", pcfg.dhcache, 0, MAX_DH_CACHE_SIZE, errmsg) ||
+      !rangecheck("LGNWAIT", cfg->lgnwait, 0, 32767, errmsg) ||
+      !rangecheck("MAXRLOCK", pcfg.maxrlock, 0, 100000, errmsg) ||
+      !rangecheck("NUMLOCKS", numlocks_asked, 1, 32767, errmsg) ||        /* 16 Oct 26 (openQM 532): the table's cells are int16 */
+      !rangecheck("PWDELAY", pcfg.pwdelay, 0, 3600, errmsg) ||
+      !rangecheck("USERPOOL", cfg->userpool, 0, 16383, errmsg) ||
+      !rangecheck("USPLIT", cfg->usplit, 0, 1, errmsg) ||
+      !rangecheck("CLEANUP", cfg->cleanup, 30, 3600, errmsg) ||
+      !rangecheck("GRPSIZE", pcfg.grpsize, 1, MAX_GROUP_SIZE, errmsg) ||
       !rangecheck("INTPREC", pcfg.intprec, 0, 14, errmsg) ||
       !rangecheck("LPTRHIGH", pcfg.lptrhigh, 10, 32767, errmsg) ||
       !rangecheck("LPTRWIDE", pcfg.lptrwide, 10, 1000, errmsg) ||
@@ -453,6 +535,13 @@ Private bool rangecheck(char* param,
   }
 
   return TRUE;
+}
+
+/* ======================================================================
+   ranges_overlap()  -  Do two runs of user numbers (first number, how many) share a number?  (16 Oct 26, PHANTOMS) */
+
+Private bool ranges_overlap(int lo1, int count1, int lo2, int count2) {
+  return (lo1 < lo2 + count2) && (lo2 < lo1 + count1);
 }
 
 /* END-CODE */

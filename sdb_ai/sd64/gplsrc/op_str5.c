@@ -122,8 +122,9 @@ void op_compare() {
  */
 
   DESCRIPTOR* descr;
-  char justification[1 + 1];
+  char justification[2 + 1];
   bool right_justified = FALSE;
+  bool nocase = FALSE; /* 14 Oct 26 (openQM item 307): an I as the second character of the justification */
 
   STRING_CHUNK* str1_hdr;
   int32_t str1_len;
@@ -144,10 +145,16 @@ void op_compare() {
   int16_t d = 0;
   int32_t n;
 
+  /* The justification is "L" or "R", and may have an "I" after it for a case insensitive comparison (ASCII letters only).
+     Anything else is left justified and case sensitive, as before; a longer string is read as far as its second
+     character (k_get_c_string answers -1 for a string that does not fit, and the buffer is cleared first).     */
   descr = e_stack - 1;
-  k_get_c_string(descr, justification, 1);
+  justification[0] = justification[1] = justification[2] = '\0';
+  (void)k_get_c_string(descr, justification, 2);
   if (justification[0] == 'R')
     right_justified = TRUE;
+  if ((justification[1] == 'I') || (justification[1] == 'i'))
+    nocase = TRUE;
   k_dismiss();
 
   descr = e_stack - 1;
@@ -230,7 +237,17 @@ void op_compare() {
     if ((str1 == NULL) || (str2 == NULL))
       break;
     /* -------------------- */
-    if ((d = (((int16_t)(*((u_char*)str1++))) - *((u_char*)str2++))) != 0)
+    if (nocase) {
+      int16_t c1 = (int16_t)(*((u_char*)str1++));
+      int16_t c2 = (int16_t)(*((u_char*)str2++));
+
+      if ((c1 >= 'a') && (c1 <= 'z'))
+        c1 -= 'a' - 'A';
+      if ((c2 >= 'a') && (c2 <= 'z'))
+        c2 -= 'a' - 'A';
+      if ((d = c1 - c2) != 0)
+        goto mismatch;
+    } else if ((d = (((int16_t)(*((u_char*)str1++))) - *((u_char*)str2++))) != 0)
       goto mismatch;
 
     str1_len--;
@@ -1574,6 +1591,117 @@ void op_vslice() {
   }
 
   return;
+}
+
+/* ======================================================================
+   op_vslice3()  -  VSLICE(string, vpos, svpos)                            */
+
+void op_vslice3() {
+  /* Stack:
+
+     |=============================|=============================|
+     |            BEFORE           |           AFTER             |
+     |=============================|=============================|
+ top |  Subvalue position          |  Result string              |
+     |-----------------------------|-----------------------------|
+     |  Value position             |                             |
+     |-----------------------------|-----------------------------|
+     |  Source string              |                             |
+     |=============================|=============================|
+
+     vpos < 1 takes the subvalue from every value and keeps the value marks
+     that place it; vpos >= 1 takes it from that value only, with no value
+     marks.  Marks are written only in front of data, so trailing empty
+     fields and values are dropped, as the openQM examples show.  svpos < 1
+     with vpos >= 1 is the plain value slice.  Both < 1 leaves the source.  */
+
+  DESCRIPTOR* descr;
+  int32_t vpos;
+  int32_t svpos;
+  int32_t v;
+  int32_t sv;
+  int32_t fm_pending = 0;
+  int32_t vm_pending = 0;
+  bool want;
+  STRING_CHUNK* src_hdr;
+  int src_bytes_remaining;
+  char* src;
+  char c;
+  DESCRIPTOR result;
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  svpos = descr->data.value;
+  descr = e_stack - 2;
+  GetInt(descr);
+  vpos = descr->data.value;
+  k_pop(2);
+
+  if (vpos < 1 && svpos < 1)
+    return; /* Source is the result */
+
+  descr = e_stack - 1;
+  k_get_string(descr);
+  src_hdr = descr->data.str.saddr;
+  if (src_hdr == NULL)
+    return;
+
+  result.type = STRING;
+  result.flags = 0;
+  result.data.str.saddr = NULL;
+  ts_init(&result.data.str.saddr, 64);
+
+  v = 1;
+  sv = 1;
+#define VS3_WANT() ((vpos < 1 || v == vpos) && (svpos < 1 || sv == svpos))
+  want = VS3_WANT();
+
+  do {
+    src_bytes_remaining = src_hdr->bytes;
+    src = src_hdr->data;
+
+    while (src_bytes_remaining--) {
+      c = *(src++);
+      if (c == FIELD_MARK || c == VALUE_MARK || (c == SUBVALUE_MARK && svpos >= 1)) {
+        switch (c) {
+          case FIELD_MARK:
+            fm_pending++;
+            vm_pending = 0;
+            v = 1;
+            sv = 1;
+            break;
+          case VALUE_MARK:
+            v++;
+            sv = 1;
+            if (vpos < 1)
+              vm_pending++;
+            break;
+          case SUBVALUE_MARK:
+            sv++;
+            break;
+        }
+        want = VS3_WANT();
+      } else if (want) {
+        while (fm_pending) {
+          ts_copy_byte(FIELD_MARK);
+          fm_pending--;
+        }
+        while (vm_pending) {
+          ts_copy_byte(VALUE_MARK);
+          vm_pending--;
+        }
+        ts_copy_byte(c);
+      }
+    }
+
+    src_hdr = src_hdr->next;
+  } while (src_hdr != NULL);
+#undef VS3_WANT
+
+  ts_terminate();
+
+  k_dismiss();
+  *(e_stack++) = result;
 }
 
 /* ======================================================================

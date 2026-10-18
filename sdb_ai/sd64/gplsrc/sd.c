@@ -22,6 +22,7 @@
  * 02 Jul 24 -i  typeo will hit bootstrap option
  * 08 Aug 24 mab add code to embedded python if EMBED_PYTHON defined 
  * rev 0.9.1 Mar 25 return to single rev track
+ * 16 Oct 26 dm  A phantom that finds SD suspended gives back its user table cell (QM4 Fixes 280).
  * 29 Sep 26 dm  load_language("") is init_messages(): English only.
  * 07 Oct 26 dm  PAL-1 stage 3a: the bootstrap processor is $bbproc and load_pcode
  *           lowers the name it searches for (the Windows port's 14 Sep 26).
@@ -106,6 +107,7 @@ bool bind_sysseg(bool create, char *errmsg);
 void unbind_sysseg(void);
 void dump_sysseg(bool dump_config);
 void show_users(void);
+void show_status(void);
 void kill_user(char *user);
 
 Private jmp_buf sd_exit;
@@ -188,6 +190,16 @@ int main(int argc, char *argv[]) {
 
   if (sysseg->flags & SSF_SUSPEND) {
     fprintf(stderr, "SD is suspended\n");
+    /* 16 Oct 26 (openQM 280): a phantom that stops here has a user table cell reserved for it by PHANTOM; given back, it
+       would otherwise stay as a process that appears to run and cannot be logged out. */
+    if (is_phantom && (phantom_user_index >= 1) && (phantom_user_index <= sysseg->max_users)) {
+      USER_ENTRY *puptr = UPtr(phantom_user_index);
+      if (puptr->uid != 0) {
+        *(UMap(puptr->uid)) = 0;
+        puptr->uid = 0;
+        puptr->puid = 0;
+      }
+    }
     clean_stop();
     return status; /* TODO: add a custom return value for this failure. */
   }
@@ -488,6 +500,11 @@ Private bool comlin(int argc, char *argv[]) {
             exit(1);
           }
 
+          if (stricmp(argv[arg], "-STATUS") == 0) { /* openQM 3.4-12, item 511 */
+            show_status();
+            exit(0);
+          }
+
           if (stricmp(argv[arg], "-STOP") == 0) {
             check_admin();
             if (stop_sd()) {
@@ -592,6 +609,7 @@ help:
   fprintf(stderr, "      -k all      Kill (logout) all users n\n");
   fprintf(stderr, "      -l          Apply new licence\n");
   fprintf(stderr, "      -u          List current users\n");
+  fprintf(stderr, "      -status     Show version, start time and process counts\n");
   fprintf(stderr, "      -quiet      Suppress all displays on entry\n");
   fprintf(stderr, "      --help      Show this summary\n");
   fprintf(stderr, "      --version   Report version number\n");

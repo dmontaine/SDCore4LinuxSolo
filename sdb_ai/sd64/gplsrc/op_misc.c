@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 15 Oct 26 dm  op_epochcv converts in the TIMEZONE of the process when one was set (QM4 gaps Q-3, SET.TIMEZONE).
+ * 15 Oct 26 dm  op_strovl and op_roll3 for the $MODE options of QM4 gaps bundle Q-16
  * 14 Sep 26 Windows port - op_procread looks for $proc, lower case
  *           (RELEASE_1.1 5 stage 3a)
  * rev 1.0-1 mab add op_procread back in per user request
@@ -50,7 +52,12 @@
  *    op_ojoin          OJOIN          Outer join
  *    op_onerror        ONERROR
  *    op_oserror        OS.ERROR()
- *    op_precision      PRECISION
+ *    op_csvmode        CSV.MODE
+ *    op_csvdelim       Push the CSV delimiter
+ *    op_epochcv        MVDATE() MVTIME() MVDATE.TIME() MVEPOCH()
+ *    op_strovl         STROVL         $MODE CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP
+ *    op_roll3          ROLL3          Third item of the stack to the top ($MODE PICK.CONVERT)
+ *    op_precision     PRECISION
  *    op_procread()     PROCREAD
  *    op_rtrans()       RTRANS()
  *    op_saveaddr                       Save address descriptor
@@ -80,6 +87,7 @@
 #include "config.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <time.h>
 
 #define _timezone timezone
@@ -1183,13 +1191,223 @@ exit_op_pause:
 }
 
 /* ======================================================================
+   op_csvmode()  -  CSV.MODE mode {, delim}   (14 Oct 26, openQM items 173, 200)
+
+   Stack: mode, delimiter (top).  The setting lives in the program struct, which a called program copies and the
+   return restores, so it persists through calls and a change in a subroutine is undone on return.  A mode outside
+   1 - 3 leaves the mode as it was; a null delimiter is a comma and only the first character of a longer one is used. */
+
+void op_csvmode() {
+  DESCRIPTOR* delim_descr;
+  DESCRIPTOR* mode_descr;
+  char delim[8 + 1];
+  int32_t mode;
+
+  delim_descr = e_stack - 1;
+  mode_descr = e_stack - 2;
+
+  GetInt(mode_descr);
+  mode = mode_descr->data.value;
+  if (mode >= 1 && mode <= 3)
+    process.program.csv_mode = (int16_t)mode;
+
+  delim[0] = '\0';
+  k_get_c_string(delim_descr, delim, 8);
+  process.program.csv_delim = (delim[0] != '\0') ? delim[0] : ',';
+
+  k_pop(2);
+}
+
+/* ======================================================================
+   op_csvdelim()  -  The CSV delimiter, as a one character string          */
+
+void op_csvdelim() {
+  char s[2];
+
+  s[0] = process.program.csv_delim;
+  s[1] = '\0';
+  k_put_c_string(s, e_stack++);
+}
+
+/* ======================================================================
+   op_strovl()  -  STROVL  -  $MODE CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP   (15 Oct 26, QM4 gaps Q-16)
+
+   Stack:  mask  ->  (nothing).  The compiler pushes the SO_ bits that are in force at the call it is about to emit and
+   follows them with this opcode, so the argument list of CHANGE, SWAP, EREPLACE, COUNT, COUNTS, INDEX or INDEXS is
+   untouched under the mask.  The bits live in the program's own frame (init_program() clears them for a called program
+   and the caller's copy comes back with its frame), so a subroutine compiled without the modes is not affected by its
+   caller's. */
+
+void op_strovl() {
+  DESCRIPTOR* descr;
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  process.program.str_ovl = (u_char)descr->data.value;
+  k_pop(1);
+}
+
+/* ======================================================================
+   op_roll3()  -  ROLL3  -  Move the third item of the stack to the top   (15 Oct 26, QM4 gaps Q-16)
+
+   Stack:  a, b, c  ->  b, c, a   (c is on top before, a after).  The descriptors are moved, not copied, so no reference
+   count changes.  $MODE PICK.CONVERT evaluates CONVERT(source, from, to) and rolls the source to where the function
+   expects it, after the two character lists. */
+
+void op_roll3() {
+  DESCRIPTOR a;
+
+  a = *(e_stack - 3);
+  *(e_stack - 3) = *(e_stack - 2);
+  *(e_stack - 2) = *(e_stack - 1);
+  *(e_stack - 1) = a;
+}
+
+/* ======================================================================
+   op_epochcv()  -  MVDATE(), MVTIME(), MVDATE.TIME() and MVEPOCH()   (14 Oct 26, openQM 124 and the epoch family)
+
+   Stack:  arg1, arg2, mode  ->  result.   The mode, pushed last by the compiler:
+      1  MVDATE(epoch)          internal date (days since 31 Dec 1967) in the process's time zone
+      2  MVTIME(epoch)          seconds since midnight in the process's time zone
+      3  MVDATE.TIME(epoch)     "date_time" in the process's time zone
+      4  MVEPOCH("date_time")   the epoch value of a date and time written as one string
+      5  MVEPOCH(date, time)    the same with the date and time apart
+   The time zone is the one the process runs in (the TZ environment variable, as DATE() and TIME() use).  Epoch values are
+   32 bit, 13 Dec 1901 to 19 Jan 2038: an epoch value outside that, a date and time that cannot be converted and an argument that
+   is not a number all give the null string, as the manual says.  A time with a fraction of a second is cut to the second. */
+
+void op_epochcv() {
+  DESCRIPTOR* arg1_descr;
+  DESCRIPTOR* arg2_descr;
+  DESCRIPTOR* mode_descr;
+  int32_t mode;
+  int64_t d, s, ls;
+  time_t t;
+  struct tm tmv;
+  char result[32];
+  char saved_tz[80];  /* the TZ the process had, while TIMEZONE is in force */
+  bool had_tz = FALSE;
+  bool zoned = FALSE;
+
+  mode_descr = e_stack - 1;
+  arg2_descr = e_stack - 2;
+  arg1_descr = e_stack - 3;
+
+  GetInt(mode_descr);
+  mode = mode_descr->data.value;
+  result[0] = '\0';
+
+  /* 15 Oct 26 dm - QM4 gaps Q-3, SET.TIMEZONE / CONFIG TIMEZONE: convert in that zone, then put the process's own back.
+     Only these functions are affected; DATE(), TIME() and the clock keep the zone the process runs in.  The name was
+     checked when it was set (timezone_name_ok in op_config.c).                                                      */
+  if (pcfg.timezone[0] != '\0') {
+    const char* old_tz = getenv("TZ");
+
+    if (old_tz != NULL) {
+      strncpy(saved_tz, old_tz, sizeof(saved_tz) - 1);
+      saved_tz[sizeof(saved_tz) - 1] = '\0';
+      had_tz = TRUE;
+    }
+    setenv("TZ", pcfg.timezone, 1);
+    tzset();
+    zoned = TRUE;
+  }
+
+  if (mode <= 3) { /* From an epoch value */
+    char text[32];
+
+    k_get_c_string(arg1_descr, text, 31);
+    if (text[0] != '\0' && strspn(text, "-0123456789.") == strlen(text)) {
+      int64_t e = atoll(text);
+
+      if (e >= INT32_MIN && e <= INT32_MAX) {
+        t = (time_t)e;
+        localtime_r(&t, &tmv);
+        ls = (int64_t)e + tmv.tm_gmtoff;                       /* Local seconds since 1 Jan 1970 */
+        d = (ls >= 0 ? ls / 86400 : -((-ls + 86399) / 86400)); /* Floor division */
+        s = ls - (d * 86400);
+        d += 732; /* 1 Jan 1970 is internal date 732 */
+        if (mode == 1)
+          sprintf(result, "%lld", (long long)d);
+        else if (mode == 2)
+          sprintf(result, "%lld", (long long)s);
+        else
+          sprintf(result, "%lld_%lld", (long long)d, (long long)s);
+      }
+    }
+  } else { /* To an epoch value */
+    char dtext[32], ttext[32];
+    bool ok = FALSE;
+
+    dtext[0] = ttext[0] = '\0';
+    if (mode == 4) {
+      char both[64];
+      char* us;
+
+      k_get_c_string(arg1_descr, both, 63);
+      us = strchr(both, '_');
+      if (us != NULL) {
+        *us = '\0';
+        strncpy(dtext, both, 31);
+        dtext[31] = '\0';
+        strncpy(ttext, us + 1, 31);
+        ttext[31] = '\0';
+        ok = TRUE;
+      }
+    } else {
+      k_get_c_string(arg1_descr, dtext, 31);
+      k_get_c_string(arg2_descr, ttext, 31);
+      ok = TRUE;
+    }
+
+    if (ok && dtext[0] != '\0' && ttext[0] != '\0' && strspn(dtext, "-0123456789") == strlen(dtext) &&
+        strspn(ttext, "0123456789.") == strlen(ttext)) {
+      d = atoll(dtext);
+      s = atoll(ttext); /* A fraction is cut off by atoll() stopping at the point */
+      if (s >= 0 && s < 86400 && d > -100000 && d < 100000) {
+        ls = ((d - 732) * 86400) + s;           /* Local seconds since 1 Jan 1970 */
+        t = (time_t)ls;
+        gmtime_r(&t, &tmv);                     /* The broken down local time ... */
+        tmv.tm_isdst = -1;                      /* ... and the zone decides whether summer time applies */
+        t = mktime(&tmv);
+        if (t != (time_t)-1 && (int64_t)t >= INT32_MIN && (int64_t)t <= INT32_MAX)
+          sprintf(result, "%lld", (long long)t);
+      }
+    }
+  }
+
+  if (zoned) {
+    if (had_tz)
+      setenv("TZ", saved_tz, 1);
+    else
+      unsetenv("TZ");
+    tzset();
+  }
+
+  k_pop(3);
+  k_put_c_string(result, e_stack++);
+}
+
+/* ======================================================================
    op_precision()  -  Set numeric to string precision                     */
 
 void op_precision() {
   DESCRIPTOR* descr;
   int32_t precision;
+  char word[8 + 1];
 
   descr = e_stack - 1;
+
+  /* 14 Oct 26 (openQM item 201): PRECISION INHERIT.  The compiler passes the word as a string; the program takes the
+     precision of the one that called it (the saved caller is process.program.prev; a program that was not called keeps
+     its own).  Any other string is a number, as ever.                                                            */
+  if ((descr->type == STRING) && (k_get_c_string(descr, word, 8) > 0) && !strcasecmp(word, "INHERIT")) {
+    if (process.program.prev != NULL)
+      process.program.precision = process.program.prev->precision;
+    k_pop(1);
+    return;
+  }
+
   GetInt(descr);
   precision = descr->data.value;
 
@@ -1551,6 +1769,10 @@ void op_vartype() {
   while (descr->type == ADDR)
     descr = descr->data.d_addr;
   type = descr->type;
+  if ((type == BTREE) && (descr->data.btree != NULL) &&
+      (descr->data.btree->pad != 0)) {
+    type = 20; /* VT$SORT */
+  }
   k_dismiss();
 
   InitDescr(e_stack, INTEGER);

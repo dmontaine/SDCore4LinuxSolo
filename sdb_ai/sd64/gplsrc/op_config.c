@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Oct 26 dm  TIMEZONE, a private parameter: the zone of the epoch functions (QM4 gaps Q-3, SET.TIMEZONE).
  * 10 Sep 26 dm  Parity audit: CONFIG() with a name over eight characters
  *               returns "" with ER_NOT_FOUND instead of an uninitialised
  *               descriptor (the Windows port's fix; UPSTREAM_FIXES 18).
@@ -35,6 +36,39 @@
 
 #include "sd.h"
 #include "config.h"
+
+#define ZONEINFO_DIR "/usr/share/zoneinfo/"
+
+/* ======================================================================
+   timezone_name_ok()  -  may this be the TIMEZONE of the epoch functions?
+
+   A null string (back to the process's own TZ), GMT, UTC, or a name for which the machine has a zoneinfo file.  Only
+   letters, digits and the characters of zone names are allowed, there is no ".." and no leading "/" or "-", so the name
+   cannot reach a file outside the zoneinfo directory, and a POSIX rule string is not taken at all (it would be passed to
+   the C library as TZ, which reads a file if the value begins with a colon).                                         */
+
+Private bool timezone_name_ok(const char* zone) {
+  char path[sizeof(ZONEINFO_DIR) + 64 + 1];
+  struct stat st;
+  const char* p;
+
+  if (zone[0] == '\0')
+    return TRUE;
+  if (strlen(zone) > sizeof(pcfg.timezone) - 1)
+    return FALSE;
+  if (zone[0] == '/' || zone[0] == '-' || zone[0] == '.' || strstr(zone, "..") != NULL)
+    return FALSE;
+  for (p = zone; *p != '\0'; p++) {
+    if (!(((*p >= 'A') && (*p <= 'Z')) || ((*p >= 'a') && (*p <= 'z')) || ((*p >= '0') && (*p <= '9')) || (*p == '_') ||
+          (*p == '+') || (*p == '-') || (*p == '/')))
+      return FALSE;
+  }
+  if (!strcmp(zone, "GMT") || !strcmp(zone, "UTC"))
+    return TRUE;
+  strcpy(path, ZONEINFO_DIR);
+  strcat(path, zone);
+  return (stat(path, &st) == 0) && S_ISREG(st.st_mode);
+}
 
 /* ======================================================================
    op_config()  -  Retrieve a configuration parameter                     */
@@ -90,6 +124,8 @@ void op_config() {
     result.data.value = sysseg->deadlock;
   else if (!strcmp(param, "DEBUG"))
     result.data.value = sysseg->flags >> 16;
+  else if (!strcmp(param, "DHCACHE"))
+    result.data.value = pcfg.dhcache;
   else if (!strcmp(param, "DUMPDIR"))
     k_put_c_string(pcfg.dumpdir, &result);
   else if (!strcmp(param, "ERRLOG"))
@@ -119,10 +155,14 @@ void op_config() {
     result.data.value = pcfg.grpsize;
   else if (!strcmp(param, "INTPREC"))
     result.data.value = pcfg.intprec;
+  else if (!strcmp(param, "INVCASE"))
+    result.data.value = pcfg.invcase;
   else if (!strcmp(param, "JNLMODE"))
     result.data.value = sysseg->jnlmode;
   else if (!strcmp(param, "JNLDIR"))
     k_put_c_string((char*)(sysseg->jnldir), &result);
+  else if (!strcmp(param, "LGNWAIT"))
+    result.data.value = sysseg->lgnwait;
   else if (!strcmp(param, "LPTRHIGH"))
     result.data.value = pcfg.lptrhigh;
   else if (!strcmp(param, "LPTRWIDE"))
@@ -131,6 +171,8 @@ void op_config() {
     result.data.value = pcfg.maxcall;
   else if (!strcmp(param, "MAXIDLEN"))
     result.data.value = sysseg->maxidlen;
+  else if (!strcmp(param, "MAXRLOCK"))
+    result.data.value = pcfg.maxrlock;
   else if (!strcmp(param, "MUSTLOCK"))
     result.data.value = pcfg.must_lock;
   else if (!strcmp(param, "NETFILES"))
@@ -154,6 +196,8 @@ void op_config() {
     }
     k_put_c_string(s, &result);
   } 
+  else if (!strcmp(param, "PWDELAY"))
+    result.data.value = pcfg.pwdelay;
   else if (!strcmp(param, "SDCLIENT"))
     result.data.value = pcfg.sdclient_mode;
   else if (!strcmp(param, "RECCACHE"))
@@ -170,6 +214,8 @@ void op_config() {
     result.data.value = pcfg.sortmem / 1024;
   else if (!strcmp(param, "SORTMRG"))
     result.data.value = pcfg.sortmrg;
+  else if (!strcmp(param, "SCREENTHEME"))
+    k_put_c_string(pcfg.screentheme, &result);  /* 13 Oct 26: the screen library's default theme */
   else if (!strcmp(param, "SORTWORK"))
     k_put_c_string(pcfg.sortworkdir, &result);
   else if (!strcmp(param, "SPOOLER"))
@@ -180,9 +226,28 @@ void op_config() {
     k_put_c_string(pcfg.tempdir, &result);
   else if (!strcmp(param, "TERMINFO"))
     k_put_c_string(pcfg.terminfodir, &result);
- /* 20240219 mab create-account based on type (user / group / other) */      
+  else if (!strcmp(param, "TIMEZONE")) {
+    /* 15 Oct 26 dm - QM4 gaps Q-3.  The zone the epoch functions convert in: the one SET.TIMEZONE or CONFIG TIMEZONE gave,
+       otherwise the process's own TZ environment variable (null when neither is set: the system's local time).      */
+    char* tz = (pcfg.timezone[0] != '\0') ? pcfg.timezone : getenv("TZ");
+
+    k_put_c_string((tz != NULL) ? tz : "", &result);
+  }
+  else if (!strcmp(param, "USERPOOL"))
+    result.data.value = sysseg->userpool;
+  else if (!strcmp(param, "USPLIT"))
+    result.data.value = sysseg->usplit; /* 15 Oct 26, QM4 gaps Q-19 */
+  else if (!strcmp(param, "CLEANUP"))
+    result.data.value = sysseg->cleanup; /* 16 Oct 26, QM4 gaps */
+  else if (!strcmp(param, "PHANTOMS")) {
+    if (sysseg->phantoms_range) {
+      sprintf(s, "%d,%d", sysseg->phantoms_base, sysseg->phantoms_range);
+    }
+    k_put_c_string(s, &result); /* 16 Oct 26: "u,n", null when none are kept, as FIXUSERS */
+  }
+ /* 20240219 mab create-account based on type (user / group / other) */
   else if (!strcmp(param, "USRDIR"))
-    k_put_c_string(pcfg.usrdir, &result);  
+    k_put_c_string(pcfg.usrdir, &result);
   else if (!strcmp(param, "YEARBASE"))
     result.data.value = pcfg.yearbase;
   else {
@@ -245,6 +310,11 @@ void op_pconfig() {
     if (str->string_len > MAX_PATHNAME_LEN)
       goto exit_op_pconfig;
     k_get_c_string(descr, pcfg.dumpdir, MAX_PATHNAME_LEN);
+  } else if (!strcmp(param, "DHCACHE")) {
+    GetInt(descr);
+    if ((descr->data.value < 0) || (descr->data.value > MAX_DH_CACHE_SIZE))
+      goto exit_op_pconfig;
+    pcfg.dhcache = (int16_t)(descr->data.value);
   } else if (!strcmp(param, "EXCLREM")) {
     GetInt(descr);
     if ((descr->data.value < 0) || (descr->data.value > 1))
@@ -278,6 +348,11 @@ void op_pconfig() {
     if ((descr->data.value < 0) || (descr->data.value > 14))
       goto exit_op_pconfig;
     pcfg.intprec = (int16_t)(descr->data.value);
+  } else if (!strcmp(param, "INVCASE")) {
+    GetInt(descr);
+    if ((descr->data.value < 0) || (descr->data.value > 1))
+      goto exit_op_pconfig;
+    pcfg.invcase = (descr->data.value != 0);
   } else if (!strcmp(param, "LPTRHIGH")) {
     GetInt(descr);
     if ((descr->data.value < 1) || (descr->data.value > 32767))
@@ -293,6 +368,11 @@ void op_pconfig() {
     if ((descr->data.value < 10) || (descr->data.value > 1000000))
       goto exit_op_pconfig;
     pcfg.maxcall = descr->data.value;
+  } else if (!strcmp(param, "MAXRLOCK")) {
+    GetInt(descr);
+    if ((descr->data.value < 0) || (descr->data.value > 100000))
+      goto exit_op_pconfig;
+    pcfg.maxrlock = descr->data.value;
   } else if (!strcmp(param, "MUSTLOCK")) {
     GetInt(descr);
     if ((descr->data.value < 0) || (descr->data.value > 1))
@@ -308,6 +388,11 @@ void op_pconfig() {
     if (descr->data.value < 0)
       goto exit_op_pconfig;
     pcfg.objmem = descr->data.value * 1024L;
+  } else if (!strcmp(param, "PWDELAY")) {
+    GetInt(descr);
+    if ((descr->data.value < 0) || (descr->data.value > 3600))
+      goto exit_op_pconfig;
+    pcfg.pwdelay = (int16_t)(descr->data.value);
   } else if (!strcmp(param, "SDCLIENT")) {
     GetInt(descr);
     if ((descr->data.value < pcfg.sdclient_mode) || (descr->data.value > 2))
@@ -389,6 +474,17 @@ void op_pconfig() {
     if (str->string_len > MAX_PATHNAME_LEN)
       goto exit_op_pconfig;
     k_get_c_string(descr, pcfg.terminfodir, MAX_PATHNAME_LEN);
+  } else if (!strcmp(param, "TIMEZONE")) {
+    /* 15 Oct 26 dm - QM4 gaps Q-3.  Unlike openQM, which does no validation, the name must be a zone this machine has
+       (a file under the zoneinfo directory, or GMT / UTC), so that a mistyped zone is an error and not a quiet UTC.  A
+       null string goes back to the process's own TZ.                                                              */
+    char zone[sizeof(pcfg.timezone)];
+
+    if (k_get_c_string(descr, zone, (int)sizeof(zone) - 1) < 0)
+      goto exit_op_pconfig;
+    if (!timezone_name_ok(zone))
+      goto exit_op_pconfig;
+    strcpy(pcfg.timezone, zone);
   } else if (!strcmp(param, "YEARBASE")) {
     GetInt(descr);
     n = descr->data.value;

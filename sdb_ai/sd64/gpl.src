@@ -34,6 +34,7 @@ objprog
 op_arith
 op_array
 op_btree
+op_coll
 op_ccall
 op_chnge
 op_config
@@ -66,6 +67,7 @@ op_str2
 op_str3
 op_str4
 op_str5
+op_xfun
 op_sys
 op_tio
 pdump
@@ -86,3 +88,4 @@ to_file
 txn
 sdext_py
 sdext_eguid
+profiler

@@ -17,6 +17,14 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file routes of FILEINFO and the OPEN-time status.
+ * 17 Oct 26 dm  FILEINFO key 1021 is FL_WHO, the openQM form (a list of user numbers); the text form FL_HOLDERS that SD's
+ *               messages use is key 1100 now (QM4 Fixes 62).
+ * 16 Oct 26 dm  OSPATH key 15 (OS_OWNER) gives the owner's user name, for DIR_DICT's OWNER item (QM4 Fixes 181).
+ * 12 Oct 26 dm  FILEINFO keys 1022 to 1040 as the openQM 4 manual numbers them
+ *               (FL$COLLECTION moves from 1022 to 1035); FL$SEQTYPE, FL$NON.TXN,
+ *               FL$INDEX.SCAN, FL$TXN.UPDATE and FL$LOCKS report real state, the
+ *               others the answer for a file without the feature.
  * 11 Sep 26 dm  FILEINFO(f, FL$HOLDERS) - 1021 - names the other sessions
  *               holding a file open (the Windows port's PRE_RELEASE_FIXES 16).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -37,15 +45,19 @@
 #include "keys.h"
 #include "dh_int.h"
 #include "header.h"
+#include "locks.h"
 
 #include <time.h>
 #include <stdint.h>
 #include <pwd.h>
 #include <grp.h>
+#include <sys/stat.h>
 
 Private bool valid_name(char* p);
 Private bool attach(char* path);
 Private STRING_CHUNK* get_file_status(FILE_VAR* fvar);
+Private STRING_CHUNK* format_status(struct stat* sb, int64 file_pos, int at_eof, int64 bytes_avail, int64 file_size,
+                                    int file_type_num, char* path);
 
 bool make_path(char* tgt);
 bool FDS_open(DH_FILE* dh_file, int16_t subfile);
@@ -101,7 +113,8 @@ void op_fileinfo() {
   1018 FL_NO_RESIZE    Resizing inhibited?
   1019 FL_UPDATE       Update counter
   1020 FL_ENCRYPTED    File uses encryption?          Boolean
-  1021 FL_HOLDERS      Other sessions holding it open "n (user), ..." or ""
+  1021 FL_WHO          User numbers of the sessions holding it open, field mark between (openQM FL$WHO)
+  1100 FL_HOLDERS      Other sessions holding it open "n (user), ..." or "" (was 1021 until 17 Oct 26)
  10000 FL_EXCLUSIVE    Set exclusive access           Successful?
  10001 FL_FLAGS        Fetch file flags               File flags
  10002 FL_STATS_ON     Turn on file statistics
@@ -262,6 +275,10 @@ void op_fileinfo() {
           p = dh_file->trigger_name;
           goto set_string;
         }
+        if (ftype == DIRECTORY_FILE) { /* 16 Oct 26, QM4 Fixes item 177: named in the directory's %header% file */
+          p = (fvar->access.dir.trg != NULL) ? fvar->access.dir.trg->name : NULL;
+          goto set_string;
+        }
         break;
 
       case FL_PHYSBYTES: /* 1003  Physical file size */
@@ -304,6 +321,8 @@ void op_fileinfo() {
       case FL_TRG_MODES: /* 1007  Trigger modes */
         if (dynamic)
           n = dh_file->trigger_modes;
+        else if ((ftype == DIRECTORY_FILE) && (fvar->access.dir.trg != NULL))
+          n = fvar->access.dir.trg->modes;
         break;
 
       case FL_NOCASE: /* 1008  Case insensitive ids? */
@@ -388,7 +407,153 @@ void op_fileinfo() {
         /* Recognised but returns default zero */
         break;
 
-      case FL_HOLDERS: /* 1021  Which sessions hold this file open? */
+      case FL_NETFILE: /* 1022  QMNet file?  SD has no QMNet */
+        break;
+
+      case FL_SEQTYPE: /* 1023  Sequential file sub-type */
+        if (ftype == SEQ_FILE) {
+          SQ_FILE* sq_file = fvar->access.seq.sq_file;
+          struct stat st;
+
+          if (sq_file->flags & SQ_PORT)
+            n = FL_SEQTYPE_PORT;
+          else if (sq_file->flags & SQ_CHDEV)
+            n = FL_SEQTYPE_CHDEV;
+          else if (sq_file->flags & SQ_FIFO)
+            n = FL_SEQTYPE_FIFO;
+          else if ((sq_file->fu >= 0) && (fstat(sq_file->fu, &st) == 0) && S_ISBLK(st.st_mode))
+            n = FL_SEQTYPE_DRIVE;
+        }
+        break;
+
+      case FL_SEQ_KEY: /* 1031  The id of the last record written with CREATING.SEQKEY, 0 if none; a null string for a file
+                          that is not a hashed file.  After CONFIGURE.FILE NEXT n it is n - 1: the counter holds the NEXT id. */
+        if (dynamic) {
+          n = dh_seq_key(dh_file, 2, 0) - 1;
+          if (n < 0)
+            n = 0;
+          break;
+        }
+        p = "";
+        goto set_string;
+
+      case FL_REPLICATED: /* 1024  Replication targets: SD has no replication */
+      case FL_ECS_MAP_NAME: /* 1027  SD has no ECS */
+      case FL_ENCODING: /* 1028  Data encoding of a directory file: SD is English only */
+      case FL_ID_CASING: /* 1034  Forced id casing: SD has only NOCASE */
+      case FL_OWNER: /* 1036  Owner of the file (Windows only) */
+        p = "";
+        goto set_string;
+
+      case FL_NOMAP: /* 1025  Id translation off?  There is no NO.MAP option yet */
+      case FL_ECS: /* 1026  Created in ECS mode? */
+      case FL_LAST_PART: /* 1029  Distributed files: SD has none */
+      case FL_TEMP: /* 1037  Temporary file?  SD has no temporary files */
+      case FL_CONSTRAINTS: /* 1040  Data integrity constraints: none */
+        break;
+
+      case FL_SYNC: /* 1033  Opened with SYNC (hashed files only)?  16 Oct 26: also set by FCONTROL(FC$SYNC) and the S flag of the VOC entry */
+        if (dynamic)
+          n = ((fvar->access.dh.dh_file->flags & DHF_SYNC) != 0);
+        break;
+
+      case FL_INDEX_SCAN: /* 1030  Index scanning (SETLEFT, SELECTRIGHT, ...) supported? */
+        n = dynamic;
+        break;
+
+      case FL_NON_TXN: /* 1032  Opened NON.TRANSACTIONAL? */
+        n = ((fvar->flags & FV_NON_TXN) != 0);
+        break;
+
+      case FL_COLLECTION: /* 1035  Data collection file? */
+        if (dynamic)
+          n = ((fptr->flags & DHF_COLLECTION) != 0);
+        break;
+
+      case FL_TXN_UPDATE: /* 1038  Updated in the current transaction? */
+        n = txn_file_updated(fvar);
+        break;
+
+      case FL_LOCKS: /* 1039  The caller's locks in this file: lock type code VM record id, one per field */
+        /* As GETLOCKS() for this user and this file, the lock codes the same:
+           FX or SX for the file (no record id), RU or RL for a record. */
+        {
+          STRING_CHUNK* lstr = NULL;
+          RLOCK_ENTRY* rlptr;
+          int16_t li;
+
+          ts_init(&lstr, 64);
+
+          StartExclusive(FILE_TABLE_LOCK, 76);
+          StartExclusive(REC_LOCK_SEM, 77);
+
+          if ((fptr->file_lock != 0) && (abs(fptr->file_lock) == process.user_no)) {
+            ts_printf("%s%c", (fptr->file_lock < 0) ? "SX" : "FX", VALUE_MARK);
+          }
+
+          for (li = 1; li <= sysseg->numlocks; li++) {
+            rlptr = RLPtr(li);
+            if ((rlptr->hash != 0) && (rlptr->owner == process.user_no) && (rlptr->file_id == fvar->file_id)) {
+              if (lstr != NULL)
+                ts_copy_byte(FIELD_MARK);
+              ts_printf("%s%c%.*s", (rlptr->lock_type == L_UPDATE) ? "RU" : "RL", VALUE_MARK, (int)(rlptr->id_len),
+                        rlptr->id);
+            }
+          }
+
+          EndExclusive(REC_LOCK_SEM);
+          EndExclusive(FILE_TABLE_LOCK);
+
+          (void)ts_terminate();
+
+          k_dismiss();
+          InitDescr(e_stack, STRING);
+          (e_stack++)->data.str.saddr = lstr;
+          return;
+        }
+
+      case FL_WHO: /* 1021  The user numbers of the sessions holding this file open (openQM FL$WHO) */
+        /* 17 Oct 26 dm (QM4 Fixes 62).  The same table FL_HOLDERS reads, the per-user file map, answered as the manual
+           has it: the user numbers, a field mark between them, in the order of the user slots.  The caller is left out
+           unless it holds the file through more than one file variable ("the process that executes FILEINFO() will not appear in this list if file.var is the only file
+           variable referencing the file").  Nobody else: the null string, which is an answer and not a failure.   */
+        {
+          STRING_CHUNK* wstr = NULL;
+          USER_ENTRY* wuptr;
+          int16_t wu;
+          bool first = TRUE;
+
+          ts_init(&wstr, 64);
+
+          StartExclusive(SHORT_CODE, 37);
+          for (wu = 1; wu <= sysseg->max_users; wu++) {
+            wuptr = UPtr(wu);
+            if (wuptr->uid == 0)
+              continue; /* free slot */
+            if (*UFMPtr(wuptr, fvar->file_id) == 0)
+              continue; /* does not hold this file open */
+            /* ourselves, through the one file variable we asked with.  The map counts a hashed file once for a process,
+               however many times that process opens it (the DH_FILE is shared and has its own open count); any other
+               kind of file is counted at each open. */
+            if ((wuptr->uid == process.user_no) && (dynamic ? (dh_file->open_count <= 1) : (*UFMPtr(wuptr, fvar->file_id) <= 1)))
+              continue;
+
+            if (!first)
+              ts_copy_byte(FIELD_MARK);
+            ts_printf("%d", (int)(wuptr->uid));
+            first = FALSE;
+          }
+          EndExclusive(SHORT_CODE);
+
+          (void)ts_terminate();
+
+          k_dismiss();
+          InitDescr(e_stack, STRING);
+          (e_stack++)->data.str.saddr = wstr;
+          return;
+        }
+
+      case FL_HOLDERS: /* 1100  Which sessions hold this file open?  As text, for messages (was 1021 until 17 Oct 26) */
         /* 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.
 
            "Cannot gain exclusive access to file" (message 2602) named neither
@@ -605,6 +770,7 @@ void op_ospath() {
     12  OS_DIR         Return content of directory        Filenames
     13  OS_MKDIR       Make a directory                   True/False
     14  OS_MKPATH      Make a directory path              True/False
+    15  OS_OWNER       Name of the owner of the path      User name
 * 20240225 mab add OS_CHOWN                                          *
    ospath(mvarray,os_chown)
    where mvarray = path vm user vm group. Note this requires some funny business
@@ -731,6 +897,20 @@ void op_ospath() {
       e_stack++;
       goto exit_op_pathinfo;
 
+    case OS_INFO: /* 20  As the STATUS statement for an operating system path (openQM item 432): null if it is not there */
+      {
+        STRING_CHUNK* istr = NULL;
+
+        if (stat(path, &stat_buff) == 0) {
+          fullpath(name, path);
+          istr = format_status(&stat_buff, 0, 0, 0, stat_buff.st_size, S_ISDIR(stat_buff.st_mode) ? FL_TYPE_DIR : FL_TYPE_SEQ,
+                               name);
+        }
+        InitDescr(e_stack, STRING);
+        (e_stack++)->data.str.saddr = istr;
+      }
+      goto exit_op_pathinfo;
+
     case OS_DELETE:
       flush_dh_cache();
       status = (int32_t)delete_path(path);
@@ -749,6 +929,24 @@ void op_ospath() {
       if (stat(path, &stat_buff) == 0)
         status = stat_buff.st_mtime;
       break;
+
+    case OS_OWNER: /* 15  The owner's user name, or the user number as text if there is no such user (16 Oct 26) */
+      {
+        struct passwd* pw;
+        char own_name[MAX_PATHNAME_LEN + 1];
+
+        own_name[0] = '\0';
+        if (stat(path, &stat_buff) == 0) {
+          pw = getpwuid(stat_buff.st_uid);
+          if (pw != NULL)
+            snprintf(own_name, sizeof(own_name), "%s", pw->pw_name);
+          else
+            snprintf(own_name, sizeof(own_name), "%lu", (unsigned long)stat_buff.st_uid);
+        }
+        k_put_c_string(own_name, e_stack);
+        e_stack++;
+      }
+      goto exit_op_pathinfo;
 
     case OS_FLUSH_CACHE:
       flush_dh_cache();
@@ -1140,7 +1338,6 @@ bool make_path(char* tgt) {
 /* ====================================================================== */
 
 Private STRING_CHUNK* get_file_status(FILE_VAR* fvar) {
-  STRING_CHUNK* str = NULL;
   u_char ftype;
   DH_FILE* dh_file;
   SQ_FILE* sq_file;
@@ -1165,6 +1362,20 @@ Private STRING_CHUNK* get_file_status(FILE_VAR* fvar) {
       fstat(dh_file->sf[PRIMARY_SUBFILE].fu, &statbuf);
       file_size = dh_filesize(dh_file, PRIMARY_SUBFILE) +
                   dh_filesize(dh_file, OVERFLOW_SUBFILE);
+
+      /* An update that reaches only the overflow subfile leaves the primary
+         subfile's times alone, so the later of the two is the file's
+         (openQM item 337).  dh_filesize() has just opened the overflow.      */
+      if (ValidFileHandle(dh_file->sf[OVERFLOW_SUBFILE].fu)) {
+        struct stat ovfbuf;
+
+        if (fstat(dh_file->sf[OVERFLOW_SUBFILE].fu, &ovfbuf) == 0) {
+          if (ovfbuf.st_mtime > statbuf.st_mtime)
+            statbuf.st_mtime = ovfbuf.st_mtime;
+          if (ovfbuf.st_atime > statbuf.st_atime)
+            statbuf.st_atime = ovfbuf.st_atime;
+        }
+      }
       break;
 
     case DIRECTORY_FILE:
@@ -1184,57 +1395,86 @@ Private STRING_CHUNK* get_file_status(FILE_VAR* fvar) {
       break;
   }
 
+  n64 = (is_seq) ? sq_file->posn : 0;
+  return format_status(&statbuf, n64, (is_seq) ? (sq_file->posn == file_size) : 0,
+                       (is_seq) ? (file_size - sq_file->posn) : 0, file_size, file_type_num, path);
+}
+
+/* ======================================================================
+   local_epoch()  -  A Unix time as the user's local clock showed it then.
+   STATUS and OSPATH(..., OS$INFO) give dates and times in the user's time
+   zone (openQM item 96); the zone's offset is that of the time itself, so a
+   file changed in summer is still shown in summer time in winter.         */
+
+Private int64 local_epoch(time_t t) {
+  struct tm ltm;
+
+  if (localtime_r(&t, &ltm) == NULL)
+    return (int64)t;
+  return (int64)t + ltm.tm_gmtoff;
+}
+
+/* ======================================================================
+   format_status()  -  The dynamic array the STATUS statement, FILEINFO(...,
+   FL$STATUS) and OSPATH(..., OS$INFO) return, from a stat() result.
+   Fields 1 to 4 describe a sequential file's position and are 0 or null
+   for the others.  The fields the manual says are unused are null.        */
+
+Private STRING_CHUNK* format_status(struct stat* sb,
+                                    int64 file_pos,
+                                    int at_eof,
+                                    int64 bytes_avail,
+                                    int64 file_size,
+                                    int file_type_num,
+                                    char* path) {
+  STRING_CHUNK* str = NULL;
+  int64 lt;
+
   ts_init(&str, 128);
 
   /* 1  File position */
-  n64 = (is_seq) ? sq_file->posn : 0;
-  ts_printf("%lld\xfe", n64);
+  ts_printf("%lld\xfe", file_pos);
 
   /* 2  At EOF? */
-  ts_printf("%d\xfe", (is_seq) ? sq_file->posn == file_size : 0);
+  ts_printf("%d\xfe", at_eof);
 
   /* 3  Not used */
   ts_printf("\xfe");
 
   /* 4  Bytes available to read */
-  n64 = (is_seq) ? (file_size - sq_file->posn) : 0;
-  ts_printf("%lld\xfe", n64);
+  ts_printf("%lld\xfe", bytes_avail);
 
   /* 5  File mode */
-  ts_printf("%u\xfe", statbuf.st_mode & 0777);
+  ts_printf("%u\xfe", sb->st_mode & 0777);
 
   /* 6  File size */
   ts_printf("%lld\xfe", file_size);
 
   /*  7  Hard links */
-  ts_printf("%u\xfe", statbuf.st_nlink);
+  ts_printf("%u\xfe", sb->st_nlink);
 
   /*  8  UID of owner */
-  ts_printf("%d\xfe", statbuf.st_uid);
+  ts_printf("%d\xfe", sb->st_uid);
 
   /*  9  GID of owner */
-  ts_printf("%d\xfe", statbuf.st_gid);
+  ts_printf("%d\xfe", sb->st_gid);
 
   /* 10  Inode number */
-  ts_printf("%u\xfe", statbuf.st_ino);
+  ts_printf("%u\xfe", sb->st_ino);
 
   /* 11  Device number */
-  ts_printf("%u\xfe", statbuf.st_dev);
+  ts_printf("%u\xfe", sb->st_dev);
 
   /* 12  Not used */
   ts_printf("\xfe");
 
-  /* 13  Time of last access */
-  ts_printf("%d\xfe", statbuf.st_atime % 86400);
+  /* 13, 14  Time and date of last access, in the user's time zone */
+  lt = local_epoch(sb->st_atime);
+  ts_printf("%d\xfe%d\xfe", (int)(lt % 86400), (int)((lt / 86400) + 732));
 
-  /* 14  Date of last access */
-  ts_printf("%d\xfe", (statbuf.st_atime / 86400) + 732);
-
-  /* 15  Time of last modification */
-  ts_printf("%d\xfe", statbuf.st_mtime % 86400);
-
-  /* 16  Date of last modification */
-  ts_printf("%d\xfe", (statbuf.st_mtime / 86400) + 732);
+  /* 15, 16  Time and date of last modification, in the user's time zone */
+  lt = local_epoch(sb->st_mtime);
+  ts_printf("%d\xfe%d\xfe", (int)(lt % 86400), (int)((lt / 86400) + 732));
 
   /* 17 - 19 unused */
   ts_printf("\xfe\xfe\xfe");
@@ -1242,8 +1482,17 @@ Private STRING_CHUNK* get_file_status(FILE_VAR* fvar) {
   /* 20  Operating system file name */
   ts_printf("%s\xfe", path);
 
-  /* 21  File type */
-  ts_printf("%d", file_type_num);
+  /* 21  File type, then 22 - 26 unused */
+  ts_printf("%d\xfe\xfe\xfe\xfe\xfe\xfe", file_type_num);
+
+  /* 27  Operating system file name again (openQM item 585) */
+  ts_printf("%s\xfe", path);
+
+  /* 28 - 33 unused */
+  ts_printf("\xfe\xfe\xfe\xfe\xfe\xfe");
+
+  /* 34, 35  Times of last access and modification as epoch values */
+  ts_printf("%lld\xfe%lld", (long long)(sb->st_atime), (long long)(sb->st_mtime));
 
   (void)ts_terminate();
 

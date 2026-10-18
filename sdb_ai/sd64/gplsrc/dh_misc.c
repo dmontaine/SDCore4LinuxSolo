@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file refusals.
+ * 15 Oct 26 dm  pub_fcontrol(): the public FCONTROL() with openQM's action numbers (op_fcontrol is FCONTROL.INT).
+ * 15 Oct 26 dm  Audit of the sequential id counter (CREATING.SEQKEY): dh_seq_key() writes only the counter's four bytes and
+ *               every other writer of the primary header (FCONTROL, SETTRIG) stops short of them - DH_HEADER_SHARED_SIZE; the
+ *               header lock FC_NO_RESIZE took is freed on its failure paths.
  * 14 Sep 26 Windows port - op_settrig stores the trigger name lower case
  *           (RELEASE_1.1 5 stage 3a)
  * 31 Dec 23 SD launch - prior history suppressed
@@ -24,7 +29,8 @@
  *
  * START-DESCRIPTION:
  *
- *  op_fcontrol     FCONTROL    Miscellaneous file control functions
+ *  op_fcontrol     FCONTROL.INT  Miscellaneous file control functions (internal)
+ *  pub_fcontrol    FCONTROL    The public one, with openQM's numbers (called from op_xfun)
  *  op_grpstat      GRPSTAT     Return information about file group
  *  op_settrig      SETTRIG     Set trigger function
  *
@@ -36,6 +42,53 @@
 #include "sd.h"
 #include "dh_int.h"
 #include "keys.h"
+
+/* ======================================================================
+   dh_seq_key()  -  The sequential record id counter of a hashed file     (15 Oct 26 dm, WRITE ... CREATING.SEQKEY)
+
+   The counter is the NEXT id to give out and lives in the header of the primary subfile, so it is read and written under the
+   header's group write lock and what every process sees is what is on the disk; a file with none yet, or made before there was
+   one, gives 1.
+     action 0  take the next id: it is returned and the counter moves on
+     action 1  set the next id to n (0 puts it back to 1)
+     action 2  look at the next id without taking it
+   Returns the id (the one the counter held, before it moved on), or -1 when the header cannot be read or written, -2 when the
+   counter has no further id to give.
+
+   15 Oct 26 dm - audit: ONLY THE FOUR BYTES OF THE COUNTER ARE WRITTEN, at their own offset, and no other writer of the header
+   writes them (DH_HEADER_SHARED_SIZE).  The header lock above serialises the processes that take ids; it is NOT taken by
+   dh_flush_header(), SETTRIG, the AK subfile code or FCONTROL, which all rewrite the header from a copy they read a moment
+   before.  The whole header written from here put whatever those had just changed back to its old value, and a whole header
+   written by them put the counter back to its old value - the next WRITE was then given an id that had been used.        */
+
+int32_t dh_seq_key(DH_FILE* dh_file, int action, int32_t n) {
+  DH_HEADER header;
+  int16_t header_lock;
+  int32_t next;
+  int32_t new_value;
+
+  header_lock = GetGroupWriteLock(dh_file, 0);
+  if (!dh_read_group(dh_file, PRIMARY_SUBFILE, 0, (char*)&header, DH_HEADER_SIZE)) {
+    FreeGroupWriteLock(header_lock);
+    return -1;
+  }
+
+  next = (header.seq_key > 0) ? header.seq_key : 1;
+  if ((action == 0) && (next == 0x7FFFFFFF)) {
+    FreeGroupWriteLock(header_lock);
+    return -2;
+  }
+
+  if (action != 2) {
+    new_value = (action == 0) ? next + 1 : ((n > 0) ? n : 0);
+
+    /* dh_read_group() has opened the subfile if it was not open */
+    if (!write_at(dh_file->sf[PRIMARY_SUBFILE].fu, (int64)offsetof(DH_HEADER, seq_key), (char*)&new_value, (int)sizeof(new_value)))
+      next = -1;
+  }
+  FreeGroupWriteLock(header_lock);
+  return next;
+}
 
 /* ======================================================================
    op_fcontrol()  -  Miscellaneous file control functions                 */
@@ -120,7 +173,7 @@ void op_fcontrol() {
       dh_file->jnl_fno = descr->data.value;
 
       if (!dh_write_group(dh_file, PRIMARY_SUBFILE, 0, (char*)&header,
-                          DH_HEADER_SIZE)) {
+                          DH_HEADER_SHARED_SIZE)) {
         process.status = ER_IOE;
         goto exit_op_fcontrol;
       }
@@ -154,9 +207,32 @@ void op_fcontrol() {
       }
 
       if (!dh_write_group(dh_file, PRIMARY_SUBFILE, 0, (char*)&header,
-                          DH_HEADER_SIZE)) {
+                          DH_HEADER_SHARED_SIZE)) {
         process.status = ER_IOE;
         goto exit_op_fcontrol;
+      }
+      break;
+
+    case FC_SET_SEQ_KEY: /* Set the next id WRITE ... CREATING.SEQKEY gives out (a hashed file only; 1 if it was set) */
+      if (fvar->type == DYNAMIC_FILE) {
+        GetInt(descr);
+        if (dh_seq_key(dh_file, 1, descr->data.value) >= 0)
+          result.data.value = 1;
+        else
+          process.status = ER_IOE;
+      }
+      break;
+
+    case FC_GET_SEQ_KEY: /* Take the next id, as CREATING.SEQKEY does; a null string for a file that is not a hashed file */
+      if (fvar->type == DYNAMIC_FILE) {
+        result.data.value = dh_seq_key(dh_file, 0, 0);
+        if (result.data.value < 0) {
+          process.status = ER_IOE;
+          result.data.value = 0;
+        }
+      } else {
+        InitDescr(&result, STRING);
+        result.data.str.saddr = NULL;
       }
       break;
 
@@ -192,8 +268,11 @@ void op_fcontrol() {
         GetInt(descr);
         header_lock = GetGroupWriteLock(dh_file, 0);
 
+        /* 15 Oct 26 dm - the header lock is given back on the failure paths too: it is the lock dh_seq_key() takes, and
+           a leaked one made every WRITE ... CREATING.SEQKEY to the file wait for as long as this process lived. */
         if (!dh_read_group(dh_file, PRIMARY_SUBFILE, 0, (char*)&header,
                            DH_HEADER_SIZE)) {
+          FreeGroupWriteLock(header_lock);
           process.status = ER_IOE;
           goto exit_op_fcontrol;
         }
@@ -207,7 +286,8 @@ void op_fcontrol() {
         }
 
         if (!dh_write_group(dh_file, PRIMARY_SUBFILE, 0, (char*)&header,
-                            DH_HEADER_SIZE)) {
+                            DH_HEADER_SHARED_SIZE)) {
+          FreeGroupWriteLock(header_lock);
           process.status = ER_IOE;
           goto exit_op_fcontrol;
         }
@@ -215,6 +295,74 @@ void op_fcontrol() {
         FreeGroupWriteLock(header_lock);
       }
       break;
+
+    case FC_SET_MODE: {
+      /* 15 Oct 26 dm - QM4 gaps Q-8, SET.MODE.  The qualifier is "record id<field mark>mode", the mode as three octal
+         digits.  The record of a DIRECTORY file is a file of the directory: it is opened without following a link and has
+         its permission bits set with fchmod() on that open file, so a link in its place is never followed, and only a
+         regular file is changed.  Nothing outside the directory can be named (the id goes through the same name mapping as
+         every other access to a record).  Only the rwx bits of owner, group and other: no set-id, no sticky bit.  Returns
+         1; 0 with STATUS() ER_RNF (no such record), ER_IID (not a good id or not a file), ER_ARGS (the mode) or ER_PERM
+         (not the owner, or the file system said no).                                                               */
+      char sm_arg[MAX_ID_LEN + 16];
+      char sm_id[MAX_ID_LEN + 1];
+      char sm_mapped[(3 * MAX_ID_LEN) + 1];
+      char sm_path[MAX_PATHNAME_LEN + 1];
+      char sm_dir[MAX_PATHNAME_LEN + 1];
+      char* sm_sep;
+      int sm_fd;
+      int sm_len;
+      struct stat sm_st;
+      unsigned int sm_mode;
+
+      if (fvar->type != DIRECTORY_FILE) {
+        process.status = ER_NSEQ;
+        break;
+      }
+      if (k_get_c_string(descr, sm_arg, (int)sizeof(sm_arg) - 1) < 1) {
+        process.status = ER_ARGS;
+        break;
+      }
+      sm_sep = strchr(sm_arg, FIELD_MARK);
+      if (sm_sep == NULL) {
+        process.status = ER_ARGS;
+        break;
+      }
+      *sm_sep++ = '\0';
+      if ((strlen(sm_sep) != 3) || (strspn(sm_sep, "01234567") != 3)) {
+        process.status = ER_ARGS;
+        break;
+      }
+      sm_mode = (unsigned int)strtoul(sm_sep, NULL, 8);
+      strncpy(sm_id, sm_arg, MAX_ID_LEN);
+      sm_id[MAX_ID_LEN] = '\0';
+      sm_len = (int)strlen(sm_id);
+      if ((sm_len < 1) || !map_t1_id(sm_id, (int16_t)sm_len, sm_mapped)) {
+        process.status = ER_IID;
+        break;
+      }
+      strcpy(sm_dir, (char*)(fptr->pathname));
+      sm_len = (int)strlen(sm_dir);
+      if ((sm_len > 0) && (sm_dir[sm_len - 1] == DS))
+        sm_dir[sm_len - 1] = '\0';
+      if (snprintf(sm_path, sizeof(sm_path), "%s%c%s", sm_dir, DS, sm_mapped) >= (int)sizeof(sm_path)) {
+        process.status = ER_IID;
+        break;
+      }
+      sm_fd = open(sm_path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+      if (sm_fd < 0) {
+        process.status = (errno == ENOENT) ? ER_RNF : ER_PERM;
+        break;
+      }
+      if ((fstat(sm_fd, &sm_st) != 0) || !S_ISREG(sm_st.st_mode)) {
+        process.status = ER_IID;
+      } else if (fchmod(sm_fd, (mode_t)sm_mode) != 0) {
+        process.status = ER_PERM;
+      } else {
+        result.data.value = 1;
+      }
+      close(sm_fd);
+    } break;
   }
 
 exit_op_fcontrol:
@@ -223,6 +371,187 @@ exit_op_fcontrol:
   k_dismiss();
 
   *(e_stack++) = result; /* Move result descriptor to stack */
+}
+
+/* ======================================================================
+   pub_fcontrol()  -  The public FCONTROL(fvar, action {, qualifier})     (15 Oct 26 dm)
+
+   The openQM 4 function, with its numbers (FC$ in syscom/keys.h); the internal function of the same job is FCONTROL.INT
+   (op_fcontrol above) and has other numbers.  Called from op_xfun() with the function number already taken off; the
+   compiler loads 0 for a qualifier left out.
+
+      Stack:   top  qualifier
+                    action
+                    file variable                                   -> the result
+
+      1 FC$SYNC     qualifier 0 / 1 / -1   forced writes of a hashed file; the state it was in (QM4 Fixes item 102)
+      4 FC$CRLF     qualifier 0 to 3 / -1  line terminator mode of a directory or sequential file; the mode it was in
+                    (QM4 Fixes item 452; a hashed file: STATUS() ER_NDIR; a mode outside 0 to 3: ER_ARGS, nothing changed)
+      2 FC$SET.SEQ.KEY  qualifier n   sets the next id of WRITE ... CREATING.SEQKEY (a hashed file); 1 if done
+      3 FC$GET.SEQ.KEY                takes that id and moves the counter on; a null string if the file is not hashed
+      5 field access                  always 1 (SD has no field level encryption)
+      6 FC$VALID.ID     qualifier id  1 if the id could be written to this file, else 0
+      7 FC$MINMOD       qualifier n   sets the minimum modulus of a hashed file; 1 if done
+
+   The three that change the file (2, 3, 7) are refused on a file opened read only, with STATUS() ER_RDONLY and the
+   result 0 (null for 3).  STATUS() is ER_NDYN for a file that is not hashed, ER_ARGS for a number below 1, ER_IOE if the
+   header could not be written.                                                                                     */
+
+void pub_fcontrol() {
+  DESCRIPTOR* descr;
+  int action;
+  FILE_VAR* fvar;
+  DESCRIPTOR result;
+  DH_FILE* dh_file;
+  int32_t n;
+  char id[MAX_ID_LEN + 1];
+  char mapped[(3 * MAX_ID_LEN) + 1];
+  int id_len;
+  char* p;
+
+  process.status = 0;
+
+  InitDescr(&result, INTEGER);
+  result.data.value = 0;
+
+  descr = e_stack - 2;
+  GetInt(descr);
+  action = descr->data.value;
+
+  descr = e_stack - 3;
+  k_get_file(descr);
+  fvar = descr->data.fvar;
+  dh_file = fvar->access.dh.dh_file; /* only used for a hashed file */
+
+  descr = e_stack - 1;
+  k_get_value(descr);
+
+  switch (action) {
+    case 1: /* FC$SYNC: forced writes of a hashed file (QM4 Fixes item 102).  The previous state is the result; -1 asks only. */
+      if (fvar->type != DYNAMIC_FILE) {
+        process.status = ER_NDYN;
+        break;
+      }
+      GetInt(descr);
+      n = descr->data.value;
+      result.data.value = ((dh_file->flags & DHF_SYNC) != 0);
+      if (n >= 0) {
+        if (n != 0)
+          dh_file->flags |= DHF_SYNC;
+        else
+          dh_file->flags &= ~DHF_SYNC;
+      }
+      break;
+
+    case 4: /* FC$CRLF: the line terminator mode of a directory file or a sequential file (16 Oct 26, QM4 Fixes item 452) */
+    {
+      u_char *crlf;
+      int dflt;
+
+      if (fvar->type == DIRECTORY_FILE) {
+        /* the bit field cannot be pointed at: work on a copy and put it back */
+        dflt = 0; /* LF: what a directory file READ and WRITE have always done */
+        n = fvar->access.dir.crlf;
+        crlf = NULL;
+      } else if ((fvar->type == SEQ_FILE) && (fvar->access.seq.sq_file != NULL)) {
+        dflt = 2; /* BOTH: READSEQ has always ended a line at LF and dropped a CR in front of it */
+        crlf = &(fvar->access.seq.sq_file->crlf);
+        n = *crlf;
+      } else {
+        process.status = ER_NDIR; /* a hashed file has no line terminators */
+        break;
+      }
+      result.data.value = (n == CRLF_UNSET) ? dflt : (n - 1); /* the mode it was in */
+
+      GetInt(descr);
+      if (descr->data.value == -1) /* only asking */
+        break;
+      if ((descr->data.value < 0) || (descr->data.value > 3)) {
+        process.status = ER_ARGS;
+        break;
+      }
+      n = (int32_t)descr->data.value + 1; /* FC$CRLF.LF 0 .. FC$CRLF.NOCR 3 are CRLF_LF .. CRLF_NOCR less one */
+      if (crlf != NULL)
+        *crlf = (u_char)n;
+      else
+        fvar->access.dir.crlf = (u_int16_t)n;
+    } break;
+
+    case 2: /* FC$SET.SEQ.KEY */
+    case 7: /* FC$MINMOD */
+      if (fvar->type != DYNAMIC_FILE) {
+        process.status = ER_NDYN;
+        break;
+      }
+      if (fvar->flags & FV_RDONLY) {
+        process.status = ER_RDONLY;
+        log_permissions_error(fvar);
+        break;
+      }
+      GetInt(descr);
+      n = descr->data.value;
+      if (n < 1) {
+        process.status = ER_ARGS;
+        break;
+      }
+      if (action == 2) {
+        if (dh_seq_key(dh_file, 1, n) >= 0)
+          result.data.value = 1;
+        else
+          process.status = ER_IOE;
+      } else {
+        dh_configure(dh_file, n, -1, -1, -1);
+        result.data.value = 1;
+      }
+      break;
+
+    case 3: /* FC$GET.SEQ.KEY */
+      InitDescr(&result, STRING);
+      result.data.str.saddr = NULL;
+      if (fvar->type != DYNAMIC_FILE)
+        break; /* a null string, as the manual says */
+      if (fvar->flags & FV_RDONLY) {
+        process.status = ER_RDONLY;
+        log_permissions_error(fvar);
+        break;
+      }
+      n = dh_seq_key(dh_file, 0, 0);
+      if (n < 0) {
+        process.status = ER_IOE;
+        break;
+      }
+      InitDescr(&result, INTEGER);
+      result.data.value = n;
+      break;
+
+    case 5: /* the field access test: there is no field level encryption, so always true */
+      result.data.value = 1;
+      break;
+
+    case 6: /* FC$VALID.ID */
+      id_len = k_get_c_string(descr, id, MAX_ID_LEN);
+      if ((id_len > 0) && (id_len <= sysseg->maxidlen)) {
+        result.data.value = 1;
+        for (p = id; p < id + id_len; p++) {
+          if ((*p == '\0') || IsMark(*p)) {
+            result.data.value = 0;
+            break;
+          }
+        }
+        if (result.data.value && (fvar->type == DIRECTORY_FILE) && !map_t1_id(id, (int16_t)id_len, mapped))
+          result.data.value = 0;
+      }
+      break;
+
+    default:
+      k_error(sysmsg(11355));
+  }
+
+  k_dismiss();
+  k_dismiss();
+  k_dismiss();
+
+  *(e_stack++) = result;
 }
 
 /* ======================================================================
@@ -395,6 +724,14 @@ void op_settrig() {
   descr = e_stack - 3;
   k_get_file(descr);
   fvar = descr->data.fvar;
+
+  /* A directory file has no header to put it in: the trigger goes into its %header% file (16 Oct 26, QM4 Fixes item 177) */
+
+  if (fvar->type == DIRECTORY_FILE) {
+    process.status = dir_set_trigger(fvar, call_name, modes);
+    goto exit_op_settrig;
+  }
+
   if (fvar->type != DYNAMIC_FILE) {
     process.status = ER_NDYN;
     goto exit_op_settrig;
@@ -416,7 +753,7 @@ void op_settrig() {
   header.trigger_modes = modes;
 
   if (!dh_write_group(dh_file, PRIMARY_SUBFILE, 0, (char*)&header,
-                      DH_HEADER_SIZE)) {
+                      DH_HEADER_SHARED_SIZE)) {
     process.status = ER_IOE;
     goto exit_op_settrig;
   }

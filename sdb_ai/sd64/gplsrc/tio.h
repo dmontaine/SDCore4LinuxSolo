@@ -83,8 +83,12 @@ struct PRINT_UNIT {
 #define PU_DUPLEX_LONG   0x00004000  /* Duplex, long edge binding */
 #define PU_DUPLEX_SHORT  0x00008000  /* Duplex, short edge binding */
 #define PU_SPOOL_HOLD    0x00010000  /* Spooling hold file in mode 6 (Windows) */
-#define PU_USER_SETABLE  0x0000E07E  /* Mask for values that can be set via PSET opcode */
-#define PU_TEMPLATE_MASK 0x0000E07E  /* Mask for values to copy from template */
+#define PU_INFORM        0x00020000  /* INFORM SETPTR option: say the output file's name at the start (12 Oct 26) */
+#define PU_EJECT         0x00040000  /* EJECT SETPTR option: end the job with a form feed (12 Oct 26) */
+#define PU_FF_ONLY       0x00080000  /* FORM.FEED FF SETPTR option: a bare form feed, not CR FF (12 Oct 26) */
+#define PU_USER_SETABLE  0x000EE07E  /* Mask for values that can be set via PSET opcode */
+#define PU_TEMPLATE_MASK 0x000EE07E  /* Mask for values to copy from template */
+#define PU_HF_NO_PAGE    0x00100000  /* RUN NO.PAGE: a heading or footing never turns pagination on (display unit only; not user settable) */
 
 /* SETPTR settings */
                    int16_t width;          /* Page width */
@@ -109,6 +113,7 @@ struct PRINT_UNIT {
                    int16_t weight;         /* WEIGHT */
                    char symbol_set[7+1];     /* SYMBOL.SET */
                    char newline[2+1];        /* CR/LF/CRLF */
+                   char seqno[9+1];          /* Sequence number of the last NEXT hold file (12 Oct 26) */
                    char * printer_name;
                    char * file_name;
                    char * banner;
@@ -159,10 +164,9 @@ Public struct TIO
 
 Public int autologout init(0);      /* Autologout interval */
 
+Public char last_seqno[9+1] init(""); /* @SEQNO: the last NEXT hold file number this process made */
 Public char onewline[10+1] init("\r\n");
 Public char inewline init(13);
-
-Public bool is_SDTerm init(FALSE);    /* SDTerm? */
 
 /* Output buffer (socket connections only) */
 
@@ -184,8 +188,16 @@ Public bool capturing init(FALSE);             /* Active? */
 Public STRING_CHUNK * capture_head init(NULL); /* Head of chain */
 Public STRING_CHUNK * capture_tail;            /* Tail of chain */
 
-Public bool case_inversion init(FALSE); 
+Public bool case_inversion init(FALSE);
+Public bool mark_input init(FALSE);    /* PTERM MARK: typed ctrl-\ ctrl-] ctrl-^ become SM VM FM (12 Oct 26) */
+Public int16_t erase_key init(0);      /* PTERM ERASE: 0 default, 1-255 a character, 256 none (12 Oct 26) */
+Public char ctrl_filter[64];           /* PTERM CTRL.FILTER, indexed by command processor level (12 Oct 26) */
+Public char maxmin_pos[64];            /* The position MAXIMUM() or MINIMUM() found, for SYSTEM(1088) (15 Oct 26, Q-18) */
 Public bool trap_break_char; /* Treat break_char as a break request? */
+/* 15 Oct 26 dm - QM4 gaps Q-9 (SP.ASSIGN).  The form queue number each print unit was last assigned (GETPU key PU$FORM.QUEUE),
+   and the last one assigned to any unit (SYSTEM(1066)), -1 until SP.ASSIGN has been used.  Set by K_FORM_QUEUE. */
+Public int16_t form_queue_of[HIGH_PRINT_UNIT + 1];
+Public int16_t last_form_queue init(-1);
 
 /* OP_TIO.C */
 void emit_header_footer(PRINT_UNIT * pu, bool is_heading);
@@ -197,6 +209,11 @@ void copy_print_unit(PRINT_UNIT * old_pu, PRINT_UNIT * new_pu);
 void free_print_unit(PRINT_UNIT * pu);
 void stack_display_pu(void);
 void unstack_display_pu(void);
+void tio_check_resize(void);             /* 13 Oct 26: bring the display's data lines up to the terminal's size */
+
+/* LINUXIO.C (13 Oct 26: the terminal's own size) */
+bool console_resized(void);
+bool console_window_size(int * cols, int * rows);
 
 /* PIO.C */
 void end_printer(PRINT_UNIT * pu);

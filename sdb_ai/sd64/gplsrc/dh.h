@@ -54,6 +54,8 @@ struct FILE_ENTRY {
   u_int32_t ak_upd;      /* Updated on AK write */
   u_int32_t txn_id;      /* Transaction id for file lock (0 if outside
                                  transaction). Applies to owner. */
+  int32_t file_lock_time; /* time() when file_lock was set (item 487).
+                                 Protected by REC_LOCK_SEM, as file_lock. */
   u_int32_t device;
   u_int32_t inode;
   char pathname[MAX_PATHNAME_LEN + 1]; /* Null terminated */
@@ -121,7 +123,12 @@ struct DH_FILE {
    header bit (see the comment above), so a file written by another MultiValue
    implementation could carry it.  No SD build ever set it: it is not in
    DHF_CREATE.  The VFS scaffolding was removed by plan G2. */
-#define DHF_CREATE 0x000000B8  /* Bits that can be set on creation */
+/* 13 Oct 26 dm - data collection file: READ gives a collection and WRITE takes
+   one.  The records are held as JSON text, so everything underneath (hashing,
+   locks, transactions, the dictionary) is the ordinary hashed file.  A file
+   header bit, set at creation and never changed.  Mirrored in BP INT$KEYS.H. */
+#define DHF_COLLECTION 0x00000100
+#define DHF_CREATE 0x000001B8  /* Bits that can be set on creation */
 /* MS 16 bits are internal... */
 #define DHF_TRIGGER 0x00010000  /* File has trigger */
 #define DHF_AK 0x00020000       /* File has AK indices */
@@ -129,6 +136,8 @@ struct DH_FILE {
 #define FILE_UPDATED 0x00080000 /* Written since opened */
 
 #define DHF_FSYNC 0x01000000 /* fsync pending - see txn.c */
+#define DHF_SYNC 0x02000000  /* Forced writes: every write and delete is flushed to disk (OPEN ... SYNC, FCONTROL FC$SYNC, the S flag
+                                of the VOC entry; QM4 Fixes item 102).  Internal, in this process's DH_FILE only. */
                              /* File information */
   int16_t open_count;
   int16_t no_of_subfiles;

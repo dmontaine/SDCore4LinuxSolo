@@ -264,7 +264,7 @@ _opc_(0xB7, OP_SSELECT,  "SSELECT",    op_sselect,   OPCODE_BYTE,        -1)
 _opc_(0xB8, OP_FORMLIST, "FORMLIST",   op_formlist,  OPCODE_BYTE,        -2)
 _opc_(0xB9, OP_READLIST, "READLIST",   op_readlist,  OPCODE_BYTE,        -1)
 _opc_(0xBA, OP_SYSMSG,   "SYSMSG",     op_sysmsg,    ONE_BYTE_VALUE,     -1)
-_opc_(0xBB, OP_BB,       "OPBB",       op_illegal,   OPCODE_BYTE,         0)
+_opc_(0xBB, OP_XFUN,     "XFUN",       op_xfun,      OPCODE_BYTE,        -1)  /* 15 Oct 26: CEIL FLOOR ROUNDUP ROUNDDOWN IS.* LEFT RIGHT LAST NV NS TRIMWS MATCHESS MATCHFIELDS (op_xfun.c); the function number is on top */
 _opc_(0xBC, OP_BC,       "OPBC",       op_illegal,   OPCODE_BYTE,         0)
 _opc_(0xBD, OP_BD,       "OPBD",       op_illegal,   OPCODE_BYTE,         0)
 _opc_(0xBE, OP_JFALSE,   "JFALSE",     op_jfalse,    JUMP_ADDR,          -1)
@@ -354,7 +354,7 @@ _opc_(0xCF0A, OP_LOGIN,    "LOGIN",      op_login,     OPCODE_BYTE,        -1)
 _opc_(0xCF0B, OP_UMASK,    "UMASK",      op_umask,     OPCODE_BYTE,        -1)
 _opc_(0xCF0C, OP_TERMINFO, "TERMINFO",   op_terminfo,  OPCODE_BYTE,         1)
 _opc_(0xCF0D, OP_KEYCODE,  "KEYCODE",    op_keycode,   OPCODE_BYTE,         1)
-_opc_(0xCF0E, OP_CF0E,     "OPCF0E",     op_illegal,   OPCODE_BYTE,         0)
+_opc_(0xCF0E, OP_EXC,      "EXC",        op_exc,       ONE_BYTE_VALUE,      0)  /* 12 Oct 26 dm - TRY/CATCH/THROW, openQM 355 */
 _opc_(0xCF0F, OP_VARTYPE,  "VARTYPE",    op_vartype,   OPCODE_BYTE,         0)
 
 _opc_(0xCF10, OP_CROP,     "CROP",       op_crop,      OPCODE_BYTE,         0)
@@ -391,8 +391,8 @@ _opc_(0xCF2D, OP_EVENTS,   "EVENTS",     op_events,    OPCODE_BYTE,        -1)
 _opc_(0xCF2E, OP_DBGSET,   "DBGSET",     op_dbgset,    OPCODE_BYTE,        -3)
 _opc_(0xCF2F, OP_PCONFIG,  "PCONFIG",    op_pconfig,  OPCODE_BYTE,         -1)
 
-_opc_(0xCF30, OP_CF30,     "OPCF30",     op_illegal,   OPCODE_BYTE,         0)
-_opc_(0xCF31, OP_CF31,     "OPCF31",     op_illegal,   OPCODE_BYTE,         0)
+_opc_(0xCF30, OP_TRY,      "TRY",        op_try,       JUMP_ADDR,           0)  /* 12 Oct 26 dm - TRY/CATCH/THROW, openQM 355 */
+_opc_(0xCF31, OP_ENDTRY,   "ENDTRY",     op_endtry,    JUMP_ADDR,           0)  /* 12 Oct 26 dm - TRY/CATCH/THROW, openQM 355 */
 _opc_(0xCF32, OP_INPUTAT,  "INPUTAT",    op_inputat,   OPCODE_BYTE,        -5)
 _opc_(0xCF33, OP_INPUT,    "INPUT",      op_input,     OPCODE_BYTE,        -3)
 _opc_(0xCF34, OP_PRNAME,   "PRNAME",     op_prname,    OPCODE_BYTE,        -1)
@@ -487,7 +487,7 @@ _opc_(0xCF87, OP_BTSCANA,  "BTSCANA",    op_btscana,   OPCODE_BYTE,        -1)
 _opc_(0xCF88, OP_LOADOBJ,  "LOADOBJ",    op_loadobj,   OPCODE_BYTE,         0)
 _opc_(0xCF89, OP_LOADED,   "LOADED",     op_loaded,    OPCODE_BYTE,         0)
 _opc_(0xCF8A, OP_SPLICE,   "SPLICE",     op_splice,    OPCODE_BYTE,        -2)
-_opc_(0xCF8B, OP_CF8B,     "OPCF8B",     op_illegal,   OPCODE_BYTE,         0)
+_opc_(0xCF8B, OP_RMVD,     "RMVD",       op_rmvd,      OPCODE_BYTE,        -1)  /* 15 Oct 26: RMVD(): REMOVE() that takes only the field, value and subvalue marks as delimiters (op_str1.c) */
 _opc_(0xCF8C, OP_LOCATEF,  "LOCATEF",    op_locatef,   OPCODE_BYTE,        -5)
 _opc_(0xCF8D, OP_LISTINDX, "LISTINDX",   op_listindx,  OPCODE_BYTE,        -2)
 _opc_(0xCF8E, OP_MIN,      "MIN",        op_min,       OPCODE_BYTE,        -1)
@@ -568,7 +568,7 @@ _opc_(0xCFD3, OP_PAUSE,    "PAUSE",      op_pause,     OPCODE_BYTE,        -1)
 _opc_(0xCFD4, OP_WAKE,     "WAKE",       op_wake,      OPCODE_BYTE,        -1)
 _opc_(0xCFD5, OP_PSUBSTRB, "PSUBSTRB",   op_psubstrb,  OPCODE_BYTE,        -4)
 _opc_(0xCFD6, OP_DELSEQ,   "DELSEQ",     op_delseq,    OPCODE_BYTE,        -1)
-_opc_(0xCFD7, OP_CFD7,     "OPCFD7",     op_illegal,   OPCODE_BYTE,         0)
+_opc_(0xCFD7, OP_REVREMOVE, "REVREMOVE", op_revremove, OPCODE_BYTE,       -1)  /* 15 Oct 26: REVREMOVE: the item that ends at the remove pointer, and the pointer moved back past its mark (op_str1.c) */
 _opc_(0xCFD8, OP_LGNPORT,  "LGNPORT",    op_lgnport,   OPCODE_BYTE,        -1)
 _opc_(0xCFD9, OP_OBJINFO,  "OBJINFO",    op_objinfo,   OPCODE_BYTE,        -1)
 _opc_(0xCFDA, OP_INHERIT,  "INHERIT",    op_inherit,   OPCODE_BYTE,        -1)
@@ -579,41 +579,41 @@ _opc_(0xCFDE, OP_RDNXINT,  "RDNXINT",    op_rdnxint,   OPCODE_BYTE,        -4)
 _opc_(0xCFDF, OP_ENCRYPT,  "ENCRYPT",    op_encrypt,   OPCODE_BYTE,        -2)
 
 _opc_(0xCFE0, OP_DECRYPT,  "DECRYPT",    op_decrypt,   OPCODE_BYTE,        -2)
-_opc_(0xCFE1, OP_CFE1,     "OPCFE1",     op_illegal,   OPCODE_BYTE,         0)
+_opc_(0xCFE1, OP_ROLL3,    "ROLL3",      op_roll3,     OPCODE_BYTE,         0)  /* 15 Oct 26: (a, b, c) becomes (b, c, a); $MODE PICK.CONVERT puts CONVERT's arguments in the order the function takes them */
 _opc_(0xCFE2, OP_INPUTBLK, "INPUTBLK",   op_inputblk,  OPCODE_BYTE,         0)
-_opc_(0xCFE3, OP_CFE3,     "OPCFE3",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFE4, OP_CFE4,     "OPCFE4",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFE5, OP_CFE5,     "OPCFE5",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFE6, OP_CFE6,     "OPCFE6",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFE7, OP_CFE7,     "OPCFE7",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFE8, OP_CFE8,     "OPCFE8",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFE9, OP_CFE9,     "OPCFE9",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFEA, OP_CFEA,     "OPCFEA",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFEB, OP_CFEB,     "OPCFEB",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFEC, OP_CFEC,     "OPCFEC",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFED, OP_CFED,     "OPCFED",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFEE, OP_CFEE,     "OPCFEE",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFEF, OP_CFEF,     "OPCFEF",     op_illegal2,  OPCODE_BYTE,         0)
+_opc_(0xCFE3, OP_VSLICE3,  "VSLICE3",    op_vslice3,   OPCODE_BYTE,        -2)
+_opc_(0xCFE4, OP_COLL,     "COLL",       op_coll,      OPCODE_BYTE,         0)
+_opc_(0xCFE5, OP_EQNC,     "EQNC",       op_eqnc,      OPCODE_BYTE,        -1)  /* 14 Oct 26: ~= (openQM item 430) */
+_opc_(0xCFE6, OP_CSVMODE,  "CSVMODE",    op_csvmode,   OPCODE_BYTE,        -2)  /* 14 Oct 26: CSV.MODE (openQM item 173, 200) */
+_opc_(0xCFE7, OP_CSVDELIM, "CSVDELIM",   op_csvdelim,  OPCODE_BYTE,         1)  /* 14 Oct 26: the CSV delimiter as a string */
+_opc_(0xCFE8, OP_FLUSHDH,  "FLUSHDH",    op_flushdh,   OPCODE_BYTE,        -1)  /* 14 Oct 26: FLUSH.DH.CACHE (openQM 83, 123) */
+_opc_(0xCFE9, OP_STKLST,   "STKLST",     op_stklst,    OPCODE_BYTE,         0)  /* 14 Oct 26: EXECUTE ... STACKLIST (openQM 61) */
+_opc_(0xCFEA, OP_OPENTEMP, "OPENTEMP",   op_opentemp,  OPCODE_BYTE,        -1)  /* 14 Oct 26: OPENTEMP (openQM 431, 440) */
+_opc_(0xCFEB, OP_INPUTTRAP, "INPUTTRAP", op_inputtrap, JUMP_ADDR,           -3)  /* 14 Oct 26: INPUTTRAP (openQM 408): chars, mode, label count; the stub's address follows */
+_opc_(0xCFEC, OP_ITRAPCHK, "ITRAPCHK",   op_itrapchk,  ONE_BYTE_VALUE,       0)  /* 14 Oct 26: after INPUT @: jump to the INPUTTRAP stub if a trapped character was typed */
+_opc_(0xCFED, OP_SSELECTV, "SSELECTV",   op_sselectv,  OPCODE_BYTE,        -3)  /* 14 Oct 26: SSELECTV file TO listvar (openQM 209) */
+_opc_(0xCFEE, OP_EPOCHCV, "EPOCHCV",    op_epochcv,   OPCODE_BYTE,        -2)  /* 14 Oct 26: MVDATE MVTIME MVDATE.TIME MVEPOCH; arg, arg, mode */
+_opc_(0xCFEF, OP_STROVL,   "STROVL",     op_strovl,    OPCODE_BYTE,        -1)  /* 15 Oct 26: $MODE CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP: the SO_ bits for the next call */
 
 /* The last 16 extended opcodes will never be used by Ladybridge Systems.
    They may be used for private purposes by GPL developers but any such
    opcode subsequently incorporated into the later source will be
    moved to a new location.                                              */
 
-_opc_(0xCFF0, OP_CFF0,     "OPCFF0",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF1, OP_CFF1,     "OPCFF1",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF2, OP_CFF2,     "OPCFF2",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF3, OP_CFF3,     "OPCFF3",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF4, OP_CFF4,     "OPCFF4",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF5, OP_CFF5,     "OPCFF5",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF6, OP_CFF6,     "OPCFF6",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF7, OP_CFF7,     "OPCFF7",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF8, OP_CFF8,     "OPCFF8",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFF9, OP_CFF9,     "OPCFF9",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFFA, OP_CFFA,     "OPCFFA",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFFB, OP_CFFB,     "OPCFFB",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFFC, OP_CFFC,     "OPCFFC",     op_illegal2,  OPCODE_BYTE,         0)
-_opc_(0xCFFD, OP_CFFD,     "OPCFFD",     op_illegal2,  OPCODE_BYTE,         0)
+_opc_(0xCFF0, OP_TRIMW,    "TRIMW",      op_trimw,     OPCODE_BYTE,         0)
+_opc_(0xCFF1, OP_SSELECTM, "SSELECTM",   op_sselectm,  OPCODE_BYTE,        -2)
+_opc_(0xCFF2, OP_MD5,      "MD5",        op_md5,       OPCODE_BYTE,         0)
+_opc_(0xCFF3, OP_CLRCOMN,  "CLRCOMN",    op_clrcomn,   OPCODE_BYTE,        -1)
+_opc_(0xCFF4, OP_PDUMP,    "PDUMP",      op_pdump,     OPCODE_BYTE,         0)
+_opc_(0xCFF5, OP_SADD,     "SADD",       op_sadd,      OPCODE_BYTE,        -1)
+_opc_(0xCFF6, OP_SSUB,     "SSUB",       op_ssub,      OPCODE_BYTE,        -1)
+_opc_(0xCFF7, OP_SMUL,     "SMUL",       op_smul,      OPCODE_BYTE,        -1)
+_opc_(0xCFF8, OP_SDIV,     "SDIV",       op_sdiv,      OPCODE_BYTE,        -1)
+_opc_(0xCFF9, OP_SCMP,     "SCMP",       op_scmp,      OPCODE_BYTE,        -1)
+_opc_(0xCFFA, OP_REGEX,    "REGEX",      op_regex,     OPCODE_BYTE,        -1)
+_opc_(0xCFFB, OP_EREPLACE, "EREPLACE",   op_ereplace,  OPCODE_BYTE,        -4)
+_opc_(0xCFFC, OP_FIX,      "FIX",        op_fix,       OPCODE_BYTE,        -2)
+_opc_(0xCFFD, OP_MATSTR,   "MATSTR",     op_matstr,    OPCODE_BYTE,         0)
 _opc_(0xCFFE, OP_SDPYOBJ,  "SDPYOBJ",    op_sdpyobj,   OPCODE_BYTE,        -3)
 _opc_(0xCFFF, OP_SDEXT,    "SDEXT",      op_sdext,     OPCODE_BYTE,        -2)
 
@@ -629,8 +629,13 @@ _extop_("MVD",     "SPACE",      "SPACES")
 _extop_("MVD",     "TRIMB",      "TRIMBS")
 _extop_("MVD",     "TRIMF",      "TRIMFS")
 _extop_("MVD",     "TRIM",       "TRIMS")
+_extop_("MVD",     "QUOTE",      "QUOTES")           /* 11 Oct 26 openQM 11 (SQUOTES: no one-byte base opcode) */
 
-_extop_("MVDD",    "AND",        "ANDS")             
+_extop_("MVDD",    "ADD",        "ADDS")             /* 11 Oct 26 openQM 207 */
+_extop_("MVDD",    "DIV",        "DIVS")
+_extop_("MVDD",    "MUL",        "MULS")
+_extop_("MVDD",    "SUB",        "SUBS")
+_extop_("MVDD",    "AND",        "ANDS")
 _extop_("MVDD",    "CAT",        "CATS")             
 _extop_("MVDD",    "EQ",         "EQS")            
 _extop_("MVDD",    "GE",         "GES")            
@@ -653,5 +658,11 @@ _extop_("MVDSS",   "INDEX",      "INDEXS")
 _extop_("MVDSS",   "TRIMX",      "TRIMXS")
 
 _extop_("MVDSSS",  "FIELD",      "FIELDS")
+
+/* 15 Oct 26: the multivalued forms of the XFUN functions (LASTS, MATCHESS, MATCHFIELDS, TRIMWS): the wrapper that takes the
+   array and the other arguments, with XFUN as the opcode it runs on every element; the function number is the last argument */
+_extop_("MVDS",    "XFUN",       "XFUNM1")
+_extop_("MVDSS",   "XFUN",       "XFUNM2")
+_extop_("MVDSSS",  "XFUN",       "XFUNM3")
 
 /* END-CODE */

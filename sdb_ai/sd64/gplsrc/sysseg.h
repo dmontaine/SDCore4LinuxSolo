@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: the counters and user table fields of the 1.2-0 work (USR_SIGNAL, USR_GROUPED,
+ *               grouped, ustats, account, users_peak, print_jobs and the rest).  The layout of the shared memory changes: a running Solo must be
+ *               stopped and started again on the new build.  Not carried: USR_SH, USR_OS_EXEC, USR_SD_ACCOUNTS and the 'gates' word (S.63 to S.65);
+ *               Solo's USR_GLOBAL (0x0100) stays.
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -48,7 +52,7 @@ struct SYSSEG {
    int sdlnxd_pid;               /* PID of sdlnxd daemon */
    char sysdir[MAX_PATHNAME_LEN+1];
    int16_t cmdstack;           /* CMDSTACK: Command stack depth */
-   bool deadlock;                /* DEADLOCK: Trap deadlocks? */
+   bool deadlock;                /* DEADLOCK: 0 allow, 1 trap, 2 trap and save the locks (deadlock.n) */
    int errlog;                   /* ERRLOG: Max size of errlog in bytes */
    int16_t fds_limit;
    int32_t fds_rotate;
@@ -99,6 +103,34 @@ struct SYSSEG {
    int32_t pcode_offset;        /* Pcode */
    int32_t pcfg_offset;         /* Offset to template pcfg structure */
    int pcode_len;
+   int64_t start_time;          /* Unix time at which SD was started (SYSTEM(1045)). Last, so no offset moves. */
+   int16_t userpool;            /* USERPOOL: 0 = allocate the lowest free user number, else cycle (12 Oct 26) */
+   int16_t lgnwait;             /* LGNWAIT: tenths of a second a login waits for a spare user entry (12 Oct 26) */
+   /* LGNWAIT statistics, SYSTEM(1055).  Protected by SHORT_CODE. */
+   u_int32_t lgn_delayed;       /* Logins that had to wait */
+   u_int32_t lgn_success;       /* ...of which got in */
+   u_int32_t lgn_waiting;       /* Waiting now */
+   u_int32_t lgn_peak;          /* Peak number waiting at once */
+   u_int32_t lgn_failed;        /* ...of which gave up and were refused */
+   /* 14 Oct 26 dm - 1.2-0 sheet item 38 (LISTU DETAIL).  The most user table cells in use at once since SD started,
+      counted at each login under SHORT_CODE; kernel(K$USERS.PEAK, 0).  Last, so no offset moves.                 */
+   u_int32_t users_peak;
+   /* 15 Oct 26 dm - QM4 gaps Q-18: the counters behind SYSTEM(1048), SYSTEM(21) and SYSTEM(19), under SHORT_CODE.  Last, so
+      no offset moves. */
+   u_int32_t rolling_seq;       /* SYSTEM(1048): 1 for the first call since SD started, one more for each after it */
+   int32_t uniq_date;           /* SYSTEM(21): the internal date of the last value given ... */
+   u_int32_t uniq_seq;          /* ... and how many have been given on that date */
+   int32_t uniq19_secs;         /* SYSTEM(19): the last second a value was given in (date * 86400 + time) ... */
+   u_int32_t uniq19_n;          /* ... and how many have been given in that second */
+   /* 15 Oct 26 dm - QM4 gaps Q-19 and Q-18.  Last, so no offset moves. */
+   int16_t usplit;              /* USPLIT: 1 = interactive users take the lowest user number, others the highest */
+   u_int32_t print_jobs;        /* SYSTEM(20): print jobs passed to the operating system spooler since SD started (atomic) */
+   /* 16 Oct 26 dm - QM4 gaps, CLEANUP and PHANTOMS.  Last, so no offset moves (a segment made by an older build has none of them,
+      which is why they are read only after a restart: the installer restarts the service). */
+   int16_t cleanup;             /* CLEANUP: seconds between sdlnxd's scans for processes that ended abnormally */
+   int16_t phantoms_base;       /* PHANTOMS: lowest user number kept for PHANTOM USER n... */
+   int16_t phantoms_range;      /*           ...and how many; 0 = none kept */
+   int16_t lock_trace;          /* LOCK.TRACER: 1 while every lock taken or let go is added to the file locktrace */
 };
 
 Public SYSSEG * sysseg init(NULL);   /* 0234 */
@@ -151,6 +183,10 @@ struct USER_ENTRY
   char ip_addr[MAX_SOCKET_ADDR_STR_LEN];
   #define MAX_TTYNAME_LEN 15
   char ttyname[MAX_TTYNAME_LEN+1];
+  /* 14 Oct 26 dm - 1.2-0 sheet items 24 and 29 (LISTU shows the account).  The account the session is in, set by
+     the programs that own entry to an account (LOGIN, CPROC's logto, APISRVR) through kernel(K$SET.ACCOUNT, ...).
+     Empty until then, and for a session that has not entered an account yet.                                  */
+  char account[MAX_ACCOUNT_NAME_LEN+1];
   int16_t flags;                 /* Also defined in INT$KEYS.H */
      #define USR_PHANTOM     0x0001 /* Is a phantom */
      #define USR_LOGOUT      0x0002 /* Logout in progress */
@@ -161,6 +197,17 @@ struct USER_ENTRY
      #define USR_MSG_OFF     0x0040 /* Message reception disabled */
      #define USR_WAKE        0x0080 /* Set by op_wake, cleared by op_pause */
      #define USR_GLOBAL      0x0100 /* Signed in with $GLOBAL - ruling 33, K_GLOBAL_SESSION */
+     /* 15 Oct 26 QM4 gaps Q-5: the application signal.  SIGNAL(user) sets it in a process of the same login user (or in
+        any process, from an administrator); SYSTEM(1062) in that process reads it and clears it.                */
+     #define USR_SIGNAL      0x0400 /* SIGNAL() has been raised for this process */
+     /* 15 Oct 26 dm - QM4 gaps (PHANTOM GROUP, sheet 427, 433).  Never a bit of the flags word itself: a phantom's flags are set
+        to zero as it starts, so the parent's mark is the GROUPED field below.  K$USERS adds this bit to the flags it reports
+        for a phantom whose parent has grouped it, which is how LISTU shows it.                                            */
+     #define USR_GROUPED     0x0800 /* reported flag: grouped with its parent */
+  u_int8_t grouped;              /* 15 Oct 26 dm - set by the parent (K_GROUP_PHANTOM) after PHANTOM GROUP; when the parent's
+                                    entry is released, a phantom with this set and its puid is logged out. Zero for any other */
+  struct FILESTATS ustats;       /* 15 Oct 26 dm - FSTAT.USER: this process's file activity (the counts of global_stats, by user);
+                                    cleared as the process takes its entry */
   u_int16_t events;        /* Any bit set causes processing interrupt */
      #define EVT_LOGOUT      0x0001 /* Forced logout - immediate termination */
      #define EVT_STATUS      0x0002 /* Return status dump */
@@ -175,11 +222,16 @@ struct USER_ENTRY
      #define EVT_MESSAGE     0x0400 /* Send immediate message */
      #define EVT_LICENCE     0x0800 /* Logout from licence expiry */
      #define EVT_REBUILD_LLT 0x1000 /* Rebuild local lock table */
+     #define EVT_PROFILER    0x2000 /* 16 Oct 26: start or stop the application event profiler as prof_request says (K_PROFILER_USER) */
   /* Lock wait data (protected by REC_LOCK_SEM) */
 
    int16_t lockwait_index;       /* 0 = not waiting,
                                       +ve = rec lock table index (record lock),
                                       -ve = file table index (file lock) */
+   int32_t lockwait_time;        /* time() when lockwait_index became non-zero
+                                      (openQM item 487) */
+   int16_t prof_request;         /* 16 Oct 26 dm - PROFILER ON / OFF USER n: set by the administrator's K_PROFILER_USER and read when
+                                      EVT_PROFILER is handled.  0x4000 = start, the low bits the events to log; 0 = stop and report. */
    u_int16_t file_map[1];          /* Count of opens by file.
                                                Protected by FILE_TABLE_LOCK */
  };

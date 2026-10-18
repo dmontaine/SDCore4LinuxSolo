@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without NET_FILE and the NET member of FILE_VAR (S.65).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -73,10 +74,9 @@
  *              blank common is addressed by blank_common.
  *
  * IMAGE        A screen image.
- *              Points to a SCREEN_IMAGE structure.  On a Windows SDConsole
- *              session, this structure contains the actual screen data. On a
- *              SDTerm session, the data is held locally by SDTerm and a
- *              unique reference id is stored in the SCREEN_IMAGE.
+ *              Points to a SCREEN_IMAGE structure: a reference id and the
+ *              size and place of the region.  The terminal does not keep
+ *              the picture (AccuTerm and SDTerm did; neither is supported).
  *             
  * BTREE        A binary tree data item.
  *              Not accessible to user mode programs (because it's a bit
@@ -196,6 +196,9 @@ struct DESCRIPTOR {
     /* OBJ */
     OBJDATA* objdata;
 
+    /* COLL */
+    COLL_HEADER* coll;
+
     /* OBJCD */
     struct {
       OBJDATA* objdata; /* Object associated with this data */
@@ -241,6 +244,7 @@ struct DESCRIPTOR {
 #define OBJCD 16
 #define OBJCDX 17
 #define PERSISTENT 18
+#define COLL 19 /* Data collection or array in a collection (13 Oct 26) */
 
 /* When adding new entry, all places that include a comment containing
    ++ALLTYPES++ must be amended.                                       */
@@ -255,6 +259,9 @@ struct DESCRIPTOR {
 #define DF_SYSTEM 0x20 /* Set on system variables (STORSYS opcode) */
 #define DF_MOVE 0x40   /* Move descr in object function/subr call */
 #define DF_CHANGE (DF_WATCH | DF_ARGSET) /* Flags to clear on change */
+#define DF_JSON 0x80 /* INTEGER 0 or 1: a JSON boolean; null STRING: a JSON null.
+                        Made by JBOOLEAN() and JNULL() and by reading such an element
+                        of a data collection; any new result is a plain value. */
 
 /* ====================================================================== */
 
@@ -300,6 +307,27 @@ struct SQ_FILE {
 #define SQ_CHDEV 0x0008 /* Character mode device */
 #define SQ_FIFO 0x0010  /* FIFO */
 #define SQ_NOTFL 0x001C /* Mask for "files" that aren't files */
+  u_char crlf;           /* Line terminator mode: CRLF_UNSET or CRLF_x (below) */
+};
+
+/* Line terminator modes of a directory file or a sequential file (openQM FC$CRLF, 16 Oct 26, QM4 Fixes item 452).  The value
+   kept in the file is 0 (CRLF_UNSET) until a mode is chosen, by FCONTROL(fvar, FC$CRLF, mode) or by a letter in field 6 of the
+   F-type VOC entry (L C B X), and the mode + 1 after.  UNSET is the behaviour SD always had: a directory file READ ends a line
+   at LF and keeps every CR, WRITE ends it with LF; READSEQ ends a line at LF and drops a CR in front of it, WRITESEQ writes LF. */
+#define CRLF_UNSET 0
+#define CRLF_LF 1   /* mode 0: LF ends a line, CR is data;                              VOC letter L */
+#define CRLF_CRLF 2 /* mode 1: CR LF ends a line, a lone CR or LF is data;               VOC letter C */
+#define CRLF_BOTH 3 /* mode 2: CR LF or LF ends a line, a lone CR is data;               VOC letter B */
+#define CRLF_NOCR 4 /* mode 3: CR LF or LF ends a line, a lone CR is thrown away;        VOC letter X */
+
+/* The trigger function of a directory file (16 Oct 26, QM4 Fixes item 177).  A hashed file keeps its trigger in its header (DH_FILE);
+   a directory file has no header, so its trigger is named in a file called %header% in the directory, read when the file is opened
+   and kept here for the life of the file variable.  A change to the trigger is seen by the next OPEN of the file, not this one. */
+typedef struct DIR_TRIGGER DIR_TRIGGER;
+struct DIR_TRIGGER {
+  char* name;      /* The function, in lower case */
+  u_char* trigger; /* Its object code, or NULL if it is not catalogued (the first call that needs it says so) */
+  u_char modes;    /* TRG_x: the operations that call it */
 };
 
 /* File variable structure
@@ -322,9 +350,11 @@ struct FILE_VAR {
   u_char flags;
 #define FV_RDONLY 0x01  /* Read only file */
 #define FV_NON_TXN 0x02 /* Updates are non-transactional */
+#define FV_TEMP 0x04    /* Made by OPENTEMP: the file is deleted when this file variable is closed (temp_path) */
   int16_t id_len;       /* Length of id and... */
   char* id;             /* ...actual id of last record read */
   char* voc_name;
+  char* temp_path;      /* FV_TEMP: pathname of the file to delete on close, else NULL */
 
   union {
     struct {
@@ -336,6 +366,8 @@ struct FILE_VAR {
     } seq;
     struct {
       u_int16_t mark_mapping : 1;
+      u_int16_t crlf : 3; /* CRLF_UNSET or CRLF_x */
+      DIR_TRIGGER* trg;   /* The file's trigger function, or NULL */
     } dir;
     struct {
       int file_no;
@@ -455,6 +487,38 @@ struct SOCKVAR {
   /* 15 Sep 26 dm - S.19: an SD_TLS_CLIENT* when OPEN.SOCKET was given SKT$TLS,
      else NULL.  Every k_alloc of a SOCKVAR must set it - k_alloc does not zero. */
   void* tls;
+  /* 15 Oct 26 dm - QM4 gaps Q-5, SELECT.SOCKET().  The events to watch (SKT_READ_EVENT 1, SKT_WRITE_EVENT 2,
+     SKT_EXCEPTION_EVENT 4) and those the last SELECT.SOCKET() found.  Every k_alloc of a SOCKVAR must set both. */
+  int16_t events;
+  int16_t found;
+  /* 15 Oct 26 dm - SKT$INFO.TRACE: the file descriptor of the trace log, or -1 for none.  Every k_alloc of a SOCKVAR must
+     set it to -1 (k_alloc does not zero); close_skt() closes it. */
+  int trace_fd;
+};
+
+/* --------------------- COLL (data collection) --------------------- */
+
+/* A data collection is either an object (name / value pairs, held sorted by
+   name) or an array (values only, position 1 upward).  It is reference
+   counted: a copy of the descriptor is another reference to the same
+   collection.  A collection that contains itself is never freed.         */
+
+struct COLL_ENTRY {
+  char* name;       /* NULL in an array */
+  int32_t name_len;
+  DESCRIPTOR d;     /* INTEGER, FLOATNUM, STRING or COLL */
+  u_char tag;       /* How d is to be read and written out */
+#define CT_PLAIN 0
+#define CT_BOOL 1   /* d is INTEGER 0 or 1, JSON true / false */
+#define CT_NULL 2   /* d is a null string, JSON null */
+};
+
+struct COLL_HEADER {
+  int32_t ref_ct;
+  u_char is_array;
+  int32_t count;
+  int32_t alloc;
+  COLL_ENTRY* e;
 };
 
 /* -------------------- OBJECT NAME MAP ------------------ */
@@ -480,7 +544,11 @@ struct OBJECT_NAME_MAP /* This is embedded in the object code */
    The two arg count items use the top bit to indicate that the
    routine is declared as VAR.ARGS.                                   */
 
-#define SetKey(p) ((p)->lo_set + ((int16_t)((p)->hi_set) << 8))
+/* 16 Oct 26 dm - RESTRICTED: the top bit of hi_set marks a name declared RESTRICTED (visible only to an object in the inheritance
+   tree of the class that declares it).  A set key never needs 15 bits, so the key is the other seven.  Objects compiled before
+   the statement existed have the bit clear. */
+#define SetKey(p) ((p)->lo_set + ((int16_t)((p)->hi_set & 0x7F) << 8))
+#define IsRestricted(p) (((p)->hi_set & 0x80) != 0)
 #define GetKey(p) ((p)->lo_get + ((int16_t)((p)->hi_get) << 8))
 #define PublicVar(p) ((p)->lo_var + ((int16_t)((p)->hi_var) << 8))
 #define NextNameMapEntry(p) \
@@ -511,11 +579,27 @@ struct OBJUNDEF /* An undefined object handler reference */
            -----   -----
 */
 
+/* 16 Oct 26 dm - QM4 Fixes item 13: a name map of NAME_INDEX_MIN entries or more is looked up through a hash index built the
+   first time a name is sought in it, instead of by scanning the map for every reference.  The index holds the entries in map
+   order (a name can appear more than once: a RESTRICTED entry the caller cannot see is skipped for the next of its name) and
+   chains the entries of one hash value in that order.  Every k_alloc of an OBJDATA must set name_count to -1 and name_index to
+   NULL (k_alloc does not zero): create_objdata() does. */
+#define NAME_INDEX_MIN 32
+typedef struct NAME_INDEX NAME_INDEX;
+struct NAME_INDEX {
+  int32_t nbuckets;
+  int32_t* bucket;            /* First entry (a position in entry[]) of each hash value, or -1 */
+  int32_t* next;              /* The next entry of the same hash value, or -1 */
+  OBJECT_NAME_MAP** entry;    /* The name map entries, in map order */
+};
+
 struct OBJDATA /* The object itself */
 {
   int ref_ct;                /* Reference count */
   void* objprog;             /* Object program pointer */
   OBJECT_NAME_MAP* name_map; /* Start of name map */
+  int32_t name_count;        /* Entries in the name map, or -1 until the first lookup counts them */
+  NAME_INDEX* name_index;    /* The hash index, or NULL (map too small to need one, or not yet built) */
   ARRAY_HEADER* obj_vars;    /* PUBLIC and GLOBAL data array */
   OBJDATA* inherits;         /* Head of inherited objects list */
   OBJDATA* next_inherited;   /* Links further items in inheritance chain */

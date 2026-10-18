@@ -17,8 +17,12 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 16 Oct 26 dm  DEBUG.INFO() code 7: the equate and $DEFINE tokens of a $MODE DEBUG.EQUATES program (QM4 gap 218)
  * 14 Sep 26 Windows port - the debugger is $debug / $pdbg (RELEASE_1.1 5)
  * 31 Dec 23 SD launch - prior history suppressed
+ * 11 Oct 26 dm  A data collection variable gives the debugger its kind, its count
+ *           and its JSON text, and DEBUG.INFO() code 6 gives the same for an
+ *           element a path names (sheet item 530).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -272,6 +276,10 @@ void op_dbginf() {
         3   Return source pathname
         4   Return system variables
         5   Returns program header flags
+        6   Return information about an element of a collection variable.
+            Qualifier is the variable number as for code 1, a field mark
+            and the path.  Nothing is returned if the variable is not a
+            collection or the path names nothing.
  */
 
   DESCRIPTOR* key_descr;
@@ -351,6 +359,67 @@ void op_dbginf() {
       obj_hdr = (OBJECT_HEADER*)find_object(debug_id);
       result.data.value = obj_hdr->flags;
       goto return_integer;
+
+    case 7: /* Get the equate and $DEFINE tokens ($MODE DEBUG.EQUATES, 16 Oct 26): what follows the symbol table's zero byte */
+    {
+      int32_t len; /* int32 not int16: the table can be long */
+
+      obj_hdr = (OBJECT_HEADER*)find_object(debug_id);
+      sym_tab_offset = obj_hdr->sym_tab_offset;
+      if (sym_tab_offset) {
+        p = ((char*)obj_hdr) + sym_tab_offset;
+        len = obj_hdr->object_size - sym_tab_offset;
+        q = (char*)memchr(p, '\0', len);
+        if (q != NULL) {
+          len -= (int32_t)(q + 1 - p);
+          p = q + 1;
+          q = (len > 0) ? (char*)memchr(p, '\0', len) : NULL;
+          if (q != NULL)
+            len = (int32_t)(q - p);
+          if (len > 0)
+            ts_copy(p, len);
+        }
+      }
+      break;
+    }
+
+    case 6: /* Get information about an element of a collection variable */
+    {
+      char qual[1032];
+      char* path;
+      long long qv;
+      COLL_ENTRY* ent;
+
+      obj_hdr = (OBJECT_HEADER*)find_object(debug_id);
+      if ((k_get_c_string(qual_descr, qual, 1024) >= 0) &&
+          ((path = strchr(qual, FIELD_MARK)) != NULL)) {
+        *path++ = '\0';
+        qv = atoll(qual);
+        n = (int16_t)(qv & 0xFFFFLL); /* Variable number */
+        if ((n >= 0) && (n <= obj_hdr->no_vars)) {
+          var_descr = process.program.prev->vars + n;
+          while (var_descr->type == ADDR)
+            var_descr = var_descr->data.d_addr;
+          n = (int16_t)((qv >> 16) & 0xFFFFLL); /* Common offset */
+          if (n && (var_descr->type == COMMON || var_descr->type == LOCALVARS))
+            var_descr = Element(var_descr->data.c_addr, n);
+          if (var_descr->type == COLL) {
+            ent = coll_debug_find(var_descr->data.coll, path, (int32_t)strlen(path));
+            if (ent != NULL) {
+              /* A JSON true, false or null is an integer or a null string
+                 inside SD; the debugger says what the collection holds.     */
+              if (ent->tag == CT_BOOL)
+                ts_printf("20%c%s", FIELD_MARK, ent->d.data.value ? "true" : "false");
+              else if (ent->tag == CT_NULL)
+                ts_printf("21");
+              else
+                get_var_info(&ent->d, 0);
+            }
+          }
+        }
+      }
+      break;
+    }
   }
 
   ts_terminate();
@@ -479,6 +548,12 @@ Private void get_var_info(
       break;
 
     case SOCK:
+      break;
+
+    case COLL: /* Kind (C or A), element count, then the JSON text */
+      ts_printf("%c%c%d%c", var_descr->data.coll->is_array ? 'A' : 'C', FIELD_MARK,
+                (int)var_descr->data.coll->count, FIELD_MARK);
+      coll_debug_json(var_descr->data.coll);
       break;
 
     case LOCALVARS:

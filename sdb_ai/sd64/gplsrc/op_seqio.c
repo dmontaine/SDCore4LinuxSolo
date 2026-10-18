@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.63 OS-access tests on OPENSEQ and DELETESEQ
+ *               of a pathname and the S.64 edit gates: Solo has neither switch yet.
+ * 12 Oct 26 dm  op_openseq() opens a block device, a floppy disk drive among
+ *               them (openQM item 112).
  * 14 Sep 26 dm  op_openseq()'s error cleanup releases the record lock it took.
  *               A failed OPENSEQ ... OVERWRITE truncate (the A6 fix of 8 Sep)
  *               left the lock behind for good - found in the sandbox by P.6's
@@ -76,6 +80,8 @@ Private void writeseq(bool flush_to_disk);
 Private void emit(FILE_VAR* fvar, char* p, int16_t bytes);
 Private int flush_seq(FILE_VAR* fvar, bool force_write);
 Private OSFILE create_seq_record(FILE_VAR* fvar);
+Private int seq_byte_at(FILE_VAR* fvar, SQ_FILE* sq_file, int64 at, u_char* c);
+Private bool readseq_modal(FILE_VAR* fvar, SQ_FILE* sq_file);
 
 /* ======================================================================
    op_createsq()  -  Create an empty sequential file record               */
@@ -205,7 +211,7 @@ void op_delseq() {
   if (rec_name_len) {
     /* Use VOC to translate file name to file system path */
 
-    if (!get_voc_file_reference(file_name, FALSE, file_name)) {
+    if (!get_voc_file_reference(file_name, FALSE, file_name, NULL)) {
       /* process.status set by _VOC_REF recursive */
       goto exit_op_delseq;
     }
@@ -429,6 +435,7 @@ Private void openseq(bool map_name) {
   u_int32_t device = 0;
   u_int32_t inode = 0;
   struct stat stat_buf;
+  char vflags[VOC_FLAGS_LEN + 1] = ""; /* Field 6 of the F-type VOC entry, in capitals: its L C B X choose the line terminator mode */
 
   op_flags = process.op_flags;
 
@@ -464,9 +471,17 @@ Private void openseq(bool map_name) {
       goto exit_op_openseq;
     }
 
+    if (prof_mask & PROF_OPENSEQ) /* the application event profiler (16 Oct 26): file,record as the program named them */
+    {
+      char prof_q[2 * MAX_PATHNAME_LEN + 2];
+
+      snprintf(prof_q, sizeof(prof_q), "%s,%s", file_name, unmapped_name);
+      prof_event(PROF_OPENSEQ, prof_q, (int)strlen(prof_q));
+    }
+
     /* Use VOC to translate file name to file system path */
 
-    if (!get_voc_file_reference(file_name, FALSE, file_name)) {
+    if (!get_voc_file_reference(file_name, FALSE, file_name, vflags)) {
       /* process.status set by _VOC_REF recursive */
       goto exit_op_openseq;
     }
@@ -521,6 +536,7 @@ Private void openseq(bool map_name) {
       process.status = ER_NAM;
       goto exit_op_openseq;
     }
+    ProfEvent(PROF_OPENSEQ, file_name, file_name_len); /* OPENSEQ by pathname: the application event profiler (16 Oct 26) */
 
     /* Check if looks like a port name */
 
@@ -583,6 +599,11 @@ Private void openseq(bool map_name) {
 
       if (S_ISREG(stat_buf.st_mode)) /* It's a file */
       {
+      } else if (S_ISBLK(stat_buf.st_mode)) /* A block device, a floppy disk drive among them:
+                                               opened as a file (openQM item 112); FILEINFO's
+                                               FL$SEQTYPE reports 4 for it.  The operating
+                                               system's permissions decide who may open it. */
+      {
       } else if (S_ISCHR(stat_buf.st_mode)) /* It's a device */
       {
         flags |= SQ_CHDEV;
@@ -610,6 +631,14 @@ Private void openseq(bool map_name) {
         process.status = ER_FNF;
         goto exit_op_openseq;
       }
+    } else if (op_flags & 0x400) /* CREATING (and SHARED, which includes it): make the file now */
+    {
+      /* 12 Oct 26, openQM items 485 and 397 */
+      fu = dio_open(fullpathname, DIO_OVERWRITE);
+      if (!ValidFileHandle(fu)) {
+        process.status = ER_FNF;
+        goto exit_op_openseq;
+      }
     } else /* Does not exist, take ELSE clause, STATUS() = 0 */
     {
       fu = INVALID_FILE_HANDLE; /* Remember not opened yet */
@@ -628,6 +657,7 @@ Private void openseq(bool map_name) {
   fvar->type = SEQ_FILE;
   fvar->access.seq.sq_file = NULL;
   fvar->voc_name = NULL;
+  fvar->temp_path = NULL;
   fvar->id_len = 0;
   fvar->id = NULL;
   fvar->flags = 0;
@@ -699,6 +729,14 @@ Private void openseq(bool map_name) {
         k_free(fvar); /* Give away file variable */
         fvar = NULL;  /* 0361 */
 
+        /* MAXRLOCK (openQM item 313): at this process's own limit.  An error, not a lock held by
+           someone else that will be released. */
+
+        if (blocking_user == -3) {
+          process.status = -ER_MAXRLOCK;
+          goto exit_op_openseq;
+        }
+
         /* Record is locked by another user */
 
         if (op_flags & P_LOCKED) /* LOCKED clause present */
@@ -735,6 +773,7 @@ Private void openseq(bool map_name) {
   sq_file->base = -1;
   sq_file->timeout = -1;
   sq_file->flags = flags;
+  sq_file->crlf = crlf_from_vflags(vflags); /* CRLF_UNSET unless a letter in field 6 of the VOC entry chose a mode (item 452) */
 
   /* Save full (mapped) pathname of record */
 
@@ -764,6 +803,13 @@ Private void openseq(bool map_name) {
       if (ValidFileHandle(fu)) {
         sq_file->posn = filelength64(fu);
         Seek(fu, sq_file->posn, SEEK_SET);
+        /* SHARED (0x800): every write goes to the end of the file whoever else has added to it meanwhile */
+        if (op_flags & 0x800) {
+          fcntl(fu, F_SETFL, fcntl(fu, F_GETFL) | O_APPEND);
+          /* and unbuffered, so each WRITESEQ is one write() of a whole line: with a buffer two processes
+             would interleave their blocks in the middle of lines */
+          sq_file->flags |= SQ_NOBUF;
+        }
       }
     } else if (op_flags & 0x200) /* Overwrite */
     {
@@ -1067,6 +1113,95 @@ exit_op_readblk:
 }
 
 /* ======================================================================
+   seq_byte_at()  -  The byte of a sequential file at a position, through the file's one block buffer
+
+   Returns 1 and the byte, 0 at end of file, -1 if the buffer could not be written out first (STATUS() set).  The same
+   buffer handling as the loop in op_readseq() below, which has its own for speed.                                 */
+
+Private int seq_byte_at(FILE_VAR* fvar, SQ_FILE* sq_file, int64 at, u_char* c) {
+  int64 block = at & ~SEQ_BUFFER_MASK;
+  int16_t offset;
+
+  if (block != sq_file->base) {
+    if (flush_seq(fvar, FALSE))
+      return -1;
+
+    Seek(sq_file->fu, block, SEEK_SET);
+    if ((sq_file->bytes = (int16_t)Read(sq_file->fu, sq_file->buff, SEQ_BUFFER_SIZE)) < 0)
+      sq_file->bytes = 0;
+    sq_file->base = block;
+  }
+
+  offset = (int16_t)(at & SEQ_BUFFER_MASK);
+  if (offset >= sq_file->bytes)
+    return 0;
+  *c = (u_char)sq_file->buff[offset];
+  return 1;
+}
+
+/* ======================================================================
+   readseq_modal()  -  READSEQ of a file in the line terminator mode LF, CRLF or NOCR (16 Oct 26, QM4 Fixes item 452)
+
+   CRLF_LF     LF ends a line; a CR is data.
+   CRLF_CRLF   CR LF ends a line; a lone CR or LF is data, so a line may hold an LF.
+   CRLF_NOCR   LF ends a line, whatever is in front of it; every CR is thrown away.
+   (CRLF_BOTH, and no mode at all, is the loop in op_readseq(): LF ends a line and a CR in front of it is dropped.)  A last
+   line with no terminator is a line.  Called with the target string already started (ts_init); on TRUE the caller ends it.
+   On FALSE STATUS() is set: ER_RNF when there was nothing left to read.  A byte at a time: these modes are chosen on
+   purpose and read a file of another system's.                                                                     */
+
+Private bool readseq_modal(FILE_VAR* fvar, SQ_FILE* sq_file) {
+  u_char mode = sq_file->crlf;
+  u_char c;
+  u_char c2;
+  int r;
+  bool consumed = FALSE;
+
+  for (;;) {
+    r = seq_byte_at(fvar, sq_file, sq_file->posn, &c);
+    if (r < 0)
+      return FALSE;
+    if (r == 0) { /* end of file */
+      if (!consumed) {
+        process.status = ER_RNF;
+        return FALSE;
+      }
+      return TRUE; /* a last line with no terminator */
+    }
+    sq_file->posn++;
+    if ((c == '\r') && (mode == CRLF_NOCR))
+      continue; /* thrown away, and not a line of its own: a file that ends "a LF CR" has one line */
+    consumed = TRUE;
+
+    if (c == '\n') {
+      if (mode == CRLF_CRLF) { /* a lone LF is data */
+        ts_copy("\n", 1);
+        continue;
+      }
+      sq_file->line++;
+      return TRUE;
+    }
+
+    if (c == '\r') {
+      if (mode == CRLF_CRLF) {
+        r = seq_byte_at(fvar, sq_file, sq_file->posn, &c2);
+        if (r < 0)
+          return FALSE;
+        if ((r > 0) && (c2 == '\n')) { /* CR LF */
+          sq_file->posn++;
+          sq_file->line++;
+          return TRUE;
+        }
+      }
+      ts_copy("\r", 1); /* data */
+      continue;
+    }
+
+    ts_copy((char*)&c, 1);
+  }
+}
+
+/* ======================================================================
    op_readseq()  -  Read record from sequential file                      */
 
 void op_readseq() {
@@ -1124,6 +1259,8 @@ void op_readseq() {
   }
 
   sq_file = fvar->access.seq.sq_file;
+  if ((prof_mask & PROF_READSEQ) && (sq_file->pathname != NULL)) /* the application event profiler (16 Oct 26) */
+    prof_event(PROF_READSEQ, sq_file->pathname, (int)strlen(sq_file->pathname));
   flags = sq_file->flags;
   /* Modified by Composer AI - 2026/06/10.
      timeout was read uninitialized; take the value stored on the SQ_FILE. */
@@ -1220,6 +1357,13 @@ void op_readseq() {
       s_free(tgt_descr->data.str.saddr);
       tgt_descr->data.str.saddr = NULL;
     }
+  } else if ((sq_file->crlf != CRLF_UNSET) && (sq_file->crlf != CRLF_BOTH)) /* A line terminator mode chosen (item 452) */
+  {
+    /* CRLF_BOTH is what READSEQ has always done, so it keeps the code below; the others read byte by byte */
+
+    if (!readseq_modal(fvar, sq_file))
+      goto exit_op_readseq;
+    (void)ts_terminate();
   } else /* Normal file or device */
   {
     /* Copy data until we find EOF or a newline */
@@ -1397,7 +1541,9 @@ void op_seek() {
       break;
 
     case 2:
-      posn = fsize - offset;
+      /* A negative offset is before the end (openQM 3.0-4, item 259); a positive one has always meant the
+         same here, so both go backwards from the end */
+      posn = (offset < 0) ? fsize + offset : fsize - offset;
       break;
 
     default:
@@ -1709,6 +1855,8 @@ Private void writeseq(bool flush_to_disk) {
   OSFILE fu;
   STRING_CHUNK* src_str;
   u_int16_t op_flags;
+  char* nl = Newline;
+  int16_t nl_bytes = NewlineBytes;
 
   op_flags = process.op_flags;
   process.op_flags = 0;
@@ -1733,6 +1881,15 @@ Private void writeseq(bool flush_to_disk) {
 
   k_dismiss();
   sq_file = fvar->access.seq.sq_file;
+  if ((prof_mask & PROF_WRITESEQ) && (sq_file->pathname != NULL)) /* the application event profiler (16 Oct 26) */
+    prof_event(PROF_WRITESEQ, sq_file->pathname, (int)strlen(sq_file->pathname));
+
+  /* What ends the line: LF, except in the mode that wants CR LF (16 Oct 26, QM4 Fixes item 452) */
+
+  if (sq_file->crlf == CRLF_CRLF) {
+    nl = "\r\n";
+    nl_bytes = 2;
+  }
 
   fu = sq_file->fu;
   if (!ValidFileHandle(fu)) /* File opened for creation */
@@ -1779,12 +1936,12 @@ Private void writeseq(bool flush_to_disk) {
 
     /* Write newline sequence */
 
-    if (Write(fu, Newline, NewlineBytes) < 0) {
+    if (Write(fu, nl, nl_bytes) < 0) {
       process.status = ER_WRITE_ERROR;
       process.os_error = OSError;
       goto exit_op_writeseq;
     }
-    sq_file->posn += NewlineBytes;
+    sq_file->posn += nl_bytes;
   } else {
     while (src_str != NULL) {
       emit(fvar, src_str->data, src_str->bytes);
@@ -1793,7 +1950,7 @@ Private void writeseq(bool flush_to_disk) {
 
     /* Write newline sequence */
 
-    emit(fvar, Newline, NewlineBytes);
+    emit(fvar, nl, nl_bytes);
 
     if (flush_to_disk)
       flush_seq(fvar, TRUE);
@@ -1924,6 +2081,243 @@ Private OSFILE create_seq_record(FILE_VAR* fvar) {
 
 /* ======================================================================
    close_seq()  -  Close sequential file                                  */
+
+/* ======================================================================
+   The GET statement  (16 Oct 26 dm, QM4 Fixes item 583)
+
+   GET var {, length} {SETTING count} FROM dev {UNTIL term} {RETURNING last} {WAITING timeout} {THEN...} {ELSE...}
+
+   Reads data from a sequential file variable opened by OPENSEQ: a serial port, a FIFO, a character device or an ordinary file.
+   bcomp compiles it to XFUN function XF_GET with the seven values below on the stack (top first):
+
+       timeout   seconds to wait for the next character, -1 for ever
+       last      ADDR of the variable for RETURNING, or unassigned
+       term      the characters that end the read (null for none)
+       dev       the file variable
+       count     ADDR of the variable for SETTING, or unassigned
+       length    the most characters to read; -1 when none was given (1 character, or any number when UNTIL is given)
+       target    ADDR of the variable that receives the data
+
+   It leaves 0 when the read was done (THEN) and 1 when it was not (ELSE).  It is done when length characters have been read or
+   a character of term has: that character is part of the data and is what RETURNING gives.  It is not done when the wait ran
+   out (STATUS() 0) or when there was an error or the end of the data (STATUS() the error).  What was read before it stopped
+   is in the target and counted either way.  The wait is for each character, not for the whole read.                         */
+
+#define GET_MAX_UNBOUNDED 1048576 /* UNTIL with no length: stop here, rather than fill memory from a device that never ends the line */
+
+/* Wait for data on fd.  1 data, 0 timed out, -1 error or the process is to stop.  *seconds counts down; -1 waits for ever. */
+
+Private int get_wait(OSFILE fu, int* seconds) {
+  int poll_status;
+
+  for (;;) {
+    poll_status = sdpoll(fu, (*seconds == 0) ? 0 : 1000);
+    if (poll_status)
+      return (poll_status < 0) ? -1 : 1;
+
+    if (my_uptr->events)
+      process_events();
+    if (((k_exit_cause == K_QUIT) && !tio_handle_break()) || (k_exit_cause == K_TERMINATE))
+      return -1;
+
+    if (*seconds < 0)
+      continue;
+    if (*seconds == 0)
+      return 0;
+    (*seconds)--;
+  }
+}
+
+/* One character from a sequential file variable: 1 got it, 0 timed out, -1 error, -2 end of the data.  The buffer of a port or
+   a FIFO is the one READBLK uses (posn is the offset into it); a character device is read a byte at a time; a file by blocks. */
+
+Private int get_byte(FILE_VAR* fvar, SQ_FILE* sq_file, int timeout, u_char* c) {
+  OSFILE fu = sq_file->fu;
+  u_int16_t flags = sq_file->flags;
+  int seconds = timeout;
+  int r;
+  int n;
+  int64 block;
+  int offset;
+
+  if (flags & SQ_CHDEV) {
+    if ((r = get_wait(fu, &seconds)) <= 0)
+      return r;
+    n = read(fu, c, 1);
+    return (n < 0) ? -1 : (n == 0) ? -2 : 1;
+  }
+
+  if (flags & (SQ_PORT | SQ_FIFO)) {
+    if (sq_file->posn >= sq_file->bytes) {
+      if ((r = get_wait(fu, &seconds)) <= 0)
+        return r;
+      n = (flags & SQ_PORT) ? readport(fu, sq_file->buff, SEQ_BUFFER_SIZE) : (int)read(fu, sq_file->buff, SEQ_BUFFER_SIZE);
+      if (n < 0)
+        return -1;
+      if (n == 0)
+        return -2;
+      sq_file->bytes = n;
+      sq_file->posn = 0;
+    }
+    *c = (u_char)sq_file->buff[sq_file->posn++];
+    return 1;
+  }
+
+  /* An ordinary file or a block device, read as READBLK reads it */
+
+  block = sq_file->posn & ~SEQ_BUFFER_MASK;
+  if (block != sq_file->base) {
+    if (flush_seq(fvar, FALSE))
+      return -1;
+    Seek(fu, block, SEEK_SET);
+    if ((sq_file->bytes = (int16_t)Read(fu, sq_file->buff, SEQ_BUFFER_SIZE)) <= 0) {
+      sq_file->bytes = 0;
+      return -2;
+    }
+    sq_file->base = block;
+  }
+  offset = (int)(sq_file->posn & SEQ_BUFFER_MASK);
+  if (sq_file->bytes - offset <= 0)
+    return -2;
+  *c = (u_char)sq_file->buff[offset];
+  sq_file->posn++;
+  return 1;
+}
+
+void op_get_device() {
+  DESCRIPTOR* descr;
+  DESCRIPTOR* target;
+  DESCRIPTOR* var;
+  FILE_VAR* fvar = NULL;
+  SQ_FILE* sq_file = NULL;
+  int timeout;
+  int32_t length;
+  char term[257];
+  int term_len;
+  char* data = NULL;
+  int32_t cap = 0;
+  int32_t got = 0;
+  int32_t limit;
+  u_char c;
+  u_char last_c = 0;
+  int r = 1;
+  int result = 0;
+
+  process.status = 0;
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  timeout = descr->data.value;
+
+  descr = e_stack - 3;
+  term_len = k_get_c_string(descr, term, 256);
+  if (term_len < 0)
+    term_len = 0;
+
+  descr = e_stack - 4;
+  k_get_file(descr);
+  fvar = descr->data.fvar;
+
+  descr = e_stack - 6;
+  GetInt(descr);
+  length = descr->data.value;
+
+  target = e_stack - 7;
+  while (target->type == ADDR)
+    target = target->data.d_addr;
+
+  if (fvar->type != SEQ_FILE) {
+    process.status = ER_NSEQ;
+    result = 1;
+    goto get_done;
+  }
+  sq_file = fvar->access.seq.sq_file;
+  if (!ValidFileHandle(sq_file->fu)) { /* opened for creation, nothing written yet */
+    process.status = ER_SQRD;
+    result = 1;
+    goto get_done;
+  }
+
+  limit = (length >= 0) ? length : (term_len > 0) ? GET_MAX_UNBOUNDED : 1;
+  if (limit > GET_MAX_UNBOUNDED)
+    limit = GET_MAX_UNBOUNDED;
+
+  while (got < limit) {
+    r = get_byte(fvar, sq_file, timeout, &c);
+    if (r != 1)
+      break;
+    if (got >= cap) {
+      char* bigger;
+
+      cap = (cap == 0) ? 256 : cap * 2;
+      bigger = (char*)realloc(data, cap);
+      if (bigger == NULL) {
+        r = -1;
+        process.status = ER_MEM;
+        break;
+      }
+      data = bigger;
+    }
+    data[got++] = (char)c;
+    last_c = c;
+    if ((term_len > 0) && (memchr(term, c, term_len) != NULL))
+      break;
+  }
+
+  if (r == 1) {
+    result = 0; /* limit reached or a terminator came */
+  } else {
+    result = 1;
+    if (r == 0)
+      process.status = 0; /* the wait ran out */
+    else if (process.status == 0)
+      process.status = (r == -2) ? ER_EOF : ER_IOE;
+  }
+
+get_done:
+  /* the target gets what was read, even when the read was cut short */
+  k_release(target);
+  InitDescr(target, STRING);
+  target->data.str.saddr = NULL;
+  if (got > 0) {
+    ts_init(&(target->data.str.saddr), got);
+    ts_copy(data, got);
+    ts_terminate();
+  }
+
+  descr = e_stack - 5; /* SETTING count */
+  if (descr->type == ADDR) {
+    var = descr;
+    while (var->type == ADDR)
+      var = var->data.d_addr;
+    k_release(var);
+    InitDescr(var, INTEGER);
+    var->data.value = got;
+  }
+
+  descr = e_stack - 2; /* RETURNING last */
+  if (descr->type == ADDR) {
+    var = descr;
+    while (var->type == ADDR)
+      var = var->data.d_addr;
+    k_release(var);
+    InitDescr(var, STRING);
+    var->data.str.saddr = NULL;
+    if (got > 0) {
+      ts_init(&(var->data.str.saddr), 1);
+      ts_copy((char*)&last_c, 1);
+      ts_terminate();
+    }
+  }
+
+  if (data != NULL)
+    free(data);
+
+  for (r = 0; r < 7; r++) /* release the file variable and the term string along with the rest */
+    k_dismiss();
+  InitDescr(e_stack, INTEGER);
+  (e_stack++)->data.value = result;
+}
 
 void close_seq(FILE_VAR* fvar) {
   FILE_ENTRY* fptr;

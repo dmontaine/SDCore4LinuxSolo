@@ -17,9 +17,21 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text for CREATING.SEQKEY, $MODE AUTOLOCK, data collection files,
+ *               directory file line terminator modes, record ids with bytes 128 to 247 (the owner's exception of 12 Oct 26, which covers Solo),
+ *               triggers on directory files and the profiler.  Not carried: the S.64 edit gates and the S.65 remote file writes and locks.
+ *               voc_write_refused() and global_write_refused() stay where Solo put them.
  * 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - voc_write_refused(): a user
  *           program's own write, delete or clear of a VOC needs ADMIN (owner's
  *           rulings 12 and 14), as in SD Core Solo for Windows (SOLO 5).
+ * 15 Oct 26 dm  WRITE ... CREATING.SEQKEY skips an id that already names a record (owner's choice, a difference from openQM).
+ * 15 Oct 26 dm  WRITE ... CREATING.SEQKEY: a read-only file variable is refused, and a suspended system waited for, BEFORE an id is
+ *               taken from the file's counter (the audit of the counter: a refused write had moved it on).
+ * 11 Oct 26 dm  Data collection files: text written to one is made into its collection before
+ *               the pre-write trigger, so a trigger is always given a collection, and the
+ *               post-write trigger is given the collection (call_trigger passed it as a string
+ *               and the trigger stopped the process: Fault type 11).
+ * 12 Oct 26 dm  map_t1_id(): bytes 128 to 255 are allowed in a directory file record id (openQM item 34).
  * 10 Sep 26 dm  Parity audit: a WRITE with no lock held reports 10151, not
  *               1407's "disk may be full" (the port's fix; UPSTREAM_FIXES 20).
  *  9 Sep 26 Linux port - dir_read() added, the read half the directory code
@@ -70,6 +82,11 @@
 #include "config.h"
 #include "locks.h"
 #include "sdclient.h"
+#include "options.h"
+
+#include <time.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 /* Modified by Composer AI - 2026/06/10.
    k_error() longjmps back to the kernel command loop and never returns,
@@ -81,6 +98,10 @@ void k_error(char msg[], ...) __attribute__((noreturn));
 /* -------------------- */
 
 #define MAX_T1_BUFFER_SIZE 31744
+
+/* The modes of a directory file's trigger function (QM4 Fixes item 177): 0 if it has none */
+#define DirTrgModes(fvar) ((fvar)->access.dir.trg != NULL ? (fvar)->access.dir.trg->modes : 0)
+
 Private char *t1_buffer = NULL;
 Private int t1_buffer_size;
 Private int16_t t1_space;
@@ -102,6 +123,17 @@ Private void read_record(bool matread);
    read_record() and dir_read() so the two cannot reverse it differently. */
 Private int32_t t1_unmap_chunk(char *buff, int32_t bytes, bool last_chunk);
 Private bool valid_id(char *id, int16_t id_len);
+
+/* 16 Oct 26 (QM4 Fixes item 452): the line terminator modes of a directory file.  A record is read in chunks of up to
+   MAX_T1_BUFFER_SIZE bytes, and a CR LF pair, or the terminator at the very end, can fall across two chunks, so the modes
+   that look at CR keep what they have not decided yet in one of these between chunks. */
+typedef struct T1_UNMAP {
+  u_char mode;     /* CRLF_x of the file */
+  bool pending_cr; /* a CR ended the last chunk: data, or the first half of CR LF, as the next byte decides */
+  bool hold_fm;    /* the last chunk ended in the field mark of a terminator, kept back: it is dropped if it is the last one */
+} T1_UNMAP;
+Private int32_t t1_unmap_crlf(T1_UNMAP *st, char *buff, int32_t bytes, bool last_chunk, char *prefix, int *prefix_len);
+Private void t1_unmap_and_copy(FILE_VAR *fvar, T1_UNMAP *st, char *buff, int32_t bytes, bool last_chunk);
 
 /* ======================================================================
    voc_write_refused()  -  Is this a direct edit of a VOC without ADMIN?
@@ -283,6 +315,8 @@ void op_clrfile() {
     }
 
     fptr->file_lock = -process.user_no; /* Mark clearfile in progress */
+    if (took_lock)
+      fptr->file_lock_time = (int32_t)time(NULL); /* item 487 */
     if (fptr->ref_ct > 1)
       Sleep(1000); /* Ensure all activity finished */
     EndExclusive(REC_LOCK_SEM);
@@ -320,6 +354,15 @@ void op_clrfile() {
         break;
 
       case DIRECTORY_FILE:
+        /* Call pre-clearfile trigger function if required (QM4 Fixes item 177) */
+
+        if (DirTrgModes(fvar) & TRG_PRE_CLEAR) {
+          if (!call_trigger(fvar_descr, TRG_PRE_CLEAR, NULL, NULL, op_flags & P_ON_ERROR, FALSE)) {
+            process.status = -ER_TRIGGER;
+            goto exit_op_clrfile;
+          }
+        }
+
         strcpy(pathname, (char *)(fptr->pathname));
         if ((dfu = opendir(pathname)) == NULL) {
           process.status = -ER_RNF;
@@ -335,13 +378,26 @@ void op_clrfile() {
             continue;
           if (strcmp(dp->d_name, "..") == 0)
             continue;
+          if (is_dir_header(dp->d_name)) /* the trigger's file is not a record: CLEAR.FILE leaves it */
+            continue;
           /* converted to snprintf() -gwb 22Feb20 */
           if (snprintf(subfilename, MAX_PATHNAME_LEN + 1, "%s%c%s", pathname, DS, dp->d_name) >= (MAX_PATHNAME_LEN + 1)) {
             /* TODO: this should also be logged with more detail */
+            closedir(dfu);
             k_error("Overflowed path/filename length in op_clrfile()!");
             goto exit_op_clrfile;
           }
           remove(subfilename);
+        }
+        closedir(dfu); /* (16 Oct 26: the directory was never closed, one descriptor lost per CLEAR.FILE of a directory file) */
+
+        /* Call post-clearfile trigger function if required */
+
+        if (DirTrgModes(fvar) & TRG_POST_CLEAR) {
+          if (!call_trigger(fvar_descr, TRG_POST_CLEAR, NULL, NULL, op_flags & P_ON_ERROR, FALSE)) {
+            process.status = -ER_TRIGGER;
+            goto exit_op_clrfile;
+          }
         }
         break;
     }
@@ -374,6 +430,7 @@ void op_clrfile() {
    op_delete()  -  Delete record                                          */
 
 void op_delete() {
+  hsm_io(HSM_DELETE);
   /* Stack:
 
      |=============================|=============================|
@@ -424,6 +481,7 @@ void op_delete() {
   fvar_descr = e_stack - 2;
   k_get_file(fvar_descr);
   fvar = fvar_descr->data.fvar;
+  ProfFile(PROF_DELETE, fvar); /* the application event profiler (16 Oct 26) */
 
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
@@ -443,10 +501,13 @@ void op_delete() {
     goto exit_op_delete;
   }
 
-  if (pcfg.must_lock || txn_id) {
+  if (pcfg.must_lock || txn_id || (op_flags & P_AUTOLOCK)) {
     if (!check_lock(fvar, id, id_len)) {
-      process.status = -ER_NOLOCK;
-      goto exit_op_delete;
+      /* $MODE AUTOLOCK: take the lock, waiting for it; it is let go below as a plain DELETE lets go of its own */
+      if (!(op_flags & P_AUTOLOCK) || (lock_record(fvar, id, id_len, TRUE, txn_id, FALSE) != 0)) {
+        process.status = -ER_NOLOCK;
+        goto exit_op_delete;
+      }
     }
   }
 
@@ -460,7 +521,7 @@ void op_delete() {
       /* Call pre-delete trigger function if required */
 
       if (dh_file->trigger_modes & TRG_PRE_DELETE) {
-        if (!call_trigger(fvar_descr, TRG_PRE_DELETE, rid_descr, NULL, op_flags & P_ON_ERROR, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_PRE_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_delete;
         }
@@ -477,7 +538,7 @@ void op_delete() {
       /* Call post-delete trigger function if required */
 
       if (dh_file->trigger_modes & TRG_POST_DELETE) {
-        if (!call_trigger(fvar_descr, TRG_POST_DELETE, rid_descr, NULL, op_flags & P_ON_ERROR, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_POST_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_delete;
         }
@@ -492,13 +553,22 @@ void op_delete() {
         goto exit_op_delete; /* Illegal record id */
       }
 
+      /* Call pre-delete trigger function if required (QM4 Fixes item 177) */
+
+      if (DirTrgModes(fvar) & TRG_PRE_DELETE) {
+        if (!call_trigger(fvar_descr, TRG_PRE_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+          process.status = -ER_TRIGGER;
+          goto exit_op_delete;
+        }
+      }
+
       if (txn_id != 0) {
         txn_delete(fvar, id, id_len);
       } else {
         /* Increment statistics and transaction counters */
 
         StartExclusive(FILE_TABLE_LOCK, 50);
-        sysseg->global_stats.deletes++;
+        NoteStat(deletes);
         fptr->upd_ct++;
         EndExclusive(FILE_TABLE_LOCK);
 
@@ -530,6 +600,15 @@ void op_delete() {
           }
         }
       }
+
+      /* Call post-delete trigger function if required */
+
+      if (DirTrgModes(fvar) & TRG_POST_DELETE) {
+        if (!call_trigger(fvar_descr, TRG_POST_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+          process.status = -ER_TRIGGER;
+          goto exit_op_delete;
+        }
+      }
       break;
   }
 
@@ -540,14 +619,20 @@ exit_op_delete:
   /* Set status code on stack */
 
   InitDescr(e_stack, INTEGER);
-  (e_stack++)->data.value = process.status;
+  /* $MODE WRITE.DELETE.THEN.ELSE: a trigger failure under a THEN / ELSE
+     clause goes to ELSE, so it is returned as a positive status, which the
+     ON ERROR test passes by.  Anything else follows the old rules. */
+  if ((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE))
+    (e_stack++)->data.value = ER_TRIGGER;
+  else
+    (e_stack++)->data.value = process.status;
 
   if (process.status >= 0) {
     /* Release record lock if non-transactional DELETE */
     if (!keep_lock && (txn_id == 0) && (id_len != 0)) {
       unlock_record(fvar, id, id_len);
     }
-  } else if (!(op_flags & P_ON_ERROR))
+  } else if (!(op_flags & P_ON_ERROR) && !((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE)))
     k_error(sysmsg(1405), process.status);
 }
 
@@ -569,6 +654,7 @@ void op_read() {
    op_readv()  -  Read specific field from a record                       */
 
 void op_readv() {
+  hsm_io(HSM_READ); /* 14 Oct 26: Hot Spot Monitor counts, sheet 491 */
   /* Stack:
 
      |=============================|=============================|
@@ -621,6 +707,7 @@ void op_readv() {
   descr = e_stack - 3;
   k_get_file(descr);
   fvar = descr->data.fvar;
+  ProfFile(PROF_READ, fvar); /* READV: the application event profiler (16 Oct 26) */
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
   if (field_no != 0) {
@@ -672,6 +759,10 @@ void op_readv() {
           switch (process.status) {
             case 0: /* Got the lock */
               break;
+
+            case -3: /* This process is at its MAXRLOCK limit: an error to take or abort on, not a lock to wait for */
+              status = process.status = -ER_MAXRLOCK;
+              goto exit_op_readv;
 
             case -2: /* Deadlock detected */
               if (sysseg->deadlock)
@@ -763,6 +854,8 @@ void op_readv() {
   (e_stack++)->data.value = status;
 
   if ((status < 0) && !(op_flags & P_ON_ERROR)) {
+    if (process.status == -ER_MAXRLOCK)
+      k_error(sysmsg(11162));
     k_error(sysmsg(1406), -process.status, process.os_error);
   }
 }
@@ -814,6 +907,7 @@ void op_mapmarks() {
    op_write()  -  Write record                                            */
 
 void op_write() {
+  hsm_io(HSM_WRITE);
   /* Stack:
 
      |=============================|=============================|
@@ -843,6 +937,8 @@ void op_write() {
   u_int16_t op_flags;
   bool keep_lock;
   u_int32_t txn_id;
+  bool coll_file;                 /* A data collection file */
+  COLL_HEADER *coll_keep = NULL;  /* The collection being written, while src_descr holds its text */
 
   op_flags = process.op_flags;
   process.op_flags = 0;
@@ -850,26 +946,96 @@ void op_write() {
 
   process.status = 0;
 
-  /* Get record id */
-
   rid_descr = e_stack - 1;
-  id_len = k_get_c_string(rid_descr, id, sysseg->maxidlen);
 
   /* Find the file variable descriptor */
 
   fvar_descr = e_stack - 2;
   k_get_file(fvar_descr);
   fvar = fvar_descr->data.fvar;
+  ProfFile(PROF_WRITE, fvar); /* the application event profiler (16 Oct 26) */
 
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
+
+  if (op_flags & P_SEQKEY) {
+    /* 15 Oct 26 dm - WRITE ... CREATING.SEQKEY id.var.  The operand where the record id would be is the ADDRESS of the program's
+       id variable.  The id is the file's next sequential number, taken from the counter in the file header; it is put in the
+       variable, an update lock is taken on it (nobody can hold it, it is new, but a transaction and MUSTLOCK demand the lock and
+       a WRITEU keeps it), and the write goes on as any other.  In a transaction the id is taken now, not at the commit.  Only a
+       hashed file has the counter.                                                                                       */
+    DESCRIPTOR* id_target;
+    STRING_CHUNK* id_str = NULL;
+    int32_t seq_id;
+
+    if (fvar->type != DYNAMIC_FILE) {
+      process.status = -ER_NDYN;
+      goto exit_op_write;
+    }
+
+    /* 15 Oct 26 dm - audit.  Taking an id writes the file's header, so the two refusals that cost nothing are made BEFORE it:
+       a read-only file variable is refused with its counter as it was (it was moved on, and the write then refused), and a
+       SUSPEND (sd -suspend) holds the write until sd -resume without the header having changed on disk meanwhile. */
+    if ((sysseg->flags & SSF_SUSPEND) && (txn_id == 0))
+      suspend_updates();
+
+    if (fvar->flags & FV_RDONLY) {
+      process.status = -ER_RDONLY;
+      log_permissions_error(fvar);
+      goto exit_op_write;
+    }
+
+    /* 15 Oct 26 dm - an id that already names a record is skipped, so that records written some other way (a copy, a load, a
+       program that picked its own number) are not overwritten.  openQM does not look; the owner chose to (15 Oct 2026).  Only
+       the committed file is looked at: in a transaction an id taken earlier by this process is never given out twice anyway. */
+    for (;;) {
+      seq_id = dh_seq_key(fvar->access.dh.dh_file, 0, 0);
+      if (seq_id < 0) {
+        process.status = -ER_IOE;
+        goto exit_op_write;
+      }
+      id_len = (int16_t)snprintf(id, sizeof(id), "%d", (int)seq_id);
+      if (!dh_exists(fvar->access.dh.dh_file, id, id_len)) {
+        if (dh_err == DHE_RECORD_NOT_FOUND)
+          break;
+        process.status = -dh_err;
+        goto exit_op_write;
+      }
+    }
+
+    id_target = rid_descr;
+    while (id_target->type == ADDR)
+      id_target = id_target->data.d_addr;
+    k_release(id_target);
+    ts_init(&id_str, 16);
+    ts_printf("%d", (int)seq_id);
+    ts_terminate();
+    InitDescr(id_target, STRING);
+    id_target->data.str.saddr = id_str;
+    rid_descr = id_target; /* what the trigger and the id checks below are given: the id as a string */
+
+    memcpy(lock_id, id, id_len);
+    if (lock_record(fvar, lock_id, id_len, TRUE, txn_id, FALSE) != 0) {
+      process.status = -ER_NOLOCK;
+      goto exit_op_write;
+    }
+  } else {
+    /* Get record id */
+
+    id_len = k_get_c_string(rid_descr, id, sysseg->maxidlen);
+  }
 
   if ((sysseg->flags & SSF_SUSPEND) && (txn_id == 0))
     suspend_updates();
 
-  /* Get string descr */
+  /* Get string descr.  A data collection file takes a collection as it is and
+     turns it to JSON text just before the write (13 Oct 26). */
 
   src_descr = e_stack - 3;
-  k_get_string(src_descr);
+  coll_file = (fvar->type == DYNAMIC_FILE) && (fvar->access.dh.dh_file->flags & DHF_COLLECTION);
+  if (src_descr->type == ADDR)
+    k_get_value(src_descr);
+  if (!(coll_file && src_descr->type == COLL))
+    k_get_string(src_descr);
 
   if (!valid_id(id, id_len)) {
     process.status = -ER_IID;
@@ -891,10 +1057,13 @@ void op_write() {
 
   memcpy(lock_id, id, id_len);
 
-  if (pcfg.must_lock || (txn_id != 0)) {
+  if (pcfg.must_lock || (txn_id != 0) || (op_flags & P_AUTOLOCK)) {
     if (!check_lock(fvar, lock_id, id_len)) {
-      process.status = -ER_NOLOCK;
-      goto exit_op_write;
+      /* $MODE AUTOLOCK: take the lock, waiting for it; it is let go below as a plain WRITE lets go of its own */
+      if (!(op_flags & P_AUTOLOCK) || (lock_record(fvar, lock_id, id_len, TRUE, txn_id, FALSE) != 0)) {
+        process.status = -ER_NOLOCK;
+        goto exit_op_write;
+      }
     }
   }
 
@@ -905,11 +1074,40 @@ void op_write() {
     case DYNAMIC_FILE:
       dh_file = fvar->access.dh.dh_file;
 
+      /* 11 Oct 26 dm - A data collection file: text is made into its collection BEFORE any trigger
+         sees it, so a trigger is always given a collection whatever the program wrote (it was given
+         the text when the program wrote text).  Text that is not a JSON object or array is refused
+         here, with the same status as before, but ahead of the trigger.  The file then holds the
+         compact JSON of the collection. */
+
+      if (coll_file && (src_descr->type != COLL)) {
+        if (!coll_record_in(src_descr)) {
+          process.status = -ER_PARSE_ERROR;
+          goto exit_op_write;
+        }
+      }
+
       /* Call pre-write trigger function if required */
 
       if (dh_file->trigger_modes & TRG_PRE_WRITE) {
-        if (!call_trigger(fvar_descr, TRG_PRE_WRITE, rid_descr, src_descr, (op_flags & P_ON_ERROR), TRUE)) {
+        if (!call_trigger(fvar_descr, TRG_PRE_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, TRUE)) {
           process.status = -ER_TRIGGER;
+          goto exit_op_write;
+        }
+      }
+
+      if (coll_file) {
+        if (src_descr->type == COLL) {
+          /* Hold the collection for the post-write trigger while the descriptor
+             carries its JSON text for the write */
+          coll_keep = src_descr->data.coll;
+          coll_keep->ref_ct++;
+          if (!coll_record_text(src_descr)) {
+            process.status = -ER_BUILD_ERROR;
+            goto exit_op_write;
+          }
+        } else if (!coll_record_text(src_descr)) {
+          process.status = -ER_PARSE_ERROR; /* Text that is not a JSON object or array */
           goto exit_op_write;
         }
       }
@@ -925,10 +1123,21 @@ void op_write() {
         }
       }
 
+      if (coll_keep != NULL) {
+        k_release(src_descr);
+        InitDescr(src_descr, COLL);
+        src_descr->data.coll = coll_keep;
+        coll_keep = NULL;
+      } else if (coll_file && (dh_file->trigger_modes & TRG_POST_WRITE)) {
+        /* A pre-write trigger put text in the place of the collection: the post-write trigger is given
+           the collection made from it (the text was accepted above, so this succeeds) */
+        (void)coll_record_in(src_descr);
+      }
+
       /* Call post-write trigger function if required */
 
       if (dh_file->trigger_modes & TRG_POST_WRITE) {
-        if (!call_trigger(fvar_descr, TRG_POST_WRITE, rid_descr, src_descr, (op_flags & P_ON_ERROR), FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_POST_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_write;
         }
@@ -936,13 +1145,23 @@ void op_write() {
       break;
 
     case DIRECTORY_FILE:
-      str = src_descr->data.str.saddr;
       if (!map_t1_id(id, id_len, mapped_id)) {
         process.status = -ER_IID;
         if (!(op_flags & P_ON_ERROR))
           k_illegal_id(rid_descr);
         goto exit_op_write; /* Illegal record id */
       }
+
+      /* Call pre-write trigger function if required (QM4 Fixes item 177).  The data is taken AFTER it: the trigger may change it. */
+
+      if (DirTrgModes(fvar) & TRG_PRE_WRITE) {
+        if (!call_trigger(fvar_descr, TRG_PRE_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, TRUE)) {
+          process.status = -ER_TRIGGER;
+          goto exit_op_write;
+        }
+      }
+
+      str = src_descr->data.str.saddr;
 
       if (txn_id != 0) {
         if (!txn_write(fvar, id, id_len, str))
@@ -952,10 +1171,22 @@ void op_write() {
           goto exit_op_write;
       }
 
+      /* Call post-write trigger function if required */
+
+      if (DirTrgModes(fvar) & TRG_POST_WRITE) {
+        if (!call_trigger(fvar_descr, TRG_POST_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+          process.status = -ER_TRIGGER;
+          goto exit_op_write;
+        }
+      }
+
       break;
   }
 
 exit_op_write:
+
+  if (coll_keep != NULL)
+    coll_deref(coll_keep);
 
   k_dismiss();
   k_dismiss();
@@ -964,7 +1195,12 @@ exit_op_write:
   /* Set status code on stack */
 
   InitDescr(e_stack, INTEGER);
-  (e_stack++)->data.value = process.status;
+  /* $MODE WRITE.DELETE.THEN.ELSE: as for DELETE, a trigger failure under a
+     THEN / ELSE clause is a positive status and takes ELSE. */
+  if ((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE))
+    (e_stack++)->data.value = ER_TRIGGER;
+  else
+    (e_stack++)->data.value = process.status;
 
   if (process.status >= 0) {
     /* Release record lock if non-transactional WRITE */
@@ -972,7 +1208,7 @@ exit_op_write:
     if (!keep_lock && (txn_id == 0)) {
       unlock_record(fvar, lock_id, id_len);
     }
-  } else if (!(op_flags & P_ON_ERROR)) {
+  } else if (!(op_flags & P_ON_ERROR) && !((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE))) {
     /* 10 Sep 26 dm - Parity audit: A MISSING LOCK IS SAID AS ONE (the Windows
        port's fix; UPSTREAM_FIXES 20).  1407 reads "Error %d writing record -
        disk may be full or file may be corrupt", which sent a user looking at
@@ -980,6 +1216,8 @@ exit_op_write:
        1407 stays for the case it was written for; 10151 names the lock. */
     if (process.status == -ER_NOLOCK)
       k_error(sysmsg(10151), -process.status);
+    else if ((process.status == -ER_NDYN) && (op_flags & P_SEQKEY))
+      k_error(sysmsg(11348)); /* CREATING.SEQKEY needs a hashed file */
     else
       k_error(sysmsg(1407), -process.status, process.os_error);
   }
@@ -989,6 +1227,7 @@ exit_op_write:
    op_writev()  -  Write specific field to a record                       */
 
 void op_writev() {
+  hsm_io(HSM_WRITE);
   /* Stack:
 
      |=============================|=============================|
@@ -1033,6 +1272,16 @@ void op_writev() {
     }
   }
 
+  if (prof_mask & PROF_WRITE) /* WRITEV: the application event profiler (16 Oct 26); the file variable is third from the top */
+  {
+    DESCRIPTOR* prof_d = e_stack - 3;
+
+    while (prof_d->type == ADDR)
+      prof_d = prof_d->data.d_addr;
+    if (prof_d->type == FILE_REF)
+      ProfFile(PROF_WRITE, prof_d->data.fvar);
+  }
+
   /* Push lock flag onto e-stack; zero for WRITEV, non-zero for WRITEVU */
 
   InitDescr(e_stack, INTEGER);
@@ -1056,6 +1305,7 @@ exit_op_writev:
    read_record()  -  Read a record                                        */
 
 Private void read_record(bool matread) {
+  hsm_io(HSM_READ);
   /* Stack:
 
      |=============================|=============================|
@@ -1098,6 +1348,7 @@ Private void read_record(bool matread) {
   STRING_CHUNK *str;
   u_int32_t txn_id;
   struct stat statbuf;
+  T1_UNMAP t1u; /* line terminator mode of a directory file, and what is carried from chunk to chunk */
 
   op_flags = process.op_flags;
   process.op_flags = 0;
@@ -1116,6 +1367,7 @@ Private void read_record(bool matread) {
   fvar_descr = e_stack - 2;
   k_get_file(fvar_descr);
   fvar = fvar_descr->data.fvar;
+  ProfFile(PROF_READ, fvar); /* READ, READU, READL and MATREAD: the application event profiler (16 Oct 26) */
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
   /* Get target descr */
@@ -1161,6 +1413,10 @@ Private void read_record(bool matread) {
       switch (process.status) {
         case 0: /* Got the lock */
           break;
+
+        case -3: /* This process is at its MAXRLOCK limit: an error to take or abort on, not a lock to wait for */
+          status = process.status = -ER_MAXRLOCK;
+          goto exit_op_read;
 
         case -2: /* Deadlock detected */
           if (sysseg->deadlock)
@@ -1208,6 +1464,14 @@ Private void read_record(bool matread) {
           str_descr->data.str.saddr = str;
           if (str != NULL)
             str->ref_ct++;
+
+          /* A data collection file gives the record as a collection (13 Oct 26) */
+          if (fvar->type == DYNAMIC_FILE && (fvar->access.dh.dh_file->flags & DHF_COLLECTION)) {
+            if (matread)
+              k_error(sysmsg(11127));
+            if (!coll_record_in(str_descr))
+              status = (int16_t)(-(process.status = ER_PARSE_ERROR));
+          }
           goto exit_op_read;
 
         case TXC_DELETED: /* Reference found as deleted record */
@@ -1221,6 +1485,8 @@ Private void read_record(bool matread) {
   {
     case DYNAMIC_FILE:
       dh_file = fvar->access.dh.dh_file;
+      if (matread && (dh_file->flags & DHF_COLLECTION))
+        k_error(sysmsg(11127)); /* MATREAD makes no sense for a data collection */
       str = dh_read(dh_file, id, id_len, actual_id);
       switch (dh_err) {
         case 0:
@@ -1229,6 +1495,13 @@ Private void read_record(bool matread) {
             InitDescr(str_descr, STRING);
           }
           str_descr->data.str.saddr = str;
+
+          /* A data collection file gives the record as a collection (13 Oct 26),
+             and so does its read trigger. */
+          if ((dh_file->flags & DHF_COLLECTION) && !coll_record_in(str_descr)) {
+            status = (int16_t)(-(process.status = ER_PARSE_ERROR));
+            goto exit_op_read;
+          }
 
           /* Call read trigger function if required */
 
@@ -1259,7 +1532,7 @@ Private void read_record(bool matread) {
       /* Increment statistics counter */
 
       StartExclusive(FILE_TABLE_LOCK, 49);
-      sysseg->global_stats.reads++;
+      NoteStat(reads);
       EndExclusive(FILE_TABLE_LOCK);
 
       strcpy(pathname, (char *)(FPtr(fvar->file_id)->pathname));
@@ -1309,6 +1582,10 @@ Private void read_record(bool matread) {
 
       t1_buffer_alloc(remaining_bytes);
 
+      t1u.mode = fvar->access.dir.crlf;
+      t1u.pending_cr = FALSE;
+      t1u.hold_fm = FALSE;
+
       while (remaining_bytes > 0) {
         bytes = min(remaining_bytes, t1_buffer_size);
 
@@ -1320,17 +1597,21 @@ Private void read_record(bool matread) {
 
         remaining_bytes -= bytes;
 
-        /* A1 (UPSTREAM_FIXES 32): the conversion moved to t1_unmap_chunk() so
-           that dir_read() uses the same copy.  Body unchanged. */
-        if (fvar->access.dir.mark_mapping) /* Non-image mode read */
-        {
-          bytes = t1_unmap_chunk(t1_buffer, bytes, (remaining_bytes == 0));
-        }
-        if (bytes)
-          ts_copy(t1_buffer, bytes);
+        /* A1 (UPSTREAM_FIXES 32): the conversion moved out so that dir_read() uses the same copy; 16 Oct 26 (item 452) it
+           is t1_unmap_and_copy() now, which knows the line terminator mode.  Image mode (no mark mapping) is in there too. */
+        t1_unmap_and_copy(fvar, &t1u, t1_buffer, bytes, (remaining_bytes == 0));
       }
 
       (void)ts_terminate();
+
+      /* Call read trigger function if required (QM4 Fixes item 177) */
+
+      if (DirTrgModes(fvar) & TRG_READ) {
+        if (!call_trigger(fvar_descr, TRG_READ, rid_descr, str_descr, (op_flags & P_ON_ERROR), TRUE)) {
+          process.status = -ER_TRIGGER;
+          goto exit_op_read;
+        }
+      }
       break;
   }
 
@@ -1380,6 +1661,8 @@ exit_op_read:
   }
 
   if ((status < 0) && !(op_flags & P_ON_ERROR)) {
+    if (process.status == -ER_MAXRLOCK)
+      k_error(sysmsg(11162));
     k_error(sysmsg(1406), process.status, process.os_error);
   }
 }
@@ -1396,6 +1679,16 @@ bool map_t1_id(char *id, int16_t id_len, char *mapped_id) {
 
   p = id;
   q = mapped_id;
+
+  /* 15 Oct 26 (openQM GIT): with the option on, the two names git keeps in a working directory are not mapped, so that a directory file
+     can hold a project's source with its own .gitignore and .gitattributes */
+  if (map_dir_ids && Option(OptGit) && (id_len > 0) && (*id == '.') &&
+      (((id_len == 14) && !memcmp(id, ".gitattributes", 14)) || ((id_len == 10) && !memcmp(id, ".gitignore", 10)))) {
+    memcpy(mapped_id, id, id_len);
+    mapped_id[id_len] = '\0';
+    return TRUE;
+  }
+
 // rev 0.9-3  map ~ to %T and . to %D (consistent with what dir_select in op_dio4.c)
 //            but only when mapping to on
   if (map_dir_ids){
@@ -1414,7 +1707,11 @@ bool map_t1_id(char *id, int16_t id_len, char *mapped_id) {
 
   while (id_len--) {
     c = *(p++);
-    if ((c < 32) || (c > 126)) {
+    /* 12 Oct 26 dm  openQM item 34, on the owner's yes in chat the same day: bytes 128 to 255 are
+       allowed in a record id (they were refused, c being a signed char, with everything over 126).
+       Control characters and DEL are still refused.  This is the one place SD's English-only rule
+       is lifted, by the owner, for the characters a directory file's record id may hold.        */
+    if (((unsigned char)c < 32) || (c == 127)) {
       mapped_id = '\0';
       return FALSE;
     } else if (map_dir_ids && ((r = strchr(df_restricted_chars, c)) != NULL)) {
@@ -1480,6 +1777,314 @@ Private int32_t t1_unmap_chunk(char *buff, int32_t bytes, bool last_chunk) {
 }
 
 /* ======================================================================
+   crlf_from_vflags()  -  The line terminator mode named by field 6 of an F-type VOC entry
+
+   L LF only, C CR LF only, B CR LF or LF (a lone CR is data), X CR LF or LF (a lone CR is thrown away): the letters of the
+   openQM manual.  The letters come in capitals (get_voc_file_reference()).  None of them: CRLF_UNSET, the way SD has always
+   done it.  Used by OPEN of a directory file and by OPENSEQ.                                                       */
+
+u_char crlf_from_vflags(const char *vflags) {
+  if (vflags == NULL)
+    return CRLF_UNSET;
+  if (strchr(vflags, 'L') != NULL)
+    return CRLF_LF;
+  if (strchr(vflags, 'C') != NULL)
+    return CRLF_CRLF;
+  if (strchr(vflags, 'B') != NULL)
+    return CRLF_BOTH;
+  if (strchr(vflags, 'X') != NULL)
+    return CRLF_NOCR;
+  return CRLF_UNSET;
+}
+
+/* ======================================================================
+   t1_unmap_crlf()  -  One chunk of a directory file record, for the modes that look at CR (CRLF_CRLF, CRLF_BOTH, CRLF_NOCR)
+
+   The converted bytes are left at the start of buff and their count returned; they never come to more bytes than went in,
+   so the conversion is done in place.  What cannot be put there is the two things carried over from the chunk before - a
+   field mark that was kept back, and a CR that turned out to be data - and those are handed back in prefix[] (at most 2
+   bytes), to be copied BEFORE the returned bytes.
+
+   Whichever way the record is cut into chunks, the answer is the same as for the whole record at once:
+     CRLF_CRLF   CR LF is a line end; a lone CR or LF is data.
+     CRLF_BOTH   CR LF or LF is a line end; a lone CR is data.
+     CRLF_NOCR   LF is a line end; every CR is dropped.
+   and the last line end of the record is not turned into a field mark (the record "a" + terminator is "a", as it always was
+   for LF).  A CR that ends the record is data, in the two modes that have lone CRs.                                  */
+
+Private int32_t t1_unmap_crlf(T1_UNMAP *st, char *buff, int32_t bytes, bool last_chunk, char *prefix, int *prefix_len) {
+  u_char mode = st->mode;
+  char *q = buff;       /* the bytes put out, in place */
+  int32_t i = 0;
+  bool produced = FALSE;  /* something came out of this chunk, a line end that will be dropped included */
+  bool term_last = FALSE; /* the last byte put out is the field mark of a line end */
+  bool cr_data = FALSE;   /* the CR carried over from the chunk before is data */
+  bool held = st->hold_fm;
+  int32_t n;
+
+  *prefix_len = 0;
+  st->hold_fm = FALSE;
+
+  if (st->pending_cr) { /* only the modes that keep a lone CR ever have one */
+    st->pending_cr = FALSE;
+    produced = TRUE;
+    if ((bytes > 0) && (buff[0] == '\n')) { /* it was CR LF */
+      *q++ = FIELD_MARK;
+      term_last = TRUE;
+      i = 1;
+    } else {
+      cr_data = TRUE;
+    }
+  }
+
+  for (; i < bytes; i++) {
+    char c = buff[i]; /* q <= i, so this is never a byte already written */
+
+    if (c == '\r') {
+      if (mode == CRLF_NOCR)
+        continue; /* thrown away */
+      if (i + 1 < bytes) {
+        if (buff[i + 1] == '\n') { /* CR LF */
+          *q++ = FIELD_MARK;
+          term_last = TRUE;
+          i++;
+        } else { /* a lone CR */
+          *q++ = '\r';
+          term_last = FALSE;
+        }
+        produced = TRUE;
+      } else if (last_chunk) { /* a lone CR at the very end */
+        *q++ = '\r';
+        term_last = FALSE;
+        produced = TRUE;
+      } else { /* the next chunk says */
+        st->pending_cr = TRUE;
+      }
+    } else if (c == '\n') {
+      if (mode == CRLF_CRLF) { /* a lone LF */
+        *q++ = '\n';
+        term_last = FALSE;
+      } else {
+        *q++ = FIELD_MARK;
+        term_last = TRUE;
+      }
+      produced = TRUE;
+    } else {
+      *q++ = c;
+      term_last = FALSE;
+      produced = TRUE;
+    }
+  }
+
+  n = (int32_t)(q - buff);
+
+  /* The field mark kept back from the chunk before goes out if anything follows it: the last line end is not a field mark */
+
+  if (held) {
+    if (produced)
+      prefix[(*prefix_len)++] = FIELD_MARK;
+    else if (!last_chunk)
+      st->hold_fm = TRUE; /* nothing came out of this chunk (a CR still undecided, or CRs thrown away) */
+  }
+  if (cr_data)
+    prefix[(*prefix_len)++] = '\r';
+
+  if (term_last && (n > 0)) {
+    if (last_chunk)
+      n--; /* the last line end of the record */
+    else if (!st->pending_cr) {
+      n--; /* it may be the last: keep it back until something follows */
+      st->hold_fm = TRUE;
+    }
+  }
+
+  return n;
+}
+
+/* ======================================================================
+   t1_unmap_and_copy()  -  The text of one chunk of a directory file record, into the string being built
+
+   The one place both readers (read_record(), dir_read()) turn a chunk into SD's internal form: nothing at all in image mode
+   (MARK.MAPPING off), the old LF conversion for CRLF_UNSET and CRLF_LF, t1_unmap_crlf() for the rest.             */
+
+Private void t1_unmap_and_copy(FILE_VAR *fvar, T1_UNMAP *st, char *buff, int32_t bytes, bool last_chunk) {
+  char prefix[2];
+  int prefix_len = 0;
+
+  if (fvar->access.dir.mark_mapping) {
+    if (st->mode <= CRLF_LF)
+      bytes = t1_unmap_chunk(buff, bytes, last_chunk);
+    else
+      bytes = t1_unmap_crlf(st, buff, bytes, last_chunk, prefix, &prefix_len);
+  }
+  if (prefix_len)
+    ts_copy(prefix, prefix_len);
+  if (bytes)
+    ts_copy(buff, bytes);
+}
+
+/* ======================================================================
+   The trigger function of a directory file (16 Oct 26, QM4 Fixes item 177)
+
+   A hashed file keeps its trigger in its header.  A directory file has none, so SET.TRIGGER writes it into a file called
+   %header% in the directory (openQM's name for the file that "controls replication and triggers"; SD's holds only the
+   trigger).  A user's record id can never name it: % is one of the characters map_t1_id() rewrites, so the id %header% reaches
+   the disk as something else.  SELECT does not list it and CLEAR.FILE does not delete it.  The file is text:
+
+       trigger=name
+       modes=n          (the TRG_ bits; 0 or none means pre-write and pre-delete, as for a hashed file)
+
+   It is read when the file is opened and the trigger kept in the file variable (DIR_TRIGGER), loaded the way a hashed file's
+   is.  Setting or removing a trigger therefore takes effect for the NEXT OPEN of the file, as the manual says of a directory
+   file.  Only the operations that go through READ, WRITE, DELETE and CLEARFILE call it: WRITESEQ, WRITEBLK, OSWRITE and
+   OSDELETE do not (the manual's limit).                                                                              */
+
+#define DIR_HEADER_NAME "%header%"
+
+Private bool dir_header_path(const char *dirpath, char *path) {
+  char dir[MAX_PATHNAME_LEN + 1];
+  int n;
+
+  strncpy(dir, dirpath, MAX_PATHNAME_LEN);
+  dir[MAX_PATHNAME_LEN] = '\0';
+  n = strlen(dir);
+  if ((n > 0) && (dir[n - 1] == DS))
+    dir[n - 1] = '\0';
+  return snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%s", dir, DS, DIR_HEADER_NAME) < (MAX_PATHNAME_LEN + 1);
+}
+
+/* The trigger named in the header, if there is one and it is a name a trigger can have */
+
+Private bool dir_header_read(const char *dirpath, char *name, int *modes) {
+  char path[MAX_PATHNAME_LEN + 1];
+  char buff[256];
+  OSFILE fu;
+  int n;
+  char *p;
+  char *q;
+
+  name[0] = '\0';
+  *modes = 0;
+  if (!dir_header_path(dirpath, path))
+    return FALSE;
+  fu = dio_open(path, DIO_READ);
+  if (!ValidFileHandle(fu))
+    return FALSE;
+  n = (int)Read(fu, buff, sizeof(buff) - 1);
+  CloseFile(fu);
+  if (n <= 0)
+    return FALSE;
+  buff[n] = '\0';
+
+  for (p = buff; *p != '\0'; p = q) {
+    q = strchr(p, '\n');
+    if (q != NULL)
+      *(q++) = '\0';
+    else
+      q = p + strlen(p);
+    if (strncmp(p, "trigger=", 8) == 0) {
+      if (strlen(p + 8) <= MAX_TRIGGER_NAME_LEN)
+        strcpy(name, p + 8);
+    } else if (strncmp(p, "modes=", 6) == 0) {
+      *modes = atoi(p + 6) & 0x7F;
+    }
+  }
+
+  LowerCaseString(name);
+  if ((name[0] == '\0') || !valid_call_name(name)) {
+    name[0] = '\0';
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/* Called by OPEN of a directory file: find the trigger and load it. */
+
+void dir_trigger_open(FILE_VAR *fvar, const char *dirpath) {
+  char name[MAX_TRIGGER_NAME_LEN + 1];
+  int modes;
+  DIR_TRIGGER *trg;
+  OBJECT_HEADER *obj;
+
+  fvar->access.dir.trg = NULL;
+  if (!dir_header_read(dirpath, name, &modes))
+    return;
+
+  trg = (DIR_TRIGGER *)k_alloc(108, sizeof(DIR_TRIGGER));
+  if (trg == NULL)
+    return;
+  trg->name = (char *)k_alloc(109, strlen(name) + 1);
+  if (trg->name == NULL) {
+    k_free(trg);
+    return;
+  }
+  strcpy(trg->name, name);
+
+  obj = (OBJECT_HEADER *)load_object(trg->name, FALSE); /* NULL if it is not catalogued: the first call says so */
+  if (obj != NULL)
+    obj->ext_hdr.prog.refs += 1;
+  trg->trigger = (u_char *)obj;
+  trg->modes = (u_char)((modes != 0) ? modes : (TRG_PRE_WRITE | TRG_PRE_DELETE));
+  fvar->access.dir.trg = trg;
+}
+
+/* Called when the file variable is closed. */
+
+void dir_trigger_close(FILE_VAR *fvar) {
+  DIR_TRIGGER *trg = fvar->access.dir.trg;
+
+  if (trg == NULL)
+    return;
+  if (trg->trigger != NULL)
+    --(((OBJECT_HEADER *)(trg->trigger))->ext_hdr.prog.refs);
+  k_free(trg->name);
+  k_free(trg);
+  fvar->access.dir.trg = NULL;
+}
+
+/* SET.TRIGGER of a directory file: write the header, or take it away when the name is null.  Returns the STATUS() value. */
+
+int dir_set_trigger(FILE_VAR *fvar, const char *name, int modes) {
+  char path[MAX_PATHNAME_LEN + 1];
+  char text[MAX_TRIGGER_NAME_LEN + 40];
+  OSFILE fu;
+  int n;
+
+  if (fvar->flags & FV_RDONLY)
+    return ER_RDONLY;
+  if (!dir_header_path((char *)(FPtr(fvar->file_id)->pathname), path))
+    return ER_IID;
+
+  if (name[0] == '\0') {
+    if ((remove(path) < 0) && (errno != ENOENT)) {
+      process.os_error = errno;
+      return ER_IOE;
+    }
+    return 0;
+  }
+
+  n = snprintf(text, sizeof(text), "trigger=%s\nmodes=%d\n", name, modes);
+  fu = dio_open(path, DIO_REPLACE);
+  if (!ValidFileHandle(fu)) {
+    process.os_error = errno;
+    return ER_IOE;
+  }
+  if (Write(fu, text, n) != n) {
+    process.os_error = OSError;
+    CloseFile(fu);
+    return ER_IOE;
+  }
+  CloseFile(fu);
+  return 0;
+}
+
+/* Is this the name of the header file, which is not a record?  (SELECT, CLEAR.FILE and ANALYSE.FILE ask.) */
+
+bool is_dir_header(const char *name) {
+  return strcmp(name, DIR_HEADER_NAME) == 0;
+}
+
+/* ======================================================================
    dir_read()  -  Read a record from a directory file, as a callable
 
    A1 (UPSTREAM_FIXES 32) - NEW.  The directory half of SD had a write API and
@@ -1522,6 +2127,11 @@ bool dir_read(FILE_VAR *fvar,
   int32_t bytes;
   bool ts_started = FALSE;
   bool ok = FALSE;
+  T1_UNMAP t1u; /* line terminator mode of the file, and what is carried from chunk to chunk */
+
+  t1u.mode = fvar->access.dir.crlf;
+  t1u.pending_cr = FALSE;
+  t1u.hold_fm = FALSE;
 
   *str = NULL;
   *status = 0;
@@ -1529,7 +2139,7 @@ bool dir_read(FILE_VAR *fvar,
   /* Increment statistics counter */
 
   StartExclusive(FILE_TABLE_LOCK, 49);
-  sysseg->global_stats.reads++;
+  NoteStat(reads);
   EndExclusive(FILE_TABLE_LOCK);
 
   strcpy(pathname, (char *)(FPtr(fvar->file_id)->pathname));
@@ -1578,13 +2188,7 @@ bool dir_read(FILE_VAR *fvar,
 
     remaining_bytes -= bytes;
 
-    if (fvar->access.dir.mark_mapping) /* Non-image mode read */
-    {
-      bytes = t1_unmap_chunk(t1_buffer, bytes, (remaining_bytes == 0));
-    }
-
-    if (bytes)
-      ts_copy(t1_buffer, bytes);
+    t1_unmap_and_copy(fvar, &t1u, t1_buffer, bytes, (remaining_bytes == 0));
   }
 
   (void)ts_terminate();
@@ -1627,6 +2231,10 @@ bool dir_write(FILE_VAR *fvar, char *mapped_id, STRING_CHUNK *str) {
   char *q;
   int16_t n;
   struct stat statbuf;
+  /* What ends a line of the record: LF, except in the mode that wants CR LF (16 Oct 26, QM4 Fixes item 452).  The other
+     modes write the operating system's line end, which on Linux is the LF. */
+  char *newline = (fvar->access.dir.crlf == CRLF_CRLF) ? "\r\n" : Newline;
+  int16_t newline_bytes = (fvar->access.dir.crlf == CRLF_CRLF) ? 2 : NewlineBytes;
 
   t1_fu = INVALID_FILE_HANDLE;
   process.status = 0;
@@ -1634,7 +2242,7 @@ bool dir_write(FILE_VAR *fvar, char *mapped_id, STRING_CHUNK *str) {
   /* Increment statistics and transactions counters */
 
   StartExclusive(FILE_TABLE_LOCK, 51);
-  sysseg->global_stats.writes++;
+  NoteStat(writes);
   FPtr(fvar->file_id)->upd_ct++;
   EndExclusive(FILE_TABLE_LOCK);
 
@@ -1704,7 +2312,7 @@ bool dir_write(FILE_VAR *fvar, char *mapped_id, STRING_CHUNK *str) {
             n = q - p;
             if ((n > 0) && (!t1_write(p, n)))
               goto exit_dir_write;
-            if (!t1_write(Newline, NewlineBytes))
+            if (!t1_write(newline, newline_bytes))
               goto exit_dir_write;
             p = q + 1;
             bytes_remaining -= n + 1;
@@ -1718,7 +2326,7 @@ bool dir_write(FILE_VAR *fvar, char *mapped_id, STRING_CHUNK *str) {
       of the file.                                                   */
 
     if (fvar->access.dir.mark_mapping) {
-      if (!t1_write(Newline, NewlineBytes))
+      if (!t1_write(newline, newline_bytes))
         goto exit_dir_write;
     }
 
@@ -1740,6 +2348,11 @@ exit_dir_write:
     CloseFile(t1_fu);
   if (t1_buffer != NULL)
     t1_buffer_free();
+
+  /* 15 Oct 26 (openQM DIR.DTM): the option makes a write to a directory file count as a change of the directory, whose date and time
+     modified the operating system moves only when a name is added or removed, not when a record is replaced */
+  if ((process.status == 0) && Option(OptDirDtm))
+    (void)utimensat(AT_FDCWD, pathname, NULL, 0);
 
   return process.status == 0;
 }
@@ -1818,19 +2431,31 @@ bool call_trigger(DESCRIPTOR *fvar_descr, int16_t mode, DESCRIPTOR *id_descr, DE
   DH_FILE *dh_file;
   bool error;
   int16_t args;
+  char *trigger_name;
+  u_char *trigger_obj;
 
   fvar = fvar_descr->data.fvar;
-  dh_file = fvar->access.dh.dh_file;
+
+  /* The trigger of a hashed file is in its DH_FILE, that of a directory file in the file variable (item 177) */
+
+  if (fvar->type == DIRECTORY_FILE) {
+    trigger_name = fvar->access.dir.trg->name;
+    trigger_obj = fvar->access.dir.trg->trigger;
+  } else {
+    dh_file = fvar->access.dh.dh_file;
+    trigger_name = dh_file->trigger_name;
+    trigger_obj = dh_file->trigger;
+  }
 
   /* Check trigger function was loaded on open */
 
-  if (dh_file->trigger == NULL) {
-    k_error(sysmsg(1409), dh_file->trigger_name, FPtr(dh_file->file_id)->pathname);
+  if (trigger_obj == NULL) {
+    k_error(sysmsg(1409), trigger_name, FPtr(fvar->file_id)->pathname);
   }
 
   /* Check argument count */
 
-  args = ((OBJECT_HEADER *)(dh_file->trigger))->args;
+  args = ((OBJECT_HEADER *)trigger_obj)->args;
   if ((args < 4) || (args > 5))
     k_error(sysmsg(1410));
 
@@ -1859,6 +2484,13 @@ bool call_trigger(DESCRIPTOR *fvar_descr, int16_t mode, DESCRIPTOR *id_descr, DE
   if (updatable) {
     InitDescr(e_stack, ADDR);
     (e_stack++)->data.d_addr = data_descr;
+  } else if ((data_descr != NULL) && (data_descr->type == COLL)) {
+    /* 11 Oct 26 dm - The post-write trigger of a data collection file is given the collection.  It was
+       given the descriptor read as a string, a pointer that was not a string, and stopped the process. */
+    InitDescr(e_stack, COLL);
+    e_stack->data.coll = data_descr->data.coll;
+    (data_descr->data.coll->ref_ct)++;
+    e_stack++;
   } else {
     InitDescr(e_stack, STRING);
     str = (data_descr == NULL) ? NULL : (data_descr->data.str.saddr);
@@ -1881,7 +2513,7 @@ bool call_trigger(DESCRIPTOR *fvar_descr, int16_t mode, DESCRIPTOR *id_descr, DE
 
   /* Call trigger function using an adaptation of k_recurse() */
 
-  k_call("", args, dh_file->trigger, 0);
+  k_call("", args, trigger_obj, 0);
   process.program.flags |= PF_IS_TRIGGER | PF_IN_TRIGGER;
   k_run_program();
   k_exit_cause = 0;

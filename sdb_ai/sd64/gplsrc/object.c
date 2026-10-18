@@ -21,6 +21,14 @@
  * 29 Sep 26 dm  load_object(): the copy into program_name is bounded,
  *               keeping the tail of an over-long runfile path (SD Core
  *               Solo's SOLO 12, adopted; S.48).
+ * 14 Oct 26 dm  FORCE.RELOAD (openQM ref 37): stale_objects(),
+ *               object_is_stale(), refresh_subr_object().
+ * 14 Oct 26 dm  1.2-0 bundle A-5, sheet 491: the Hot Spot Monitor counts opens, reads, writes and deletes
+ *               by program (hsm_io(), OBJECT.io, HSM.io, hsm_dump).
+ * 17 Oct 26 dm  S.64 part 2 (owner, 17 Oct: ".out yes"): HDR_INTERNAL is honoured only for an object from the global
+ *               catalogue or for the administrator (load_object()).  Before, the bit was trusted from ANY object file, so
+ *               a user who could write one to a directory file with a <name>.out VOC entry, or to a runfile, set the bit
+ *               in the header and ran the program with every kernel gate (S.63, S.64) skipped.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -50,7 +58,9 @@ struct OBJECT {
   u_int16_t flags;
 #define OBJ_INVALID 0x0001 /* Invalidated object */
 #define OBJ_GLOBAL 0x0002  /* Loaded from global catalogue */
+#define OBJ_STALE 0x0004   /* FORCE.RELOAD: superseded, in use through a link */
   u_int16_t pad;
+  u_int32_t io[4]; /* HSM: opens, reads, writes, deletes (HSM_OPEN...); keeps the header 8 byte aligned */
   struct OBJECT_HEADER code; /* Object code */
 };
 #define OBJHDRSIZE (offsetof(OBJECT, code))
@@ -108,7 +118,7 @@ void* load_object(char* name, bool abort_on_error) {
   /* Search object chain to see if already loaded */
 
   for (obj = object_head; obj != NULL; obj = obj->next) {
-    if ((!(obj->flags & OBJ_INVALID)) &&
+    if ((!(obj->flags & (OBJ_INVALID | OBJ_STALE))) &&
         (strcmp(name, obj->code.ext_hdr.prog.program_name) == 0)) {
       /* Move item to head of lru chain */
 
@@ -256,6 +266,7 @@ found:
 
   obj->cp_time = 0;
   obj->calls = (hsm) ? 1 : 0;
+  memset(obj->io, 0, sizeof(obj->io));
   obj->flags = flags;
 
   Seek(obj_fu, 0, SEEK_SET);
@@ -267,6 +278,14 @@ found:
   if (convert) {
     convert_object_header(&(obj->code));
   }
+
+  /* 17 Oct 26 S.64 part 2: an object runs as $internal (and skips the kernel's gates on files and operating-system paths) only when
+     it comes from the global catalogue, which only SDSYS can write, or when the session is the administrator, who can run what
+     they like.  The bit is a flag in the object's own header, so for any other object it is the bit that was set by whoever wrote
+     the file: a local or private catalogue entry, a runfile, a trigger.  It is cleared in this process's copy, before anything runs;
+     the cache search above returns that copy.  The compiler itself only sets the bit in an internal-mode compile.               */
+  if ((obj->code.flags & HDR_INTERNAL) && !(flags & OBJ_GLOBAL) && !(my_uptr->flags & USR_ADMIN))
+    obj->code.flags &= ~HDR_INTERNAL;
 
   obj->code.ext_hdr.prog.refs = 0;
 
@@ -425,6 +444,59 @@ void unload_all() {
 }
 
 /* ======================================================================
+   stale_objects()  -  FORCE.RELOAD: supersede every cached object         */
+
+void stale_objects() {
+  /* Called with the unload event, before unload_all(), when the process
+     has the FORCE.RELOAD option set. An object nobody refers to is freed
+     by unload_all(). One that is referred to (a running program or a
+     subroutine link variable) is marked, so a search by name no longer
+     finds it and a CALL through a link variable loads the current
+     version. It stays in the cache until its last reference goes.      */
+
+  OBJECT* obj;
+
+  for (obj = object_head; obj != NULL; obj = obj->next) {
+    if (obj->code.ext_hdr.prog.refs > 0)
+      obj->flags |= OBJ_STALE;
+  }
+}
+
+/* ======================================================================
+   object_is_stale()  -  Has FORCE.RELOAD superseded this object?         */
+
+bool object_is_stale(void* obj_hdr) {
+  return (((OBJECT*)(((char*)obj_hdr) - OBJHDRSIZE))->flags & OBJ_STALE) != 0;
+}
+
+/* ======================================================================
+   refresh_subr_object()  -  Current object for a stale link variable     */
+
+void* refresh_subr_object(void* obj_hdr) {
+  /* Returns the object the link should now name, with its reference
+     count taken and the old object's given up. If the program can no
+     longer be loaded the old object stays in use.                        */
+
+  char name[MAX_PROGRAM_NAME_LEN + 1];
+  OBJECT_HEADER* new_hdr;
+
+  if (!object_is_stale(obj_hdr))
+    return obj_hdr;
+
+  strncpy(name, ((OBJECT_HEADER*)obj_hdr)->ext_hdr.prog.program_name,
+          MAX_PROGRAM_NAME_LEN);
+  name[MAX_PROGRAM_NAME_LEN] = '\0';
+
+  new_hdr = (OBJECT_HEADER*)load_object(name, FALSE);
+  if (new_hdr == NULL || new_hdr == (OBJECT_HEADER*)obj_hdr)
+    return obj_hdr;
+
+  new_hdr->ext_hdr.prog.refs++;
+  ((OBJECT_HEADER*)obj_hdr)->ext_hdr.prog.refs--;
+  return (void*)new_hdr;
+}
+
+/* ======================================================================
    invalidate_object()  -  Invalidate non-global prefixed object code     */
 
 void invalidate_object() {
@@ -531,6 +603,7 @@ struct HSM {
   HSM* next;
   u_int64 cp_time;
   int32_t calls;
+  u_int32_t io[4]; /* opens, reads, writes, deletes */
   char name[1];
 };
 
@@ -543,6 +616,7 @@ Private u_int64 last_cp = 0;
 Private void hsm_log(OBJECT* obj) {
   HSM* p;
   int bytes;
+  int i;
 
   hsm_enter(); /* Force update of OBJECT cp_time */
 
@@ -552,6 +626,8 @@ Private void hsm_log(OBJECT* obj) {
 
       p->cp_time += obj->cp_time;
       p->calls += obj->calls;
+      for (i = 0; i < 4; i++)
+        p->io[i] += obj->io[i];
       goto exit_hsm_log;
     }
   }
@@ -573,10 +649,12 @@ Private void hsm_log(OBJECT* obj) {
   strcpy((char*)(p->name), obj->code.ext_hdr.prog.program_name);
   p->cp_time = obj->cp_time;
   p->calls = obj->calls;
+  memcpy(p->io, obj->io, sizeof(p->io));
 
 exit_hsm_log:
   obj->cp_time = 0;
   obj->calls = 0;
+  memset(obj->io, 0, sizeof(obj->io));
 }
 
 /* ======================================================================
@@ -590,6 +668,7 @@ void hsm_on() {
   for (obj = object_head; obj != NULL; obj = obj->next) {
     obj->calls = 0;
     obj->cp_time = 0;
+    memset(obj->io, 0, sizeof(obj->io));
   }
 
   for (p = hsm_head; p != NULL; p = q) {
@@ -626,6 +705,22 @@ void hsm_enter() {
 }
 
 /* ======================================================================
+   hsm_io()  -  Count an open, read, write or delete against the program
+   that is running (14 Oct 26, sheet item 491).  HSM_OPEN... are in sd.h.
+   Attempts are counted, whether or not the operation then succeeds.
+
+   Only what the program's own object code does is counted: when c_base is
+   something else, the operation is being done by recursive code (pcode) on
+   the program's behalf - OPEN resolving its VOC name, READV and WRITEV
+   reading and writing the record they change - and that is not the
+   program's open, read or write.                                          */
+
+void hsm_io(int what) {
+  if (hsm && (hsm_old_obj != NULL) && (c_base == (u_char*)(&(hsm_old_obj->code))))
+    hsm_old_obj->io[what]++;
+}
+
+/* ======================================================================
    hsm_dump()  -  Return HSM data                                         */
 
 STRING_CHUNK* hsm_dump() {
@@ -647,7 +742,8 @@ STRING_CHUNK* hsm_dump() {
   for (p = hsm_head; p != NULL; p = p->next) {
     if (str != NULL)
       ts_copy_byte(FIELD_MARK);
-    ts_printf("%s\xfd%d\xfd%lld", p->name, p->calls, p->cp_time / 1000);
+    ts_printf("%s\xfd%d\xfd%lld\xfd%u\xfd%u\xfd%u\xfd%u", p->name, p->calls, p->cp_time / 1000,
+              p->io[HSM_OPEN], p->io[HSM_READ], p->io[HSM_WRITE], p->io[HSM_DELETE]);
   }
 
   ts_terminate();

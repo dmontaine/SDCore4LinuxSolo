@@ -17,6 +17,12 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: kill_process() releases the class objects held in named common before
+ *               the e-stack is freed (Core e7ea5f8): their destroy code ran on freed memory and the process died with a double free.
+ *               Core's S.64 'gates' word of the user table is not carried; SOLO_ACCOUNT_NAME stays.
+ * 17 Oct 26 dm  k_run_program() keeps a resume point so that an error k_error() turns into a SYS.* exception
+ *               can go on at the handler (k_can_resume(), k_resume_exception(); QM4 Fixes 354).
+ * 16 Oct 26 dm  k_return() gives back the caller's @STDFIL after an EXECUTE (QM4 gap 225, $MODE STDFIL.SHARED)
  * 31 Dec 23 SD launch - prior history suppressed
  * 11 Jun 24 mab overwrite op_errmsg (pick error message) and op_pabort (pick abort) as illegal op code
  * 15 Jun 24 mab overwrite op_ttyset op_ttyget as illegal op code
@@ -55,6 +61,7 @@
 Private void init_program(void);
 
 jmp_buf k_exit;
+Private jmp_buf* resume_env = NULL; /* Resume point of the innermost dispatch loop (system exceptions, below) */
 
 /* Declare opcode functions */
 
@@ -89,6 +96,7 @@ bool init_kernel() {
   USER_ENTRY* uptr;
   u_int32_t m;
   int16_t msg_no = 1000; /* User limit reached */
+  int32_t lgn_waited = 0; /* Tenths of a second waited for a user entry (LGNWAIT) */
   char* p;
 
   memset(option_flags, '\0', NumOptions);
@@ -111,6 +119,8 @@ bool init_kernel() {
   /* Program control */
 
   init_program();
+  process.program.csv_mode = 1; /* CSV.MODE: not reset by init_program(), a called program inherits it */
+  process.program.csv_delim = ',';
   process.program.prev = NULL;
   process.debugging = FALSE;
 
@@ -131,6 +141,7 @@ bool init_kernel() {
     uid field.  For a phantom user, the user table index is in
     phantom_user_index.                                                    */
 
+retry_login:
   StartExclusive(SHORT_CODE, 23);
 
   if (is_phantom) {
@@ -139,7 +150,7 @@ bool init_kernel() {
     for (i = 1; i <= sysseg->max_users; i++) {
       uptr = UPtr(i);
       if (uptr->uid == 0) {
-        uptr->uid = assign_user_no(i);
+        uptr->uid = assign_user_no(i, !is_sdApiSrvr);
         if (uptr->uid == 0) {
           msg_no = 1023; /* Port is already in use */
           goto abort_login;
@@ -155,8 +166,33 @@ bool init_kernel() {
     strcpy((char*)(my_uptr->ip_addr), ip_addr);
     my_uptr->events = 0;
     my_uptr->flags = 0;
+    memset((void*)&(my_uptr->ustats), 0, sizeof(struct FILESTATS)); /* FSTAT.USER */
+    my_uptr->ustats.reset = sdtime();
+    if (is_phantom && my_uptr->grouped && (my_uptr->puid == 0)) {
+      /* PHANTOM GROUP, and the parent ended before this phantom had started: it goes at once (ReleaseLicence) */
+      my_uptr->events = EVT_TERMINATE;
+      my_uptr->flags = USR_LOGOUT;
+    }
     my_uptr->lockwait_index = 0;
     my_uptr->ttyname[0] = '\0';
+
+    /* 14 Oct 26 dm - sheet items 24 and 29: the account is empty until the session enters one (a phantom's cell
+       was given its parent's account when the parent reserved it, and keeps it).  And item 38: the peak number of
+       cells in use, counted here while this process holds SHORT_CODE, including the cell it has just taken.    */
+    if (!is_phantom) {
+      my_uptr->account[0] = '\0';
+      my_uptr->grouped = 0;   /* a phantom's was set, or not, by its parent */
+    }
+    {
+      u_int32_t in_use = 0;
+      int16_t ui;
+
+      for (ui = 1; ui <= sysseg->max_users; ui++)
+        if (UPtr(ui)->uid != 0)
+          in_use++;
+      if (in_use > sysseg->users_peak)
+        sysseg->users_peak = in_use;
+    }
 
     /* Ensure file map table is all zero */
 
@@ -184,11 +220,48 @@ bool init_kernel() {
         strncpy((char*)(my_uptr->ttyname), p, MAX_TTYNAME_LEN);
         my_uptr->ttyname[MAX_TTYNAME_LEN] = '\0';
       }
+
+      /* Started by the STARTUP configuration parameter (sysseg.c): @TTY is "startup" (openQM item 91).
+         The variable is used once, here, so it is not inherited by what the process runs. */
+      if (getenv("SD_STARTUP") != NULL) {
+        unsetenv("SD_STARTUP");
+        strcpy((char*)(my_uptr->ttyname), "startup");
+      }
     }
   }
 
 abort_login:
   EndExclusive(SHORT_CODE);
+
+  /* LGNWAIT (openQM item 46): when the user limit is the reason, wait a tenth of
+    a second and try again, for up to LGNWAIT tenths.  Web server style loads
+    can hit the limit briefly.  A phantom already has its entry reserved, and a
+    port that is in use will not become free, so neither waits.  The counters are
+    SYSTEM(1055); how long this login waited is SYSTEM(1036).                   */
+
+  if ((my_uptr == NULL) && (msg_no == 1000) && !is_phantom && (lgn_waited < sysseg->lgnwait)) {
+    if (lgn_waited == 0) {
+      StartExclusive(SHORT_CODE, 79);
+      sysseg->lgn_delayed++;
+      if (++(sysseg->lgn_waiting) > sysseg->lgn_peak)
+        sysseg->lgn_peak = sysseg->lgn_waiting;
+      EndExclusive(SHORT_CODE);
+    }
+    usleep(100000);
+    lgn_waited++;
+    goto retry_login;
+  }
+
+  if (lgn_waited > 0) {
+    StartExclusive(SHORT_CODE, 79);
+    sysseg->lgn_waiting--;
+    if (my_uptr != NULL)
+      sysseg->lgn_success++;
+    else
+      sysseg->lgn_failed++;
+    EndExclusive(SHORT_CODE);
+    login_delay = lgn_waited;
+  }
 
   if (my_uptr == NULL) /* Failed to login - Message key is in msg_no */
   {
@@ -218,8 +291,30 @@ Private void init_program() {
   process.program.col2 = 0;
   process.program.saved_capture_head = NULL;
   process.program.precision = 4;
+  process.program.itrap_chars[0] = '\0'; /* INPUTTRAP belongs to the program that set it: the caller's copy, saved before this call, keeps it */
+  process.program.itrap_n = 0;
+  process.program.itrap_stub = 0;
+  process.program.itrap_hit = 0;
+  process.program.str_ovl = 0; /* the overlap modes belong to the program that set them: the caller's copy keeps its own (Q-16) */
+  process.program.has_stacked = FALSE; /* the caller's copy, saved before this call, keeps the stacked list (openQM 61) */
+  process.program.has_stdfil = FALSE;  /* ...and the @STDFIL of STDFIL.SHARED (16 Oct 26) */
   process.program.gosub_depth = 0;
   process.program.break_handler = NULL;
+}
+
+/* ======================================================================
+   reserved_user_top()  -  The user numbers kept for FIXUSERS, PORTMAP and PHANTOMS (16 Oct 26).
+   Returns the last number of the kept block that holds user number i, zero if i is in none.  The kept blocks do not overlap
+   (read_config() refuses a configuration where they do).                                                                  */
+
+Private int16_t reserved_user_top(int16_t i) {
+  if ((sysseg->portmap_range != 0) && (i >= sysseg->portmap_base_user) && (i < sysseg->portmap_base_user + sysseg->portmap_range))
+    return sysseg->portmap_base_user + sysseg->portmap_range - 1;
+  if ((sysseg->fixusers_range != 0) && (i >= sysseg->fixusers_base) && (i < sysseg->fixusers_base + sysseg->fixusers_range))
+    return sysseg->fixusers_base + sysseg->fixusers_range - 1;
+  if ((sysseg->phantoms_range != 0) && (i >= sysseg->phantoms_base) && (i < sysseg->phantoms_base + sysseg->phantoms_range))
+    return sysseg->phantoms_base + sysseg->phantoms_range - 1;
+  return 0;
 }
 
 /* ======================================================================
@@ -227,15 +322,39 @@ Private void init_program() {
    NOTE: The caller must own the SHORT_CODE semaphore.
    Returns the user number, or zero if clash of fixed port/user           */
 
-int16_t assign_user_no(int16_t user_table_index) {
+int16_t assign_user_no(int16_t user_table_index, bool interactive) {
   int16_t i;
   int16_t hi;
+  int16_t top;
+  int tries;
   int16_t portmap_lo_user = 9999;
-  int16_t portmap_hi_user;
   int16_t portmap_lo_port;
   int16_t portmap_range;
   int16_t fixusers_lo_user = 9999;
   int16_t fixusers_hi_user;
+
+  /* 15 Oct 26 dm - QM4 gaps Q-19, USPLIT.  Interactive users take the lowest free user number and every other process (a
+     phantom, an API session) the highest free one in the range 1 to NUMUSERS, so the two kinds never meet.  FIXUSERS,
+     PORTMAP and USERPOOL are ignored, as the manual says.  There is always a free number: the caller holds a free
+     user table cell and the table and the number range are the same size.                                           */
+  if (sysseg->usplit) {
+    if (interactive) {
+      for (i = 1; i <= sysseg->max_users; i++) {
+        if (!*(UMap(i)))
+          break;
+      }
+    } else {
+      for (i = sysseg->max_users; i >= 1; i--) {
+        if (!*(UMap(i)))
+          break;
+      }
+    }
+    if ((i >= 1) && (i <= sysseg->max_users)) {
+      *(UMap(i)) = user_table_index;
+      return i;
+    }
+    return 0;
+  }
 
   /* Copy FIXUSERS and PORTMAP related parameters from shared memory
     for best performance                                             */
@@ -257,7 +376,6 @@ int16_t assign_user_no(int16_t user_table_index) {
 
   if ((portmap_range = sysseg->portmap_range) != 0) {
     portmap_lo_user = sysseg->portmap_base_user;
-    portmap_hi_user = portmap_lo_user + portmap_range - 1;
     portmap_lo_port = sysseg->portmap_base_port;
 
     if ((port_no >= portmap_lo_port) &&
@@ -275,19 +393,23 @@ int16_t assign_user_no(int16_t user_table_index) {
   }
 
   /* Starting at the next user number in cyclic order, find the first
-    available user number (there must be one).                        */
+    available user number (there must be one).  USERPOOL=0 (openQM item
+    551) starts again from 1 every time, which takes the lowest free number
+    rather than rotating through them.                                    */
 
-  i = sysseg->last_user;
+  i = (sysseg->userpool == 0) ? 0 : sysseg->last_user;
   hi = sysseg->hi_user_no;
+  tries = 0;
   do {
     i = (i % hi) + 1;
-    if ((i >= portmap_lo_user) && (i <= portmap_hi_user)) {
-      /* Skip reserved ports */
-      i = (portmap_hi_user % hi) + 1;
-    } else if ((i >= fixusers_lo_user) && (i <= fixusers_hi_user)) {
-      /* Skip reserved ports */
-      i = (fixusers_hi_user % hi) + 1;
-    }
+
+    /* 16 Oct 26 dm - skip the numbers FIXUSERS, PORTMAP and PHANTOMS keep.  After a skip the number landed on may be the first
+       of the next kept block (two blocks side by side), so it is looked at again; the old code looked once and could hand
+       out a kept number.  The count of tries stops a configuration that keeps every number from looping for ever.        */
+    while (((top = reserved_user_top(i)) != 0) && (++tries <= 2 * hi))
+      i = (top % hi) + 1;
+    if (tries > 2 * hi)
+      return 0;
   } while (*(UMap(i)));
 
   sysseg->last_user = i;
@@ -317,6 +439,7 @@ void kernel() {
 
   if (setjmp(k_exit)) /* Abort, Quit, Logout */
   {
+    resume_env = NULL;        /* The dispatch loops that held resume points are gone (17 Oct 26) */
     unwind_stack();           /* Tidy up e-stack */
     process.for_init = FALSE; /* Not initialising FOR loop */
     process.op_flags = 0;     /* Clear opcode prefix flags */
@@ -348,6 +471,27 @@ void kernel() {
           k_return();
         }
         process.k_abort_code = 3; /* Set @ABORT.CODE */
+        break;
+
+      case K_RESET_ALL_EXIT: /* LOGTO ... RESET ALL (16 Oct 26, QM4 Fixes item 30) */
+        /* Everything is discarded and the bottom command processor, which is
+           called again below, runs the LOGTO again: the programs and menus at
+           every level, a transaction, the select lists and a capture in
+           progress (as for an abort), and the command level goes back to 1.
+           The abort code is 4; the command processor tells it from an abort
+           by that and runs the command the kernel() key kept for it.         */
+        if (my_uptr->lockwait_index)
+          clear_lockwait();
+        collation = primary_collation;
+        txn_abort();
+        clear_select(0);
+        aborting = TRUE;
+        while (process.call_depth > 1) {
+          if (process.program.flags & HDR_IS_CPROC)
+            cproc_level--;
+          k_return();
+        }
+        process.k_abort_code = 4; /* Set @ABORT.CODE */
         break;
 
       case K_LOGOUT: /* Immediate termination of process */
@@ -399,6 +543,38 @@ exit_kernel:
 }
 
 /* ======================================================================
+   release_array_objects()  -  Release the class objects in an array of descriptors, and in the arrays it holds (a named common block
+   keeps its variables in an array of arrays).  Each object is released and its slot made unassigned, so a later free_array() finds
+   nothing to destroy a second time.  Only objects: everything else stays where the program levels still point at it.                */
+
+Private void release_array_objects(ARRAY_HEADER* a_hdr) {
+  ARRAY_CHUNK* chunk;
+  DESCRIPTOR* d;
+  int16_t i;
+  int16_t j;
+
+  for (i = 0; i < a_hdr->num_chunks; i++) {
+    chunk = a_hdr->chunk[i];
+    if (chunk == NULL)
+      continue;
+    for (j = 0; j < chunk->num_descr; j++) {
+      d = &(chunk->descr[j]);
+      if (d->type == OBJ) {
+        k_release(d);
+        InitDescr(d, UNASSIGNED);
+      } else if ((d->type == ARRAY) && (d->data.ahdr_addr != NULL)) {
+        release_array_objects(d->data.ahdr_addr);
+      }
+    }
+  }
+}
+
+Private void release_common_objects(ARRAY_HEADER* chain) {
+  for (; chain != NULL; chain = chain->next_common)
+    release_array_objects(chain);
+}
+
+/* ======================================================================
    kill_process()  -  Remove process                                      */
 
 Private void kill_process() {
@@ -414,6 +590,12 @@ Private void kill_process() {
   /* Give away process resources */
 
   unwind_stack(); /* Release all e-stack variables */
+
+  /* Class objects held in named common go while there is still an e-stack and a program level to run on: releasing one runs its destroy
+     code, which is BASIC.  Left to free_common() below, after the e-stack was freed, the code ran on freed memory and ended with a second
+     kill_process() and a double free (found by the SDNet suite: $netfile keeps its sdclient objects in common).  Only the objects are
+     released here; the rest of common stays where the program levels still point at it until the levels have been unwound. */
+  release_common_objects(process.named_common);
 
   k_free(e_stack_base); /* Free e-stack memory */
 
@@ -438,15 +620,42 @@ Private void kill_process() {
 }
 
 /* ======================================================================
+   k_can_resume() / k_resume_exception()  -  System exceptions (17 Oct 26,
+   QM4 Fixes 354).  An error that k_error() turns into a SYS.* exception
+   happens deep inside an opcode, and the opcode's C code expects k_error()
+   never to return, as it does not on an abort.  So k_run_program() keeps a
+   resume point, and exc_sys_throw() (op_jumps.c) sets the handler's state up
+   as THROW does and then comes here to abandon the opcode.  One resume point
+   per dispatch loop, innermost last: a throw never reaches past the loop its
+   TRY frame belongs to (try_find() tests the recursion depth).             */
+
+bool k_can_resume() {
+  return resume_env != NULL;
+}
+
+void k_resume_exception() {
+  longjmp(*resume_env, 1);
+}
+
+/* ======================================================================
    k_run_program()  -  Dispatch loop                                      */
 
 void k_run_program() /* Returns FALSE if aborts */
 {
   u_int32_t flags;
   DESCRIPTOR* restored_e_stack;
+  jmp_buf resume;
+  jmp_buf* outer_resume;
 
   k_exit_cause = 0;
   recursion_depth++;
+
+  outer_resume = resume_env;
+  resume_env = &resume;
+  if (setjmp(resume)) {
+    /* A system exception was thrown from inside an opcode: the handler's
+       program level, stacks and pc are already in place. Go on from there. */
+  }
 
   do {
     while (!k_exit_cause) {
@@ -497,6 +706,7 @@ void k_run_program() /* Returns FALSE if aborts */
 
           if (flags & HDR_RECURSIVE) {
             k_exit_cause = K_STOP;
+            resume_env = outer_resume;
             return;
           }
         }
@@ -530,6 +740,7 @@ void k_run_program() /* Returns FALSE if aborts */
       case K_ABORT:
       case K_LOGOUT:
       case K_TERMINATE:
+      case K_RESET_ALL_EXIT:
         if (my_uptr->lockwait_index)
           clear_lockwait();
         Element(process.syscom, SYSCOM_ITYPE_MODE)->data.value = 0;
@@ -564,6 +775,7 @@ void k_run_program() /* Returns FALSE if aborts */
            (k_exit_cause == K_STOP)); /* 0531 */
 
 exit_run_program:
+  resume_env = outer_resume;
   if (--recursion_depth == 0) /* Returning from outermost recursive code */
   {
     if (break_pending && !process.break_inhibits) {
@@ -656,12 +868,19 @@ void k_return() {
     k_exit_cause = K_LOGOUT;
   }
 
+  try_level_gone(); /* 12 Oct 26: drop the TRY frames of the level just left */
+
   if (old_flags & SORT_ACTIVE) {
     op_sortclr();
   }
 
+  if (process.program.flags & HDR_IS_CPROC)
+    release_parked_fvars(cproc_level); /* back at the command processor: OPTION COMMAND.LEVEL.LOCKS lets its locks go (QM4 gap 231) */
+
   if (old_flags & IS_EXECUTE) {
     tio.prompt_char = process.program.saved_prompt_char;
+    if (process.program.has_stdfil)
+      stdfil_shared_restore(); /* the command's @STDFIL goes, the caller's comes back (QM4 gap 225) */
   }
 
   if (old_flags & HDR_IS_DEBUGGER) {
@@ -703,6 +922,9 @@ void k_call(char* name, int num_args, u_char* code_ptr, int16_t stack_adj) {
   DESCRIPTOR* new_stack;
   struct PROGRAM* prg;
   int new_stack_depth;
+  bool class_ok = class_main_ok; /* RUN or a catalogue reference may run a class module's MAIN: see below */
+
+  class_main_ok = FALSE;         /* ...for this call only, whatever becomes of it */
 
   if (process.call_depth == pcfg.maxcall)
     k_error(sysmsg(1140)); /* CALLs nested too deeply */
@@ -718,6 +940,17 @@ void k_call(char* name, int num_args, u_char* code_ptr, int16_t stack_adj) {
     hdr->ext_hdr.prog.refs++;
 
     if (hdr->flags & HDR_IS_CLASS) {
+      if (class_ok && (name != NULL)) {
+        /* RUN or a catalogue reference of a class module (16 Oct 26, QM4 Fixes item 484): the class is run as a main program, by
+           $classmain, which makes an object of it (so CREATE.OBJECT runs) and runs its MAIN subroutine.  The name goes to it as
+           its one argument; a CALL of a class is still refused.  Whatever the class has not got is reported by the object
+           reference to MAIN.                                                                                                */
+        hdr->ext_hdr.prog.refs--;
+        k_put_c_string(name, e_stack);
+        e_stack++;
+        k_call("$classmain", 1, NULL, 0);
+        return;
+      }
       k_error(sysmsg(3450)); /* A CLASS routine may not be used in this way */
     }
   } else { /* In-line object, recursive or call via SUBR */
@@ -862,6 +1095,11 @@ void k_call(char* name, int num_args, u_char* code_ptr, int16_t stack_adj) {
   /* Set flags */
 
   process.program.flags |= hdr->flags;
+
+  /* 15 Oct 26 QM4 gaps Q-17, OPTION CORRELATIVE.NOCASE: a correlative or I-type that is started now is case blind, whenever it was
+    compiled.                                                                                                                  */
+  if ((hdr->flags & HDR_ITYPE) && Option(OptCorrelativeNoCase))
+    process.program.flags |= HDR_NOCASE;
 }
 
 /* ======================================================================
@@ -1016,6 +1254,8 @@ void process_events() {
 
   if (events & EVT_UNLOAD) /* Unload inactive cached object code */
   {
+    if (Option(OptForceReload)) /* openQM FORCE.RELOAD: links are reset too */
+      stale_objects();
     unload_all();
   }
 
@@ -1039,6 +1279,28 @@ void process_events() {
       sprintf(id, "H%d", (int)process.user_no);
       dh_write(dh_file, id, strlen(id), str);
       s_free(str);
+    }
+  }
+
+  if (events & EVT_PROFILER) /* PROFILER ON / OFF USER n (16 Oct 26): start, or stop and put the table where the requester can read it */
+  {
+    int16_t req = my_uptr->prof_request;
+
+    if (req & 0x4000) {
+      prof_set((int16_t)(req & PROF_ALL));
+    } else {
+      prof_set(0);
+      ipc_descr = Element(process.syscom, SYSCOM_IPC);
+      if ((ipc_descr->type == FILE_REF) &&
+          ((fvar = ipc_descr->data.fvar) != NULL) &&
+          ((dh_file = fvar->access.dh.dh_file) != NULL)) {
+        DESCRIPTOR prof_table;
+
+        prof_dump(&prof_table);
+        sprintf(id, "F%d", (int)process.user_no);
+        dh_write(dh_file, id, strlen(id), prof_table.data.str.saddr);
+        k_release(&prof_table);
+      }
     }
   }
 
@@ -1255,11 +1517,40 @@ Private void dump_status() {
       ev_printf("%d%c%s%c", abs(fptr->file_lock), VALUE_MARK, fptr->pathname,
                 VALUE_MARK);
     }
+    /* 14 Oct 26 dm - sheet item 577: value 4, when the wait began (seconds since 1 Jan 1970 UTC), for PSTAT */
+    ev_printf("%c%d", VALUE_MARK, (int)(my_uptr->lockwait_time));
   }
 
   /* Field 5  -  Account name */
 
   ev_printf("%c%s", FIELD_MARK, account());
+
+  /* Field 6  -  @PSTAT, the text the application left for PSTAT (15 Oct 26 dm, sheet 492).  A string, or a number; the
+     marks in it become spaces so that it cannot disturb the fields of this record.  A common block starts as zeros, and
+     a zero is no text.                                                                                                  */
+
+  ev_printf("%c", FIELD_MARK);
+  {
+    DESCRIPTOR* ps = Element(process.syscom, SYSCOM_AT_PSTAT);
+
+    while (ps->type == ADDR)
+      ps = ps->data.d_addr;
+    if (ps->type == STRING) {
+      int32_t pcount = 0; /* at most 4000 characters */
+
+      for (str = ps->data.str.saddr; (str != NULL) && (pcount < 4000); str = str->next) {
+        int32_t pi;
+        char pc;
+
+        for (pi = 0; (pi < str->bytes) && (pcount < 4000); pi++, pcount++) {
+          pc = str->data[pi];
+          ev_printf("%c", ((u_char)pc >= 248) ? ' ' : pc);
+        }
+      }
+    } else if ((ps->type == INTEGER) && (ps->data.value != 0)) {
+      ev_printf("%d", (int)(ps->data.value));
+    }
+  }
 
   EndExclusive(SHORT_CODE);
   EndExclusive(GROUP_LOCK_SEM);
@@ -1400,13 +1691,24 @@ void ReleaseLicence(USER_ENTRY* uptr) {
   *(UMap(uptr->uid)) = 0;
   uptr->uid = 0;
   uptr->puid = 0;
+  uptr->grouped = 0;
 
-  /* Also, clear parent user id from any phantoms started by this process */
+  /* Also, clear parent user id from any phantoms started by this process.  15 Oct 26 dm - PHANTOM GROUP: one that was
+     grouped with it is logged out as the parent goes (the event is the one a LOGOUT of that user raises) */
 
   for (i = 1; i <= sysseg->max_users; i++) {
     uptr = UPtr(i);
-    if (uptr->puid == uid)
+    if (uptr->puid == uid) {
+      if (uptr->grouped && uptr->uid > 0) {
+        uptr->events |= (uptr->flags & USR_LOGOUT) ? EVT_LOGOUT : EVT_TERMINATE;
+        uptr->flags |= USR_LOGOUT;
+        /* `grouped` stays set, with no parent now: a phantom that has not finished starting yet clears its events and flags as
+           it takes its cell (init_kernel), and finding the mark with no parent is how it knows to go as well */
+      } else {
+        uptr->grouped = 0;
+      }
       uptr->puid = 0;
+    }
   }
 }
 

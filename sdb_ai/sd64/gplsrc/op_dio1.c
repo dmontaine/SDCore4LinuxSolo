@@ -29,6 +29,12 @@
  * 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): op_create_dh()
  *           sets DHF_NOCASE on every hashed file it creates; DHF_KEEPCASE is
  *           honoured in internal mode only.
+ * 12 Oct 26 dm  open_file() acts on the NON.TRANSACTIONAL option of OPEN and OPENPATH (P_NON_TXN; item 64).
+ * 12 Oct 26 dm  open_file() acts on the mode letters N and R in field 6 of the
+ *           F-type VOC entry (openQM items 380 and 197); _voc_ref returns them.
+ * 14 Oct 26 dm  open_file() acts on P_OPEN_ZERO ($MODE OPEN.FAIL.ZERO.FVAR, openQM item 514).
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: this file is Core's text without the S.63 OS-access test on OPENPATH,
+ *           the S.64 edit gates and the S.65 remote files.  OPENTEMP makes nothing (see op_opentemp()) until Solo has an OS-access switch.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -51,11 +57,14 @@
  * START-CODE
  */
 
+#include <dirent.h>
 #include "sd.h"
 #include "dh_int.h"
 #include "header.h"
 #include "locks.h"
 #include "syscom.h"
+#include "config.h" /* pcfg.dhcache, MAX_DH_CACHE_SIZE */
+#include "options.h" /* OPTION INHERIT.OWNERSHIP */
 
 /* Modified by Composer AI - 2026/06/10.
    k_error() longjmps back to the kernel command loop and never returns,
@@ -65,7 +74,8 @@
 void k_error(char msg[], ...) __attribute__((noreturn));
 /* -------------------- */
 
-#define MAX_DH_CACHE_SIZE 10
+/* 12 Oct 26 dm - the size is the DHCACHE configuration parameter (openQM item 90), 10 unless it says
+   otherwise; MAX_DH_CACHE_SIZE (config.h) is the most it may ask for and the size of the array. */
 struct DH_CACHE {
   char* pathname;
   DH_FILE* dh_file;
@@ -74,6 +84,7 @@ Private struct DH_CACHE dh_cache[MAX_DH_CACHE_SIZE];
 Private int16_t dh_cache_size = 0;
 
 Private void open_file(bool map_name);
+Private void remove_temp_file(const char* path);
 
 /* ======================================================================
    op_close()  -  Close a file                                            */
@@ -102,7 +113,9 @@ void op_close() {
   k_get_file(descr);
   /* fvar = descr->data.fvar; variable set but never used */
 
+  explicit_close = TRUE; /* OPTION COMMAND.LEVEL.LOCKS does not keep a file that is closed on purpose */
   k_release(descr); /* This will close the file */
+  explicit_close = FALSE;
   k_pop(1);
 
   InitDescr(e_stack, INTEGER);
@@ -177,6 +190,42 @@ void op_configfl() {
 
   InitDescr(e_stack, INTEGER);
   (e_stack++)->data.value = status;
+}
+
+/* ======================================================================
+   inherit_ownership()  -  OPTION INHERIT.OWNERSHIP (16 Oct 26, QM4 gap 239)
+
+   With the option on, a file just made (a directory, and for a hashed file the subfiles in it, to any depth) is given the
+   owner and group of the account directory, the working directory, instead of those of the user who made it.  The kernel
+   lets an ordinary user change the group to one they belong to (the account's own group) and not the owner, and no error is
+   reported when it refuses: the manual says so too.  Off by default; the group it gives is the account's, whose members
+   then have on the file what they have on the account.                                                                   */
+
+Private void inherit_ownership(const char* path, uid_t uid, gid_t gid, int depth) {
+  struct stat st;
+  DIR* dir;
+  struct dirent* ent;
+  char sub[MAX_PATHNAME_LEN + 1];
+
+  (void)lchown(path, uid, gid);
+  if ((depth > 8) || (lstat(path, &st) != 0) || !S_ISDIR(st.st_mode))
+    return;
+  if ((dir = opendir(path)) == NULL)
+    return;
+  while ((ent = readdir(dir)) != NULL) {
+    if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+      continue;
+    if (snprintf(sub, sizeof(sub), "%s%c%s", path, DS, ent->d_name) < (int)sizeof(sub))
+      inherit_ownership(sub, uid, gid, depth + 1);
+  }
+  closedir(dir);
+}
+
+Private void inherit_ownership_of(const char* path) {
+  struct stat acct;
+
+  if (Option(OptInheritOwnership) && (stat(".", &acct) == 0))
+    inherit_ownership(path, acct.st_uid, acct.st_gid, 0);
 }
 
 /* ======================================================================
@@ -303,6 +352,8 @@ void op_create_dh() {
   if (!dh_create_file(path_name, group_size, min_modulus, big_rec_size,
                       merge_load, split_load, creation_flags, version)) {
     process.status = -dh_err;
+  } else {
+    inherit_ownership_of(path_name);
   }
 
 exit_op_create_dh:
@@ -361,6 +412,8 @@ void op_create_t1() {
   if (!make_path(path_name)) {
     process.os_error = OSError;
     process.status = -ER_NOT_CREATED;
+  } else {
+    inherit_ownership_of(path_name);
   }
 
   /* Set status code on stack */
@@ -486,6 +539,7 @@ void dio_close(FILE_VAR* fvar) {
       /* (fptr->ref_ct)--; */
       /* (*UFMPtr(my_uptr, fno))--; */
       /* EndExclusive(FILE_TABLE_LOCK); */
+      dir_trigger_close(fvar); /* QM4 Fixes item 177 */
       if (fptr != NULL) {
         StartExclusive(FILE_TABLE_LOCK, 48);
         (fptr->ref_ct)--;
@@ -498,6 +552,12 @@ void dio_close(FILE_VAR* fvar) {
     case SEQ_FILE:
       close_seq(fvar);
       break;
+  }
+
+  if (fvar->temp_path != NULL) /* OPENTEMP: the file goes with its last file variable (openQM items 431, 440) */
+  {
+    remove_temp_file(fvar->temp_path);
+    k_free(fvar->temp_path);
   }
 
   if (fvar->voc_name != NULL)
@@ -515,9 +575,11 @@ void dio_close(FILE_VAR* fvar) {
 bool get_voc_file_reference(
     char* voc_name,
     bool get_dict_name,
-    char* path) /* Can be same buffer as voc_name argument */
+    char* path,    /* Can be same buffer as voc_name argument */
+    char* vflags)  /* NULL, or room for VOC_FLAGS_LEN + 1: field 6 of the F-type entry, in capitals */
 {
   DESCRIPTOR pathname_descr;
+  DESCRIPTOR flags_descr;
 
   /* Push arguments onto e-stack */
 
@@ -529,13 +591,24 @@ bool get_voc_file_reference(
   InitDescr(e_stack, ADDR); /* File path name (output) */
   (e_stack++)->data.d_addr = &pathname_descr;
 
-  pathname_descr.type = UNASSIGNED;
+  InitDescr(e_stack, ADDR); /* Field 6 of the F-type entry (output) */
+  (e_stack++)->data.d_addr = &flags_descr;
 
-  k_recurse(pcode_voc_ref, 3); /* Execute recursive code */
+  pathname_descr.type = UNASSIGNED;
+  flags_descr.type = UNASSIGNED;
+
+  k_recurse(pcode_voc_ref, 4); /* Execute recursive code */
 
   /* Extract result string */
   k_get_c_string(&pathname_descr, path, MAX_PATHNAME_LEN);
   k_release(&pathname_descr);
+
+  /* ...and the mode letters, cut to what the caller has room for */
+  if (vflags != NULL) {
+    if (k_get_c_string(&flags_descr, vflags, VOC_FLAGS_LEN) < 0)
+      vflags[0] = '\0';
+  }
+  k_release(&flags_descr);
 
   return process.status == 0;
 }
@@ -545,6 +618,7 @@ bool get_voc_file_reference(
 
 Private void open_file(bool map_name) /* Map file name via VOC entry */
 {
+  hsm_io(HSM_OPEN); /* 14 Oct 26: Hot Spot Monitor counts, sheet 491 */
   /* Stack:
 
       |================================|=============================|
@@ -571,6 +645,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   char voc_name[MAX_ID_LEN + 1];
   char mapped_name[MAX_PATHNAME_LEN + 1];
   char pathname[MAX_PATHNAME_LEN + 1];
+  char vflags[VOC_FLAGS_LEN + 1] = ""; /* Field 6 of the F-type VOC entry, in capitals */
   int16_t name_len;
   FILE_VAR* fvar = NULL;
   FILE_VAR* cached_fvar;
@@ -626,6 +701,8 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
     goto exit_op_open; /* We failed to extract the name */
   }
 
+  ProfEvent(PROF_OPEN, map_name ? voc_name : mapped_name, name_len); /* the application event profiler (16 Oct 26) */
+
   /* Create a FILE_VAR structure for this file. We will remove it later if
      the open fails for any reason.                                        */
 
@@ -639,6 +716,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   fvar->ref_ct = 1;
   fvar->index = next_fvar_index++;
   fvar->voc_name = NULL;
+  fvar->temp_path = NULL;
   fvar->id_len = 0;
   fvar->id = NULL;
   fvar->file_id = -1;
@@ -655,7 +733,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
 
     /* Map name via the VOC */
 
-    if (!get_voc_file_reference(voc_name, open_dict, mapped_name)) {
+    if (!get_voc_file_reference(voc_name, open_dict, mapped_name, vflags)) {
       /* process.status will have been set by recursive code */
       goto exit_op_open;
     }
@@ -789,19 +867,21 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
     fvar->type = DYNAMIC_FILE;
     fvar->access.dh.dh_file = dh_file;
 
-    if (map_name) {
-      /* Add file to DH cache */
+    if (map_name && (pcfg.dhcache > 0)) {
+      /* Add file to DH cache.  DHCACHE may have been lowered since the cache
+         filled (CONFIG changes it for one session), so drop the oldest entries
+         until there is room for this one. */
 
-      if (dh_cache_size == MAX_DH_CACHE_SIZE) {
+      while (dh_cache_size >= pcfg.dhcache) {
         /* Replace oldest entry */
 
         i = dh_cache_size - 1;
         dh_close(dh_cache[i].dh_file);
         k_free(dh_cache[i].pathname);
-      } else /* Add new entry to end of cache */
-      {
-        i = dh_cache_size++;
+        dh_cache_size--;
       }
+
+      i = dh_cache_size++; /* Add new entry to end of cache */
 
       if ((dh_cache[i].pathname = (char*)k_alloc(31, strlen(pathname) + 1)) ==
           NULL) {
@@ -848,6 +928,8 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   {
     fvar->type = DIRECTORY_FILE;
     fvar->access.dir.mark_mapping = TRUE;
+    fvar->access.dir.crlf = CRLF_UNSET; /* a letter in field 6 of the VOC entry may choose a mode below */
+    fvar->access.dir.trg = NULL;        /* set before anything below can fail: dio_close() frees it */
     fvar->file_id = get_file_entry(pathname, device, inode, NULL);
     if (dh_err) /* Failed to allocate entry */
     {
@@ -864,9 +946,39 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
     }
     if (op_flags & P_READONLY)
       fvar->flags |= FV_RDONLY;
+
+    dir_trigger_open(fvar, pathname); /* the trigger named in the directory's %header% file, if any (QM4 Fixes item 177) */
   }
 
 opened_via_txn_cache:
+
+  /* 12 Oct 26 dm  Mode letters in field 6 of the F-type VOC entry that named the
+     file: N opens it non-transactionally (openQM item 380), R read-only (item
+     197), S in forced write mode (QM4 Fixes item 102, hashed files).  They
+     apply to this open only, as the OPEN statement's own options do, and to a
+     file reached through a Q-pointer as well.  The other letters the manual
+     lists (M) is not acted on.  L C B and X choose the line terminator mode of a directory file
+     (16 Oct 26, QM4 Fixes item 452); a hashed file ignores them.             */
+
+  if (fvar->type == DIRECTORY_FILE)
+    fvar->access.dir.crlf = crlf_from_vflags(vflags);
+  if (strchr(vflags, 'R') != NULL)
+    fvar->flags |= FV_RDONLY;
+  if ((strchr(vflags, 'N') != NULL) || (op_flags & P_NON_TXN)) /* P_NON_TXN: the NON.TRANSACTIONAL option of OPEN */
+    fvar->flags |= FV_NON_TXN;
+  if (((strchr(vflags, 'S') != NULL) || (op_flags & P_SYNC)) && (fvar->type == DYNAMIC_FILE))
+    fvar->access.dh.dh_file->flags |= DHF_SYNC; /* every write and delete of this file is flushed to disk from now on */
+
+  /* 14 Oct 26 (openQM items 431, 440): OPENTEMP made this file; closing the file variable deletes it.  Its updates are
+     non-transactional, so that the close is a real one even inside a transaction. */
+
+  if ((op_flags & P_TEMPFILE) && (fvar->temp_path == NULL)) {
+    fvar->temp_path = (char*)k_alloc(106, strlen(pathname) + 1);
+    if (fvar->temp_path != NULL) {
+      strcpy(fvar->temp_path, pathname);
+      fvar->flags |= FV_TEMP | FV_NON_TXN;
+    }
+  }
 
   /* Set file variable */
 
@@ -879,6 +991,14 @@ exit_op_open:
   {
     if (fvar != NULL)
       dio_close(fvar);
+
+    /* 14 Oct 26 dm - $MODE OPEN.FAIL.ZERO.FVAR (openQM item 514): the file variable of a failed open is the
+       integer 0 rather than unassigned */
+    if (op_flags & P_OPEN_ZERO) {
+      k_release(fvar_descr);
+      InitDescr(fvar_descr, INTEGER);
+      fvar_descr->data.value = 0;
+    }
   }
 
   /* Set status code on stack */
@@ -889,6 +1009,54 @@ exit_op_open:
   if ((process.status < 0) && !(op_flags & P_ON_ERROR)) {
     k_error(sysmsg(1402), -process.status);
   }
+}
+
+/* ======================================================================
+   remove_temp_file()  -  delete the directory of a dynamic file that OPENTEMP made: its files, then it.  Only plain
+   files are removed; a directory inside (it should hold none) is left, and so is the directory then. */
+
+Private void remove_temp_file(const char* path) {
+  DIR* dp;
+  struct dirent* de;
+  char name[MAX_PATHNAME_LEN + 1];
+
+  if ((dp = opendir(path)) != NULL) {
+    while ((de = readdir(dp)) != NULL) {
+      if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+        continue;
+      if (snprintf(name, sizeof(name), "%s%c%s", path, DS, de->d_name) < (int)sizeof(name))
+        unlink(name);
+    }
+    closedir(dp);
+    rmdir(path);
+  }
+}
+
+/* ======================================================================
+   op_opentemp()  -  OPENTEMP {pathname} {options} TO file.var   (14 Oct 26, openQM items 431, 440)
+
+   Stack: top ADDR to file variable, below it the pathname, null for a file of SD's own making in the temp directory
+   (TEMPDIR).
+
+   SOLO: THIS STATEMENT MAKES NOTHING (18 Oct 26, the carry from SD Core for Linux; owner: OPENTEMP's temp form and the OS-path calls
+   are left out until Solo has its own OS-access switch, off unless the administrator turns it on).  The form with no pathname would make
+   a file in TEMPDIR, which is outside the account, and a pathname the program gives is an OS path just as OPENPATH's is, so both are
+   refused the same way: the name handed on is the null name, which open_file() answers with ER_NAM, the ELSE branch.  The rest of the
+   statement (the file variable, the close that deletes a temp file, remove_temp_file()) is Core's text and waits for the switch.
+   SD Core makes a dynamic file with the usual defaults there, never takes a file that exists (it would be deleted at close), and puts
+   the process id and a counter in the generated name. */
+
+void op_opentemp() {
+  DESCRIPTOR* name_descr;
+  char path[1];
+
+  name_descr = e_stack - 2;
+  path[0] = '\0';
+
+  k_release(name_descr);
+  k_put_c_string(path, name_descr);
+
+  open_file(FALSE);
 }
 
 /* ======================================================================
@@ -928,6 +1096,53 @@ void flush_dh_cache() {
     for (i = 0; i < n; i++) {
       k_release(Element(ahdr, i));
     }
+  }
+}
+
+/* ======================================================================
+   op_flushdh()  -  FLUSH.DH.CACHE {LOCAL | NO.WAIT}   (14 Oct 26, openQM 83 and 123)
+
+   Stack: 0 every process and wait for them, 1 LOCAL (this process only), 2 NO.WAIT (ask every process and carry on).
+   Every other process takes the request when it next looks at its events, so the wait is for each of them to have
+   cleared its EVT_FLUSH_CACHE bit, and is given up after four seconds (the manual's figure).                  */
+
+void op_flushdh() {
+  DESCRIPTOR* descr;
+  int32_t option;
+  int16_t u;
+  int16_t waits;
+  bool pending;
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  option = descr->data.value;
+  k_pop(1);
+
+  flush_dh_cache(); /* This process, at once */
+
+  if (option == 1)
+    return;
+
+  raise_event(EVT_FLUSH_CACHE, -1);
+
+  StartExclusive(SHORT_CODE, 24);
+  my_uptr->events &= ~EVT_FLUSH_CACHE; /* We have done ours */
+  EndExclusive(SHORT_CODE);
+
+  if (option == 2)
+    return;
+
+  for (waits = 0; waits < 40; waits++) {
+    pending = FALSE;
+    for (u = 1; u <= sysseg->max_users; u++) {
+      if (UPtr(u) != my_uptr && UPtr(u)->uid && (UPtr(u)->events & EVT_FLUSH_CACHE)) {
+        pending = TRUE;
+        break;
+      }
+    }
+    if (!pending)
+      break;
+    Sleep(100);
   }
 }
 

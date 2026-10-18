@@ -24,6 +24,10 @@
  * rev 0.9.0 Jan 25 mab SD_EUID_SET SD_EUID_RESTORE
  * rev 0.9-2 Mar 25 mab add sdext_pyobj direct control of python dictionary object
  * 29 Sep 26 dm  K_SET_LANGUAGE (38) retired: SD is English only
+ * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's numbers 92, 97 to 117, 119 and 120 and FL_WHO 1021 (FL_HOLDERS
+ *               moves to 1100 as in Core), the OS$ and SKT$ and JSON constants of the 1.2-0 work.  NOT carried, and not to be reused for another
+ *               meaning: 91 (K_LOGIN_UID), 93 to 96 (the S.63 OS-access gates), 118 (SD.ACCOUNTS), 121 to 127 (the S.64 edit gates and the S.65 NET
+ *               gate), 128 to 131 (the S.66 shared account), SKT$INFO.TLS.SPKI, SD_FILE_PRIVATE, FL_TYPE_NET.  Solo's K_GLOBAL_SESSION (69) stays.
  *
  * END-HISTORY
  *
@@ -88,11 +92,48 @@
 #define FL_NO_RESIZE    1018
 #define FL_UPDATE       1019
 #define FL_ENCRYPTED    1020
-/* 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.  Which sessions hold this
-   file open, as printable text.  READ-ONLY, so it belongs in the 1000 block
-   with the other queries and not with the 10000 actions.  The port's number,
-   so FILEINFO keys mean the same in both systems.                          */
-#define FL_HOLDERS      1021
+/* 17 Oct 26 dm (QM4 Fixes 62; owner's yes in chat): 1021 is the openQM FL$WHO, as the manual
+   has it: the user numbers of the other sessions that hold this file open, a field mark
+   between them, and null when there are none.  The caller is left out unless it has the file
+   open through more than one file variable.  READ-ONLY, so it is in the 1000 block with the
+   other queries and not with the 10000 actions.
+
+   Until 17 Oct 26 1021 was FL_HOLDERS, the Windows port's text form ("12 (don), 14 (ann)"),
+   which SD's own programs print in "cannot gain exclusive access" messages (10168).  That
+   form stays, for those programs, at 1100: a number the manual does not use and is not
+   likely to.  The Windows port still has the text form at 1021 until its agent follows.   */
+#define FL_WHO          1021
+#define FL_HOLDERS      1100
+/* 12 Oct 26 dm - the openQM FILEINFO() keys above 1021, numbered as the openQM 4
+   manual numbers them (1021 was the exception until 17 Oct 26, above).
+   Mirrored in sdsys/syscom/keys.h.  Several have nothing to report in SD (no
+   QMNet, no replication, no ECS, no distributed files) and answer as openQM
+   does for a file without the feature.
+   FL_COLLECTION was 1022, SD's own guess, on 13 Oct; the manual says 1035 and
+   gives 1022 to FL_NETFILE.  It had not been released.                       */
+#define FL_NETFILE      1022 /* QMNet file?                            */
+#define FL_SEQTYPE      1023 /* Sequential file sub-type, below        */
+#define FL_SEQTYPE_PORT  1
+#define FL_SEQTYPE_CHDEV 2
+#define FL_SEQTYPE_FIFO  3
+#define FL_SEQTYPE_DRIVE 4
+#define FL_REPLICATED   1024 /* Replication targets                    */
+#define FL_NOMAP        1025 /* Directory file, id translation off?    */
+#define FL_ECS          1026 /* Created in ECS mode?                   */
+#define FL_ECS_MAP_NAME 1027 /* ECS map name                           */
+#define FL_ENCODING     1028 /* Data encoding of a directory file      */
+#define FL_LAST_PART    1029 /* Last part of a distributed file        */
+#define FL_INDEX_SCAN   1030 /* Index scanning operations supported?   */
+#define FL_SEQ_KEY      1031 /* Sequential record id                   */
+#define FL_NON_TXN      1032 /* Opened NON.TRANSACTIONAL?              */
+#define FL_SYNC         1033 /* Opened with SYNC?                      */
+#define FL_ID_CASING    1034 /* "L" or "U" for forced id casing        */
+#define FL_COLLECTION   1035 /* Data collection file?                  */
+#define FL_OWNER        1036 /* Owner of the file (Windows only)       */
+#define FL_TEMP         1037 /* Temporary file?                        */
+#define FL_TXN_UPDATE   1038 /* Updated in the current transaction?    */
+#define FL_LOCKS        1039 /* Locks the caller holds in this file    */
+#define FL_CONSTRAINTS  1040 /* Data integrity constraints?            */
 
 /* Values over 10000 are restricted */
 #define FL_EXCLUSIVE   10000
@@ -199,7 +240,9 @@
 #define K_REAL_USER          90
 /* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
    are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
-   own Linux permissions, and the kernel no longer carries those keys.       */
+   own Linux permissions, and the kernel no longer carries those keys.
+   18 Oct 26 (the carry from SD Core): 92 now means K_WINSIZE below, as it does
+   in SD Core, so it must not be read as the old K_OS_EXEC; 91 stays unused.   */
 
 /* 30 Sep 26 SD Core for Linux Solo - LSOLO 12, RULING 33 (the Windows Solo
    key, same number).  WAS THIS SESSION ADMITTED WITH THE GLOBAL PASSWORD?
@@ -210,6 +253,111 @@
    APISRVR), so user code can neither grant nor forge it.  Held in the user
    table as USR_GLOBAL.  int$keys.h carries the same key.                    */
 #define K_GLOBAL_SESSION     69
+/* 13 Oct 26 dm - THE TERMINAL'S OWN SIZE.  kernel(K$WINSIZE, '') answers the
+   terminal's width, a field mark and its height, as the kernel last read them
+   from the tty (TIOCGWINSZ, at start-up and again whenever the terminal is
+   resized: SIGWINCH), or null when it has not been able to - no tty (a phantom,
+   a pipe, the API) or a terminal that reports 0 by 0.  LOGIN keeps what the
+   kernel read and no longer overrides it with terminfo's 120 by 36.  This
+   tree's own key, in its own block; GPL.BP/INT$KEYS.H carries the same number. */
+#define K_WINSIZE            92
+/* 14 Oct 26 dm - 1.2-0 sheet items 24, 29 and 38 (LISTU).  This tree's own block, 90-99; GPL.BP/INT$KEYS.H carries
+   the same numbers.
+     K_SET_ACCOUNT  the account the session is in, for the user table.  The argument is the account name, set only from
+                    a $internal program (LOGIN, CPROC's logto, APISRVR, which own entry to an account), and the name
+                    as it stands is returned.  K_USERS answers it as the ninth value of each user.
+     K_USER_PEAK    the most user table cells in use at once since SD started (sysseg->users_peak).               */
+#define K_SET_ACCOUNT        97
+#define K_USER_PEAK          98
+/* 14 Oct 26 dm - 1.2-0 sheet item 389 (INPUT var, length, fill).  The compiler cannot add an element to the stack of OP_INPUT /
+   OP_INPUTAT without changing the kernel, APISRVR and the test for INPUT var, -1, so a fill string given in a program is handed to
+   _INPUT / _INPUTAT through the kernel instead.
+     K_INPUT_FILL_SET  the fill string the next INPUT or INPUT @ is to use (the compiler plants this call before it, and sets the
+                       flag IN$FILL); the first three characters are kept.  Open to any program: it holds a string and nothing else.
+     K_INPUT_FILL_GET  returns the fill string and forgets it, so that no later INPUT can see it.                            */
+#define K_INPUT_FILL_SET     99
+#define K_INPUT_FILL_GET     100
+/* 14 Oct 26 dm - 1.2-0 sheet item 408 (INPUTNULL and INPUTTRAP).
+     K_INPUT_NULL_SET  the INPUTNULL character: set it (the first character of the argument; null cancels), the old one returned.
+                       It belongs to the process and CPROC cancels it at the command prompt, as the manual says.
+     K_INPUT_NULL_GET  the INPUTNULL character now ("" for none).
+     K_INPUT_TRAP_TEST called by _INPUTAT with the single character that was typed: if the program that executed the INPUT @ (the
+                       caller of _INPUTAT) has an INPUTTRAP that names it, that program's itrap_hit is set to the number of the label
+                       (the last one if there are more characters than labels) and 1 is returned, else 0.
+     K_INPUT_TRAP_HIT  called by the stub that the INPUTTRAP statement compiles: the label number of the trap just taken, and forgets it. */
+#define K_INPUT_NULL_SET     101
+#define K_INPUT_NULL_GET     102
+#define K_INPUT_TRAP_TEST    103
+#define K_INPUT_TRAP_HIT     104
+/* 15 Oct 26 dm - QM4 gaps Q-18, SYSTEM(1088).
+     K_MAXMIN_POS_SET  _MAXIMUM and _MINIMUM leave the position of the element they found: field, value and subvalue numbers
+                       joined by value marks, a null string if there was none.  SYSTEM(1088) gives it back.  The process's own. */
+#define K_MAXMIN_POS_SET     105
+/* 15 Oct 26 dm - QM4 gaps Q-8.
+     K_PID_ALIVE       1 if the process with this id exists (a process of another user counts), 0 if it does not. */
+#define K_PID_ALIVE          106
+/* 15 Oct 26 dm - QM4 gaps Q-16, KEEP.SELECT.
+     K_KEEP_SELECT     the KEEP.SELECT flag of the command now running: 1 sets it, 0 clears it, -1 only asks.  The previous value
+                       comes back.  CPROC clears it as each outermost command starts and tests it when the command has finished. */
+#define K_KEEP_SELECT        107
+/* 15 Oct 26 dm - QM4 gaps Q-8, COMMAND.LOGGING (the per-process form).
+     K_CMDLOG          1 starts logging this process's commands, 0 stops, -1 only asks.  The pathname of the log comes back
+                       when logging is on after the call, a null string when it is off or could not be started (the file
+                       is made mode 0600, owned by the caller, and a symbolic link in its place refuses it).  The log is
+                       clog.<user number>.log in the account directory; TEMPDIR is not used (it is /tmp unless sd.conf
+                       says otherwise, a directory anyone can write to).
+     K_CMDLOG_WRITE    "origin<field mark>command": one line is added to the log if logging is on, and nothing otherwise.
+                       The line is tab separated: epoch value, user number, login name, origin, command.                  */
+#define K_CMDLOG             108
+#define K_CMDLOG_WRITE       109
+/* 15 Oct 26 dm - QM4 gaps Q-8 (PHANTOM GROUP, sheet 427 and 433).
+     K_GROUP_PHANTOM   the user number of a phantom this process has started: it is marked as grouped with this process and is
+                       logged out when this process ends.  1 if it was marked, 0 if the number is not one of this process's
+                       phantoms.  SYSTEM(1073) lists the grouped ones; K_USERS reports the mark as USR_GROUPED in the flags. */
+#define K_GROUP_PHANTOM      110
+/* 15 Oct 26 dm - QM4 gaps Q-9 (SP.ASSIGN and SET.QUEUE).
+     K_FORM_QUEUE      unit * 1000 + queue: SP.ASSIGN has assigned form queue (0 to 999) to print unit (0 to 255).  GETPU(PU$FORM.QUEUE,
+                       unit) gives it back, SYSTEM(1066) gives the last one given to any unit.  Returns 1, or 0 for numbers out of range. */
+#define K_FORM_QUEUE         111
+/* 15 Oct 26 dm - QM4 gaps Q-8 (FSTAT.USER).
+     K_USER_STATS      the file activity counts of one user (the number) or of every user (0): a field for each, the user number,
+                       then opens, reads, writes, deletes, clears, selects, AK reads, AK writes, AK deletes, splits, merges and
+                       the sdtime() the counts started at, as values, and the login name last. */
+#define K_USER_STATS         112
+/* 15 Oct 26 dm - QM4 gaps Q-16 and sheet 442 (NON.DURABLE.TXN, QMTxn mode 4).
+     K_NON_DURABLE_TXN 1 makes the next COMMIT of this process non-durable: if the transaction is nested in another, its cached
+                       updates and its locks go to the parent instead of to the files.  The COMMIT clears it, used or not.
+                       A program compiled with $MODE NON.DURABLE.TXN sets it before each COMMIT. */
+#define K_NON_DURABLE_TXN    113
+/* 16 Oct 26 dm - QM4 gaps (PHANTOM USER n and the PHANTOMS parameter).
+     K_PHANTOM_USER    n: the next phantom() of this process is to be user number n, and no other.  The number has to be one of
+                       those the PHANTOMS parameter keeps and not be in use, or phantom() returns 0.  0 cancels.  phantom() clears
+                       it, made or not.  Returns 1. */
+#define K_PHANTOM_USER       114
+/* 16 Oct 26 dm - QM4 gaps (LOCK.TRACER).
+     K_LOCK_TRACE      1 starts lock tracing, 0 stops it, -1 only asks.  Starting (administrator only) makes an empty file
+                       locktrace in the system directory, mode 0620; every lock taken or let go after that is added to it by
+                       lock_trace() in op_lock.c.  Returns the state after the call, -1 if the caller may not change it or the
+                       file could not be made. */
+#define K_LOCK_TRACE         115
+/* 16 Oct 26 dm - QM4 gaps (PROFILER).
+     K_PROFILER        n > 0 starts the application event profiler in this process, logging the events whose PROF_x bits are in n (and
+                       emptying the table); 0 stops it, leaving what was found; -1 asks which are being logged; -2 returns what was
+                       found (see profiler.c).  Returns the events being logged, or the table.
+     K_PROFILER_USER   user * 4096 + 2048 + n starts it in another process, user * 4096 alone stops it and has that process
+                       write its table to the $ipc record F<user>.  The administrator only.  Returns 1 if the process was found,
+                       0 if not, -1 if the caller may not. */
+/* 16 Oct 26 dm - QM4 Fixes item 30 (LOGTO ... RESET ALL).  K_RESET_ALL with a command: keep it, cast off every programme and
+   stacked command processor and return to the bottom one (k_exit_cause K_RESET_ALL_EXIT), which takes the command back with a
+   null argument and runs it.  Returns 1 when accepted, 0 when refused (an API server has no bottom command processor to go
+   back to).  With a null argument it returns the kept command, or the null string, and forgets it. */
+#define K_RESET_ALL          119
+/* 16 Oct 26 dm - QM4 Fixes item 484.  K_CLASS_MAIN with 1: the next k_call() may run a class module through its MAIN subroutine
+   (kernel.c, class_main_ok).  CPROC sets it just before it calls a catalogued command; op_run() and op_chain() set it themselves.
+   Used by that one call whatever becomes of it. */
+#define K_CLASS_MAIN         120
+#define K_PROFILER           116
+#define K_PROFILER_USER      117
 
 /* PTERM() function action keys */
 #define PT_BREAK              1
@@ -220,6 +368,9 @@
 #define PT_BINARY_IN          6
 #define PT_BINARY_OUT         7
 #define PT_TELNET             8
+#define PT_MARK               9  /* 12 Oct 26 (openQM item 155): ctrl-\ ctrl-] ctrl-^ type SM VM FM */
+#define PT_ERASE             10  /* INPUT's erase key: 0 as the terminal type and PAL-21 say, 1-255 that one, 256 none */
+#define PT_CTRL_FILTER       11  /* Discard control characters in INPUT and INPUT@ (per command processor level) */
 
 /* SELECTINFO() function keys */
 #define SL_ACTIVE       1
@@ -241,6 +392,12 @@
 #define OS_DIR         12  /* Return content of directory */
 #define OS_MKDIR       13  /* Create a directory */
 #define OS_MKPATH      14  /* Create a directory path */
+#define OS_OWNER       15  /* Name of the user who owns the path (16 Oct 26, DIR_DICT's OWNER item); the number if the user has no name */
+/* 12 Oct 26 dm - the openQM 4 manual's key 20.  SD's other OS_ numbers are the older
+   scheme (the manual's OS$OPEN is 6, SD's is 11), so only numbers that clash with none
+   of them are taken from the manual.  OS$FULLPATHX (9 in the manual, where SD's is
+   OS_CD) is OS_FULLPATH under another name: SD keeps the case on Linux.            */
+#define OS_INFO        20  /* Information in the form of the STATUS statement's array */
 /* 20240225 mab add CHOWN to OSPATH                       */
 #define OS_CHOWN      100  /* change file / dir ownership */
 
@@ -351,6 +508,14 @@
 #define PU_NEWLINE            1016
 #define PU_PRINTER_NAME       1017
 #define PU_FILE_NAME          1018
+#define PU_SEQNO              1019
+/* 12 Oct 26 dm - the openQM 4 manual's GETPU() keys 1020 to 1025 (read only) */
+#define PU_FORM_QUEUE         1020  /* Last form queue assigned by SP.ASSIGN: SD has none, 0 */
+#define PU_FORM_FEED          1021  /* The form feed string of this print unit */
+#define PU_ENCODING           1022  /* Character encoding: SD is English only, null */
+#define PU_FONT               1023  /* Font name: not used, null */
+#define PU_PATHNAME           1024  /* Pathname of the output file, null when there is none open */
+#define PU_FONT_SIZE          1025  /* GDI mode font size: not used, 0 */
 #define PU_LINENO             2000
 
 /* SETNLS key values */
@@ -379,6 +544,26 @@
    Mirrored in sdsys/syscom/keys.h. */
 #define SKT_TLS                  0x01000000
 #define SKT_INFO_TLS_CBIND       8    /* SCRAM c= for this TLS session */
+/* 15 Oct 26 dm - QM4 gaps Q-5, SELECT.SOCKET().  The key (SD's own number: openQM's list does not give one) and the events
+   a program can watch for.  Mirrored in sdsys/syscom/keys.h. */
+#define SKT_INFO_EVENTS          9    /* Events to watch (SET.SOCKET.MODE) / events last found (SOCKET.INFO) */
+#define SKT_INFO_TRACE          10    /* 15 Oct 26 dm - SET.SOCKET.MODE: the pathname of a log of the data sent and received; null turns it off */
+#define SKT_READ_EVENT           1    /* Data can be read, or a connection is waiting on a server socket, or it was closed */
+#define SKT_WRITE_EVENT          2    /* Data can be sent */
+#define SKT_EXCEPTION_EVENT      4    /* An exception condition */
+
+/* JPARSE() and JBUILD() modes (13 Oct 26, data collections).  Mirrored in
+   sdsys/syscom/keys.h; the values are SD's own - openQM names them only. */
+#define JP_NULL                  1    /* A JSON null is read as a null string */
+#define JP_UNQUOTED_NAME         2    /* Element names may be unquoted */
+#define JB_INVALID               1    /* A value JSON cannot hold is saved as null */
+#define JB_NULL                  2    /* A null string is saved as null */
+#define JB_NUM                   4    /* A string that is a number is saved as one */
+#define JB_SQUOTE_NAME           8    /* Names in single quotes */
+#define JB_NOQUOTE_NAME          16   /* Names with no quotes */
+#define JB_SQUOTE_VALUE          32   /* String values in single quotes */
+#define JB_NOQUOTE_VALUE         64   /* String values with no quotes */
+#define JB_PRETTY                128  /* SD's own: one element to a line, indented (used by CT) */
 
 /* OBJINFO() keys */
 #define OI_ISOBJ      0  /* Is descriptor an object */
@@ -391,6 +576,9 @@
 #define FC_NON_TXN               4    /* Set open file as non-transactional */
 #define FC_SPLIT_MERGE           5    /* Force split/merge */
 #define FC_NO_RESIZE             6    /* Set DHF_NO_RESIZE flag */
+#define FC_SET_SEQ_KEY           8    /* Set the next id of WRITE ... CREATING.SEQKEY (hashed files; 15 Oct 26) */
+#define FC_GET_SEQ_KEY           9    /* Take the next such id (null string if the file is not a hashed file) */
+#define FC_SET_MODE              7    /* Set the permission bits of a record of a directory file: "id<FM>ooo" (15 Oct 26, Q-8) */
 
 /* SD_ENCRYPT_SODIUM encryption decryption  */
 #define SD_EncodeHX     201  /* encode passed string as Hex String */
