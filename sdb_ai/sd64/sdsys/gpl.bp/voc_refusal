@@ -1,0 +1,88 @@
+* VOC_REFUSAL
+* Which message refuses a change to this open file, if any?
+* Copyright (c) 2026 Ladybridge Systems, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+*
+* START-HISTORY:
+* 18 Oct 26 SD Core for Linux Solo (Solo carry A, owner's ruling B) - NEW.  The rule that was
+*           the body of !voc_guard, with the display taken out, so that a caller which cannot
+*           display (the API server: its client is not at a terminal) can ask the same question
+*           and put the answer in its own error message.  !voc_guard is now this and a display.
+*           The rule itself is unchanged: 30 Sep 26 LSOLO 12 (the global files need a
+*           global-password session) and 29 Sep 26 LSOLO 6 (the VOC needs ADMIN).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    deffun voc_refusal(f) calling '!voc_refusal'
+*    n = voc_refusal(file.var)
+*
+* Returns 0 when a change to the file F is allowed, otherwise the number of the message that says
+* why not (11008 the VOC needs ADMIN, 11028 the global catalogue and its siblings need a
+* global-password session).  Nothing is displayed.  See !voc_guard for what the rule is for and
+* why it is applied by BASIC programs: op_dio3.c refuses a user program's own write, but a verb
+* that is $internal passes the C test, so each $internal verb that changes a file its user
+* named asks for itself.
+*
+* IT LOOKS AT THE FILE THAT WAS OPENED, NOT AT THE NAME THAT WAS TYPED, so a Q-pointer to a VOC,
+* or "voc" in any case, is caught.  A VOC is a DH (dynamic) file whose last path component is
+* "voc" - the same rule as voc_write_refused() in C.  The dictionary, voc.dic, is not the VOC.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+function voc_refusal(f)
+$catalog !voc_refusal
+
+$include keys.h
+$include int$keys.h
+
+   p = downcase(fileinfo(f, FL$PATH))
+   if p[len(p), 1] = '/' then p = p[1, len(p) - 1]
+   last = field(p, '/', dcount(p, '/'))
+
+*  30 Sep 26 LSOLO 12 - RULING 33 (Windows Solo): SDSYS's gcat, global.bp.out and
+*  solo.policy (ruling 34's deny list) are the SD Core server's, changed only
+*  by a session signed in with the global password - ADMIN is NOT enough, so
+*  this comes before the ADMIN test.  The C gate (op_dio3.c
+*  global_write_refused) lets $internal verbs through, and COPY, ED, DELETE and
+*  the rest are $internal.  On Linux the SDSYS directory IS the install's home
+*  directory (no "sdsys" component), so the test is the full path: @SDSYS plus
+*  the name.  A symbolic link to one of them is NOT recognised here - the
+*  tree belongs to the Linux user, so this governs what SD will do, not what
+*  that user can do to the files from outside SD (op_dio3.c says the same).
+   if fileinfo(f, FL$TYPE) = FL$TYPE.DIR then
+      sd.dir = downcase(@sdsys)
+      if sd.dir[len(sd.dir), 1] = '/' then sd.dir = sd.dir[1, len(sd.dir) - 1]
+      if p = sd.dir : '/gcat' or p = sd.dir : '/global.bp.out' or p = sd.dir : '/solo.policy' then
+         if kernel(K$GLOBAL.SESSION, -1) then return 0
+         return 11028 ;* The global catalogue can only be changed by the SD Core server
+      end
+   end
+
+   if kernel(K$ADMINISTRATOR, -1) then return 0
+
+   if fileinfo(f, FL$TYPE) # FL$TYPE.DH then return 0
+
+   if last # 'voc' then return 0
+
+   return 11008 ;* The VOC can only be changed after ADMIN
+end
+
+* END-CODE

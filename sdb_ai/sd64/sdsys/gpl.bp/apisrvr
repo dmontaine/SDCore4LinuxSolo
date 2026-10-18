@@ -19,6 +19,10 @@
 *
 *
 * START-HISTORY:
+* 18 Oct 26 SD Core for Linux Solo (Solo carry A, owner's ruling B) - WRITE, WRITEU, DELETE, DELETEU and CLEARFILE ask !voc_refusal for the
+*           file they were given (check.voc.edit): this program is $internal, so the C gate on the VOC and on the global files let an
+*           API client through.  Not run: a sandbox cannot host an API session (the API is gplbld/verify-solo-service.sh's), so this
+*           is checked as text only (sandbox-vocguard.py part T).  CLEARFILE had files(i), a stale loop variable, for files(fno).
 * 09 Oct 26 SD Core for Linux Solo (LSOLO 48, agreed with the Windows agent, mail T0040/T0100) - the
 *           ssh key request's audit lines have ONE shape on both Solo ports: remove names the
 *           fingerprint it was asked for (fp=, cut to 100 characters) before remaining=, and the
@@ -149,6 +153,7 @@ $include keys.h
 * 14 Sep 26 dm - DECLARED HERE, NOT IN vb.login, as the port did on 19 Aug:
 *   vb.scram.first calls it too, and phase 5 retires vb.login.
 deffun valid_os_name(name) calling '!valid_os_name'
+deffun voc_refusal(f) calling '!voc_refusal'   ;* 18 Oct 26, Solo carry A: check.voc.edit
 
 
 common /$APISRVR/ logged.in,          ;* Process is logged in
@@ -840,6 +845,9 @@ vb.write:
                id.len = oconv(cmnd[3,2], 'ISL')
                id = cmnd[5,id.len]
 
+               gosub check.voc.edit   ;* 18 Oct 26 dm, Solo carry A: this program is $internal, so the C test does not ask; check.voc.edit does
+               if err then return
+
                write cmnd[5 + id.len, 99999999] to files(fno), id
                on error server.error = SV$ON.ERROR
 
@@ -860,6 +868,9 @@ vb.writeu:
                id.len = oconv(cmnd[3,2], 'ISL')
                id = cmnd[5,id.len]
 
+               gosub check.voc.edit   ;* 18 Oct 26 dm, Solo carry A
+               if err then return
+
                writeu cmnd[5 + id.len, 99999999] to files(fno), id
                on error server.error = SV$ON.ERROR
 
@@ -876,6 +887,10 @@ vb.delete:
                if err then return
 
                id = cmnd[3,99]
+
+               gosub check.voc.edit   ;* 18 Oct 26 dm, Solo carry A
+               if err then return
+
                delete files(fno), id
                on error server.error = SV$ON.ERROR
 
@@ -892,6 +907,9 @@ vb.deleteu:
                if err then return
 
                id = cmnd[3,99]
+
+               gosub check.voc.edit   ;* 18 Oct 26 dm, Solo carry A
+               if err then return
 
                deleteu files(fno), id
                on error server.error = SV$ON.ERROR
@@ -1678,7 +1696,10 @@ vb.clearfile:
                                              gosub check.file
                                              if err then return
 
-                                             clearfile files(i)
+                                             gosub check.voc.edit   ;* 18 Oct 26 dm, Solo carry A
+                                             if err then return
+
+                                             clearfile files(fno)   ;* 18 Oct 26 dm: was files(i), a stale loop variable, which cleared whichever file it happened to index (the full product fixed it on 17 Oct)
 
                                              return
 
@@ -2100,6 +2121,24 @@ check.file:
                                                                         return
                                                                      end
 
+                                                                     err = @false
+                                                                     return
+
+
+                                                                     * ======================================================================
+* check.voc.edit  -  may the client change the file files(fno)?  (18 Oct 26 dm, Solo carry A, owner's ruling B)
+*   This program is $internal, which the C test (voc_write_refused, global_write_refused) lets through, so a client of the API could write,
+*   delete or clear the VOC, or a record of gcat, global.bp.out or solo.policy, with no ADMIN and no global session.  !voc_refusal answers
+*   for the file as opened (a Q-pointer is caught) and displays nothing, which is why it is asked and not !voc_guard: this program has no
+*   terminal to display on.  The answer is the text of the error the client is sent.  Ask after check.file.
+check.voc.edit:
+                                                                     err = @true
+                                                                     voc.refusal = voc_refusal(files(fno))
+                                                                     if voc.refusal then
+                                                                        server.error = SV$ERROR
+                                                                        error.msg = sysmsg(voc.refusal) ;* 11008 the VOC needs ADMIN / 11028 the global files need the global session
+                                                                        return
+                                                                     end
                                                                      err = @false
                                                                      return
 

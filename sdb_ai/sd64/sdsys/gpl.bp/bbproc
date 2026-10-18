@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 18 Oct 26 dm  voc_refusal and voc_guard join the bootstrap list: BASIC calls !voc_guard (Solo carry A, owner's ruling B).
 * 03 Oct 26 dm  is_grp_member leaves the bootstrap list: the program is deleted
 *               (LSOLO 30), its last callers were LOGTO and the dead SDLocal login.
 * 02 Oct 26 dm  acc_hold joins the bootstrap list: LOGIN calls it (LSOLO 20).
@@ -243,6 +244,10 @@ src.list<-1> = 'parser'
 *   object code in $LOGIN" with sd exiting 0 (measured in SD Core for Linux's
 *   sandbox, 1 Oct 2026).
 src.list<-1> = 'acc_hold'
+* 18 Oct 26 dm - Solo carry A: BASIC (SECOND.COMPILE runs it) asks !voc_guard before it writes the object file of the source file it was
+*   given, and !voc_guard asks !voc_refusal; both must exist before the first BASIC runs.
+src.list<-1> = 'voc_refusal'
+src.list<-1> = 'voc_guard'
 src.list<-1> = 'term'
 
 src.cnt = dcount(src.list,@FM) 
