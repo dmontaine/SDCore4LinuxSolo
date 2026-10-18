@@ -74,11 +74,11 @@ $include int$keys.h
          if len(d) > 1 and d[len(d),1] = '/' then d = d[1, len(d) - 1]
          gosub check.path
          if why # '' then
-            err = 11054:@vm:d:@vm:why
+            err = 11914:@vm:d:@vm:why
             return
          end
          if index(conf, "'", 1) then
-            err = 11053:@vm:conf:' has a single quote in its name'
+            err = 11913:@vm:conf:' has a single quote in its name'
             return
          end
 
@@ -87,7 +87,7 @@ $include int$keys.h
             out = ''
             os.execute "mkdir -p -m 0700 '":d:"' 2>&1" capturing out
             if not(ospath(d, OS$EXISTS)) then
-               err = 11051:@vm:d:@vm:convert(@fm, ' ', out)
+               err = 11911:@vm:d:@vm:convert(@fm, ' ', out)
                return
             end
          end
@@ -97,7 +97,7 @@ $include int$keys.h
          openseq probe overwrite to pf else
 *           ELSE is taken for a file that did not exist (and is then created); only a status is a failure.
             if status() then
-               err = 11052:@vm:d:@vm:'status ':status()
+               err = 11912:@vm:d:@vm:'status ':status()
                return
             end
          end
@@ -131,14 +131,14 @@ $include int$keys.h
             closeseq f
          end
          if stat # 0 or n # 1 or last # d then
-            err = 11053:@vm:convert(@fm, ' ', out):' (the file holds ':n:' BACKUPDIR line(s))'
+            err = 11913:@vm:convert(@fm, ' ', out):' (the file holds ':n:' BACKUPDIR line(s))'
             return
          end
          dir = d
          return
 
       case 1
-         err = 11053:@vm:'unknown mode ':mode
+         err = 11913:@vm:'unknown mode ':mode
          return
    end case
 
@@ -155,7 +155,7 @@ read.conf:
       repeat
       closeseq f
    end else
-      err = 11053:@vm:conf:' cannot be read (status ':status():')'
+      err = 11913:@vm:conf:' cannot be read (status ':status():')'
    end
    return
 

@@ -62,7 +62,7 @@ a global login the server installs its public key through request 49 and learns 
 user name from the reply. Windows Solo answers the same request in the same words.
 
 - **Who may send it:** only a session signed in with the global password
-  (`K$GLOBAL.SESSION`). An account-password session, or ADMIN, gets message 11041,
+  (`K$GLOBAL.SESSION`). An account-password session, or ADMIN, gets message 11901,
   "Only the SD Core server may manage ssh keys". It is not admitted before login, and on a
   computer with no global password no session can be a global one.
 - **The request:** a verb, then a field mark and an argument. `ADD` and a one-line public
@@ -73,7 +73,7 @@ user name from the reply. Windows Solo answers the same request in the same word
   listener, so the fifth field is no longer the machine's sshd's key and the sixth is new; a
   client that reads five fields is unaffected. `REMOVE` gives `REMOVED` or `ABSENT`, then how many
   Solo lines are left. `LIST` gives one fingerprint per field.
-- **The refusals,** message 11042, "The ssh key request was refused: %1", with the reason
+- **The refusals,** message 11902, "The ssh key request was refused: %1", with the reason
   "the key or fingerprint is not valid", "four Solo ssh keys are already installed",
   "ssh is not set up on this Solo", "unknown request, use ADD, REMOVE or LIST" or "the
   request could not be carried out".
@@ -110,7 +110,7 @@ Request 49 and the pin have their own witnesses (not part of `verify-solo-servic
 
 | script | legs | proves |
 |---|---|---|
-| `gplbld/verify-solo-sshkey.sh HOME ACCOUNT_PW GLOBAL_PW` | 11 | LIST, ADD with its five fields, ADD twice, the cap of four, REMOVE then ABSENT, the account-password control refused 11041 with the file unchanged, bad arguments, shell syntax not run, the installed key reaches `sd` over a private sshd with the global password, the audit trail |
+| `gplbld/verify-solo-sshkey.sh HOME ACCOUNT_PW GLOBAL_PW` | 11 | LIST, ADD with its five fields, ADD twice, the cap of four, REMOVE then ABSENT, the account-password control refused 11901 with the file unchanged, bad arguments, shell syntax not run, the installed key reaches `sd` over a private sshd with the global password, the audit trail |
 | `gplbld/verify-solo-ssh-global.sh HOME ACCOUNT_PW GLOBAL_PW` | 5 | over ssh the global password is a global session and the account password is not; the forced key has no shell |
 | `gplbld/verify-solo-pin.sh HOME ACCOUNT_PW` | 5 | the pin equals the SHA-256 `openssl` computes; a replaced `api.pem` is refused with no login started; removing the line re-pins; an unusable store refuses |
 | `gplbld/test-tls-relay.py`, group P | 10 | the pin store rules without a server (52 checks in all) |

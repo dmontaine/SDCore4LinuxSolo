@@ -12,7 +12,7 @@
 # environment for its duration and takes out again.  Every reply is printed as the
 # client received it.
 #
-# THE CONTROLS: K7 signs in with the ACCOUNT password and must be refused 11041 with the
+# THE CONTROLS: K7 signs in with the ACCOUNT password and must be refused 11901 with the
 # file byte-for-byte unchanged; K9 sends shell syntax in the key and must NOT run it
 # (a marker file is looked for).  K10 closes the loop: the key the API installed gets an
 # ssh login into sd through a private sshd, and the global password makes it a global
@@ -135,7 +135,7 @@ else
   leg "K3 ADD twice" "PRESENT, still one Solo line" 1 "field4='$(field "$o" 4)' lines=$(ours)"
 fi
 
-# ---- K4. four keys are allowed; the fifth is refused 11043 and nothing changes.
+# ---- K4. four keys are allowed; the fifth is refused 11903 and nothing changes.
 for k in b c d; do api "$GLOBALPW" --sshkey "ADD=$(keyline $k)" >/dev/null; done
 before="$(sha256sum "$AK" | cut -d' ' -f1)"
 o="$(api "$GLOBALPW" --sshkey "ADD=$(keyline e)")"
@@ -143,7 +143,7 @@ after="$(sha256sum "$AK" | cut -d' ' -f1)"
 if [ "$(ours)" -eq 4 ] && printf '%s\n' "$o" | grep -qF "ssh-key ADD: REFUSED: $M43" && [ "$before" = "$after" ]; then
   leg "K4 the cap" "4 Solo lines, the fifth refused '$M43', file unchanged" 0 "refused"
 else
-  leg "K4 the cap" "4 Solo lines, the fifth refused 11043, file unchanged" 1 "lines=$(ours) $(printf '%s\n' "$o" | grep -E 'ssh-key' | head -1)"
+  leg "K4 the cap" "4 Solo lines, the fifth refused 11903, file unchanged" 1 "lines=$(ours) $(printf '%s\n' "$o" | grep -E 'ssh-key' | head -1)"
 fi
 
 # ---- K5. LIST names all four.

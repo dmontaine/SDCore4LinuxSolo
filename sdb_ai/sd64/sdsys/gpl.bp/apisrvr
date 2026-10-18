@@ -36,7 +36,7 @@
 *           session (13002) while a backup or restore runs.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 19) - request 49 (SrvrSshKey): the master
 *           installs, removes and lists its ssh key; global session only; messages
-*           11041 and 11042 (Windows 12036 and 12037, same texts).
+*           11901 and 11902 (Windows 12036 and 12037, same texts).
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - request 25 (SDConnectLocal) is
 *           refused (message 11021): it sends no password, ruling 21 requires
 *           one (Windows Solo bd59940).
@@ -1971,7 +1971,7 @@ vb.mark.mapping:
 * public key, and the reply names the OS user, so ssh can then name it.  Agreed with
 * Windows Solo, which builds the same request and reply (mailbox, 30 Sep).  ONLY A
 * GLOBAL SESSION (K$GLOBAL.SESSION, set at request 48 by a global proof): the account
-* password and ADMIN are refused 11041.  The key never reaches a command line: it is
+* password and ADMIN are refused 11901.  The key never reaches a command line: it is
 * written to a file and tools/solo-ssh.sh reads it, answering KEY=value lines in
 * another file; that script alone edits authorized_keys, recognises its own lines by
 * the forced command, and caps them at four.  Every verb is audited, with the peer's
@@ -1980,7 +1980,7 @@ vb.mark.mapping:
 vb.sshkey:
 if not(kernel(K$GLOBAL.SESSION, -1)) then
    server.error = SV$ERROR
-   error.msg = sysmsg(11041) ;* Only the SD Core server may manage ssh keys
+   error.msg = sysmsg(11901) ;* Only the SD Core server may manage ssh keys
    void kernel(K$AUDIT, 'api sshkey refused - not a global session peer=' : system(42))
    return
 end
@@ -1989,7 +1989,7 @@ ssh.verb = upcase(trim(cmnd<1>))
 ssh.arg = cmnd<2>
 if ssh.verb # 'ADD' and ssh.verb # 'REMOVE' and ssh.verb # 'LIST' then
    server.error = SV$ERROR
-   error.msg = sysmsg(11042, 'unknown request, use ADD, REMOVE or LIST') ;* The ssh key request was refused: %1
+   error.msg = sysmsg(11902, 'unknown request, use ADD, REMOVE or LIST') ;* The ssh key request was refused: %1
    return
 end
 
@@ -2003,7 +2003,7 @@ if ssh.verb # 'LIST' then
    end
    if ssh.bad then
       server.error = SV$ERROR
-      error.msg = sysmsg(11042, 'the key or fingerprint is not valid') ;* The ssh key request was refused: %1
+      error.msg = sysmsg(11902, 'the key or fingerprint is not valid') ;* The ssh key request was refused: %1
       void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - the argument is empty, too long or not printable ascii peer=' : system(42))
       return
    end
@@ -2017,7 +2017,7 @@ if ssh.verb # 'LIST' then
    openseq ssh.in to ssh.f else
       create ssh.f else
          server.error = SV$ERROR
-         error.msg = sysmsg(11042, 'the request could not be carried out') ;* The ssh key request was refused: %1
+         error.msg = sysmsg(11902, 'the request could not be carried out') ;* The ssh key request was refused: %1
          void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - cannot create the key file peer=' : system(42))
          return
       end
@@ -2061,10 +2061,10 @@ if ssh.err # '' or ssh.result = '' then
    ssh.code = field(ssh.err, ' ', 1)
    server.error = SV$ERROR
    begin case
-      case ssh.code = 'INVALID' ; error.msg = sysmsg(11042, 'the key or fingerprint is not valid')
-      case ssh.code = 'CAP'     ; error.msg = sysmsg(11042, 'four Solo ssh keys are already installed')
-      case ssh.code = 'NOSSH'   ; error.msg = sysmsg(11042, 'ssh is not set up on this Solo')
-      case 1                    ; error.msg = sysmsg(11042, 'the request could not be carried out')
+      case ssh.code = 'INVALID' ; error.msg = sysmsg(11902, 'the key or fingerprint is not valid')
+      case ssh.code = 'CAP'     ; error.msg = sysmsg(11902, 'four Solo ssh keys are already installed')
+      case ssh.code = 'NOSSH'   ; error.msg = sysmsg(11902, 'ssh is not set up on this Solo')
+      case 1                    ; error.msg = sysmsg(11902, 'the request could not be carried out')
    end case
    if ssh.err = '' then ssh.err = 'NO ANSWER from tools/solo-ssh.sh'
    void kernel(K$AUDIT, 'api sshkey ' : downcase(ssh.verb) : ' refused - ' : downcase(ssh.err) : ' peer=' : system(42))  ;* 07 Oct 26 PAL-24: the helper's error token is lower case here too

@@ -14,7 +14,7 @@ $internal
 subroutine acc_os_akpath(data.path, ak.path, err)
 $catalog !acc_os_akpath
 
-   err = 11050:@vm:data.path   ;* Solo restores at the next start, not in place
+   err = 11910:@vm:data.path   ;* Solo restores at the next start, not in place
    return
 
 end

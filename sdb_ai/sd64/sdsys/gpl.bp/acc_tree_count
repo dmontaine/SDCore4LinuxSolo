@@ -15,7 +15,7 @@
 *
 *    Regular files and their bytes, and the directories below path (path
 *    itself not counted); symlinks and special files are not counted, because
-*    the archive does not store them.  A count that fails is an error (11044),
+*    the archive does not store them.  A count that fails is an error (11904),
 *    never a zero.
 *
 * END-DESCRIPTION
@@ -31,7 +31,7 @@ $include int$keys.h
    files = 0 ; bytes = 0 ; dirs = 0 ; err = ''
 
    if path = '' or index(path:@sdsys, "'", 1) then
-      err = 11043:@vm:path
+      err = 11903:@vm:path
       return
    end
 
@@ -53,7 +53,7 @@ $include int$keys.h
 
    if stat # 0 or not(found) then
       files = 0 ; bytes = 0 ; dirs = 0
-      err = 11044:@vm:path:@vm:stat:@vm:convert(@fm, '|', out) ;* Counting %1 failed
+      err = 11904:@vm:path:@vm:stat:@vm:convert(@fm, '|', out) ;* Counting %1 failed
    end
    return
 

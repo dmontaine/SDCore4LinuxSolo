@@ -16,7 +16,7 @@ $internal
 subroutine acc_os_place(acc.name, staged.path, target.path, err)
 $catalog !acc_os_place
 
-   err = 11050:@vm:acc.name   ;* Solo restores at the next start, not in place
+   err = 11910:@vm:acc.name   ;* Solo restores at the next start, not in place
    return
 
 end

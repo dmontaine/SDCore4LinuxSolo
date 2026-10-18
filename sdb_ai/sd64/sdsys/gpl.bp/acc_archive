@@ -30,7 +30,7 @@
 *    err      '' or the message number then its arguments (value marks).
 *
 *    Anything the archiver skipped (a symlink, a device) is named on the
-*    terminal (11049).  A path holding a single quote is refused (11043).
+*    terminal (11909).  A path holding a single quote is refused (11903).
 *
 * END-DESCRIPTION
 *
@@ -48,7 +48,7 @@ $include int$keys.h
    archiver = "python3 '":@sdsys:@ds:"bin":@ds:"sd-accarchive'"
 
    if index(zip.path:@sdsys, "'", 1) then
-      err = 11043:@vm:zip.path ;* contains a single quote
+      err = 11903:@vm:zip.path ;* contains a single quote
       return
    end
 
@@ -67,7 +67,7 @@ $include int$keys.h
 * ======================================================================
 create.archive:
    if ospath(zip.path, OS$EXISTS) then
-      err = 11046:@vm:zip.path  ;* already exists; a backup never overwrites
+      err = 11906:@vm:zip.path  ;* already exists; a backup never overwrites
       return
    end
 
@@ -78,7 +78,7 @@ create.archive:
       aname = entries<i,1>
       src = entries<i,2>
       if index(src:aname, "'", 1) then
-         err = 11043:@vm:src
+         err = 11903:@vm:src
          return
       end
       if aname[1,9] = 'accounts/' then
@@ -92,7 +92,7 @@ create.archive:
       end
    next i
    if manifest.src = '' or pairs = '' then
-      err = 11045:@vm:zip.path:@vm:'':@vm:'no manifest or no account to pack'
+      err = 11905:@vm:zip.path:@vm:'':@vm:'no manifest or no account to pack'
       return
    end
 
@@ -115,13 +115,13 @@ create.archive:
    nl = dcount(log.lines, @fm)
    for j = 1 to nl
       if log.lines<j>[1,8] = 'SKIPPED ' then
-         crt sysmsg(11049, log.lines<j>[9,999]) ;* Not in the backup: %1
+         crt sysmsg(11909, log.lines<j>[9,999]) ;* Not in the backup: %1
       end
    next j
 
    if stat # 0 then
       void ospath(zip.path, OS$DELETE)
-      err = 11045:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', log.lines)
+      err = 11905:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', log.lines)
       return
    end
 
@@ -143,7 +143,7 @@ create.archive:
       next j
       if not(found) then
          void ospath(zip.path, OS$DELETE)
-         err = 11048:@vm:aname ;* The archive tool did not report %1
+         err = 11908:@vm:aname ;* The archive tool did not report %1
          return
       end
    next i
@@ -153,14 +153,14 @@ create.archive:
 extract.archive:
    target = entries<1>
    if target = '' or index(target, "'", 1) then
-      err = 11043:@vm:target
+      err = 11903:@vm:target
       return
    end
    out = ''
    os.execute archiver:" extract '":zip.path:"' '":target:"' 2>&1" capturing out
    stat = os.error()
    if stat # 0 then
-      err = 11047:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      err = 11907:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
       return
    end
    n = dcount(out, @fm)
@@ -170,7 +170,7 @@ extract.archive:
          counts<-1> = field(line, ' ', 3):@vm:field(line, ' ', 4):@vm:field(line, ' ', 5):@vm:field(line, ' ', 2)
       end
    next j
-   if counts = '' then err = 11048:@vm:zip.path
+   if counts = '' then err = 11908:@vm:zip.path
    return
 
 * ======================================================================
@@ -179,11 +179,11 @@ manifest.archive:
    os.execute archiver:" manifest '":zip.path:"' 2>&1" capturing out
    stat = os.error()
    if stat # 0 then
-      err = 11047:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      err = 11907:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
       return
    end
    if out = '' then
-      err = 11048:@vm:zip.path
+      err = 11908:@vm:zip.path
       return
    end
    counts = out
