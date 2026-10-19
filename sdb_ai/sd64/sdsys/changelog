@@ -1,6 +1,80 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  THE FILE TOOLS SDIDX, SDFIX AND SDCONV NO LONGER DO SEVERAL WRONG
+           THINGS, AND ED STOPS WHEN ITS INPUT ENDS.  Six faults were open in
+           Solo; each has been closed in SD Core and is closed here the same
+           way.  They are described on three new pages, 20 to 22 of the
+           Getting Started set, and on the ED page.
+
+           sdidx.  When it moved a file's indexes out of the file's own
+           directory, or deleted them, it removed the old %2, %3 ... through
+           a name buffer only 33 bytes long, so on almost any real path the
+           old index file stayed behind while the program reported success,
+           and the leftover then stopped you moving the indexes back
+           (error 17).  The buffer now holds any path the file header can
+           hold.  sdidx -d answered n used to say "All indices deleted" and
+           clear the header anyway, leaving the index files on the disk with
+           nothing pointing at them; it now stops ("Indices not deleted",
+           exit status 1), and input that ends at the question counts as n.
+           sdidx -m and -d used to delete the whole old index directory with
+           everything in it; they now delete only the index files the header
+           lists, and the directory only if that leaves it empty.  sdidx -p
+           now prints what -q prints.  A relative index path given to -m or
+           -p is made absolute before it is stored.
+
+           sdfix.  -F could not delete an index file in the file's own
+           directory: it printed "Corrected" and removed nothing.  The repair
+           for "Invalid split and/or merge loads" wrote split 50 and merge
+           80, the values the check rejects; it now writes the defaults SD
+           gives a new file, 80 and 50.  -Q looped for ever if its input
+           ended while it asked "Fix?" (and at the dump-and-rebuild question
+           and the interactive prompt): the end of input now counts as no and
+           says so.  The interactive W command reads its address and value
+           as the hex its help always said and writes the bytes in the order
+           typed.  -R together with -F or -Q is refused with a message.
+           sdfix now refuses a file that is open within a running SD, as
+           sdidx always did.  A file whose path is 252 characters or more is
+           refused: the names of the higher index files were cut short, and
+           -F then deleted the overflow subfile together with the real index
+           (data loss).  The exit status is 1 if any named file failed.
+
+           sdconv.  Named a hashed file, it printed nothing, changed nothing
+           and exited 0, which read as a successful conversion.  It now says
+           it converts compiled programs only, that nothing was changed, and
+           exits 1.
+
+           ED.  An ED session whose input was a pipe (a script, a test, a
+           login whose client has gone) went on printing its ----: prompt
+           without end and used all of a CPU once the pipe had ended.  It now
+           leaves the record as Q does when answered Y, asking nothing
+           because nobody is there: the record is not written and its lock
+           is given back.  The line-number questions of LOAD and UNLOAD
+           cancel the command when the input ends; an UNLOAD used to take
+           the whole record there and write it to the target record.
+           Nothing changes for a person at a terminal.
+
+           Two smaller faults.  SYSTEM(1057), the number of a phantom's
+           parent, was wrong when that number was above the number of user
+           table cells (USERPOOL lets numbers run to 1023): the phantom was
+           told it had no parent.  It now sees the parent.  RESTORE.ACCOUNT
+           was meant to leave a globally catalogued program alone when a
+           DIFFERENT program already held its name ("... already in the
+           global catalogue as a different program"), but it looked the name
+           up in capitals and the catalogue keeps lower case, so it never
+           found anything and the archive's program replaced the one on the
+           system.  It now looks the name up in lower case.
+
+           What does not change: neither file tool takes a backup or can be
+           undone; sdidx still cannot move one index and leave the others;
+           sdfix still only reports an index tree that is damaged; sdconv
+           converts compiled programs only.  The fixes were run in Solo's own
+           private test system (the file tools and ED) and read in the source
+           (RESTORE.ACCOUNT's lookup, which needs an archive and a restore to
+           run); none of it has been run on an installed Solo yet.  SD Core's
+           own copies of these tools and of ED have the same fixes from 18
+           and 19 October.
+
 18 Oct 26  SD CORE SOLO TAKES THE STABLE PART OF SD CORE 1.2-0.  Solo had
            been SD Core's 1.1-3 plus its own changes.  SD Core has since
            added a great deal to the language, the query processor, the file
