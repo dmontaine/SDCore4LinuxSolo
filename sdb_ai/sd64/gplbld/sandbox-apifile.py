@@ -30,6 +30,11 @@
 #   F  file locks: S1 locks zzsec by number; S2 (the same account, a second session) asks for the lock on each of three files (no wait) and LOCKED says where S1's lock is;
 #      unlock goes to the file named; the BLOCKING form (the wait flag set) holds the request back until the lock is free and locks the file asked for
 #   G  the text of an ON ERROR reply: after a refusal that has a text, a WRITE whose ON ERROR clause has nothing to say answers ON ERROR with NO text
+#   C2 S.71 (SD Core, 20 Oct 26) the reply to an INPUT prompt declares a length the server cannot accept ('garb' = 1,651,663,207; 5, below the header): the server
+#      ends the session at once and does not spin (the second packet reader, process_client_input; Core's part C2)
+#   K  S.71 CLEARINPUT after the connection has gone: the command waits in SH sleep, the client closes, CLEARINPUT then runs: the server ends and does not spin
+#      (keyready / keyin; Core's part K).  What a row looks at is the server's process family (/proc: its session id): is anything of it still there N seconds
+#      after, and how many CPU ticks did the survivor use in one second (100 is a whole processor)
 
 import importlib.util
 import os
@@ -249,6 +254,121 @@ def msg(n):
         return f.read().strip("\n")
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# What a server's process family is doing (sandbox-apispin.py's Watch, shortened): the family is every live process in the server's session
+# (it is started as a session leader; the TLS relay it forks is in it).
+
+def read_stat(pid):
+    try:
+        with open("/proc/%d/stat" % pid) as f:
+            s = f.read()
+        rest = s[s.rindex(")") + 2:].split()
+        return {"state": rest[0], "sid": int(rest[3]), "ticks": int(rest[11]) + int(rest[12]),
+                "rss": int(rest[21]) * os.sysconf("SC_PAGE_SIZE") // 1024}
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def family(sid):
+    out = {}
+    for d in os.listdir("/proc"):
+        if d.isdigit():
+            st = read_stat(int(d))
+            if st is not None and st["sid"] == sid and st["state"] != "Z":
+                out[int(d)] = st
+    return out
+
+
+def watch(w, seconds):
+    """Poll the family of server W every 0.1 s until it is gone or SECONDS have passed.  (ended, seconds it took, CPU ticks the busiest survivor used in the
+    last second, peak size in KB, whether any process of it was ever seen alive)."""
+    seen = False
+    peak = 0
+    t0 = time.time()
+    while time.time() - t0 < seconds:
+        w.p.poll()
+        fam = family(w.p.pid)
+        seen = seen or bool(fam)
+        for st in fam.values():
+            peak = max(peak, st["rss"])
+        if not fam:
+            return True, round(time.time() - t0, 2), 0, peak, seen
+        time.sleep(0.1)
+    before = family(w.p.pid)
+    time.sleep(1.0)
+    after = family(w.p.pid)
+    spin = 0
+    for pid, st in after.items():
+        spin = max(spin, st["ticks"] - before.get(pid, st)["ticks"])
+        peak = max(peak, st["rss"])
+    return (not after), seconds, spin, peak, seen or bool(after)
+
+
+def describe(res):
+    ended, secs, spin, peak, seen = res
+    return ("ended after %.1f s" % secs) if ended else "SURVIVED (%d ticks of CPU in 1 s, %d KB)" % (spin, peak)
+
+
+PROGS = {
+    # waits for a line: the reply to the prompt is the packet part C2 corrupts
+    "zzprmp": "   input x\n   crt 'GOT[':x:']'\nend\n",
+    # waits in a shell (while one runs the input signal is not acted on), then clears the input: with the client gone, CLEARINPUT is the first thing to find out
+    "zzclr": "   execute 'SH sleep 2'\n   clearinput\n   crt 'CLEARED'\nend\n",
+}
+
+
+def put_programs():
+    """Write the two BASIC programs into the account's BP file through the API and compile them in a session of their own."""
+    w = Wire("P")
+    fno, r = w.open4("bp")
+    if fno is None:
+        bail("the account's BP file did not open: %r" % (r,))
+    for name, src in PROGS.items():
+        rid = name.encode("ascii")
+        w.req(16, struct.pack("<hh", fno, len(rid)) + rid + src.replace("\n", "\xfe").encode("latin-1"), shown="write bp %s" % name)
+        out = w.execute("BASIC bp %s" % name)
+        if out is None or "Compiled 1 program(s) with no errors" not in out:
+            bail("the program %s did not compile through the API: %r" % (name, out))
+    w.close()
+
+
+def section_c2():
+    say("\n--- C2. the reply to an INPUT prompt declares a length the server cannot accept (S.71) ---------------------------------------")
+    cases = [("'garb' = 1,651,663,207", b"garb" + struct.pack("<H", 22)), ("5, below the header", struct.pack("<I", 5) + struct.pack("<H", 22))]
+    for name, raw in cases:
+        w = Wire("C2")
+        r = w.req(21, "RUN bp zzprmp")
+        prompted = r is not None and r[0] == 5            # SV$PROMPT: the program is waiting for its INPUT
+        was_alive = w.p.poll() is None                    # a server that ends at once can be gone before the first scan of /proc: it was alive when the client acted
+        try:
+            w.sock.sendall(raw)
+        except (OSError, ConnectionError) as e:
+            say("      C2 the bad reply could not be sent: %s" % e)
+        res = watch(w, 6.0)
+        say("      C2 the reply to the prompt declared %s: %s (it was alive when the client sent it: %s)" % (name, describe(res), was_alive))
+        row("C2: the reply to an INPUT prompt declares %s: the server refuses it and ends the session (client still connected)" % name,
+            prompted and was_alive and res[0], "prompted %s, was alive %s, %s" % (prompted, was_alive, describe(res)))
+        w.kill()
+        subprocess.run([SD, "-cleanup"], env=env(), capture_output=True, timeout=60)
+
+
+def section_k():
+    say("\n--- K. CLEARINPUT after the connection has gone (S.71) ---------------------------------------------------------------------")
+    w = Wire("K0")
+    r = w.req(21, "RUN bp zzclr")
+    row("K0 CONTROL: with the client still connected the command runs through (SH sleep 2, CLEARINPUT) and says CLEARED", r is not None and b"CLEARED" in r[2], repr(r)[:120])
+    w.close()
+    w = Wire("K1")
+    w._write(21, "RUN bp zzclr")                  # the command starts; its answer is never read
+    time.sleep(0.7)                               # it is in SH sleep 2
+    w.sock.close()                                # the client goes
+    res = watch(w, 8.0)
+    say("      K1 the client closed while the command waited in SH sleep: %s" % describe(res))
+    row("K1: the client closes while the command waits in SH sleep; CLEARINPUT then runs: the server ends within 8 s and does not spin", res[0] and res[4], describe(res))
+    w.kill()
+    subprocess.run([SD, "-cleanup"], env=env(), capture_output=True, timeout=60)
+
+
 def section_f():
     say("\n--- F. file locks, requests 32 and 33: the lock goes to the file NUMBER asked for (K8a) ---------------------------------------")
     s1 = Wire("F1")
@@ -406,6 +526,9 @@ def main():
     try:
         section_f()
         section_g()
+        put_programs()
+        section_c2()
+        section_k()
     finally:
         for w in list(WIRES):
             w.kill()
