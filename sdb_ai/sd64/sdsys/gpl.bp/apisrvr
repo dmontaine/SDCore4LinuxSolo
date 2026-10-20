@@ -19,6 +19,11 @@
 *
 *
 * START-HISTORY:
+* 20 Oct 26 SD Core for Linux Solo (Solo carry 3, from SD Core 0bdc4bd / d93ea0d, their K1 and K8a; the rest of those commits is SDNet and is not carried) - (1) the
+*           message of an ON ERROR reply is emptied at the top of every request, so an ON ERROR clause that had nothing to say no longer sends the text of the last
+*           refusal (a WRITE with an over-long id answered 'Invalid call name'); (2) vb.filelock and vb.fileunlock used files(i), the scratch variable of the last
+*           open, instead of files(fno): a lock or an unlock went to whichever file had been opened last.  Run, through a real TLS and SCRAM session, by
+*           gplbld/sandbox-apifile.py (F and G), red on the tree before.
 * 18 Oct 26 SD Core for Linux Solo (Solo carry A, owner's ruling B) - WRITE, WRITEU, DELETE, DELETEU and CLEARFILE ask !voc_refusal for the
 *           file they were given (check.voc.edit): this program is $internal, so the C gate on the VOC and on the global files let an
 *           API client through.  Not run: a sandbox cannot host an API session (the API is gplbld/verify-solo-service.sh's), so this
@@ -285,6 +290,12 @@ scram.fail.delay = 0   ;* Seconds to wait AFTER the refusal is audited (3 for a 
 
 loop
    unload.object               ;* Unload inactive object code
+
+*  19 Oct 26 dm (K1): THE MESSAGE OF AN ON ERROR REPLY BELONGS TO THE REQUEST THAT GOT IT.  An SV$ON.ERROR reply carries @abort.message (return.status.set), which a
+*   refusal sets and nothing cleared, so an ON ERROR clause that had nothing to say (write ... on error server.error = SV$ON.ERROR) sent the text of the LAST refusal in
+*   the session: measured in sandbox-req29.py section G, a WRITE with an over-long id answered 'Invalid call name' after a call with no name.  The SDNet client now shows
+*   the text of an ON ERROR reply, so the text has to be this reply's.  A real abort sets the message itself, after this line.
+   abort.message = ''
 
    * Fetch new command
 
@@ -1716,9 +1727,9 @@ vb.filelock:
                                              if err then return
 
                                              if wait then
-                                                filelock files(i)
+                                                filelock files(fno)   ;* 19 Oct 26 (K8a): was files(i), the stale loop variable of the last open, as vb.clearfile's was
                                              end else
-                                                filelock files(i) locked server.error = SV$LOCKED
+                                                filelock files(fno) locked server.error = SV$LOCKED
                                                 end
 
                                                 return
@@ -1733,7 +1744,7 @@ vb.fileunlock:
                                                 gosub check.file
                                                 if err then return
 
-                                                fileunlock files(i)
+                                                fileunlock files(fno)   ;* 19 Oct 26 (K8a): was files(i)
 
                                                 return
 
