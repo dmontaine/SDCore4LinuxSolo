@@ -25,16 +25,16 @@ Next release - in progress
            session and writes one line to the system log.  The same test is
            applied to the reply a client sends to an INPUT prompt.
 
-           What this does not do.  SD Core also refuses a packet over 65,536
-           bytes while its server is still root and nobody has logged in.
-           Solo's server never runs as root, so that second, smaller limit is
-           not applied here: before the login a packet of up to the largest
-           SD string is read for, and a connected client that declares one
-           and then sends nothing holds its server process until it closes
-           (the process is idle, not spinning).  A delivered Solo has the API
-           off, and "local" when you turn it on.  A smaller limit before the
-           login needs a decision about how Solo tells "not yet logged in";
-           it is asked, not guessed.
+           The limit before the login.  SD Core also refuses a packet over
+           65,536 bytes until the client has logged in, and it knows "not yet
+           logged in" by its server still being root.  Solo's server is never
+           root, so Solo knows it by a flag the server sets when the password
+           proof has been accepted (the call that gives the session its user
+           name).  Before the proof a packet that declares more than 65,536
+           bytes is refused and the session ends; after it the limit is the
+           largest SD string.  This differs from SD Core, with the owner's
+           permission, and changes nothing for a client that logs in first, as
+           every client of the library does.
 
            A file lock went to the wrong file.  An API client that had opened
            three files and asked for the file lock on the first locked the
