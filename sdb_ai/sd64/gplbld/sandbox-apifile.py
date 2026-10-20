@@ -33,6 +33,9 @@
 #   C2 S.71 (SD Core, 20 Oct 26) the reply to an INPUT prompt declares a length the server cannot accept ('garb' = 1,651,663,207; 5, below the header): the server
 #      ends the session at once and does not spin (the second packet reader, process_client_input; Core's part C2)
 #   K  S.71 CLEARINPUT after the connection has gone: the command waits in SH sleep, the client closes, CLEARINPUT then runs: the server ends and does not spin
+#   L  S.71's limit BEFORE the login, which is Solo's own (20 Oct 26): a first packet declaring 65,537 or 1,000,000,000 bytes is refused, 65,536 is not; after the login a
+#      request of 3 MB is written and read back and a declared 1,000,000,000 is waited for.  Core asks `is_sdApiSrvr && geteuid() == 0`; Solo's server is never root, so
+#      it asks the flag api_logged_in, which K$SET.USERNAME sets once the SCRAM proof has been accepted
 #      (keyready / keyin; Core's part K).  What a row looks at is the server's process family (/proc: its session id): is anything of it still there N seconds
 #      after, and how many CPU ticks did the survivor use in one second (100 is a whole processor)
 
@@ -94,7 +97,7 @@ def env():
 class Wire:
     """One logged-in API session: a real `sd -n -q` on an accepted connection, TLS, SCRAM, then the account."""
 
-    def __init__(self, tag_):
+    def __init__(self, tag_, login=True):
         self.tag = tag_
         self.pending = None
         self.th = None
@@ -117,6 +120,9 @@ class Wire:
             bail("wire %s: no TLS session with the sandbox's server: %s" % (tag_, e))
         if ack != b"\x06":
             bail("wire %s: expected ACK 0x06 inside TLS, got %r" % (tag_, ack))
+        if not login:
+            say("    > wire %s: TLS %s and the ACK, and NO login: the server is before the login (section L)" % (tag_, self.sock.version))
+            return
         a = types.SimpleNamespace(no_binding=False, gs2=None, bad_cbind=False, legacy=False, final_only=False, tamper_nonce=False, user=USER)
         try:
             rc, _ = sp.login(self.sock, a, PW)
@@ -495,6 +501,58 @@ def section_g():
     w.close()
 
 
+def section_l():
+    say("\n--- L. the limit on a packet BEFORE the login, and the flag that lifts it after it (S.71, Solo's own test) -------------------------")
+    # SD Core refuses a packet over 65,536 bytes while its API server is still root and nobody has logged in (`is_sdApiSrvr && geteuid() == 0`).  Solo's server is never
+    # root, so Solo asks the same question of a flag, api_logged_in, that K$SET.USERNAME sets once the SCRAM proof has been accepted (owner's permission, 20 Oct 26).
+    cases = [("65,536, the most a packet may declare before the login", 65536, False),
+             ("65,537, one over", 65537, True),
+             ("1,000,000,000, under the largest string", 1000000000, True)]
+    for name, n, refused in cases:
+        w = Wire("L", login=False)
+        was_alive = w.p.poll() is None
+        try:
+            w.sock.sendall(struct.pack("<I", n))
+        except (OSError, ConnectionError) as e:
+            say("      L the declared length could not be sent: %s" % e)
+        res = watch(w, 4.0)
+        say("      L a first packet that declares %s: %s (alive when sent: %s)" % (name, describe(res), was_alive))
+        if refused:
+            row("L1: BEFORE the login a first packet that declares %s is refused: the server ends the session with the client still connected" % name,
+                was_alive and res[0], describe(res))
+        else:
+            row("L1: BEFORE the login a first packet that declares %s is NOT refused (the boundary: the server waits for it)" % name,
+                was_alive and not res[0], describe(res))
+        w.kill()
+        subprocess.run([SD, "-cleanup"], env=env(), capture_output=True, timeout=60)
+    # after the login the limit is the largest string + 10: the flag is set, and a big request is read
+    w = Wire("L2")
+    w.execute("DELETE.FILE zzlfile")
+    w.execute("CREATE.FILE zzlfile DYNAMIC")
+    fno, r = w.open4("zzlfile")
+    row("L2 AFTER the login: the file zzlfile opens (a file number comes back)", fno is not None, repr(r))
+    if fno is not None:
+        big = (b"0123456789abcdef" * 64 + b"x") * 3000                      # 3,075,000 bytes, far over 65,536
+        rid = b"big"
+        r = w.req(16, struct.pack("<hh", fno, len(rid)) + rid + big, shown="write fno %d, a record of %d bytes" % (fno, len(big)))
+        row("L3 AFTER the login: a record of %d bytes (a request over 65,536 bytes) is written: the flag has lifted the limit" % len(big), r is not None and r[0] == 0, repr(r)[:100])
+        r = w.req(6, struct.pack("<h", fno) + rid, shown="read fno %d id big" % fno)
+        row("L4 ... and read back byte for byte", r is not None and r[0] == 0 and r[2] == big, "%s bytes back" % (len(r[2]) if r else None))
+    try:
+        w.sock.sendall(struct.pack("<I", 1000000000))
+    except (OSError, ConnectionError) as e:
+        say("      L2 the declared length could not be sent: %s" % e)
+    res = watch(w, 3.0)
+    say("      L2 after the login a packet that declares 1,000,000,000: %s" % describe(res))
+    row("L5 AFTER the login a packet that declares 1,000,000,000 (under the largest string) is waited for, not refused: the limit before the login is gone",
+        not res[0], describe(res))
+    w.kill()
+    subprocess.run([SD, "-cleanup"], env=env(), capture_output=True, timeout=60)
+    w = Wire("Lz")
+    w.execute("DELETE.FILE zzlfile")
+    w.close()
+
+
 def main():
     global BOX, SYS, SD, PW
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -529,6 +587,7 @@ def main():
         put_programs()
         section_c2()
         section_k()
+        section_l()
     finally:
         for w in list(WIRES):
             w.kill()
