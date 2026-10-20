@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): K_SET_USERNAME sets
+ *               api_logged_in (kernel.h) in an API server, so that S.71's limit before the login can be asked of something that is true in Solo.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's keys 92, 97 to 117, 119 and 120.  Not carried: K_SH, K_OS_EXEC,
  *               K_PATH_OK, K_PATH_IN, K_SD_ACCOUNTS, K_VOC_EDIT, K_BP_EDIT, K_DICT_EDIT, K_EDIT_OK, K_EDIT_KIND, K_EDIT_OS_OK, K_NET, K_LOGIN_UID.
  *               K_GLOBAL_SESSION (69) and Solo's K_ASSUME_USER stay.
@@ -327,6 +329,11 @@ void op_kernel() {
             (process.program.flags & HDR_INTERNAL)) {
           strcpy(process.username, uname);
           strcpy((char *)(my_uptr->username), uname);
+          /* 20 Oct 26 SD Core for Linux Solo (owner's permission, a deviation from the Core template): APISRVR calls this key once, after the SCRAM
+             proof has been accepted, so the name taking is the login.  api_logged_in (kernel.h) lifts the limit on a packet before the login
+             (op_tio.c, apipkt.h): SD Core asks `geteuid() == 0` there, which is never true in a Solo, whose server is never root.      */
+          if (is_sdApiSrvr)
+            api_logged_in = TRUE;
         }
       }
       k_put_c_string(process.username, &result);

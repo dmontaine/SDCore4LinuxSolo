@@ -41,6 +41,10 @@ Public char* entry_dir init(NULL); /* Current directory on entry */
 Public bool is_bootstrap init(FALSE);  /* Bootstrap build (install process) */
 Public bool is_phantom init(FALSE);  /* Process is a phantom */
 Public bool is_sdApiSrvr init(FALSE); /* Process is a sdApiSrvr */
+/* 20 Oct 26 SD Core for Linux Solo (owner's permission, "solo lock flag ok", a deviation from the Core template): the API server has accepted the SCRAM proof and
+   K_SET_USERNAME has set the session's user name (op_kernel.c).  SD Core asks "before login" as `is_sdApiSrvr && geteuid() == 0` (its server is root until it
+   becomes the user); Solo's server is never root, so op_tio.c asks `is_sdApiSrvr && !api_logged_in`.  False for every other process and until the login.   */
+Public bool api_logged_in init(FALSE);
 Public bool class_main_ok init(FALSE); /* Set by op_run() and op_chain() for the one k_call() they make: a class module may run its MAIN (16 Oct 26, Fixes item 484) */
 Public bool is_nt init(FALSE);       /* Windows NT/2000/XP? */
 

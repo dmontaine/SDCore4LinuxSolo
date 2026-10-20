@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): the "before login" argument of
+ *               api_packet_length_ok() is `is_sdApiSrvr && !api_logged_in` (kernel.h, set by K_SET_USERNAME), not `is_sdApiSrvr && geteuid() == 0`: a Solo server is
+ *               never root, so Core's test is never true here and no limit applied before the login.
  * 20 Oct 26 dm  S.71: op_readpkt() and process_client_input() refuse a declared packet length they cannot accept (apipkt.h) and stop
  *               when read_socket() says the connection has gone, instead of reading 1.6 GB of nothing
  * 16 Oct 26 dm  end_attribute(): @(-6), @(-12), @(-14) and @(-59) use eblink, edim, erev and ebold when the terminfo entry has them
@@ -3680,7 +3683,7 @@ void break_key() {
 
 Private void api_packet_refused(int32_t declared) {
   syslog(LOG_INFO, "API packet length %ld refused (%s login)", (long)declared,
-         (is_sdApiSrvr && (geteuid() == 0)) ? "before" : "after");
+         (is_sdApiSrvr && !api_logged_in) ? "before" : "after");
 }
 
 /* ======================================================================
@@ -3718,7 +3721,7 @@ void op_readpkt() {
   /* 20 Oct 26 dm - S.71: a length the client had no business sending ends the session (the empty string below is what the API
      server's loop takes as a lost connection).  Before this the length was believed: 'garb' was 1,651,663,207 and the server read
      for it.                                                                                                                  */
-  if (!api_packet_length_ok(packet_bytes, is_sdApiSrvr && (geteuid() == 0))) {
+  if (!api_packet_length_ok(packet_bytes, is_sdApiSrvr && !api_logged_in)) {   /* Solo: not `geteuid() == 0` as in SD Core (20 Oct 26, owner's permission) */
     api_packet_refused(packet_bytes);
     goto exit_op_readpkt;
   }
@@ -3902,7 +3905,7 @@ Private void process_client_input() {
 
   /* 20 Oct 26 dm - S.71: as op_readpkt().  Here the session is ended by the kernel itself (K_TERMINATE, as for a connection that has
      gone), because there is no empty packet for the program to read.                                                           */
-  if (!api_packet_length_ok(packet_bytes, is_sdApiSrvr && (geteuid() == 0))) {
+  if (!api_packet_length_ok(packet_bytes, is_sdApiSrvr && !api_logged_in)) {   /* Solo: not `geteuid() == 0` as in SD Core (20 Oct 26, owner's permission) */
     api_packet_refused(packet_bytes);
     k_exit_cause = K_TERMINATE;
     return;
