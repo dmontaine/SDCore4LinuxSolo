@@ -1,6 +1,61 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  AN AI AGENT CAN NOW BE GIVEN A TESTED GUIDE TO SD BASIC, A LOOK-UP
+           PACK OF EVERYTHING THIS PRODUCT HAS, AND THE RULES THAT BIND IT.
+           SD Core for Linux has had this since 19 Oct 2026; Solo has it now,
+           written for Solo.  It is documents and checks.  Nothing is installed
+           into SD, nothing calls a model, no key is held and no wall opens: it
+           is the "agent-pack" folder of the source tree.
+
+           What it holds.  A guide to SD BASIC written for an agent (the
+           language, the system around it, and worked programs), in which
+           every example was compiled and, where it prints something, run on
+           a private Solo, in a plain session of the one account, sduser,
+           that had not typed "admin"; and every line of the table "what SD
+           does not have" still fails to compile, so the guide fails its own
+           test the day SD gains one.  A pack of 3,666 look-up chunks, each
+           naming the file and line it came from: every verb, query keyword,
+           statement, function, message, setting, dictionary item type and
+           conversion code this product has, and the shipped VOC records and
+           dictionary items.  A Claude Code skill (sd-core-solo) that carries
+           both, a CLAUDE.md template for a project, and a recipe for giving
+           an agent a computer of its own.
+
+           What it says about the walls, because that is where Solo differs
+           from SD Core.  Solo has one account, so the pack has no account
+           words and no per-account gates.  The walls are the account
+           password, "admin" (the administrator commands, and any change to
+           the VOC), the global catalogue and the compiler's restricted
+           names; the guide quotes each refusal in its own words and tells
+           an agent to stop at it.  And it says in so many words what is NOT
+           a wall: "sh", "!", OS.EXECUTE and OPENSEQ of any path are not
+           behind a gate in this release, they run with the Linux user's own
+           rights, and that is a fact and not a permission.  It also warns
+           that status 3035 on a write to the VOC is the "admin" wall and not
+           a full disk, whatever the run-time message guesses.  Because one
+           SD runs on a computer and there is one account, the recipe gives
+           the agent a computer, virtual machine or container of its own and
+           not a second Linux user on yours.
+
+           How it stays true.  The pack is generated from the product's own
+           sources and documents; a free check (test-pack-units.py, 11 checks
+           and 36 planted faults it must catch) fails when the two disagree,
+           and a second check (sandbox-pack-examples.py) reads the pack
+           against a running Solo: all 173 verbs, the shipped VOC records and
+           the 74 dictionary items match, and the three refusals an agent
+           meets first print the words the pack gives.  The guide's own
+           suite, sandbox-guide.py, has a mutant that unlocks "admin" and
+           must go red on four rows; it does.
+
+           What it does not do.  It does not connect an agent to SD (no
+           "sd-mcp", no "sdctl": the example .mcp.json says it does not work
+           today), it does not give an agent any right the account does not
+           already have, and it does not scope an agent inside the one
+           account: that is what the separate computer is for.  The
+           differences from SD Core's pack, and why, are listed in
+           agent-pack/README.md.
+
 20 Oct 26  THE API SERVER NO LONGER USES A WHOLE PROCESSOR WHEN A CLIENT SENDS
            A BROKEN PACKET OR GOES AT THE WRONG MOMENT, A FILE LOCK GOES TO THE
            FILE YOU NAMED, AND SDIDX -M SAYS WHY IT CANNOT MAKE A DIRECTORY.
