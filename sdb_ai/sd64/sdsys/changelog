@@ -1,6 +1,62 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  THE API SERVER NO LONGER USES A WHOLE PROCESSOR WHEN A CLIENT SENDS
+           A BROKEN PACKET OR GOES AT THE WRONG MOMENT, A FILE LOCK GOES TO THE
+           FILE YOU NAMED, AND SDIDX -M SAYS WHY IT CANNOT MAKE A DIRECTORY.
+           Four faults that SD Core found and closed on 19 and 20 Oct 2026 were
+           open in Solo too.  They are in the API server and in sdidx; nothing
+           else changes for a person at the terminal.
+
+           The API server spun.  Each API connection is one "sd-solo -n -q"
+           process, started when a client connects and before anybody has
+           logged in.  A client that sent four bytes that read as a huge
+           length ("garb" is 1,651,663,207), or that declared a packet and
+           closed before sending it, or that closed while a command of its own
+           was waiting in a shell and then cleared its input, left that
+           process polling at 100% of a processor until somebody killed it
+           (measured here: 101 ticks of CPU in a second, for one of four
+           "garb" clients and three of four that declared 1,000,000,000, and
+           for a client that closed while its command waited in a shell).  The
+           server now treats a lost connection as final and stops reading when
+           the connection is gone, and it refuses a packet whose declared
+           length is under the 6 bytes of the header, negative, or over the
+           largest SD string plus its header (1,073,741,832): it ends the
+           session and writes one line to the system log.  The same test is
+           applied to the reply a client sends to an INPUT prompt.
+
+           What this does not do.  SD Core also refuses a packet over 65,536
+           bytes while its server is still root and nobody has logged in.
+           Solo's server never runs as root, so that second, smaller limit is
+           not applied here: before the login a packet of up to the largest
+           SD string is read for, and a connected client that declares one
+           and then sends nothing holds its server process until it closes
+           (the process is idle, not spinning).  A delivered Solo has the API
+           off, and "local" when you turn it on.  A smaller limit before the
+           login needs a decision about how Solo tells "not yet logged in";
+           it is asked, not guessed.
+
+           A file lock went to the wrong file.  An API client that had opened
+           three files and asked for the file lock on the first locked the
+           LAST file it had opened, and releasing a lock released that file's
+           too; the blocking form (wait for the lock) waited for the wrong
+           file as well.  A lock and an unlock now act on the file number the
+           client names.  The text of a refusal was also repeated: a request
+           answered "ON ERROR" with nothing to say sent the text of the last
+           refusal in the session (a WRITE with an over-long record id
+           answered "Invalid call name" after an earlier call with no name).
+           Each reply now carries only its own text.
+
+           sdidx -m.  When the directory the indexes were to move to could not
+           be made (a parent you may not write to, or a path through a file),
+           the tool ended with status 1 and printed nothing.  It now says
+           "Cannot create directory <the whole target as typed>: <reason>" or
+           "... a file of that name exists", and still changes nothing.
+
+           Does not.  None of this changes what a correct client does.  A
+           client library that is used as documented never sends a packet the
+           server now refuses.
+
 19 Oct 26  THE FILE TOOLS SDIDX, SDFIX AND SDCONV NO LONGER DO SEVERAL WRONG
            THINGS, AND ED STOPS WHEN ITS INPUT ENDS.  Six faults were open in
            Solo; each has been closed in SD Core and is closed here the same
