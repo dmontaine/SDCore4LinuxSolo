@@ -451,6 +451,107 @@ response = error.msg
 return
 
 * ======================================================================
+* account.entry.check  -  may this session enter this account?  ONE PLACE FOR THE RULE.
+* In:  ent.name       the account name, lower case unless it is a path, as asked for
+*      ent.suspended  true if its register record says SUSPENDED
+* Out: ent.refused    true if the session may not enter it: the refusal is on the audit trail and server.error, error.msg and abort.message are set
+*                     (the text is 10003 for every reason, so the caller cannot tell "no such account" from "not its account" from "suspended")
+*
+* 20 Oct 26 dm - REFACTOR, BEHAVIOUR PRESERVED (Solo carry 8; SD Core did the same on 18 Oct 26, fccf976).  These two tests were written out in vb.account
+*   (request 3) and nowhere else, so request 29 (open an 'account;file' file) did not ask them at all.  Both requests call this now.  The text of the audit
+*   lines and of the refusal is as it was.
+
+account.entry.check:
+ent.refused = @false
+
+* 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
+*   port's APISRVR of 27 Aug 2026).  The third door, after LOGIN and CPROC's
+*   LOGTO; an API caller reaches an account through neither.
+*
+*   IT REUSES 10003, AND THAT IS THE RULE HERE.  Every refusal in this routine
+*   gives the same text, so a caller cannot tell "no such account" from "not a
+*   member" from "suspended", and the API does not enumerate the register for
+*   anyone probing it.  No administrator exemption: an API session carries none.
+if ent.suspended then
+* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-17) - the refusal is
+*   on the audit trail, in Windows Solo's words (its ACCOUNT REFUSED branch=2), with
+*   the account asked for appended.  The CALLER still sees only 10003.
+   void kernel(K$AUDIT, 'account refused branch=2 suspended account=' : ent.name)  ;* 07 Oct 26 PAL-24: the audit trail is lower case
+   server.error = SV$ERROR
+   error.msg = sysmsg(10003) ;* User not allowed in requested account
+   abort.message = error.msg
+   ent.refused = @true
+   return
+end
+
+* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE GROUP TEST IS GONE, AND
+*   SOLO'S RULE REPLACES IT (SD Core Solo for Windows' "branch 4").  There are
+*   no SD groups and no SDSYS exemption: the one enterable account is the one
+*   the session holds - the name the SCRAM login proved, sduser - and SDSYS is
+*   never a target (owner's ruling 11), whatever the transport.  The name is
+*   read from the session (K$USERNAME), not from a client-supplied value.
+acc.who = downcase(kernel(K$USERNAME, 0))
+acc.member = (downcase(ent.name) # 'sdsys') and (downcase(ent.name) = acc.who)
+if not(acc.member) then
+* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, PAL-17) - the line carries Windows Solo's
+*   "branch=4" word, which it lacked.
+   void kernel(K$AUDIT, 'account refused branch=4 not.own.account user=' : acc.who : ' account=' : ent.name)
+   server.error = SV$ERROR
+   error.msg = sysmsg(10003) ;* User not allowed in requested account
+   abort.message = error.msg
+   ent.refused = @true
+end
+return
+
+* ======================================================================
+* sdnet.account.check  -  request 29 (open an 'account;file' file): may THIS caller use THIS account's file?
+* In:  net.acct       the account named in the request, as typed
+* Out: net.refused    true if not allowed: server.error / status say so (set here)
+*      net.acc.path   the account's directory, from its register record, when allowed
+*
+* 20 Oct 26 dm - Solo carry 8, SD Core's fccf976 (18 Oct 26).  The request used to ask only bit 2 of NETFILES.  With the bit set, ANY API login could open
+*   the VOC-named file of ANY directory (sandbox-req29.py reads it back from the disk: another account's file, SDSYS's, one named by a path, a suspended
+*   account's, one whose NET gate is off, and under SDCLIENT=1).  The account must now have a register record (a path names none, so nothing says who may
+*   enter it), the session must be allowed to enter it by the rule request 3 applies (account.entry.check), and its NET gate - register field 15,
+*   ACC$NET, ON only for the word yes - must be on.  SOLO'S DIFFERENCE FROM CORE: no SDSYS exemption from the gate, because SDSYS is never a target.
+
+sdnet.account.check:
+net.refused = @true
+net.acc.path = ''
+net.acct = downcase(net.acct)
+net.rec = ''
+net.found = @false
+net.who = downcase(kernel(K$USERNAME, 0))
+if net.acct # '' and index(net.acct, @ds, 1) = 0 then
+   openpath @sdsys:@ds:'accounts' to net.f then
+      read net.rec from net.f, net.acct then net.found = @true
+      close net.f
+   end
+end
+if not(net.found) then
+   void kernel(K$AUDIT, 'api refused request=29 reason=no register record user=' : net.who : ' account=' : net.acct)
+   set.status ER$XREMOTE
+   server.error = SV$ELSE
+   return
+end
+
+ent.name = net.acct
+ent.suspended = (upcase(trim(net.rec<ACC$SUSPENDED>)) = 'SUSPENDED')
+gosub account.entry.check
+if ent.refused then return
+
+if not(upcase(trim(net.rec<ACC$NET>)) = 'YES') then
+   void kernel(K$AUDIT, 'api refused request=29 reason=net gate off user=' : net.who : ' account=' : net.acct)
+   set.status ER$XREMOTE
+   server.error = SV$ELSE
+   return
+end
+
+net.acc.path = parse.pathname.tokens(net.rec<ACC$PATH>)
+net.refused = @false
+return
+
+* ======================================================================
 * SrvrAccount  -  Logto named account
 * In:  account name or path
 
@@ -497,42 +598,12 @@ if index(new.account, @ds, 1) = 0 then
    end
 end
 
-* 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
-*   port's APISRVR of 27 Aug 2026).  The third door, after LOGIN and CPROC's
-*   LOGTO; an API caller reaches an account through neither.
-*
-*   IT REUSES 10003, AND THAT IS THE RULE HERE.  Every refusal in this routine
-*   gives the same text, so a caller cannot tell "no such account" from "not a
-*   member" from "suspended", and the API does not enumerate the register for
-*   anyone probing it.  No administrator exemption: an API session carries none.
-if acc.suspended then
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-17) - the refusal is
-*   on the audit trail, in Windows Solo's words (its ACCOUNT REFUSED branch=2), with
-*   the account asked for appended.  The CALLER still sees only 10003.
-    void kernel(K$AUDIT, 'account refused branch=2 suspended account=' : new.account)  ;* 07 Oct 26 PAL-24: the audit trail is lower case
-    server.error = SV$ERROR
-    error.msg = sysmsg(10003) ;* User not allowed in requested account
-    abort.message = error.msg
-    goto revert.to.old.account
-end
-
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE GROUP TEST IS GONE, AND
-*   SOLO'S RULE REPLACES IT (SD Core Solo for Windows' "branch 4").  There are
-*   no SD groups and no SDSYS exemption: the one enterable account is the one
-*   the session holds - the name the SCRAM login proved, sduser - and SDSYS is
-*   never a target (owner's ruling 11), whatever the transport.  The name is
-*   read from the session (K$USERNAME), not from a client-supplied value.
-acc.who = downcase(kernel(K$USERNAME, 0))
-acc.member = (downcase(new.account) # 'sdsys') and (downcase(new.account) = acc.who)
-if not(acc.member) then
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, PAL-17) - the line carries Windows Solo's
-*   "branch=4" word, which it lacked.
-   void kernel(K$AUDIT, 'account refused branch=4 not.own.account user=' : acc.who : ' account=' : new.account)
-   server.error = SV$ERROR
-   error.msg = sysmsg(10003) ;* User not allowed in requested account
-   abort.message = error.msg
-   goto revert.to.old.account
-end
+* 20 Oct 26 dm - THE RULE FOR ENTERING AN ACCOUNT (a suspended account is not entered; the account must be the session's own, SDSYS never; every refusal
+*   is 10003 and audited) lives in account.entry.check, above, which request 29 asks as well.  Its comments are the old ones of this place.
+ent.name = new.account
+ent.suspended = acc.suspended
+gosub account.entry.check
+if ent.refused then goto revert.to.old.account
 
 * 29 Sep 26 SD Core for Linux Solo - the tier-ordering gate was already gone
 *   with the tier model (S.25); the own-account test above is the whole of the
@@ -1605,6 +1676,19 @@ vb.open.sdnet:
                            return
                         end
 
+                        * 20 Oct 26 dm - THE ACCOUNT RULES, asked BEFORE anything is marked or opened (Solo carry 8, SD Core's fccf976).  Bit 2 of NETFILES was the
+                        *   whole gate: with it set, any API login opened the VOC-named file of any directory.  Now SDCLIENT refuses as it does request 4 (the 5262
+                        *   text), and sdnet.account.check asks what request 3 asks (the account is the session's own, not suspended), that the account has a register
+                        *   record (a path names none), and that its NET gate is on.  The default stays as secure as it was: bit 2 is 0 and the gate is off.
+                        if config('SDCLIENT') # 0 then
+                           abort.message = sysmsg(5262) ;* File access is disabled
+                           server.error = SV$ON.ERROR
+                           return
+                        end
+                        net.acct = field(cmnd, ';', 1)
+                        gosub sdnet.account.check
+                        if net.refused then return
+
                         * Use of this operation identifies the process as a SDNet user.
                         * Set the appropriate process flag so that LISTU etc show this.
 
@@ -1627,15 +1711,8 @@ vb.open.sdnet.continue:
 
                         * Open file to file table entry i
 
-                        acc = field(cmnd, ';', 1)   ;* Account name or path
+                        acc = net.acc.path          ;* The account's directory, from its register record (sdnet.account.check, above)
                         file = field(cmnd, ';', 1)  ;* File name
-
-                        openpath @sdsys:@ds:'accounts' to acc.f then
-                           read acc.rec from acc.f, downcase(acc) then
-                              acc = parse.pathname.tokens(acc.rec<ACC$PATH>)
-                           end
-                           close acc.f
-                        end
 
                         qvoc.path = acc:@ds:'voc'
                         openpath qvoc.path to qvoc.f else

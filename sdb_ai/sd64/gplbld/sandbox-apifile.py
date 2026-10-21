@@ -15,8 +15,8 @@
 #               and an ON ERROR reply carried @abort.message, which a refusal sets and nothing cleared, so a WRITE with an over-long id answered the text of the last
 #               refusal.  Core's rows speak the wire over a local pipe after a local login; Solo has no local login (SDConnectLocal is disabled, request 25 refused),
 #               so this suite does what Solo's clients do: TLS 1.3, then the SCRAM-SHA-256 login bound to the TLS session, with gplbld/scram-probe.py's own code (no SD
-#               code on the client side), then the account.  Sections F and G of Core's suite, the same requests, bodies and expectations; nothing of its section A-E
-#               (request 29 and the NET gate: Solo has neither) and nothing of netfake.py.
+#               code on the client side), then the account.  Sections F and G of Core's suite, the same requests, bodies and expectations; nothing of netfake.py.
+#               Core's sections A to E (request 29 and the NET gate) are Solo's sandbox-req29.py (20 Oct 26, Solo carry 8), which uses this file's Wire.
 # END-HISTORY
 #
 # THE INSTRUMENT.  Each session is a REAL `sd -n -q` process started as the socket activator starts it (descriptors 0, 1 and 2 the accepted TCP connection) in
