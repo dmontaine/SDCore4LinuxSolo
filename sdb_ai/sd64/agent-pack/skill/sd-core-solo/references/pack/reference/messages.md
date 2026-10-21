@@ -3731,6 +3731,132 @@ Cannot find item to run
 
 cited by: `cproc`
 
+### msg:11700
+> kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371
+
+```
+Usage: encrypt.key set name salt [confirm] | encrypt.key clear [name] | encrypt.key list
+```
+
+cited by: `encryptkey`
+
+### msg:11701
+> kind=message tier=reference since=- src=sdsys/messages/11701:1#07bad705
+
+```
+Passphrase:
+```
+
+cited by: `encryptkey`
+
+### msg:11702
+> kind=message tier=reference since=- src=sdsys/messages/11702:1#7e6b49a7
+
+```
+Passphrase again:
+```
+
+cited by: `encryptkey`
+
+### msg:11703
+> kind=message tier=reference since=- src=sdsys/messages/11703:1#f932890a
+
+```
+The two passphrases are different.  No key was set.
+```
+
+cited by: `encryptkey`
+
+### msg:11704
+> kind=message tier=reference since=- src=sdsys/messages/11704:1#9d9bec82
+
+```
+No passphrase was typed.  No key was set.
+```
+
+cited by: `encryptkey`
+
+### msg:11705
+> kind=message tier=reference since=- src=sdsys/messages/11705:1#d59d8556
+
+```
+Key %1 is set (key id %2).  Keep the passphrase and the salt: without both, the data it encrypts cannot be read again.
+```
+
+cited by: `encryptkey`
+
+### msg:11706
+> kind=message tier=reference since=- src=sdsys/messages/11706:1#1ec73a4b
+
+```
+%1 key(s) removed from the key ring.
+```
+
+cited by: `encryptkey`
+
+### msg:11707
+> kind=message tier=reference since=- src=sdsys/messages/11707:1#e60d2f97
+
+```
+The key ring is empty.
+```
+
+cited by: `encryptkey`
+
+### msg:11708
+> kind=message tier=reference since=- src=sdsys/messages/11708:1#261d5341
+
+```
+%1  key id %2
+```
+
+cited by: `encryptkey`
+
+### msg:11709
+> kind=message tier=reference since=- src=sdsys/messages/11709:1#7d9739f7
+
+```
+The salt is not one that sdsalt() makes (24 base64 characters for 16 bytes).  No key was set.
+```
+
+cited by: `encryptkey`
+
+### msg:11710
+> kind=message tier=reference since=- src=sdsys/messages/11710:1#60aedc27
+
+```
+The key name is not valid.  Use 1 to 31 letters, digits, dots, dashes or underscores.
+```
+
+cited by: `encryptkey`
+
+### msg:11711
+> kind=message tier=reference since=- src=sdsys/messages/11711:1#c696c141
+
+```
+The key ring is full (16 keys).  Clear one first: encrypt.key clear name
+```
+
+cited by: `encryptkey`
+
+### msg:11712
+> kind=message tier=reference since=- src=sdsys/messages/11712:1#59d91721
+
+```
+The key could not be made (status %1).  No key was set.
+```
+
+cited by: `encryptkey`
+
+### msg:11713
+> kind=message tier=reference since=- src=sdsys/messages/11713:1#0bc7b76a
+
+```
+  (new values are encrypted with this key)
+```
+
+cited by: `encryptkey`
+
 ### msg:11900
 > kind=message tier=reference since=- src=sdsys/messages/11900:1#877e0c48
 

@@ -1533,12 +1533,33 @@
 "tier": "reference",
 "words": 8
 },
+"basic:func:sdkey": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 34
+},
 "basic:func:sdpyobj": {
 "kind": "basic.internal",
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
 "words": 30
+},
+"basic:func:sdrandkey": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 27
+},
+"basic:func:sdsalt": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 32
 },
 "basic:func:select.socket": {
 "kind": "basic.function",
@@ -4730,7 +4751,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 116
+"words": 113
 },
 "core:dict-types": {
 "kind": "core.digest",
@@ -4941,6 +4962,13 @@
 "since": "-",
 "tier": "reference",
 "words": 48
+},
+"dict:conv:XE": {
+"kind": "dict.conv.code",
+"part": "reference/dictionaries.md",
+"since": "-",
+"tier": "reference",
+"words": 100
 },
 "dict:conv:field-extraction-angle-brackets": {
 "kind": "dict.conv.code",
@@ -8833,6 +8861,104 @@
 "since": "-",
 "tier": "reference",
 "words": 10
+},
+"msg:11700": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:11701": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 6
+},
+"msg:11702": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 7
+},
+"msg:11703": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 14
+},
+"msg:11704": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 13
+},
+"msg:11705": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 28
+},
+"msg:11706": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:11707": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 10
+},
+"msg:11708": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 9
+},
+"msg:11709": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 23
+},
+"msg:11710": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
+"msg:11711": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:11712": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 17
+},
+"msg:11713": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
 },
 "msg:11900": {
 "kind": "message",
@@ -21593,7 +21719,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 473
+"words": 596
 },
 "sys:ikeys:ah$": {
 "kind": "sys.keys",
@@ -23330,6 +23456,13 @@
 "since": "-",
 "tier": "reference",
 "words": 35
+},
+"tcl:encrypt.key": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "-",
+"tier": "reference",
+"words": 39
 },
 "tcl:enum": {
 "kind": "tcl.keyword",

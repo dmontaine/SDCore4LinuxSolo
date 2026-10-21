@@ -235,6 +235,14 @@ Constants beginning `SD$` in `sdsys/syscom/err.h` (error codes: STATUS() after a
 - `SD$Decode.Err` = -10203 - error in call to hex2bin or base642bin
 - `SD$KeyLen.Err` = -10204 - key length error
 - `SD$EDType.Err` = -10205 - Encode Decode type error
+- `SD$Salt.Err` = -10206 - the salt is not base64 for exactly 16 bytes
+- `SD$Pass.Err` = -10207 - the passphrase is empty or longer than 65536 bytes
+- `SD$NoKey.Err` = -10208 - no key of that name is in the key ring
+- `SD$KeyId.Err` = -10209 - the value was encrypted under a key that is not the one in the ring
+- `SD$NotEnc.Err` = -10210 - the value is not an encrypted value of this format
+- `SD$Ring.Err` = -10211 - the key ring is full
+- `SD$Damaged.Err` = -10212 - the encrypted value fails its check: it has been changed or damaged
+- `SD$KeyName.Err` = -10213 - a key name is 1 to 31 letters, digits, dots, dashes or underscores
 - `SD$EXT.KEY.ERR` = -10300 - unknown key
 - `SD$EXT.ARG.CNT` = -10301 - incorrect argument count for called function
 - `SD$INT.OVERFLW` = -10302 - Result will create integer overflow  (> 32 Bit int)
@@ -636,7 +644,7 @@ Constants beginning `ACC$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `ACC$OS.EXEC` = 8 - may use OS.EXECUTE, and reach OS paths outside its account (yes/no)
 
 ### sys:keys:fc$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:589#f7761cf5
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:593#f7761cf5
 
 Constants beginning `FC$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -861,7 +869,7 @@ Constants beginning `LPTR$` in `sdsys/syscom/keys.h` (an ordinary program may in
 - `LPTR$HIGH.PRINT.UNIT` = 255 - Highest available print unit number
 
 ### sys:keys:ml$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:580#b3260586
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:584#b3260586
 
 Constants beginning `ML$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -888,7 +896,7 @@ Constants beginning `OI$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `OI$CLASS` = 1 - Class name
 
 ### sys:keys:os$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:545#de908335
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:549#de908335
 
 Constants beginning `OS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1010,7 +1018,7 @@ Constants beginning `SL$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `SL$COUNT` = 3 - Fetch number of entries in select list
 
 ### sys:keys:srt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:571#c4cbc5d3
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:575#c4cbc5d3
 
 Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1025,7 +1033,7 @@ Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SRT$DATA` = 128 - SORT(): sort has an associated data element
 
 ### sys:keys:sys$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:438#6bc3f689
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:442#6bc3f689
 
 Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1142,7 +1150,7 @@ Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SYS$CASING` = 1086 - Is case sensitivity of string comparisons on in this program?
 
 ### sys:keys:vt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:602#4692cf70
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:606#4692cf70
 
 Constants beginning `VT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 

@@ -14,11 +14,11 @@ The 12 conversion codes the docs' examples use most (field 3 of a dictionary ite
 - `L` - Length conversion — L
 - `MD` - Masked decimal — MD, ML, MR
 - `MT` - Time conversion — MT
-- `MX` - Radix conversion — MX, MO, MCD, MCX
 - `P` - Pattern matching — P
 - `R` - Range test — R
 - `S` - Substitution — S
 - `T` - Substring extraction — T
+- `XE` - Encrypted value — XE
 
 ### core:dict-types
 > kind=core.digest tier=core since=- src=docs:User/markdown/33-sd-dicts-structure.md:35#9b6b4980

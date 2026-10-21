@@ -357,7 +357,7 @@ shorthand for the first 5 characters.
 
 
 ### dict:conv:TRANS
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:247#272d64ba
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:260#272d64ba
 
 **TRANS — T**
 
@@ -372,8 +372,26 @@ same as the BASIC `TRANS()` function and is how a dictionary field can
 display data from another file.
 
 
+### dict:conv:XE
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:247#99be5b10
+
+**Encrypted value — XE**
+
+
+```
+XE      XE;name
+```
+
+For output, decrypts a value that was stored encrypted, with the key called *name*
+(`default` when none is given) from the key ring of the session's process. For input,
+encrypts it with the newest key of that name. With no key in the ring, output leaves the
+stored cipher text as it is and sets `status()`; **input gives the null string and sets
+`status()`, never the plaintext.** A null value stays null. The ring, the statuses and what a
+query does with an encrypted field are on SD Basic - Encrypting Data.
+
+
 ### dict:conv:field-extraction-angle-brackets
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:258#db40137e
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:271#db40137e
 
 **Field extraction — angle brackets**
 
