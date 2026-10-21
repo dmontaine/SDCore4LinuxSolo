@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1) - the NET gate (K$NET, register field 15) is loaded at every entry to an account,
+*           beside K$SH and K$OS.EXEC; a session that may not enter the account keeps the previous one's.
 * 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - the account's SH and OS.EXECUTE switches are
 *           read from its register record (ACC$SH, ACC$OS.EXEC) and loaded with K$SH and K$OS.EXEC once the account is entered, off unless
 *           the record says yes (SD Core's S.63 second sitting).
@@ -586,6 +588,7 @@ acc.suspended = @false
 *   so an account given SH or OS over SET.OS.ACCESS had neither over the API.
 api.sh.grant = @false
 api.os.grant = @false
+api.net.grant = @false     ;* 20 Oct 26, SDNet carry 9 (SD Core's S.65 slice 1): the NET gate (a file on another SD server), the same register field as request 29's
 if index(new.account, @ds, 1) = 0 then
    openpath @sdsys:@ds:'accounts' to acc.f then
       read acc.rec from acc.f, downcase(new.account) then
@@ -593,6 +596,7 @@ if index(new.account, @ds, 1) = 0 then
          acc.suspended = (upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED')
          api.sh.grant = (upcase(trim(acc.rec<ACC$SH>)) = 'YES')
          api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
+         api.net.grant = (upcase(trim(acc.rec<ACC$NET>)) = 'YES')
       end
       close acc.f
    end
@@ -643,6 +647,7 @@ i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
 *   held to the account's own switches like anybody else.
 void kernel(K$SH,      api.sh.grant)
 void kernel(K$OS.EXEC, api.os.grant)
+void kernel(K$NET,     api.net.grant)   ;* 20 Oct 26, SDNet carry 9: loaded at every entry to an account, as SD Core's apisrvr loads it (the set ends the account scope)
 
 * Run the LOGIN paragraph, if it exists
 

@@ -24,6 +24,7 @@
 	  *               FCI$ names, the OPT. numbers to 60, the V$ and FL$ additions, as gplsrc/keys.h carries them.  NOT carried: K$LOGIN.UID (91),
 	  *               K$SH to K$PATH.IN (93-96), K$SD.ACCOUNTS (118), K$VOC.EDIT to K$EDIT.OS.OK (121-126), K$NET (127).  Solo's K$GLOBAL.SESSION (69)
 	  *               and USR$GLOBAL stay.
+	  * 20 Oct 26 dm  SDNet carry 9: K$NET (127) carried, as gplsrc/keys.h has it.
 	  * END-HISTORY
       *
       *  START-DESCRIPTION:
@@ -182,6 +183,9 @@
       $define K$SH              93       ;* may use SH and "!"
       $define K$OS.EXEC         94       ;* may use OS.EXECUTE and reach OS paths outside its account
       $define K$PATH.OK         95       ;* 1 if this account may open the pathname
+* 20 Oct 26 SDNET CARRY 9 - SD Core's S.65 K$NET, at SD Core's number: the NET gate, settable only from $internal (LOGIN and APISRVR load it from
+*   register field 15 at account entry; the same field guards API request 29), -1 asks.  Must match gplsrc/keys.h.
+      $define K$NET             127      ;* may open a file on another SD server (SDNet); account-scoped like K$SH; set from $internal, -1 asks
 * 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
 *   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
 *   own Linux permissions, and the kernel no longer carries those keys.

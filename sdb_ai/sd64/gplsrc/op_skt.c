@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  SDNet carry 9 (SD Core's S.65 slice 2, 6815cdc): SOCKET.INFO(SKT$INFO.TLS.SPKI), the hash of the server's public key.
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): SKT$INFO.TRACE asks the account's OS-access gate (os_path_ok_for_account) for the log's path
  *               instead of answering ER_PERM to everybody.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: SET.SOCKET.MODE SKT$INFO.TRACE answers ER_PERM (the log is a file the
@@ -992,6 +993,21 @@ void op_sktinfo() {
         k_put_c_string(none, &result_descr);
       }
       break;
+
+    /* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the hash of the server's public key, 64 lower case
+       hex digits, "" without TLS or without a key. */
+    case SKT_INFO_TLS_SPKI: {
+      unsigned char spki[32];
+      char hex[65];
+      int i;
+
+      hex[0] = '\0';
+      if ((sockvar->tls != NULL) && sd_tls_client_peer_spki_sha256((SD_TLS_CLIENT*)sockvar->tls, spki)) {
+        for (i = 0; i < 32; i++)
+          sprintf(hex + (2 * i), "%02x", spki[i]);
+      }
+      k_put_c_string(hex, &result_descr);
+    } break;
 
     case SKT_INFO_FAMILY:
       switch (sockvar->family) {

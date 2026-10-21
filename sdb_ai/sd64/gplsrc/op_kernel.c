@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1, 9d6f407): K_NET (127), the NET gate as the user flag USR_NET (SD Core keeps it in
+ *               a gates word); set from a $internal program, -1 asks; a set also empties the key ring of the XE conversion, as SD Core's does.  Carry 7's wipe
+ *               in K_SET_USERNAME is therefore now a second, harmless one: it can go once APISRVR's K$NET load has been seen to run (a follow-up).
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 7, SD Core's encryption layer 3, 00a5888; a DEVIATION from the Core template, flagged for the parity
  *               audit): Core empties the key ring of the XE conversion (kr_wipe, sd_keyring.c) in the K_NET set that ends an account scope; Solo has no
  *               K_NET and one account, so the ring is emptied where the session takes its name, K_SET_USERNAME's success branch.
@@ -548,6 +551,25 @@ void op_kernel() {
         }
       }
       result.data.value = (my_uptr->flags & USR_OS_EXEC) != 0;
+      break;
+
+    /* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 1, 17 Oct 26): the NET gate, set as K_SH is (only from a $internal
+       program; -1 asks).  Loaded at sign-on (LOGIN) and by the API server, so it ends an account scope: the keys of the XE conversion belong to
+       the scope that ended (SD Core's encryption layer 3 does the same here).  The administrator needs no grant: USR_ADMIN passes the check
+       that reads this on its own. */
+    case K_NET:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0) {
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->flags |= USR_NET;
+          else
+            my_uptr->flags &= ~USR_NET;
+          kr_wipe();
+        }
+      }
+      result.data.value = (my_uptr->flags & USR_NET) != 0;
       break;
 
     /* May THIS ACCOUNT open this pathname?  An $internal program is exempt from the gate itself (it has to be, to do its work), so one

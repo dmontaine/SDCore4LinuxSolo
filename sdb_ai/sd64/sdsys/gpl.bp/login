@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1) - the NET gate (K$NET, register field 15) is loaded beside K$SH and K$OS.EXEC.
 * 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - the load of K$SH and K$OS.EXEC from
 *           ACC$SH / ACC$OS.EXEC (SD Core's S.63) is back, OFF unless the register record says yes.
 * 18 Oct 26 SD Core for Linux Solo (LSOLO 52) - carried from SD Core for Linux 5315c65
@@ -486,6 +487,9 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   the NEXT sign-on, not this one.  APISRVR, which enters the account itself, loads them for an API session.
    void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')
    void kernel(K$OS.EXEC, upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
+* 20 Oct 26 dm - SDNET CARRY 9 (SD Core's S.65 slice 1): the NET gate, a file on another SD server, is loaded here too, from field 15 (ACC$NET): off unless
+*   the record says 'yes', blank or a record with fewer fields is off.  The same field guards API request 29.  The administrator is not asked for it.
+   void kernel(K$NET, upcase(trim(acc.rec<ACC$NET>)) = 'YES')
 
    * Set @PATH
 

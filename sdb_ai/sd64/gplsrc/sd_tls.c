@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  *
  * START-HISTORY:
+ * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9): sd_tls_client_peer_spki_sha256(), SD Core's S.65 slice 2 (6815cdc): the hash a server
+ *           definition pins.
  * 30 Sep 26 SD Core for Linux Solo (LSOLO 19): sd_tls_client_pin() - the
  *           server's certificate is pinned on first use (below).
  * 15 Sep 26 dm S.19: created.  See sd_tls.h.
@@ -351,6 +353,27 @@ int sd_tls_client_peer_sha256(SD_TLS_CLIENT* c, unsigned char* out) {
   if (cert == NULL)
     return false;
   ok = X509_digest(cert, EVP_sha256(), out, &n) == 1 && n == 32;
+  X509_free(cert);
+  return ok;
+}
+
+/* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the SHA-256 of the server certificate's
+   SubjectPublicKeyInfo - the key, not the certificate - so a renewed certificate over the same key has the same hash.  This is what a server
+   definition pins (set.server); the certificate digest above would change at every renewal.  32 bytes into OUT; false when there is no
+   certificate or the key cannot be encoded. */
+int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out) {
+  X509* cert = SSL_get1_peer_certificate(c->ssl);
+  unsigned char* der = NULL;
+  unsigned int n = 0;
+  int der_len;
+  bool ok = false;
+
+  if (cert == NULL)
+    return false;
+  der_len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &der);
+  if ((der_len > 0) && (der != NULL))
+    ok = (EVP_Digest(der, (size_t)der_len, out, &n, EVP_sha256(), NULL) == 1) && (n == 32);
+  OPENSSL_free(der);
   X509_free(cert);
   return ok;
 }

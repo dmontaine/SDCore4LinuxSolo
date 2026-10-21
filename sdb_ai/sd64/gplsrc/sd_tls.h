@@ -73,6 +73,7 @@ int sd_tls_client_pending(SD_TLS_CLIENT* c);   /* decrypted bytes held */
 int sd_tls_client_write(SD_TLS_CLIENT* c, const void* buf, int len);
 const unsigned char* sd_tls_client_binding(SD_TLS_CLIENT* c);
 int sd_tls_client_peer_sha256(SD_TLS_CLIENT* c, unsigned char* out);
+int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out);   /* 20 Oct 26 SDNet carry 9 (SD Core S.65): the key, not the certificate */
 const char* sd_tls_client_version(SD_TLS_CLIENT* c);
 
 /* LSOLO 19: pin the server's certificate on first use; see sd_tls.c.  The store

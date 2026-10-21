@@ -21,6 +21,8 @@
  *               grouped, ustats, account, users_peak, print_jobs and the rest).  The layout of the shared memory changes: a running Solo must be
  *               stopped and started again on the new build.  Not carried: USR_SH, USR_OS_EXEC, USR_SD_ACCOUNTS and the 'gates' word (S.63 to S.65);
  *               Solo's USR_GLOBAL (0x0100) stays.
+ * 20 Oct 26 dm  SDNet carry 9: USR_NET (0x1000), the NET gate of SD Core's S.65 slice 1, which SD Core keeps in the 'gates' word and Solo, having
+ *               no such word, keeps beside USR_SH.  A bit of a word of the user table, never written to disk.
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -202,6 +204,9 @@ struct USER_ENTRY
         of the user table, never written to disk, so the number is this tree's own); USR_OS_EXEC is SD Core's 0x0200.                         */
      #define USR_SH          0x2000 /* may use the SH verb and "!" */
      #define USR_OS_EXEC     0x0200 /* may use OS.EXECUTE, and reach OS paths outside its own account */
+     /* 20 Oct 26 SDNet carry 9: the NET gate (SD Core's UG_NET), loaded at account entry from field 15 of the register record (ACC$NET) by LOGIN and
+        APISRVR, as USR_SH is.  It decides whether the session may open a file on another SD server; see keys.h K_NET. */
+     #define USR_NET         0x1000 /* may open a file on another SD server (SDNet) */
      /* 15 Oct 26 QM4 gaps Q-5: the application signal.  SIGNAL(user) sets it in a process of the same login user (or in
         any process, from an administrator); SYSTEM(1062) in that process reads it and clears it.                */
      #define USR_SIGNAL      0x0400 /* SIGNAL() has been raised for this process */

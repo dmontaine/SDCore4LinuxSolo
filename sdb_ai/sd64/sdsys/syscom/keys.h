@@ -308,6 +308,9 @@
       * 15 Oct 26 dm - QM4 gaps Q-5, SELECT.SOCKET().  SKT$INFO.EVENTS is SD's own number; the events are openQM's.
       $define SKT$INFO.EVENTS          9    ;* SET.SOCKET.MODE: events to watch.  SOCKET.INFO: the letters last found
       $define SKT$INFO.TRACE           10   ;* SET.SOCKET.MODE: pathname of a log of the data sent and received (null turns it off)
+      * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 2): SOCKET.INFO only.  The SHA-256 of the server certificate's public key
+      *   (SubjectPublicKeyInfo) of a socket opened with SKT$TLS, 64 lower case hex digits; "" otherwise.  What set.server pins.
+      $define SKT$INFO.TLS.SPKI        11   ;* hash of the server's public key
       $define SKT$READ.EVENT           1    ;* Data to read, a connection waiting on a server socket, or the peer closed
       $define SKT$WRITE.EVENT          2    ;* Data can be sent
       $define SKT$EXCEPTION.EVENT      4    ;* An exception condition
@@ -406,6 +409,9 @@
       * 18 Oct 26 dm - encryption layer 3, mirrored from gplsrc/keys.h: the key ring of the XE conversion.
       *   Args: 'set', name, base64 key (answers the key id, 8 hex digits) / 'clear', name or * (answers how many) / 'list'.
       $define SD_KEYRING      120  ;* sd_keyring key ring: set, clear, list
+      * 17 Oct 26 dm - S.65 slice 2b, mirrored from gplsrc/keys.h: is a path a file
+      *   or directory only the running user can touch.  Args: path, FILE or DIR.
+      $define SD_FILE_PRIVATE 111  ;* op_sdext private-file test, 2 args: path, FILE|DIR
       
       * embedded python 
       
