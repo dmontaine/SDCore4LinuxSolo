@@ -23,6 +23,10 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -x "$H/bin/sd-solo" ] && [ -f "$H/.sdcoresolo" ] || refuse "$H is not a built Solo tree"
 [ -s "$PWF" ] || refuse "cannot read $PWF"
 [ -f "$H/nanocfg/mkrc.sh" ] || refuse "$H has no nanocfg/mkrc.sh - the tree predates LSOLO 16"
+# 20 Oct 26 (the Solo OS switch): the NANO verb runs outside SD, so an ordinary session is refused it unless the account's `os` switch (field 8 of the register
+# record accounts/sduser) is on.  Leg 2 types the verb in an ordinary session, so the stage must have it on: solo-stage.sh --os-access os (or both).
+[ "$(sed -n 8p "$H/accounts/sduser" 2>/dev/null | tr 'A-Z' 'a-z' | tr -d ' \t\r')" = "yes" ] \
+  || refuse "the 'os' switch is off on $H (field 8 of accounts/sduser): stage it with solo-stage.sh --os-access os (or both), or ADMIN then set.os.access os on - an ordinary session is refused the NANO verb otherwise"
 NANO="$(command -v nano)" || refuse "nano is not installed"
 command -v python3 >/dev/null || refuse "python3 is required"
 GOOD="$(head -1 "$PWF")"
