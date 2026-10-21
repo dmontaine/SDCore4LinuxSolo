@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on OPENSEQ and on DELETESEQ of a pathname is back, as Core's; the S.64 edit
+ *               gates are still not here (Solo has voc_guard).
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.63 OS-access tests on OPENSEQ and DELETESEQ
  *               of a pathname and the S.64 edit gates: Solo has neither switch yet.
  * 12 Oct 26 dm  op_openseq() opens a block device, a floppy disk drive among
@@ -224,6 +226,15 @@ void op_delseq() {
     if (file_name[strlen(file_name) - 1] != DS)
       strcat(file_name, DSS);
     strcat(file_name, rec_name);
+  } else {
+    /* 20 Oct 26 SOLO OS SWITCH (S.63): with no record name the file name IS an OS pathname, and DELETESEQ removes it.  That is an OS
+       file external to SD, so it is asked as OPENSEQ asks: an account without OS.EXECUTE reaches only paths inside its own directory
+       (ER_PERM, which is the ELSE branch, as for OPENSEQ).  The record form above names an SD directory file through the VOC and is
+       not asked.                                                                                                                  */
+    if (!os_path_open_ok(file_name)) {
+      process.status = ER_PERM;
+      goto exit_op_delseq;
+    }
   }
 
   /* Check file exists */
@@ -537,6 +548,14 @@ Private void openseq(bool map_name) {
       goto exit_op_openseq;
     }
     ProfEvent(PROF_OPENSEQ, file_name, file_name_len); /* OPENSEQ by pathname: the application event profiler (16 Oct 26) */
+
+    /* 20 Oct 26 SOLO OS SWITCH (S.63): OPENSEQ by pathname (and a port, which is an OS device) is an OS file external to SD.  An
+       account without OS.EXECUTE reaches only paths inside its own directory; see op_sh.c os_path_ok_for_account.  A file named
+       through the VOC (the file, record form above) is an SD file and is not asked this here.                                   */
+    if (!os_path_open_ok(file_name)) {
+      process.status = ER_PERM;
+      goto exit_op_openseq;
+    }
 
     /* Check if looks like a port name */
 

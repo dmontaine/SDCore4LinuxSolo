@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on DIR() is back (op_dir()).
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote SELECT and the S.63 OS-access test on DIR();
  *               DIR() still gives STATUS() a value of its own (0, ER_FNF or ER_PERM) as Core's S.63 commit made it do.
  * 16 Oct 26 dm  dir_select() closes the oldest cached file and tries again when opendir() fails at the open-file limit (QM4 Fixes 279).
@@ -1392,7 +1393,13 @@ void op_dir() {
   descr = e_stack - 1;
   path_len = k_get_c_string(descr, pathname, MAX_PATHNAME_LEN);
   if (path_len > 0) {
-    if ((dfu = opendir(pathname)) != NULL) {
+    /* 20 Oct 26 SOLO OS SWITCH (S.63, the second sitting): DIR() lists an OS directory by pathname, which is "a file external to SD"
+       exactly as OPENSEQ and OPENPATH name one.  An account without OS.EXECUTE lists only a directory inside its own; the answer is a
+       null string and STATUS() 3035, as OPEN ... ELSE gets.  A $internal program is trusted and asks the account itself.  A measured
+       DIR('/etc') gave 257 entries to an account with both switches off on SD Core before this was asked there.                      */
+    if (!os_path_open_ok(pathname)) {
+      process.status = ER_PERM;
+    } else if ((dfu = opendir(pathname)) != NULL) {
       if (pathname[path_len - 1] == DS)
         pathname[path_len - 1] = '\0';
 

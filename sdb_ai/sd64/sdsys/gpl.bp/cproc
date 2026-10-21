@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - os.command (the SH verb and "!")
+*           asks K$ADMINISTRATOR / K$SH again and refuses with 10053 (SD Core's S.63).
 * 18 Oct 26 SD Core for Linux Solo (LSOLO 52) - carried from SD Core for Linux 5315c65
 *           (merge base c0802d7): KEEP.SELECT and CLEAR.SELECT, the .C- undo, COMMAND.LOGGING
 *           (K$CMDLOG.WRITE), CHAINED.SELECT, the $PRIVATE.VOC lookup, INPUTNULL, PHANTOM LOG
@@ -3762,9 +3764,14 @@ os.command:
    * Reject shell metacharacters in OS commands.
    * os.execute os.command.text
    deffun valid_shell_cmd(cmd) calling '!valid_shell_cmd'
-* 18 Sep 26 dm - TEARDOWN (S.27).  The administrator/SH grant test is gone:
-*   SH and "!" run at the account's own Linux permissions.  The metacharacter
-*   filter stays - it is a sanitizer, not a tier gate.
+* 20 Oct 26 dm - THE SOLO OS SWITCH (SD Core's S.63, carried).  The administrator-or-SH-grant test is back (the 18 Sep teardown had
+*   removed it with the tiers): SH and "!" are for the administrator and for an account the administrator has given the SH
+*   switch (K$SH, loaded from ACC$SH at sign-on by LOGIN and, for an API session, by APISRVR).  The reply is the Windows port's
+*   10053.  The metacharacter filter below stays - it is a sanitizer, not a gate.
+   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then
+      display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell
+      return
+   end
    if not(valid_shell_cmd(os.command.text)) then
       display sysmsg(5240, 2) ;* Error xx executing operating system command
       return

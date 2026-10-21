@@ -244,6 +244,20 @@
    18 Oct 26 (the carry from SD Core): 92 now means K_WINSIZE below, as it does
    in SD Core, so it must not be read as the old K_OS_EXEC; 91 stays unused.   */
 
+/* 20 Oct 26 SOLO OS SWITCH (the owner: two words like SD Core, SET.OS.ACCESS, the installer asks).  SD Core's S.63 keys, at SD Core's
+   numbers, which are free here: the per-account OS-access switches are back, OFF unless the administrator turns them on.
+     K_SH       the session may use SH and "!".  Set only from a $internal program, like K_ADMINISTRATOR.
+     K_OS_EXEC  the session may use OS.EXECUTE and reach OS paths outside its own account.  Same rule.
+     K_PATH_OK  the argument is a pathname; the answer is 1 if THIS ACCOUNT may open it - whoever asks.
+                An $internal program is exempt from the gate itself, so it must ask on the user's behalf; it cannot be
+                allowed to be the way round the gate.
+   LOGIN loads the first two from fields 7 and 8 of the account's register record (blank is OFF); APISRVR loads them when it
+   enters the account itself.  GPL.BP/INT$KEYS.H carries the same numbers.  (K_PATH_IN, 96, is not carried: it serves SD Core's
+   SD.ACCOUNTS gate, and Solo has one account.)                                                                                 */
+#define K_SH                 93
+#define K_OS_EXEC            94
+#define K_PATH_OK            95
+
 /* 30 Sep 26 SD Core for Linux Solo - LSOLO 12, RULING 33 (the Windows Solo
    key, same number).  WAS THIS SESSION ADMITTED WITH THE GLOBAL PASSWORD?
    K_ADMINISTRATOR (26) cannot say: $ADMIN and $GLOBAL both set it.  Only a

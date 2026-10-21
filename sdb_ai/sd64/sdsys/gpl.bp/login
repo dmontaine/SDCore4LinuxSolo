@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - the load of K$SH and K$OS.EXEC from
+*           ACC$SH / ACC$OS.EXEC (SD Core's S.63) is back, OFF unless the register record says yes.
 * 18 Oct 26 SD Core for Linux Solo (LSOLO 52) - carried from SD Core for Linux 5315c65
 *           (merge base c0802d7): the terminal's own size wins (K$WINSIZE; the TERM 120,36
 *           line is out of the login paragraph), the user table is told the account
@@ -477,9 +479,13 @@ deffun pw_complex(pw) calling '!pw_complex'
    end
 
 
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-access grant load is gone: SH and
-*   OS.EXECUTE run at the account's own Linux permissions, and SD keeps no
-*   second wall.
+* 20 Oct 26 dm - THE SOLO OS SWITCH (SD Core's S.63, carried; the 18 Sep teardown, S.27, had removed the load with the tiers).  The two
+*   OS-access switches are loaded at sign-on: SH and OS.EXECUTE are OFF unless this account's register record says 'yes' in field 7
+*   (ACC$SH) or field 8 (ACC$OS.EXEC).  The administrator changes them with SET.OS.ACCESS.  Blank, or a record with fewer fields, is
+*   denied.  The administrator needs no grant - USR_ADMIN passes the gate on its own - and a change made while a session runs is seen by
+*   the NEXT sign-on, not this one.  APISRVR, which enters the account itself, loads them for an API session.
+   void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')
+   void kernel(K$OS.EXEC, upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
 
    * Set @PATH
 

@@ -30,6 +30,9 @@
 #   F  file locks: S1 locks zzsec by number; S2 (the same account, a second session) asks for the lock on each of three files (no wait) and LOCKED says where S1's lock is;
 #      unlock goes to the file named; the BLOCKING form (the wait flag set) holds the request back until the lock is free and locks the file asked for
 #   G  the text of an ON ERROR reply: after a refusal that has a text, a WRITE whose ON ERROR clause has nothing to say answers ON ERROR with NO text
+#   S  the OS switches over the API (20 Oct 26, the Solo OS switch): the server reads fields 7 and 8 of the register when it enters the account; SH OFF is
+#      refused (10053) and SH ON runs, the sentinel on the disk being the evidence.  K now turns the SH switch on for its own rows: its program waits in SH sleep
+#      and SH is OFF as delivered.
 #   C2 S.71 (SD Core, 20 Oct 26) the reply to an INPUT prompt declares a length the server cannot accept ('garb' = 1,651,663,207; 5, below the header): the server
 #      ends the session at once and does not spin (the second packet reader, process_client_input; Core's part C2)
 #   K  S.71 CLEARINPUT after the connection has gone: the command waits in SH sleep, the client closes, CLEARINPUT then runs: the server ends and does not spin
@@ -358,8 +361,46 @@ def section_c2():
         subprocess.run([SD, "-cleanup"], env=env(), capture_output=True, timeout=60)
 
 
+def reg_switch(sh, osx):
+    """Write fields 7 (SH) and 8 (OS.EXEC) of the register record accounts/sduser, 'yes' or blank, and keep the other fields.  The API server reads
+    them when it enters the account, so a change is seen by the NEXT login (the OS switch, 20 Oct 26)."""
+    path = os.path.join(SYS, "accounts", USER)
+    with open(path) as f:
+        lines = f.read().split("\n")
+    while lines and lines[-1] == "":
+        lines.pop()
+    lines += [""] * (8 - len(lines))
+    lines = lines[:6] + ["yes" if sh else "", "yes" if osx else ""] + lines[8:]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def section_s():
+    say("\n--- S. the OS switches over the API (the Solo OS switch, 20 Oct 26): the server loads them when it enters the account ------------")
+    mark = os.path.join(BOX, "api-sh.sentinel")
+    for sh_on in (False, True):
+        reg_switch(sh_on, False)
+        if os.path.exists(mark):
+            os.remove(mark)
+        w = Wire("S%d" % int(sh_on))
+        out = w.execute("SH touch %s" % mark)
+        made = os.path.exists(mark)
+        w.close()
+        if sh_on:
+            row("S1: with the SH switch ON in the register, an API session's SH runs: the sentinel is on the disk", made, "reply %r" % (out,))
+        else:
+            row("S0: with the SH switch OFF in the register (as delivered), an API session's SH is refused (10053): no sentinel on the disk",
+                (not made) and out is not None and "is not permitted to use the operating system shell" in out, "reply %r, sentinel %s" % (out, made))
+    reg_switch(False, False)
+    if os.path.exists(mark):
+        os.remove(mark)
+
+
 def section_k():
     say("\n--- K. CLEARINPUT after the connection has gone (S.71) ---------------------------------------------------------------------")
+    # The program waits in SH sleep 2, so the account needs the SH switch (OFF as delivered, since the OS switch of 20 Oct 26): the register is written
+    # for this section and put back at its end.  A section that turns a switch on says so, and which one.
+    reg_switch(True, False)
     w = Wire("K0")
     r = w.req(21, "RUN bp zzclr")
     row("K0 CONTROL: with the client still connected the command runs through (SH sleep 2, CLEARINPUT) and says CLEARED", r is not None and b"CLEARED" in r[2], repr(r)[:120])
@@ -373,6 +414,7 @@ def section_k():
     row("K1: the client closes while the command waits in SH sleep; CLEARINPUT then runs: the server ends within 8 s and does not spin", res[0] and res[4], describe(res))
     w.kill()
     subprocess.run([SD, "-cleanup"], env=env(), capture_output=True, timeout=60)
+    reg_switch(False, False)
 
 
 def section_f():
@@ -586,6 +628,7 @@ def main():
         section_g()
         put_programs()
         section_c2()
+        section_s()
         section_k()
         section_l()
     finally:

@@ -3,6 +3,7 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 20 Oct 26 dm  Solo OS switch: ACC$SH (7) and ACC$OS.EXEC (8), SD Core's S.63 fields, are back.  Still not carried: ACC$SD.ACCOUNTS to ACC$NET.
       * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's FILEINFO keys 1021-1040 (FL$HOLDERS moves to 1100), the
       *               SYSTEM, OSPATH, SRT$, ML$, FC$, VT$, PU$, SKT$ and JP$/JB$ constants.  NOT carried: ACC$SH to ACC$NET (fields 7-12 and 15),
       *               FL$TYPE.NET, SKT$INFO.TLS.SPKI, SD_FILE_PRIVATE.
@@ -365,8 +366,13 @@
       *   FIELD 4 REMAINS FREE, for conformity with the port, as before.
       *
       *   FIELDS 7 AND 8 (ACC$SH / ACC$OS.EXEC, the OS-access grants of
-      *   PRE_RELEASE 23) ARE GONE (S.27): SH and OS.EXECUTE run at the
-      *   account's own Linux permissions and SD keeps no second wall.
+      *   PRE_RELEASE 23) WENT WITH THE TEARDOWN (S.27) AND ARE BACK
+      *   (20 Oct 26, the Solo OS switch; SD Core's S.63 at SD Core's field
+      *   numbers).  yes means on and anything else, blank included, is off;
+      *   LOGIN and APISRVR load them as K$SH and K$OS.EXEC at account entry;
+      *   the administrator changes them with SET.OS.ACCESS.
+      $define ACC$SH           7     ;* may use the SH verb and "!" (yes/no)
+      $define ACC$OS.EXEC      8     ;* may use OS.EXECUTE, and reach OS paths outside its account (yes/no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

@@ -177,6 +177,11 @@
 *   field mark, height as the kernel last read them from the tty (start-up and
 *   every SIGWINCH), or null when it could not.  Must match gplsrc/keys.h.
       $define K$WINSIZE         92       ;* The terminal's size from the tty
+* 20 Oct 26 SOLO OS SWITCH - SD Core's S.63 keys (see gplsrc/keys.h), at SD Core's numbers: K$SH and K$OS.EXEC are settable only from
+*   $internal (LOGIN and APISRVR load them from the register at account entry); K$PATH.OK asks whether THIS ACCOUNT may open a pathname.
+      $define K$SH              93       ;* may use SH and "!"
+      $define K$OS.EXEC         94       ;* may use OS.EXECUTE and reach OS paths outside its account
+      $define K$PATH.OK         95       ;* 1 if this account may open the pathname
 * 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
 *   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
 *   own Linux permissions, and the kernel no longer carries those keys.

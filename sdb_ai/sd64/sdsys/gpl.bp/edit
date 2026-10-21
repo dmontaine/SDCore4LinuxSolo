@@ -15,6 +15,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 20 Oct 26     SD Core for Linux Solo (the OS switch; owner: two words like SD Core): nano and micro need the OS switch
+*               (K$OS.EXEC), as in SD Core's S.63; the administrator passes.
 * 30 Sep 26     SD Core for Linux Solo (LSOLO 16): NANO is highlighted through an
 *               rc file (--rcfile) written per session - see place.syntax.
 * 29 Sep 26     SD Core for Linux Solo (LSOLO 6): saving into a VOC needs ADMIN
@@ -291,9 +293,11 @@ end.program:
 * ===========================================================================
 
 * ---------------------------------------------------------------------------
-* check.permitted  -  THE ONE GATE LEFT: A TERMINAL.
+* check.permitted  -  TWO GATES: A TERMINAL, AND (SINCE 20 OCT 26) THE OS SWITCH.
 *
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS.EXECUTE gate is gone: OS.EXECUTE
+* 20 Oct 26 dm - the OS.EXECUTE gate is back for the editors that run outside SD (see the end of this routine).
+*
+* 18 Sep 26 dm - TEARDOWN (S.27), now undone for this program.  The OS.EXECUTE gate was gone: OS.EXECUTE
 * runs at the account's own Linux permissions and SD keeps no second wall, so
 * an editor no longer needs a grant to exist.  What remains is the terminal
 * test below - the editor draws a full screen, and a session without a tty
@@ -319,11 +323,20 @@ check.permitted:
       return
    end
 
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-ON grant is gone with the tiers:
-*   OS.EXECUTE runs at the account's own Linux permissions and SD keeps no
-*   second wall, so the terminal test above is the whole gate for the full
-*   screen editor now.  ed stays for sessions with no terminal.
-   permitted = @true
+* 20 Oct 26 dm - THE SOLO OS SWITCH (SD Core's S.63, carried).  Running an editor outside SD is reaching the operating system, and who may
+*   do that is the same grant that governs OS.EXECUTE from inside a program.  This program is $internal, so op_sh admits its os.execute
+*   on HDR_INTERNAL and never asks; testing here refuses before anything is created and says what to do about it.  The grant is the
+*   account's OS switch (K$OS.EXEC), loaded at sign-on; K$ADMINISTRATOR covers the administrator session above.  ed needs none of it.
+   if kernel(K$OS.EXEC, -1) then
+      permitted = @true
+      return
+   end
+
+   error.text  = verb.text : ' is not available to ' : @logname : '.' : char(10)
+   error.text := 'It runs an editor outside SD, so it needs OS.EXECUTE'
+   error.text := ' permission, which the administrator grants with' : char(10)
+   error.text := '   set.os.access os on' : char(10)
+   error.text := 'ed, the line editor, needs none of this.'
 return
 
 * ---------------------------------------------------------------------------

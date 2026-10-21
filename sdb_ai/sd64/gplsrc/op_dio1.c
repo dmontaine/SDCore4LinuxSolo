@@ -33,6 +33,9 @@
  * 12 Oct 26 dm  open_file() acts on the mode letters N and R in field 6 of the
  *           F-type VOC entry (openQM items 380 and 197); _voc_ref returns them.
  * 14 Oct 26 dm  open_file() acts on P_OPEN_ZERO ($MODE OPEN.FAIL.ZERO.FVAR, openQM item 514).
+ * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on OPENPATH is back (open_file()) and OPENTEMP makes its file again, asking
+ *           the same question for the path it is given and for the temp directory (op_opentemp()).  The S.64 edit gates and the S.65 remote
+ *           files are still not here.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: this file is Core's text without the S.63 OS-access test on OPENPATH,
  *           the S.64 edit gates and the S.65 remote files.  OPENTEMP makes nothing (see op_opentemp()) until Solo has an OS-access switch.
  * END-HISTORY
@@ -745,6 +748,16 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
 
   fullpath(pathname, mapped_name);
 
+  /* 20 Oct 26 SOLO OS SWITCH (S.63): OPENPATH names an OS path directly, which is "a file external to SD".  An account that has
+     not been given OS.EXECUTE reaches only paths inside its own directory (a $internal program is trusted, and asks the account's
+     own question through K_PATH_OK when it acts for the user).  ER_PERM rather than an abort, as the Windows port refuses a
+     contained path: OPEN ... ELSE is the BASIC idiom, and 3035 says "permission", not the "not found" of 3024.  A file named
+     through the VOC is an SD file and is not asked this here (a VOC pointer is held in _voc_ref).                              */
+  if (!map_name && !os_path_open_ok(pathname)) {
+    process.status = ER_PERM;
+    goto exit_op_open;
+  }
+
   if (process.txn_id != 0) {
     /* Try to re-open a file previously closed during this transaction */
 
@@ -1036,27 +1049,58 @@ Private void remove_temp_file(const char* path) {
    op_opentemp()  -  OPENTEMP {pathname} {options} TO file.var   (14 Oct 26, openQM items 431, 440)
 
    Stack: top ADDR to file variable, below it the pathname, null for a file of SD's own making in the temp directory
-   (TEMPDIR).
+   (TEMPDIR).  SECURITY (owner, 14 Oct 26: "security first"): the pathname goes through the same OS-access question as
+   OPENPATH asks (os_path_open_ok), and so does the generated one in the temp directory, which is outside the account:
+   an account without the OS gate is refused both.  A file that already exists is never taken (it would be deleted at
+   close).  The file is a dynamic file with the usual defaults, private to nobody in particular: it is not opened
+   exclusively, but its generated name carries the process id and a counter.  A process that dies leaves its file.
 
-   SOLO: THIS STATEMENT MAKES NOTHING (18 Oct 26, the carry from SD Core for Linux; owner: OPENTEMP's temp form and the OS-path calls
-   are left out until Solo has its own OS-access switch, off unless the administrator turns it on).  The form with no pathname would make
-   a file in TEMPDIR, which is outside the account, and a pathname the program gives is an OS path just as OPENPATH's is, so both are
-   refused the same way: the name handed on is the null name, which open_file() answers with ER_NAM, the ELSE branch.  The rest of the
-   statement (the file variable, the close that deletes a temp file, remove_temp_file()) is Core's text and waits for the switch.
-   SD Core makes a dynamic file with the usual defaults there, never takes a file that exists (it would be deleted at close), and puts
-   the process id and a counter in the generated name. */
+   20 Oct 26 SOLO OS SWITCH: SD Core's text again.  Until today this statement made nothing in Solo (the name handed on was the null
+   name, which open_file() answers with ER_NAM), because Solo had no OS-access switch to ask; now it asks, and SD Core's S.64 test of a
+   name inside a VOC, a dictionary or a program file is not here because Solo has voc_guard, not the edit gates. */
 
 void op_opentemp() {
   DESCRIPTOR* name_descr;
-  char path[1];
+  char path[MAX_PATHNAME_LEN + 1];
+  int name_len;
+  bool created = FALSE;
+  static int temp_seq = 0;
+  struct stat statbuf;
+  size_t n;
 
   name_descr = e_stack - 2;
-  path[0] = '\0';
+  name_len = k_get_c_string(name_descr, path, MAX_PATHNAME_LEN);
+
+  if (name_len == 0) {
+    n = strlen(pcfg.tempdir);
+    if (snprintf(path, sizeof(path), "%s%ssdtmp%d_%d", pcfg.tempdir, (n > 0 && pcfg.tempdir[n - 1] == DS) ? "" : "/", (int)getpid(),
+                 ++temp_seq) >= (int)sizeof(path))
+      path[0] = '\0'; /* TEMPDIR is too long to add a name to: open_file() refuses the null name */
+  } else if (name_len < 0) {
+    path[0] = '\0'; /* Too long: open_file() refuses a null name */
+  }
+
+  if (path[0] != '\0') {
+    fullpath(path, path);
+    if (os_path_open_ok(path)) {
+      if (stat(path, &statbuf) == 0) {
+        path[0] = '\0'; /* Already there: not ours to take and delete */
+      } else if (dh_create_file(path, -1, -1, -1, -1, -1, DHF_NOCASE, -1)) {
+        created = TRUE;
+        process.op_flags |= P_TEMPFILE;
+      } else {
+        path[0] = '\0';
+      }
+    } /* else open_file() asks the same question and gives the refusal (ER_PERM) */
+  }
 
   k_release(name_descr);
   k_put_c_string(path, name_descr);
 
   open_file(FALSE);
+
+  if (created && process.status != 0)
+    remove_temp_file(path); /* It was made but could not be opened */
 }
 
 /* ======================================================================

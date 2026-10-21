@@ -374,6 +374,11 @@ bool get_voc_file_reference(char * voc_name, bool get_dict_name,
                             char * path, char * vflags);
 void flush_dh_cache(void);
 
+/* OP_SH.C - the per-account OS-access switches (20 Oct 26, SD Core's S.63 carried to Solo) */
+bool os_gate_open(void);
+bool os_path_ok_for_account(const char * name);
+bool os_path_open_ok(const char * name);
+
 /* OP_DIO3.C - line terminator modes of directory and sequential files (16 Oct 26, QM4 Fixes item 452) */
 u_char crlf_from_vflags(const char * vflags);
 /* ...and the trigger function of a directory file (16 Oct 26, QM4 Fixes item 177) */

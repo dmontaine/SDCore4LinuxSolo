@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - the account's SH and OS.EXECUTE switches are
+*           read from its register record (ACC$SH, ACC$OS.EXEC) and loaded with K$SH and K$OS.EXEC once the account is entered, off unless
+*           the record says yes (SD Core's S.63 second sitting).
 * 20 Oct 26 SD Core for Linux Solo (Solo carry 3, from SD Core 0bdc4bd / d93ea0d, their K1 and K8a; the rest of those commits is SDNet and is not carried) - (1) the
 *           message of an ON ERROR reply is emptied at the top of every request, so an ON ERROR clause that had nothing to say no longer sends the text of the last
 *           refusal (a WRITE with an over-long id answered 'Invalid call name'); (2) vb.filelock and vb.fileunlock used files(i), the scratch variable of the last
@@ -475,11 +478,20 @@ end
 
 account.path = new.account
 acc.suspended = @false
+* 20 Oct 26 dm - THE SOLO OS SWITCH (SD Core's S.63 second sitting: "api should read switches").  The account's SH and OS.EXECUTE
+*   switches are read here from its register record, as LOGIN reads them at sign-on, and are set only once the account has been entered
+*   (below), so a refusal or a revert leaves the previous account's switches with the previous account.  FAIL CLOSED: both start off for
+*   every call, and an account named by a path, or with no record, keeps them off.  Before this an API session never held either switch,
+*   so an account given SH or OS over SET.OS.ACCESS had neither over the API.
+api.sh.grant = @false
+api.os.grant = @false
 if index(new.account, @ds, 1) = 0 then
    openpath @sdsys:@ds:'accounts' to acc.f then
       read acc.rec from acc.f, downcase(new.account) then
          account.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
          acc.suspended = (upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED')
+         api.sh.grant = (upcase(trim(acc.rec<ACC$SH>)) = 'YES')
+         api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
       end
       close acc.f
    end
@@ -554,6 +566,12 @@ read voc.rec from voc, "$PRIVATE.CATALOGUE" then
 end
 
 i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
+
+* 20 Oct 26 dm - THE SOLO OS SWITCH (S.63): every way out of this routine that keeps the new account has passed; load its switches now
+*   (see where they were read, above).  The administrator flag is not touched: an API session carries none, so the owner over the API is
+*   held to the account's own switches like anybody else.
+void kernel(K$SH,      api.sh.grant)
+void kernel(K$OS.EXEC, api.os.grant)
 
 * Run the LOGIN paragraph, if it exists
 

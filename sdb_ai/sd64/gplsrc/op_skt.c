@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  Solo OS switch (S.63 carried): SKT$INFO.TRACE asks the account's OS-access gate (os_path_ok_for_account) for the log's path
+ *               instead of answering ER_PERM to everybody.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: SET.SOCKET.MODE SKT$INFO.TRACE answers ER_PERM (the log is a file the
  *               program names, an OS path) until Solo has an OS-access switch; Core's S.65 SKT$INFO.TLS.SPKI is not carried.
  * 08 Sep 26 SET.SOCKET.MODE could not turn keep-alive off; the caller's value
@@ -863,9 +865,12 @@ void op_setskt() {
         sockvar->trace_fd = -1;
       }
       if (trace_len > 0) {
-        /* 18 Oct 26 SOLO CARRY (owner): the trace log is a file the program names, i.e. an OS path; refused until Solo's OS switch exists */
-        process.status = ER_PERM;
-        break;
+        /* 20 Oct 26 SOLO OS SWITCH: the trace log is a file the program names, i.e. an OS path, so it asks the ACCOUNT's gate as OPENSEQ does:
+           an account without OS.EXECUTE may trace only into its own directory.  Until today it was refused to everybody. */
+        if (!os_path_ok_for_account(trace_path)) {
+          process.status = ER_PERM;
+          break;
+        }
         fd = open(trace_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0600);
         if (fd < 0) {
           process.status = ER_IOE;

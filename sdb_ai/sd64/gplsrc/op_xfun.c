@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 20 Oct 26 dm  Solo OS switch (S.63 carried): DIGEST of an operating system file and the OSPATH keys ask os_path_open_ok() instead of answering
+ *               ER_PERM to everybody.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: DIGEST of an operating system file and the OSPATH keys that look at or
  *               change the file system answer ER_PERM until Solo has an OS-access switch (Core asks its per-account OS-access gate there).
  * 16 Oct 26 dm  XF_OSPATH: OSPATH() for programs that are not internal, with openQM's key numbers (x_ospath(); Fixes item 233).
@@ -374,8 +376,9 @@ Private void x_digest() {
   } else if (is_file) {
     if (k_get_c_string(str_d, path, MAX_PATHNAME_LEN) < 1) {
       process.status = ER_FNF;
-    } else if (TRUE) {
-      /* 18 Oct 26 SOLO CARRY (owner): DIGEST of an operating system file is an OS path; refused until Solo's OS switch exists */
+    } else if (!os_path_open_ok(path)) {
+      /* 20 Oct 26 SOLO OS SWITCH: DIGEST of an operating system file is an OS path, asked as OPENSEQ asks it (an account without OS.EXECUTE
+         reaches only its own directory).  Until today every DIGEST of a file was refused here, because Solo had no switch to ask. */
       process.status = ER_PERM;
     } else if ((fd = open(path, O_RDONLY | O_CLOEXEC)) < 0) {
       process.status = (errno == EACCES) ? ER_PERM : ((errno == ENOENT || errno == ENOTDIR) ? ER_FNF : ER_FAILED);
@@ -991,12 +994,16 @@ Private void x_ospath() {
     case 17:
       if (len == 0 && key == 3)
         strcpy(path, ".");
-      /* 18 Oct 26 SOLO CARRY (owner): Solo has no OS-access gate and its OS switch (off unless the administrator turns it on) is not
-         designed yet, so every key that looks at or changes the file system is refused, which is the switch's OFF position. */
-      process.status = ER_PERM;
-      if (key == 3)
-        text = TRUE;
-      goto ospath_done;
+      /* 20 Oct 26 SOLO OS SWITCH: every key that looks at or changes the file system asks the OS-access gate about the path (an internal
+         program is trusted, anyone else is held to the account's own directory unless it holds OS.EXECUTE); a refusal is STATUS() ER_PERM
+         and the answer false.  Until today Solo refused them all, the switch's OFF position, because it had no switch. */
+      if (!os_path_open_ok(path)) {
+        process.status = ER_PERM;
+        if (key == 3)
+          text = TRUE;
+        goto ospath_done;
+      }
+      break;
     default:
       process.status = ER_ARGS;
       goto ospath_done;

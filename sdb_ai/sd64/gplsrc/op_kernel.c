@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 SD Core for Linux Solo (the OS switch, owner: two words like SD Core): K_SH, K_OS_EXEC and K_PATH_OK (93 to 95), SD Core's S.63 cases.
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): K_SET_USERNAME sets
  *               api_logged_in (kernel.h) in an API server, so that S.71's limit before the login can be asked of something that is true in Solo.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's keys 92, 97 to 117, 119 and 120.  Not carried: K_SH, K_OS_EXEC,
@@ -509,6 +510,50 @@ void op_kernel() {
       }
       result.data.value = (my_uptr->flags & USR_GLOBAL) != 0;
       break;
+
+    /* 20 Oct 26 SOLO OS SWITCH (SD Core's S.63, carried).  The per-account OS-access switches, set exactly like K_ADMINISTRATOR above:
+       only a $internal program (LOGIN, APISRVR - the two that own entry to the account) may change them, and they are loaded there from
+       ACC$SH / ACC$OS.EXEC (fields 7 and 8 of the register record).  A non-internal caller cannot reach KERNEL at all (BCOMP), and an
+       internal one that is not LOGIN or APISRVR has no reason to call it with a positive argument.  USR_OS_EXEC is what op_sh.c reads;
+       USR_SH is read by CPROC's SH gate through kernel(K$SH, -1).                                                                    */
+
+    case K_SH:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0) {
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->flags |= USR_SH;
+          else
+            my_uptr->flags &= ~USR_SH;
+        }
+      }
+      result.data.value = (my_uptr->flags & USR_SH) != 0;
+      break;
+
+    case K_OS_EXEC:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0) {
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->flags |= USR_OS_EXEC;
+          else
+            my_uptr->flags &= ~USR_OS_EXEC;
+        }
+      }
+      result.data.value = (my_uptr->flags & USR_OS_EXEC) != 0;
+      break;
+
+    /* May THIS ACCOUNT open this pathname?  An $internal program is exempt from the gate itself (it has to be, to do its work), so one
+       that opens a file for the user asks here first.                                                                                */
+    case K_PATH_OK: {
+      char path_ok_name[MAX_PATHNAME_LEN + 1];
+
+      result.data.value = 0;
+      if (k_get_c_string(descr, path_ok_name, MAX_PATHNAME_LEN) > 0)
+        result.data.value = os_path_ok_for_account(path_ok_name) ? 1 : 0;
+    } break;
 
     /* 14 Oct 26 dm - sheet items 24, 29 and 38.  K_SET_ACCOUNT: the account the session is in, for the user table
        (LISTU, !LISTU).  Set only from a $internal program, like K_SET_USERNAME; the name as it stands is returned,

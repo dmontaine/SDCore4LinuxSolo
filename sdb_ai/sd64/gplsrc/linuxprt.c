@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  Solo OS switch (S.63 carried): a print unit's own SPOOLER string is run only for a session that holds the OS-access gate.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.63 OS-access test on a print unit's own
  *               SPOOLER string (SETPTR ... SPOOLER is still run as a shell command by the user's own process: Solo has no OS switch yet).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -138,7 +139,10 @@ void spool_print_job(PRINT_UNIT* pu) {
   int n;
   char qbuf[300];
 
-  if (pu->spooler != NULL) {
+  /* 20 Oct 26 SOLO OS SWITCH (S.63; the QM4 evaluation found the route in SD Core): SETPTR ... SPOOLER names a command the system() below
+     runs, which is OS.EXECUTE by another door, so it is run only for a session that holds the OS-access gate (the administrator or an
+     account with OS ON); anyone else prints through the configured spooler or lp.                                               */
+  if ((pu->spooler != NULL) && os_gate_open()) {
     n = snprintf(cmd, sizeof(cmd), "%s ", pu->spooler);
   } else if (pcfg.spooler[0] != '\0') {
     n = snprintf(cmd, sizeof(cmd), "%s ", pcfg.spooler);
