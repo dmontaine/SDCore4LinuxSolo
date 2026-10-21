@@ -73,12 +73,21 @@ upgrade=0
 # start with it), and the account's VOC is refreshed as an upgrade does.  DIR is only read: it is
 # copied, never moved.  Fresh stages only: an upgrade already keeps both.
 reloaddir=""
-usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] [--reload-data DIR] HOME_DIR
-       bash $0 --upgrade HOME_DIR"
-while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--reload-data" ] || [ "${1:-}" = "--upgrade" ]; do
+# --os-access none|sh|os|both (20 Oct 26, the Solo OS switch; owner: "ask during install"): which of the two operating-system switches
+# to turn ON for the account after it exists (SET.OS.ACCESS SH ON, SET.OS.ACCESS OS ON, in an internal session).  none, and no option,
+# leaves both as they are: OFF on a new account, and whatever they were on an upgrade.  The installer's question is what gives it.
+osaccess=""
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] [--reload-data DIR] [--os-access none|sh|os|both] HOME_DIR
+       bash $0 --upgrade [--os-access none|sh|os|both] HOME_DIR"
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--reload-data" ] || [ "${1:-}" = "--os-access" ] || [ "${1:-}" = "--upgrade" ]; do
   if [ "$1" = "--upgrade" ]; then upgrade=1; shift; continue; fi
   [ "$#" -ge 3 ] || refuse "$usage"
   if [ "$1" = "--reload-data" ]; then reloaddir="$2"; shift 2; continue; fi
+  if [ "$1" = "--os-access" ]; then
+    case "$2" in none|sh|os|both) osaccess="$2" ;; *) refuse "--os-access must be none, sh, os or both (got '$2')" ;; esac
+    shift 2
+    continue
+  fi
   if [ "$1" = "--deny-verbs" ]; then
     case "$2" in
       *[!A-Za-z0-9.\$_,\ -]*) refuse "--deny-verbs holds a character that cannot be in a verb name" ;;
@@ -391,6 +400,32 @@ if [ -n "$denyverbs" ]; then
   printf '%s\n' "$dv_plain" | grep -q 'is not a verb name\|deny.verbs: cannot open\|can only be listed' && fail "DENY.VERBS refused: $(printf '%s\n' "$dv_plain" | tail -2)"
   printf '%s\n' "$dv_plain" | grep -qE '^deny\.verbs [0-9]+: ' || fail "DENY.VERBS did not print its 'deny.verbs <n>:' line"
 fi
+
+# 20 Oct 26, THE SOLO OS SWITCH (owner: "ask during install").  The two operating-system switches, SH and OS, are fields 7 and 8 of the
+# register record accounts/sduser and are OFF unless someone turned them on; the installer asked, and --os-access carries the answer.
+# SET.OS.ACCESS is an administrator verb and an internal session is an administrator, so the verb is the one place the fields are written.
+# The no-argument form is run every time: it is the state line the installer shows, and it proves the verb works on this tree.
+osacc_one() {   # osacc_one SH|OS
+  local o p
+  echo
+  echo "Turning on $1 for the account ($SD -internal SET.OS.ACCESS $1 ON)"
+  o="$(sdi SET.OS.ACCESS "$1" ON 2>&1)" || true
+  p="$(printf '%s\n' "$o" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$p" | tail -3
+  if [ "$1" = SH ]; then want='^Account sduser has SH yes, OS\.EXECUTE (yes|no)[[:space:]]*$'; else want='^Account sduser has SH (yes|no), OS\.EXECUTE yes[[:space:]]*$'; fi
+  printf '%s\n' "$p" | grep -qE "$want" || printf '%s\n' "$p" | grep -q 'already had that access' \
+    || fail "SET.OS.ACCESS $1 ON did not say the switch is on (got: $(printf '%s\n' "$p" | tail -2 | tr '\n' '|'))"
+}
+case "$osaccess" in sh|both) osacc_one SH ;; esac
+case "$osaccess" in os|both) osacc_one OS ;; esac
+echo
+echo "Reading the OS access switches ($SD -internal SET.OS.ACCESS)"
+oa_out="$(sdi SET.OS.ACCESS 2>&1)" || true
+oa_plain="$(printf '%s\n' "$oa_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+printf '%s\n' "$oa_plain" | tail -2
+oa_line="$(printf '%s\n' "$oa_plain" | grep -E '^Account sduser has SH (yes|no), OS\.EXECUTE (yes|no)[[:space:]]*$' | tail -1)"
+[ -n "$oa_line" ] || fail "SET.OS.ACCESS (no argument) did not print its 'Account sduser has SH ..., OS.EXECUTE ...' line"
+echo "solo-stage: OS access: $oa_line"
 
 # Ruling 33: the SD Core server's programs in GLOBAL.BP.OUT go into the global
 # catalogue, last, whether or not there is a global password (without one it says so and succeeds).

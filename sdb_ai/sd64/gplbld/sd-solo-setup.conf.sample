@@ -102,3 +102,14 @@ enable-linger=
 #reload-data=yes
 
 reload-data=
+
+# os-access
+#   Whether to turn on the shell and OS access for the account (20 Oct 2026).  Both are OFF as
+#   delivered.  none = leave both as they are (off on a new account); sh = turn on the SH verb and
+#   "!"; os = turn on OS.EXECUTE, files and directories outside the account, the embedded Python,
+#   nano and micro; both = both.  Blank = ask on a terminal, and none when there is none.  Either
+#   switch lets whoever signs in do what the Linux user can do; the administrator can change them
+#   later (ADMIN, then set.os.access).
+#os-access=none
+
+os-access=
