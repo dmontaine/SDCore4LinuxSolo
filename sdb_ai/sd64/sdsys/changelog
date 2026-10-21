@@ -1,6 +1,63 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  A PROGRAM CAN NOW OPEN A FILE THAT LIVES ON ANOTHER SD SERVER AND USE
+           IT WITH READ, WRITE, SELECT AND LIST (SDNET).  IT IS OFF AS DELIVERED,
+           IN FOUR PLACES.  This is the client SD Core for Linux built on
+           17 to 20 October 2026, carried to Solo.  It is not the SDNet that
+           was removed (a "server;file" VOC entry over port 4245, with a
+           password in sd.conf): there is no ";" in a path, no port 4245 and
+           no password in any file.
+
+           What there is.  Five administrator and account commands:
+             set.server, list.servers, delete.server   (the administrator's)
+             set.netlogin, delete.netlogin             (your own login)
+           and a VOC pointer of type N: field 1 "N", field 2 the server's name,
+           field 3 the file's name on that server.  OPEN of that VOC name gives
+           a file variable that READ, MATREAD, READV, SELECT, READNEXT,
+           FILEINFO and CLOSE work on, and the dictionary opens from the same
+           server, so LIST, COUNT, SORT and SELECT work on it.  For a server
+           the administrator defined "write", WRITE, DELETE, CLEARFILE, the
+           locking reads, RECORDLOCKU, RELEASE, FILELOCK and FILEUNLOCK work
+           too, and RECORDLOCKED() answers for any remote file.
+
+           Why it is off, and what turns it on.  Four things must all be true,
+           and each is the administrator's to give: the account has the NET gate
+           (set.net.access on - the same gate that guards API request 29); a
+           server is defined (set.server, pinned to the hash of that server's
+           public key, which "connect" shows you for confirmation); you have a
+           login on it (set.netlogin); and a VOC entry names the file.  The
+           connection is the other server's own API port, TLS 1.3 with the
+           SCRAM login; the key the server presents is compared with the pin
+           before a single byte is sent.  A new account, an upgraded one and a
+           new install have none of the four.
+
+           What is kept of your login.  Not the password: the salt, the
+           iteration count and the two keys derived from it, one file for each
+           server in a directory (netlogins, under the SD system directory) made
+           mode 700, each file mode 600, and every use is preceded by a test that
+           it is a plain file you own with no group or world permission.  An
+           account that may use the operating system (the os switch) can read
+           the directory, as it can read ~/.ssh; leave the switch off.
+
+           What it does NOT do.  Solo has no "files only" login on the server
+           side (SD Core does: the Linux groups sdfiles and sdfileswrite): a
+           Solo that is the SERVER is reached through its API login as before,
+           and API request 29 stays behind its gate.  It makes no change to a
+           remote file for a server defined "read", inside a transaction, or
+           twice.  A read can show a record up to two seconds old.  It asks no
+           "edit" question for a remote file whose name says it is a VOC, a
+           dictionary or a program (SD Core does; Solo has no edit gates), so
+           the other server's own gates decide.  It has been tried in test
+           sandboxes against a test server; it has not yet been tried between
+           two real machines.
+
+           Two new sd.conf parameters, in seconds: NETWAIT (5), how long to wait
+           for a connection, and NETREPLY (30), how long to wait for each reply;
+           1 to 3600, zero refused.  And a server that serves the API now opens
+           "dict <file>" in any case as a dictionary: before, a client that sent
+           it in lower case was told the file did not exist.
+
 20 Oct 26  THE REFUSAL TO PRINT INTO A FILE OUTSIDE YOUR ACCOUNT NOW NAMES THE
            ACCOUNT.  (SD CORE FOR LINUX FIXED THIS ON 20 OCT 2026; THE WINDOWS
            PORT FOUND IT.)  When an account without OS access tried to print

@@ -595,6 +595,29 @@ def section_l():
     w.close()
 
 
+def section_d():
+    say("\n--- D. \"dict <file>\" in ANY case opens the DICTIONARY (SDNet carry 9: SD Core's S.65 server fix of 18 Oct 26; the client's handler sends it in lower case) ---")
+    s1 = Wire("D1")
+    s1.execute("DELETE.FILE zzdct")
+    out = s1.execute("CREATE.FILE zzdct DYNAMIC")
+    say("    [setup] CREATE.FILE zzdct -> %r" % ((out or "")[-60:],))
+    nd = {w: s1.open4(w)[0] for w in ("dict zzdct", "DICT zzdct", "Dict zzdct", "zzdct")}
+    row("D1 'dict zzdct', 'DICT zzdct' and 'Dict zzdct' each OPEN (a file number comes back) and none of the numbers is the data file's",
+        all(nd[k] is not None for k in nd) and len({nd["dict zzdct"], nd["DICT zzdct"], nd["Dict zzdct"], nd["zzdct"]}) == 4, repr(nd))
+    if any(nd[k] is None for k in nd):
+        bail("a file did not open, so no row about the dictionary can be believed")
+    r_dict = s1.req(6, struct.pack("<h", nd["dict zzdct"]) + b"@ID")
+    r_data = s1.req(6, struct.pack("<h", nd["zzdct"]) + b"@ID")
+    row("D2 a READ of the item @ID is FOUND from the dictionary's number (the dictionary holds it) and NOT FOUND from the data file's: the lower case name really opened the dictionary",
+        r_dict is not None and r_dict[0] == 0 and r_data is not None and r_data[0] != 0, repr((r_dict, r_data)))
+    n_up = s1.req(6, struct.pack("<h", nd["DICT zzdct"]) + b"@ID")
+    row("D3 the same READ from the file opened as 'DICT zzdct' (upper case, which worked before) is found too", n_up is not None and n_up[0] == 0, repr(n_up))
+    miss = s1.open4("dict zznosuchfile")
+    row("D4 'dict zznosuchfile' does not open: the ELSE answer, and no file number", miss[0] is None and miss[1] is not None and miss[1][0] != 0, repr(miss))
+    s1.execute("DELETE.FILE zzdct")
+    s1.close()
+
+
 def main():
     global BOX, SYS, SD, PW
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -624,6 +647,7 @@ def main():
         bail("the account password file is empty")
     subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     try:
+        section_d()
         section_f()
         section_g()
         put_programs()

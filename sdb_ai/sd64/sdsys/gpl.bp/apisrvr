@@ -704,16 +704,33 @@ i = n + 1
 vb.open.continue:
 * Open file to file table entry i
 
-open cmnd to files(i)
-on error server.error = SV$ON.ERROR
-then
-   if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
-      server.error = SV$ELSE
+* 20 Oct 26 dm - SDNet carry 9 (SD Core's S.65, 18 Oct 26): "dict <file>" in ANY case is a dictionary, opened as OPEN 'DICT', <file>.  The single-argument
+*   OPEN looks the VOC for a file named "dict <file>", which _voc_ref understands only with an upper case DICT; a client's SDNet handler (SD Core's, and now Solo's)
+*   sends it in lower case, so a remote dictionary was never opened (ELSE 3007) and COUNT, LIST, SORT and SELECT on a remote file stopped at "Cannot open
+*   dictionary".  Only the word and the one space are taken off: the name goes to the same OPEN, so every refusal that applies to a file applies to the dictionary.
+if upcase(cmnd[1,5]) = 'DICT ' then
+   open 'DICT', trim(cmnd[6,9999]) to files(i)
+   on error server.error = SV$ON.ERROR
+   then
+      if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
+         server.error = SV$ELSE
       end else
          response = iconv(i, 'ISL')
       end
    end
    else server.error = SV$ELSE
+end else
+   open cmnd to files(i)
+   on error server.error = SV$ON.ERROR
+   then
+      if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
+         server.error = SV$ELSE
+      end else
+         response = iconv(i, 'ISL')
+      end
+   end
+   else server.error = SV$ELSE
+end
 
       return
 
