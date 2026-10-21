@@ -111,7 +111,7 @@ clause of `ins`: `ins` *value* `before` *arr*`<`*f*`>`
 `breakpoint` *action*, *qualifier*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 174
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 175
 
 ### basic:stmt:bscan
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:467#8a57949e
@@ -392,7 +392,7 @@ clause of `enter` — run at the current command level
 `debug.off`
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 173
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 174
 
 ### basic:stmt:debug.on
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:486#ee2dd53b src2=docs:tools/syntax-shapes.txt:57#a1ee40ba
@@ -400,7 +400,7 @@ clause of `enter` — run at the current command level
 `debug.on`
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 173
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 174
 
 ### basic:stmt:debug.set
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:487#cb67010c src2=docs:tools/syntax-shapes.txt:58#ec6d8f77
@@ -408,7 +408,7 @@ clause of `enter` — run at the current command level
 `debug.set` *var* {, *qualifier*} `to` *value*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 173
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 174
 
 ### basic:stmt:deffun
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:473#0863c5b2 src2=docs:tools/syntax-shapes.txt:59#eb646aed
@@ -463,6 +463,7 @@ clause of `enter` — run at the current command level
 `deleteseq` *path* {`on error` …} `then` … `else` …
 
 - a statement of SD BASIC
+- docs: `GettingStarted/markdown/06b-operating-system-access.md` line 15
 
 ### basic:stmt:deleteu
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:413#75823171 src2=docs:tools/syntax-shapes.txt:66#a4d37a58
@@ -913,7 +914,7 @@ clause of `find`, `findstr` and `locate`
 `keyboard.input` *string*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 172
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 173
 
 ### basic:stmt:keyedit
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#2a544372 src2=docs:tools/syntax-shapes.txt:125#d02786ea
@@ -1103,7 +1104,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `next` *var* — closes a `for`
 
 - a statement of SD BASIC
-- docs: `GettingStarted/markdown/20a-sdfix-checks-and-repairs.md` line 32
+- docs: `User/markdown/26-sd-tcl-edit.md` line 128
 
 ### basic:stmt:no.echo
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:10475#248f4cf7
@@ -1180,6 +1181,7 @@ clause of `input` — do not invert the case of typed letters
 (no syntax line yet in the docs' syntax-shapes.txt)
 
 - a statement of SD BASIC
+- docs: `GettingStarted/markdown/06b-operating-system-access.md` line 15
 
 ### basic:stmt:os.execute
 > kind=basic.statement tier=reference since=L1.1-0 src=sdsys/gpl.bp/bcomp:434#269986c6 src2=docs:tools/syntax-shapes.txt:159#c7d12219
@@ -1565,7 +1567,7 @@ clause of `open`, `openpath` and `openseq`
 `remove.token`
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 172
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 173
 
 ### basic:stmt:repeat
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:445#93ba698c src2=docs:tools/syntax-shapes.txt:201#cb0850eb
@@ -1581,7 +1583,7 @@ clause of `open`, `openpath` and `openseq`
 `reset.modes` *mask*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 171
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 172
 
 ### basic:stmt:restore.screen
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:445#93ba698c src2=docs:tools/syntax-shapes.txt:204#dbdf5976
@@ -1779,7 +1781,7 @@ clause of `execute` — take the list the command left
 `sendmail` *to*, *from*, *subject*, *body* {, *attachments*} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 181
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 182
 
 ### basic:stmt:set
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:476#f29afaf0 src2=docs:tools/syntax-shapes.txt:224#e1fd1c40
@@ -1818,7 +1820,7 @@ clause of `execute` — take the list the command left
 `set.modes` *mask*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 171
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 172
 
 ### basic:stmt:set.status
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:493#2516df0c src2=docs:tools/syntax-shapes.txt:229#86d8799b
@@ -2151,7 +2153,7 @@ clause of `input`: `input` *var* `waiting` *seconds*
 `watch` *var*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 174
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 175
 
 ### basic:stmt:weofseq
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:458#70e7f0f1 src2=docs:tools/syntax-shapes.txt:269#fead65a5

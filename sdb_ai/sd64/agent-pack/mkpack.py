@@ -1160,10 +1160,13 @@ def core_chunks(ctx, voc, since, shapes, chunks_so_far):
         h2, b2, l2 = ds.section(r"^What ships secured")
         h3, b3, l3 = do.section(r"^A filter on the command")
         h4, b4, l4 = do.section(r"is not filtered")
-        body = ["Solo has ONE account, `sduser`, no per-account gates and no gate words. What limits a session is below, quoted from Solo's own pages "
-                "(`%s`, `%s`). Operating-system access is NOT behind a gate in this release: `sh`, `!` and `os.execute` run with the Linux user's own rights." %
-                (SEC[5:], OSA[5:]), "", "**%s**" % h1, "", b1, "", "**%s**" % h2, "", b2, "", "**%s**" % h3, "", b3, "", "**%s**" % h4, "", b4]
-        out.append(Chunk("core:walls", "core.digest", "core", "-", [ctx.src(SEC, l1), ctx.src(SEC, l2), ctx.src(OSA, l3), ctx.src(OSA, l4)], "\n".join(body), "core"))
+        h5, b5, l5 = do.section(r"^The two switches")      # 20 Oct 26 (the OS switch): the shell and OS access are two switches, off as delivered
+        body = ["Solo has ONE account, `sduser`, and two per-account switches, the shell (`sh`, `!`) and OS access (`os.execute`, a path outside the account, "
+                "the embedded Python, nano and micro), both OFF as delivered and turned on by the administrator with `set.os.access`; it has no other gate and no "
+                "gate words. What limits a session is below, quoted from Solo's own pages (`%s`, `%s`)." % (SEC[5:], OSA[5:]),
+                "", "**%s**" % h1, "", b1, "", "**%s**" % h2, "", b2, "", "**%s**" % h5, "", b5, "", "**%s**" % h3, "", b3, "", "**%s**" % h4, "", b4]
+        out.append(Chunk("core:walls", "core.digest", "core", "-", [ctx.src(SEC, l1), ctx.src(SEC, l2), ctx.src(OSA, l5), ctx.src(OSA, l3), ctx.src(OSA, l4)],
+                         "\n".join(body), "core"))
     # 6. start here (hand-written, in agent-pack/core-start.md, and embedded whole)
     rel = "agent-pack/core-start.md"
     if ctx.exists(rel):

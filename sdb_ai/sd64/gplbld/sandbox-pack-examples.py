@@ -29,6 +29,8 @@
 #   2. VOC ENTRIES  every voc:entry chunk quotes a shipped S, PA, PH, Q, F, R or X record verbatim; the program compares it with the
 #                record in the running account's VOC.
 #   3. DICTIONARY ITEMS  every dict:item chunk quotes a shipped item; the program opens the installed dictionary and compares.
+#                (In the SDSYS internal session since 20 Oct 26: it opens them by pathname in SDSYS, which the OS switch refuses a
+#                plain session with `os` off.  The first run after the switch was red 0 of 74 for exactly that reason.)
 #   4. WALL MESSAGES  the three refusals above print the text the pack's message chunks give.
 # The expected records are written into a scratch DIRECTORY file (gzpack) with the bytes the pack quotes, so the program compares
 # what SD holds with what the pack says, and prints OK or DIFF for each.  A RUN THAT COMPARED NOTHING FAILS: each group must have
@@ -246,7 +248,10 @@ def main():
             raw = fence_body(body)
             dname, item = cid[len("dict:item:"):].split(":", 1)
             if raw is not None:
-                expected["dict^%s^%s" % (dname, item)] = unclean(raw)
+                # The dictionaries are read by PATHNAME (openpath @sdsys:@ds:name), and that path is in SDSYS, outside sduser's own
+                # directory: since the OS switch (20 Oct 26) a plain session with `os` off is refused it (3035), so the comparison is
+                # made where the kernel trusts the program, in the SDSYS internal session. The files are the same whoever reads them.
+                expected_sys["dict^%s^%s" % (dname, item)] = unclean(raw)
                 n_dict += 1
     say("sandbox-pack-examples: the pack gives %d verbs, %d shipped VOC records (+ %d of SDSYS's own) and %d shipped dictionary items to compare" % (
         n_verb, n_voc, n_vocsys, n_dict))
@@ -312,7 +317,8 @@ def main():
 
     group("verb^", "VERBS (type, dispatch mode and target of every tcl: verb chunk, in sduser's VOC)", n_verb)
     group("voc^", "VOC RECORDS (every voc:entry chunk that quotes newvoc, against the record in sduser's VOC)", n_voc)
-    group("dict^", "DICTIONARY ITEMS (every dict:item chunk against the installed dictionaries)", n_dict)
+    group("dict^", "DICTIONARY ITEMS (every dict:item chunk against the installed dictionaries, read in the SDSYS internal session)", n_dict,
+          table=expected_sys, pre="sys:")
     if expected_sys:
         group("voc^", "SDSYS'S OWN VOC RECORDS (every voc:entry chunk that quotes only voc_template, against SDSYS's VOC)", n_vocsys, table=expected_sys, pre="sys:")
 

@@ -16,7 +16,7 @@
 # 20 Oct 26 dm  SOLO: Core's checks 1 to 10 with Solo's paths, skill name (sd-core-solo), template wording ("the walls are walls"),
 #               message numbers in the mutants, and the recipe's "Words used: none" (Solo has no account words, so the check is that
 #               the pack has none and the recipe names none); check 11 is new: the pack is SOLO-shaped (no account-word or gate
-#               chunk, a core:walls chunk, the guide and the start text say that the shell is not behind a gate, the recipe names
+#               chunk, a core:walls chunk, the guide and the start text say that the shell and OS switches are off as delivered, the recipe names
 #               scripts that exist).  agent-pack/README.md lists every difference from Core's pack.
 # END-HISTORY
 #
@@ -37,7 +37,7 @@
 #   8. GUIDE: agent-pack/guide/sd-basic-guide.md exists and its "Guide stamp" is the tree's rev_stamp (the guide's blocks are
 #      compiled and run by gplbld/sandbox-guide.py, which needs a sandbox; this is the free half: it was checked against THIS version).
 #   11. SOLO SHAPE: no sys:word: or core:gates chunk (Solo has no account words and no per-account gates), a core:walls chunk, the
-#      guide still says that the shell and os.execute are NOT behind a gate, the pack's start text says the same, the skill and the
+#      guide still says that the shell and OS switches are off as delivered and walls while off, the pack's start text says the same, the skill and the
 #      CLAUDE.md template name the walls, and the scripts the recipe names exist in the repository.
 #   --selftest breaks a copy of the tree (or of the pack, or of the docs) in the ways listed there and expects exactly the owning
 #   check to fail for each.
@@ -260,7 +260,7 @@ def check_all(tree, docs, pack_files, gen, gen_error="", quiet=False):
     nsrc = 0
     moved = 0
     for cid, meta, _body, _part in chunks:
-        for key in ("src", "src2", "src3"):
+        for key in ("src", "src2", "src3", "src4", "src5"):      # SOLO: Core's chunks cite at most three; core:walls cites five
             if key not in meta:
                 continue
             nsrc += 1
@@ -427,8 +427,8 @@ def check_all(tree, docs, pack_files, gen, gen_error="", quiet=False):
             tprob.append("templates/CLAUDE.md is %d lines; Claude Code asks for under 200" % len(ctext.split("\n")))
         if "walls are walls" not in ctext.lower():
             tprob.append("templates/CLAUDE.md no longer says the walls are walls")
-        if "not a wall is not a permission" not in ctext.lower():
-            tprob.append("templates/CLAUDE.md no longer says that what is not a wall is not a permission")
+        if "a switch the user turned on is not a permission" not in ctext.lower():
+            tprob.append("templates/CLAUDE.md no longer says that a switch the user turned on is not a permission")
     mj = os.path.join(tdir, "mcp.json.example")
     if not os.path.isfile(mj):
         tprob.append("no templates/mcp.json.example")
@@ -461,7 +461,7 @@ def check_all(tree, docs, pack_files, gen, gen_error="", quiet=False):
             gone = [w for w in rwords if w not in known]
             if gone:
                 tprob.append("the recipe uses account words the pack does not have: %s" % gone)
-    res.append(("10. templates and recipe: CLAUDE.md under 200 lines and still says the walls are walls and that what is not a wall is not a permission; mcp.json.example valid and honestly labelled; the recipe's account words (%d) exist in the pack" % len(rwords),
+    res.append(("10. templates and recipe: CLAUDE.md under 200 lines and still says the walls are walls and that a switch the user turned on is not a permission; mcp.json.example valid and honestly labelled; the recipe's account words (%d) exist in the pack" % len(rwords),
                 not tprob, "; ".join(tprob[:3])))
 
     # 11. SOLO SHAPE: what Core's pack has and Solo does not is absent, what Solo has instead is present, and the shell is said to be ungated
@@ -475,16 +475,16 @@ def check_all(tree, docs, pack_files, gen, gen_error="", quiet=False):
     elif walls[0][1].get("tier") != "core":
         sh.append("core:walls is not in the core tier")
     gtext = read_text(os.path.join(tree, "agent-pack", "guide", "sd-basic-guide.md")) if os.path.isfile(os.path.join(tree, "agent-pack", "guide", "sd-basic-guide.md")) else ""
-    if "none of them is behind a gate or a switch" not in gtext:
-        sh.append("the guide no longer says that sh, os.execute and openseq are not behind a gate or a switch (B2)")
+    if "Both are off as delivered, and each is a wall while it is off" not in gtext or "set.os.access" not in gtext:
+        sh.append("the guide no longer says that the shell and OS switches are off as delivered and walls while off, turned on with set.os.access (B2)")
     if " as=" in "\n".join(l for l in gtext.split("\n") if l.startswith("```")):
         sh.append("the guide names an as= lane; Solo has one account and one lane")
     ctext2 = read_text(os.path.join(tree, "agent-pack", "core-start.md")) if os.path.isfile(os.path.join(tree, "agent-pack", "core-start.md")) else ""
-    if "NOT behind a gate" not in ctext2:
-        sh.append("core-start.md no longer says that sh, ! and os.execute are NOT behind a gate")
+    if "Both are OFF as delivered" not in ctext2 or "set.os.access" not in ctext2:
+        sh.append("core-start.md no longer says that the shell and OS switches are OFF as delivered and turned on with set.os.access")
     stext = read_text(os.path.join(sk_dir, "SKILL.md")) if os.path.isfile(os.path.join(sk_dir, "SKILL.md")) else ""
-    if "What is not a wall is not a permission" not in stext:
-        sh.append("SKILL.md no longer says that what is not a wall is not a permission")
+    if "A switch the user turned on is not a permission" not in stext:
+        sh.append("SKILL.md no longer says that a switch the user turned on is not a permission")
     rtext = read_text(rec) if os.path.isfile(rec) else ""
     ms = re.search(r"\*\*Scripts used:\*\*(.*)", rtext)
     scripts = re.findall(r"`([A-Za-z0-9_.-]+\.sh)`", ms.group(1)) if ms else []
@@ -604,8 +604,8 @@ def selftest(gen, tree, docs):
         tree_fn=lambda t, d: edit(os.path.join(t, *tp, "CLAUDE.md"), lambda b: b + b"- a line\n" * 200))
     add("the CLAUDE.md template stops saying the walls are walls", "10.",
         tree_fn=lambda t, d: edit(os.path.join(t, *tp, "CLAUDE.md"), lambda b: b.replace(b"The walls are walls.", b"The walls are advice.", 1)))
-    add("the CLAUDE.md template stops saying that what is not a wall is not a permission", "10.",
-        tree_fn=lambda t, d: edit(os.path.join(t, *tp, "CLAUDE.md"), lambda b: b.replace(b"What is not a wall is not a permission.", b"What is not a wall is allowed.", 1)))
+    add("the CLAUDE.md template stops saying that a switch the user turned on is not a permission", "10.",
+        tree_fn=lambda t, d: edit(os.path.join(t, *tp, "CLAUDE.md"), lambda b: b.replace(b"A switch the user turned on is not a permission.", b"A switch the user turned on is allowed.", 1)))
     add("the .mcp.json example is no longer JSON", "10.",
         tree_fn=lambda t, d: edit(os.path.join(t, *tp, "mcp.json.example"), lambda b: b.replace(b'"type": "stdio",', b'"type": "stdio"', 1)))
     add("the templates README stops warning that the example does not work", "10.",
@@ -616,15 +616,15 @@ def selftest(gen, tree, docs):
     add("a chunk for an account word appears in the pack (a product with no account words must hold none)", "11.",
         pack_fn=lambda p: edit(os.path.join(p, "reference", "system.md"),
                                lambda b: b + b"\n### sys:word:bp-on\n> tier=reference kind=sys.word since=- src=sdsys/newvoc/list:1#00000000\n\nan account word\n"))
-    add("the guide stops saying that the shell is not behind a gate", "11.",
+    add("the guide stops saying that the shell and OS switches are off as delivered and walls while off", "11.",
         tree_fn=lambda t, d: edit(os.path.join(t, "agent-pack", "guide", "sd-basic-guide.md"),
-                                  lambda b: b.replace(b"none of them is behind a gate or a switch", b"all of them are behind a gate or a switch", 1)))
+                                  lambda b: b.replace(b"Both are off as delivered, and each is a wall while it is off", b"Both are on as delivered", 1)))
     add("the guide names an as= lane", "11.",
         tree_fn=lambda t, d: edit(os.path.join(t, "agent-pack", "guide", "sd-basic-guide.md"), lambda b: b + b"\n```tcl run as=gdoff\nx\n```\n"))
-    add("the start text stops saying that the shell is not behind a gate", "11.",
-        tree_fn=lambda t, d: edit(os.path.join(t, "agent-pack", "core-start.md"), lambda b: b.replace(b"NOT behind a gate", b"behind a gate", 1)))
-    add("SKILL.md stops saying that what is not a wall is not a permission", "11.",
-        tree_fn=lambda t, d: edit(os.path.join(t, *sk, "SKILL.md"), lambda b: b.replace(b"What is not a wall is not a permission.", b"What is not a wall is allowed.", 1)))
+    add("the start text stops saying that the shell and OS switches are off as delivered", "11.",
+        tree_fn=lambda t, d: edit(os.path.join(t, "agent-pack", "core-start.md"), lambda b: b.replace(b"Both are OFF as delivered", b"Both are ON as delivered", 1)))
+    add("SKILL.md stops saying that a switch the user turned on is not a permission", "11.",
+        tree_fn=lambda t, d: edit(os.path.join(t, *sk, "SKILL.md"), lambda b: b.replace(b"A switch the user turned on is not a permission.", b"A switch the user turned on is allowed.", 1)))
     add("the recipe names a script that is not in the repository", "11.",
         tree_fn=lambda t, d: edit(os.path.join(t, "agent-pack", "recipe", "agent-account.md"), lambda b: b.replace(b"`solo-ssh.sh`", b"`solo-nothing.sh`", 1)))
     add("the recipe loses its 'Scripts used:' line", "11.",

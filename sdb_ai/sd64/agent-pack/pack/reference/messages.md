@@ -300,6 +300,22 @@ Insufficient memory for program variables
 Argument count mismatch calling %s (Call=%d, subr=%d)
 ```
 
+### msg:10053
+> kind=message tier=reference since=- src=sdsys/messages/10053:1#59e80a35
+
+```
+%1 is not permitted to use the operating system shell
+```
+
+cited by: `cproc`
+
+### msg:10054
+> kind=message tier=reference since=- src=sdsys/messages/10054:1#c1b33f0d
+
+```
+%s is not permitted to use OS.EXECUTE
+```
+
 ### msg:1006
 > kind=message tier=reference since=- src=sdsys/messages/1006:1#2e947f51
 
@@ -370,6 +386,8 @@ Insufficient memory to reallocate array chunk
 %1 already had that access; nothing changed
 ```
 
+cited by: `setosacc`
+
 ### msg:10081
 > kind=message tier=reference since=- src=sdsys/messages/10081:1#cb0ce2a0
 
@@ -428,6 +446,15 @@ cited by: `cproc`
 Illegal action key
 ```
 
+### msg:10102
+> kind=message tier=reference since=- src=sdsys/messages/10102:1#c79eaec2
+
+```
+Account %1 has SH %2, OS.EXECUTE %3
+```
+
+cited by: `setosacc`
+
 ### msg:10107
 > kind=message tier=reference since=- src=sdsys/messages/10107:1#f7c84f0b
 
@@ -457,6 +484,15 @@ Error %d creating stdout pipe
 ```
 You cannot suspend your own account or the one you are standing in
 ```
+
+### msg:10114
+> kind=message tier=reference since=- src=sdsys/messages/10114:1#e64070d2
+
+```
+Unable to change the state of %1; its state in the register is unchanged
+```
+
+cited by: `setosacc`
 
 ### msg:10117
 > kind=message tier=reference since=- src=sdsys/messages/10117:1#ca57bb67
@@ -2351,6 +2387,15 @@ Select list number out of range
 
 cited by: `movelist`
 
+### msg:11180
+> kind=message tier=reference since=- src=sdsys/messages/11180:1#9d09446e
+
+```
+%1 has no OS access, so a file or directory outside its own account cannot be reached by pathname (the administrator can give it: set.os.access os on)
+```
+
+cited by: `qproc`, `setptr`
+
 ### msg:1119
 > kind=message tier=reference since=- src=sdsys/messages/1119:1#0860c7cd
 
@@ -3853,6 +3898,15 @@ Cannot open %1 (error %2). It was left as it is.
 
 cited by: `upgrade_nocase`
 
+### msg:11926
+> kind=message tier=reference since=- src=sdsys/messages/11926:1#2e09b893
+
+```
+Syntax: set.os.access   or   set.os.access sh on|off   or   set.os.access os on|off
+```
+
+cited by: `setosacc`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 
@@ -5150,7 +5204,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `cleanac`, `config`, `cproc`, `listlck`, `listrdu`, `listu`, `restorea` and 4 more
+cited by: `backupa`, `cleanac`, `config`, `cproc`, `listlck`, `listrdu`, `listu`, `restorea` and 5 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

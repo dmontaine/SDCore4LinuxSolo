@@ -4,7 +4,7 @@
 
 **How to trust it.** Every fenced block below is compiled by `gplbld/sandbox-guide.py` on a private SD Core Solo, in a plain session of its one account, `sduser`, that has not typed `admin`; a block marked `run` is also run and must print what the block after it says; every line of a `notinsd` block must still fail to compile, so the day SD gains a function this guide fails its own test. A sentence that no block backs is marked **[unverified]** and you should test it before you rely on it. A tool's own words are quoted only where they were seen.
 
-**The rules that bind you.** Write in English and write every command word, keyword and option in lower case. The walls in part B are walls: this guide states them so that you stop at them, never so that you go round them. And where part B says that something is **not** a wall (the operating system's own shell is the first), that is a fact about this product and not a permission: use it only for what the user asked for.
+**The rules that bind you.** Write in English and write every command word, keyword and option in lower case. The walls in part B are walls: this guide states them so that you stop at them, never so that you go round them. That includes the two switches (the shell, and OS access) that are off as delivered: the administrator turns them on, and only if the user wants them on. A switch the user has turned on is a fact about this installation and not a permission: use it only for what the user asked for.
 
 ---
 
@@ -565,7 +565,7 @@ no lock held, status 3023
 after falling out: Birch
 ```
 
-**Sequential files** (`openseq`, `readseq`, `writeseq`) work on a path inside the account and, in this product, on any path the Linux user can reach (B2: that is not a wall, and it is not a permission either). **The `then` and `else` of `openseq` are not success and failure**: `else` is taken when the file cannot be opened, missing (the case for `create`) or refused (status 3035), and `status()` tells which.
+**Sequential files** (`openseq`, `readseq`, `writeseq`) work on a path inside the account; a path outside it needs the OS switch, which is off as delivered (B2). **The `then` and `else` of `openseq` are not success and failure**: `else` is taken when the file cannot be opened, missing (the case for `create`) or refused (status 3035), and `status()` tells which.
 
 ```basic frag run
 openseq 'gzseq.txt' to sf else
@@ -785,18 +785,20 @@ A verb that is not in the VOC is refused with exactly that wording (the name as 
 
 ## B2. The walls
 
-This product has **walls**, and it has **things that are not walls**. A wall is the system working: when one stops you, say which it is and stop. Do not look for another route to the same effect, do not suggest a password or a key, and do not ask the user to lift it for you. Whether to is theirs. What is not a wall is further down, and it needs more care, not less.
+This product has **walls**. A wall is the system working: when one stops you, say which it is and stop. Do not look for another route to the same effect, do not suggest a password or a key, and do not ask the user to lift it for you. Whether to is theirs.
 
 | wall | what it governs | who lifts it |
 |---|---|---|
 | the account password | every session | the user types it |
-| `admin` | the administrator commands: `config`, `listu`, `update.accounts`, `set.password admin` and the rest of the list in the user's documents; and writing the VOC | the user types the administrator password in the session; [unverified] it lasts until the session ends or `admin off` |
+| `admin` | the administrator commands: `config`, `listu`, `update.accounts`, `set.password admin`, `set.os.access` and the rest of the list in the user's documents; and writing the VOC | the user types the administrator password in the session; [unverified] it lasts until the session ends or `admin off` |
 | the VOC | a VOC record: `ed voc`, a program's `write` or `delete` to it, `copy` into it | `admin` |
 | the global catalogue | `catalog ... global`, and `delete.catalog` of a global entry | nothing in this product: the SD Core server's, in managed mode |
 | the compiler's restricted names | `breakpoint`, the `$internal` directive, `kernel()` and the like | nothing an account can do |
+| the shell switch, `sh` | the `sh` verb and `!` | the administrator: `set.os.access sh on`. **Off as delivered.** |
+| the OS switch, `os` | `os.execute`; `openseq`, `openpath`, `dir()`, `deleteseq`, `opentemp`, `digest` and `ospath` of a path outside the account; a print unit's pathname; the embedded Python; `nano` and `micro` | the administrator: `set.os.access os on`. **Off as delivered.** |
 | verbs the product does not have | `create.account`, `logto`: there is one account | nothing |
 
-The refusal is in words you can match, and the pack holds each as `msg:<number>`: 2001 (`Command requires administrator privileges`), 11008 (the VOC), 11028 and 11029 (the global catalogue). What a session that has **not typed `admin`** sees:
+The refusal is in words you can match, and the pack holds each as `msg:<number>`: 2001 (`Command requires administrator privileges`), 10053 (the shell) and 10054 (`os.execute`), 11008 (the VOC), 11028 and 11029 (the global catalogue), 11180 (a pathname outside the account). What a session that has **not typed `admin`** and has both switches off, **as delivered**, sees:
 
 ```basic run id=gshell
 program gshell
@@ -806,13 +808,14 @@ end
 ```
 
 ```output
-hi
+sduser is not permitted to use the operating system shell
 ```
 
 ```tcl run
 config
 copy from bp to voc gshell
 catalog bp gshell global
+set.os.access sh on
 create.account user someone no.query
 logto sdsys
 ```
@@ -821,6 +824,7 @@ logto sdsys
 Command requires administrator privileges
 The VOC can only be changed after admin (the administrator password)
 The global catalogue holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog
+Command requires administrator privileges
 create.account is not in your VOC
 logto is not in your VOC
 ```
@@ -854,7 +858,7 @@ end
 voc write refused, status 3035
 ```
 
-**What is not a wall.** The operating system is reached with the `sh` verb, `!`, the `os.execute` statement and `openseq` / `openpath` / `dir()` on any path, and in this release **none of them is behind a gate or a switch**: they run with the rights of the Linux user who owns the installation, and SD never runs as root. That is a fact about the product, not a permission. Use them only for what the user asked for, and the more they can reach, the more reason to run an agent as a Linux user of its own (the recipe in `agent-pack/recipe/`). The one filter is on the verbs: `sh` and `!` refuse a command with a shell metacharacter in it (`;` `|` `&` `$` `` ` `` `<` `>`) and say `Error 2 executing operating system command`. That is a sanitizer, so that a pasted record id cannot become a second command; it is not a permission and it is not the same as `os.execute`, which runs the string as written.
+**The two switches.** The operating system is reached with the `sh` verb and `!` (the shell switch) and, from a program, with `os.execute` and a path outside the account (the OS switch). **Both are off as delivered, and each is a wall while it is off**: they are the administrator's to turn on, per switch, and the user may turn on one, both or neither. A refusal looks like this, in a plain session with both off:
 
 ```tcl run
 sh echo hi
@@ -863,27 +867,43 @@ sh echo alpha-beta | grep alpha
 ```
 
 ```output
-hi
-hi
-Error 2 executing operating system command
+sduser is not permitted to use the operating system shell
+sduser is not permitted to use the operating system shell
+sduser is not permitted to use the operating system shell
 ```
 
 ```basic run id=gosx
 program gosx
-   os.execute 'echo alpha-beta | grep alpha'
-   openseq '/etc/hostname' to f then crt 'opened outside the account' else crt 'outside refused, status ' : status()
-   openseq 'gosx.txt' to g else create g else stop 'cannot create'
-   crt 'a file inside the account is fine'
-   closeseq g
-   deleteseq 'gosx.txt' else crt 'not deleted'
+   os.execute 'echo hi'
+   crt 'not reached'
 end
 ```
 
 ```output
-alpha-beta
-opened outside the account
-a file inside the account is fine
+<addr>: sduser is not permitted to use OS.EXECUTE at line 2
 ```
+
+Inside the account nothing is asked, and a path outside it is refused without the OS switch, as an `else` branch with status 3035 (the same number as the VOC wall: the status says "refused", the statement says what was refused). `dir()` gives an empty answer:
+
+```basic run id=gopen
+program gopen
+   openseq '/etc/hostname' to f then crt 'opened outside' else crt 'outside refused, status ' : status()
+   openseq 'gopen.txt' to g else create g else stop 'cannot create'
+   crt 'a file inside the account is fine'
+   closeseq g
+   deleteseq 'gopen.txt' else crt 'not deleted'
+   x = dir('/etc')
+   crt 'dir outside: ' : dcount(x, @fm) : ' entries, status ' : status()
+end
+```
+
+```output
+outside refused, status 3035
+a file inside the account is fine
+dir outside: 0 entries, status 3035
+```
+
+**When the user has turned a switch on** the same statements run with the rights of the Linux user who owns the installation, and SD never runs as root. That is not a permission to use them for anything else: use them only for what the user asked, and the more they can reach, the more reason to run an agent on a computer of its own (the recipe in `agent-pack/recipe/`). [unverified] A change is seen by the next sign-on, never by a session already running. The one filter is on the verbs: with `sh` on, `sh` and `!` refuse a command with a shell metacharacter in it (`;` `|` `&` `$` `` ` `` `<` `>`) and say `Error 2 executing operating system command`; that is a sanitizer, so that a pasted record id cannot become a second command. `os.execute` runs the string as written. You cannot read the switches from an ordinary session (`set.os.access` needs `admin`): try the statement, and a refusal tells you.
 
 The compiler also keeps a set of names for programs that SD itself ships. The restricted statements are "Unrecognised statement", the `$internal` directive is refused, and an internal-only function is read as a matrix, with an error about a `dim` you never wrote, reported at the last line of the program. **If a function you are sure exists gives that message, it exists and you may not call it.**
 
@@ -1150,7 +1170,7 @@ ab ef a |
 
 ## B7. SD Core Solo and SD Core
 
-This guide and its pack are for SD Core for Linux **Solo**, the single-user product, and were generated and run on it. SD Core for Linux, the full product, has many accounts and a per-account switch for the shell, `os.execute`, file access outside the account, ssh, the API and more; **none of that exists here**, so a Core document that says an account is refused something for want of a switch does not describe this product (B2 says what does). Core is ahead of this product by whatever has not yet been carried across: a chunk of the pack is here only if this product's own sources have it, and a feature the full product's documents name may be missing. Take the pack that was generated for the product you are on.
+This guide and its pack are for SD Core for Linux **Solo**, the single-user product, and were generated and run on it. SD Core for Linux, the full product, has many accounts and a per-account switch for the shell, `os.execute`, file access outside the account, ssh, the API and more. **This product has two of those switches, `sh` and `os`, for its one account** (the same two as SD Core's, set with `set.os.access` instead of `modify.account`), and none of the others: no gate for ssh, the API, the VOC, program files, dictionaries, other servers or a shared account. A Core document that says an account is refused something for want of one of those does not describe this product (B2 says what does). Core is ahead of this product by whatever has not yet been carried across: a chunk of the pack is here only if this product's own sources have it, and a feature the full product's documents name may be missing. Take the pack that was generated for the product you are on.
 
 ## B8. The loop to follow when you write a program
 
@@ -1159,7 +1179,7 @@ This guide and its pack are for SD Core for Linux **Solo**, the single-user prod
 3. Compile with `basic bp name`. Judge on the line `Compiled 1 program(s) with no errors` **and** on there being no `WARNING` line. A message you do not know: read A14, then look up the statement.
 4. Run it against scratch files whose names cannot exist in production, with data you made. A program that writes to a production file is not a test.
 5. Never `catalog` over a name that is already catalogued and never delete a file you did not create. Both are the user's decisions.
-6. When a wall refuses, say which one (B2), say what you were doing, and stop. When something is not a wall, remember that it is not a permission either.
+6. When a wall refuses, say which one (B2), say what you were doing, and stop. When a switch the user turned on lets something through, remember that it is not a permission for anything but the work.
 
 ---
 
