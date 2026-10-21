@@ -17,7 +17,7 @@ The one account's VOC (`sduser`) is `newvoc` in full: `gpl.bp/solo_account` copi
 SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (11): `$hold`, `accounts`, `bp`, `bp.out`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `messages`, `qfile`, `second.compile`, `third.compile`.
 
 ### voc:type:F
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:80#98baf5a6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:82#98baf5a6
 
 **The F record — a file**
 
@@ -73,7 +73,7 @@ name rather than by path.
 
 
 ### voc:type:K
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:256#4f0b8cdd
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:258#4f0b8cdd
 
 **The K record — a keyword**
 
@@ -95,7 +95,7 @@ supplier` parse.
 
 
 ### voc:type:PA
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:223#9486a7c4
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:225#9486a7c4
 
 **The PA record — a paragraph**
 
@@ -133,7 +133,7 @@ expands to `list stock with no qty`.
 
 
 ### voc:type:PH
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:241#7acc327c
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:243#7acc327c
 
 **The PH record — a phrase**
 
@@ -153,7 +153,7 @@ expands to `list stock with no qty`.
 
 
 ### voc:type:Q
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:183#b10fccd2
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:185#b10fccd2
 
 **The Q record — an indirect pointer**
 
@@ -172,7 +172,7 @@ through it, and it is how `dict voc` finds its records.
 
 
 ### voc:type:R
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:197#7919279b
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:199#7919279b
 
 **The R record — a remote record reference**
 
@@ -192,7 +192,7 @@ R-records pointing into `SD.VOCLIB`.
 
 
 ### voc:type:S
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:212#e478fff6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:214#e478fff6
 
 **The S record — a sentence**
 
@@ -208,7 +208,7 @@ command with its first arguments filled in.
 
 
 ### voc:type:V
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:131#770e48c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:133#770e48c1
 
 **The V record — a verb**
 
@@ -265,7 +265,7 @@ a marginal verb.
 
 
 ### voc:type:X
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:273#f1c700c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:275#f1c700c1
 
 **The X record — text**
 

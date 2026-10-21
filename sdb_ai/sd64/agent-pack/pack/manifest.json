@@ -2,98 +2,21 @@
  "chunk_count": 3789,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
-  "basic_names_without_a_docs_syntax_line": [
-   "ARG.PRESENT",
-   "AS",
-   "BSCAN",
-   "CASING",
-   "CATCH",
-   "CAUGHT",
-   "COLLECTION",
-   "CONVERT",
-   "CREATING",
-   "CSV.MODE",
-   "DELIMITER",
-   "ECS",
-   "ELEMENT.EXISTS",
-   "ENUMERATE",
-   "EPOCH",
-   "EREPLACE",
-   "EXPAND",
-   "FIX",
-   "FLUSH.DH.CACHE",
-   "FORMLISTV",
-   "GETLISTV",
-   "GROUPSTORE",
-   "INPUTIF",
-   "INPUTNULL",
-   "INPUTTRAP",
-   "JBOOLEAN",
-   "JBUILD",
-   "JNULL",
-   "JPARSE",
-   "JTYPE",
-   "KEEP.SELECT",
-   "KEY",
-   "MATSTR",
-   "MATWRITECSV",
-   "MOVELIST",
-   "MOVELISTV",
-   "MVDATE",
-   "MVDATE.TIME",
-   "MVEPOCH",
-   "MVTIME",
-   "NO.ECHO",
-   "NON.TRANSACTIONAL",
-   "OPENTEMP",
-   "OSDELETE",
-   "OSREAD",
-   "OSWRITE",
-   "PDUMP",
-   "RAW",
-   "REDIM",
-   "REDIMENSION",
-   "RESTRICTED",
-   "REUSING",
-   "REVREMOVE",
-   "RMVD",
-   "ROOT",
-   "SCREEN",
-   "SELECT.SOCKET",
-   "SELECTINDEXV",
-   "SELECTLEFTV",
-   "SELECTRIGHTV",
-   "SEND",
-   "SET.TIMEZONE",
-   "SHARED",
-   "SORT",
-   "SORTDATA",
-   "SSELECTN",
-   "SSELECTV",
-   "STACKLIST",
-   "SYNC",
-   "TERMINFO.EX",
-   "THROW",
-   "TIME",
-   "TRY",
-   "TTYSET",
-   "VSLICE",
-   "WRITELIST"
-  ]
+  "basic_names_without_a_docs_syntax_line": []
  },
  "generator": "agent-pack/mkpack.py",
  "kinds": {
   "basic.clause": {
    "chunks": 34,
-   "sha256": "dd6c3ae8d47ae59e3ac9c9404a3a620f8ad469668c32051b523de4f00e41afde"
+   "sha256": "bda7dadce844e5fbec007501abd4115872b53af969eb0d1b21c9a22cf6efe6a8"
   },
   "basic.function": {
    "chunks": 246,
-   "sha256": "75bc5b770ef1963637a75c3e12771746535d0c5973f9e92cd649129c4f230faa"
+   "sha256": "3cc88bdda3e4966433705919bd23e31fbcf2a8e44fdfc3dd5d4d3a8342ef491c"
   },
   "basic.internal": {
    "chunks": 37,
-   "sha256": "ec101a260c00655b2babffbebe8e3ca4e6ef3385da8736bb6a803dde2933683a"
+   "sha256": "e24c0bbfcc1e906ad3bd3e02f00feeaf75960eba98ea69a07526ec23f43de278"
   },
   "basic.mode": {
    "chunks": 44,
@@ -105,15 +28,15 @@
   },
   "basic.restricted": {
    "chunks": 34,
-   "sha256": "dfe9a84e930eac83026ea098b15c44f9b55b8bb28e144eb74abc74c963334c25"
+   "sha256": "4fbf8cc2cc24499a0d8c76808c4a82322783ba415f82d128559673440d01bb94"
   },
   "basic.statement": {
    "chunks": 222,
-   "sha256": "33142aa844e2bc15a19eb9cadb46d391b94bb19edfc8cac873b823d191974b0b"
+   "sha256": "29ed19a1316471186685b45e2410da0ea0e05c8e101ed0e59fbece6e47c3fc4e"
   },
   "core.digest": {
    "chunks": 5,
-   "sha256": "388da8b6f2870204a7bbfee3f4b1b83badcfd25a22daa3bbb0990e6a95cd0d3f"
+   "sha256": "efec9722c88a6a602ed9e7d18c632436d1eff5f8f899f1dae5b5e04577ef008d"
   },
   "core.start": {
    "chunks": 1,
@@ -173,11 +96,11 @@
   },
   "tcl.keyword": {
    "chunks": 267,
-   "sha256": "673770a66fe93aab5bd37376538c6b7e0fa62473252f4735c7e4b78e2da4dc61"
+   "sha256": "9cf86df52adf7c12c185a1135354cf6d1f5022a79b30d4fde1f9cae33b107186"
   },
   "tcl.verb": {
    "chunks": 177,
-   "sha256": "03eff1e6183c465f34536c9ab2d2065331ec34754a7470d1ca1d4184ce4f739c"
+   "sha256": "05b14117421b673c33029723c3b982fa0a06a20956f58adc9994157cda6e587b"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -205,8 +128,8 @@
  "parts": {
   "core.md": {
    "chunks": 6,
-   "sha256": "c3988a8e06973eb6a4328b8f07d723440d1ee7bb535ae48ed250f1065728f998",
-   "words": 2296
+   "sha256": "f8a1b15f2c3f9d2ff578cf083d6fae257747ee909c80c73229550ae4b6d05e9f",
+   "words": 2348
   },
   "examples/dictionary-items.md": {
    "chunks": 74,
@@ -219,12 +142,12 @@
    "words": 1404
   },
   "index.json": {
-   "sha256": "ad4e9295f92bb1204f0fbde137959549fe7745aaf30631e0b0c2737cc4e6203b"
+   "sha256": "0d9aa2906855f50fe7d3c78e1b2abdc7c718f96cabb789421e27a4c44585de30"
   },
   "reference/basic-functions.md": {
    "chunks": 283,
-   "sha256": "18f995729b9c1865840db562941979f49c534d75c4c889d610c33b5ec828b548",
-   "words": 4388
+   "sha256": "6bd6e2b6c40829ee1447d355680b5e775fe271472459a67781677859a2c327dc",
+   "words": 4331
   },
   "reference/basic-modes.md": {
    "chunks": 105,
@@ -233,8 +156,8 @@
   },
   "reference/basic-statements.md": {
    "chunks": 290,
-   "sha256": "e76ff5e7d595f21ec9dfacaf5e9796626de71bd3bec1bc39dc98f2f535b9afcb",
-   "words": 5760
+   "sha256": "1ab6df3a78e5e328394e0ee031c129cb64e6ffc01d95a7bf600e14bb94c0d89a",
+   "words": 5984
   },
   "reference/dictionaries.md": {
    "chunks": 53,
@@ -258,12 +181,12 @@
   },
   "reference/tcl-keywords.md": {
    "chunks": 267,
-   "sha256": "242e6902b988a142934f822d22db4cae16920adad904d6cbd2ec779c804f6a3b",
-   "words": 11473
+   "sha256": "4a17ea43c74c5346fe94006f9706c3821ada833128c872e84f1626b0b9081bcb",
+   "words": 11718
   },
   "reference/tcl-verbs.md": {
    "chunks": 181,
-   "sha256": "a725d4bb0e77d6d81585b2401560e3b19edd1f4518cd705f96f7552eb0eaf23e",
+   "sha256": "5b6d88750a6474151900f36056a3a391c790199ed01ed87f1f688269c713c626",
    "words": 7051
   },
   "reference/voc.md": {

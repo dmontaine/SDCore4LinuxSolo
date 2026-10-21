@@ -77,40 +77,40 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 7. A statement in this pack that the guide marks `unverified` has no probe behind it. Compile and run a small test before you rely on it.
 
 ### core:tcl-verbs
-> kind=core.digest tier=core since=- src=docs:tools/tcl-syntax-shapes.txt:24#2cd80aff
+> kind=core.digest tier=core since=- src=docs:tools/tcl-syntax-shapes.txt:26#eb31e34a
 
 The 30 verbs the User pages 19-24 and the tutorial use most (counted in their examples), each as its syntax line; a verb's full chunk is `tcl:<verb>`.
 
-- **`!`** *command*
 - **`admin`** | **`admin off`**
-- **`alias`** *command* *target*
+- **`analyse.index`** *file* {*index* {**`statistics`**} {**`detail`**}} {**`lptr`** {*n*}} {**`no.page`**}
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
-- **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`catalogue`** — the same verb as **`catalog`**
 - **`cd`** {**`dict`** | **`data`**} *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`cd local`**  ·  **`cd all`**
 - **`clear.select`** {*list.no*}
-- **`cname`** *old.file* **`to`** *new.file*
-- **`configure.file`** {**`dict`**} *voc.name* {*parameters*} | **`default`**
+- **`copy from`** {**`dict`**} *src* {**`to`** {**`dict`**} *tgt*} {*id* …} {**`(options`**}
+- **`copy.listp`** {{**`dict`**} *file*} {*name* … | **`*`**} {**`(`***options*}
 - **`count`** {**`dict`**} *file* {*selection*}
 - **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*}
 - **`create.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
 - **`ct`** {**`dict`**} *file* {*id* … | **`*`**} {**`(options`**}
+- **`decatalog`** {*file*} *name* …
 - **`delete.index`** *file* *field* … | **`all`**
+- **`disable.index`** *file* *index* … | **`all`**
 - **`display`** *text*
+- **`execute.list`** *command* {**`;`** *command* …}  —  a pair of brackets `()` in a command is replaced by each id of list 0 in turn
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
 - **`make.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
 - **`off`**
+- **`redo`** {**`times`** *n*} {**`every`** *s*} *command*
 - **`run`** {*file*} *record* {*arguments*}
+- **`scan`** {**`dict`**} *file* {*selection*} {*id* …} {**`all`**} {**`no.case`**} {**`all.match`** | **`no.match`**} {**`strings`** *file* *record*} **`for`** *"text"* …
+- **`search`** {**`dict`**} *file* {*selection*}
 - **`select`** {**`dict`**} *file* {*selection*} {*list.no*}
-- **`sh`** *command*
-- **`show`** {**`dict`**} *file* {*selection*}
+- **`selectindex`** {**`dict`**} *file* *index* {*value*} {**`to`** *n*}
 - **`sort`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
-- **`sselect`** {**`dict`**} *file* {*selection*} {*list.no*}
-- **`stop`**
-- **`sum`** {**`dict`**} *file* {*selection*} *field*
 
 ### core:voc-types
 > kind=core.digest tier=core since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:20#429323c5
