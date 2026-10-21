@@ -44,8 +44,15 @@ FILES = {
     "deleteserver": os.path.join(GPL, "deleteserver"),
     "listservers": os.path.join(GPL, "listservers"),
     "netfile": os.path.join(GPL, "netfile"),
+    "sdclient": os.path.join(GPL, "sdclient"),
+    # the suites that hold the RUNTIME mutants (21 Oct 26): the table of what each changes, and the tables of which rows must fail (checks R1 and R2)
+    "sandbox-sdnet.py": os.path.join(HERE, "sandbox-sdnet.py"),
+    "sandbox-sdnet-login.py": os.path.join(HERE, "sandbox-sdnet-login.py"),
+    "sandbox-sdnetfile.py": os.path.join(HERE, "sandbox-sdnetfile.py"),
+    "sandbox-apifile.py": os.path.join(HERE, "sandbox-apifile.py"),
 }
-VERBS = ("set.server", "delete.server", "list.servers", "set.netlogin", "delete.netlogin")
+SUITES = ("sandbox-sdnet.py", "sandbox-sdnet-login.py", "sandbox-sdnetfile.py", "sandbox-apifile.py")
+VERBS =("set.server", "delete.server", "list.servers", "set.netlogin", "delete.netlogin")
 PROGRAMS = {"set.server": "$setserver", "delete.server": "$deleteserver", "list.servers": "$listservers", "set.netlogin": "$setnetlogin", "delete.netlogin": "$deletenetlogin"}
 for _v in VERBS:
     FILES["newvoc/" + _v] = os.path.join(SDSYS, "newvoc", _v)
@@ -188,6 +195,59 @@ def checks(srcs, messages_dir):
     ck("X3 there is no files-only route here: no apifilesok program, no sdfiles in the API server", not os.path.exists(os.path.join(GPL, "apifilesok")) and "sdfiles" not in api)
     ck("X4 netfiles is in the build list", re.search(r"^netfiles\s*$", c["gpl.src"], re.M))
 
+    # ---- R. the RUNTIME mutants of the sandbox suites ---------------------------------------------------------------------------
+    # sandbox-sdnet.py holds MUTANTS (what each runtime mutant changes, in the SANDBOX's copy, text for text).  They stay mutants only while the old text occurs exactly once in the source they
+    # change, and are worth having only while some suite lists the rows that must fail.  Both are read as TEXT here, with no sandbox.
+    table = re.search(r"^MUTANTS = \{\n(.*?)^\}\n", srcs["sandbox-sdnet.py"], re.S | re.M)
+    names = re.findall(r'^    "([a-z0-9-]+)": \(\n', table.group(1), re.M) if table else []
+    olds = []
+    bad_old = []
+    if table:
+        ns = {}
+        try:
+            exec("MUTANTS = {\n" + table.group(1) + "}\n", ns)
+            for mname, (_why, parts) in ns["MUTANTS"].items():
+                for kind, fn, old, _new in parts:
+                    key = fn if kind == "bas" else os.path.basename(fn)
+                    olds.append((mname, key))
+                    if srcs.get(key, "").count(old) != 1:
+                        bad_old.append("%s: %d in %s" % (mname, srcs.get(key, "").count(old), key))
+        except Exception as exc:        # a table that does not run is a failed check, not a crashed one
+            bad_old.append("the MUTANTS table does not run: %r" % (exc,))
+    ck("R1 every RUNTIME mutant of sandbox-sdnet.py (%d, %d changes) finds its old text EXACTLY ONCE in the source it changes (so it is a mutant, not the fixed program under a new name)" % (len(names), len(olds)),
+       names and olds and not bad_old, "; ".join(bad_old[:4]))
+    unjudged = [n for n in names if not any(('"%s": dict(' % n) in srcs[f] for f in SUITES)]
+    ck("R2 every RUNTIME mutant is judged by at least one suite: a MUTANT_KILLS entry (the rows that must fail) in sandbox-sdnet.py, -login, -sdnetfile or sandbox-apifile.py", names and not unjudged, "judged by no suite: %r" % unjudged[:6])
+    # R3: the judge itself, run on rows made up here (the module's text is executed, so that the self-test's mutants of that text are seen).  A judge that passes a mutant nothing caught would
+    # make every mutant run a green lie.
+    import contextlib
+    import io
+    ns = {"__file__": FILES["sandbox-sdnet.py"], "__name__": "sandbox_sdnet_text"}
+    got = {}
+    try:
+        exec(compile(srcs["sandbox-sdnet.py"], FILES["sandbox-sdnet.py"], "exec"), ns)
+
+        def judge(rows_, required, also=(), survives=False):
+            ns["ROWS"][:] = rows_
+            with contextlib.redirect_stdout(io.StringIO()):
+                return ns["mutant_verdict"]("t", required, also, survives)
+        got = {
+            "caught": judge([("r1 x", False), ("r2 y", True)], ["r1"]),                      # 0: the required row failed, nothing else did
+            "missed": judge([("r1 x", True), ("r2 y", True)], ["r2"]),                       # 1: the required row PASSED on the mutant (and nothing else failed)
+            "extra": judge([("r1 x", False), ("r3 z", False)], ["r1"]),                      # 1: a row that is on no list failed
+            "also": judge([("r1 x", False), ("r3 z", False)], ["r1"], ["r3"]),               # 0: it is on the `also` list
+            "absent": judge([("r1 x", False)], ["no such row"]),                             # 1: the expectation names no row
+            "twice": judge([("r1 a", False), ("r1 b", False)], ["r1"]),                      # 1: the expectation names two rows
+            "survives": judge([("r1 x", True)], [], (), True),                               # 0: the table says no row can notice, and none did
+            "caught-survivor": judge([("r1 x", False)], [], (), True),                       # 1: it was said to survive and a row failed
+        }
+        want = {"caught": 0, "missed": 1, "extra": 1, "also": 0, "absent": 1, "twice": 1, "survives": 0, "caught-survivor": 1}
+    except Exception as exc:        # a judge that does not run is a failed check, not a crashed one
+        want = {}
+        got = {"error": repr(exc)}
+    ck("R3 the judge of a mutant run (mutant_verdict) gives 0 only when the required rows failed, no row outside the lists did, and a documented survivor failed none: eight made-up runs",
+       want and got == want, repr(got)[:200])
+
     # ---- V. the verbs ---------------------------------------------------------------------------------------------------
     for v in VERBS:
         for where in ("newvoc/", "voc_template/"):
@@ -233,6 +293,10 @@ MUTANTS = [
     ("the API server does not open a lower case dict", "A1", sub("apisrvr", "if upcase(cmnd[1,5]) = 'DICT ' then", "if cmnd[1,5] = 'DICT ' then")),
     ("netfiles.c asks a gates word again", "X1", sub("netfiles.c", "(my_uptr->flags & USR_ADMIN) != 0)", "(my_uptr->flags & USR_ADMIN) != 0) || (my_uptr->gates & 1)")),
     ("a verb's VOC record runs another program", "V1", sub("newvoc/set.netlogin", "$setnetlogin", "$setserver")),
+    ("the text a runtime mutant changes is edited away", "R1", sub("setnetlogin", "if spki # pin then", "if spki # pin then   ;* the key must be the pin")),
+    ("a runtime mutant is judged by no suite", "R2", sub("sandbox-sdnetfile.py", '"netfile-no-gate": dict(', '"netfile-no-gate-x": dict(')),
+    ("the judge of a mutant run forgets the rows that are on no list", "R3", sub("sandbox-sdnet.py", "    extra = [n for n in bad_rows if n not in named and n not in tolerated]", "    extra = []")),
+    ("the judge of a mutant run lets a required row pass", "R3", sub("sandbox-sdnet.py", "        if hits[0][1]:\n            say(\"  [MISSED]", "        if False:\n            say(\"  [MISSED]")),
 ]
 
 

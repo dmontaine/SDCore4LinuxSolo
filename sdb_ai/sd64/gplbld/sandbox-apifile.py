@@ -4,12 +4,16 @@
 #                      reply belongs to the request that got it, through a REAL logged-in API session on Solo's own sandbox.
 #                      No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-apifile.py <dir> [--build]
+#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-apifile.py <dir> [--build] [--mutant=apisrvr-net-never|apisrvr-net-always]
+#   (--mutant=NAME takes one rule out of the sandbox's own copy of APISRVR and runs section N only; sandbox-sdnet.py holds the machinery and what each mutant changes)
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (Solo's own).  With --build it is built first from THIS tree (it must be empty or absent).
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.  Set SDSOLOBOX_KEYSET so as not to meet another sandbox's keys.
 #
 # START-HISTORY:
+# 21 Oct 26 dm  Section N (the NET gate over the API: APISRVR loads K$NET when it enters the account, from register field 15) and --mutant for the two mutants of that load.  Written because
+#               the SDNet client had NO row that ran APISRVR's `void kernel(K$NET, api.net.grant)` (its text check G5 reads the source; request 29 reads the register itself).  The probe
+#               zznk is the lane of sandbox-sdnet.py, imported (this file's row / say / ROWS are pointed at by it in main()).
 # 20 Oct 26 dm  Written for Solo carry 3.  The two defects are SD Core's K8a and K1 (19 Oct 26, sandbox-req29.py sections F and G): apisrvr's requests 32 and 33
 #               used `files(i)`, the scratch variable of the last open, instead of `files(fno)`, so a lock or an unlock went to whichever file had been opened last;
 #               and an ON ERROR reply carried @abort.message, which a refusal sets and nothing cleared, so a WRITE with an over-long id answered the text of the last
@@ -33,6 +37,7 @@
 #   S  the OS switches over the API (20 Oct 26, the Solo OS switch): the server reads fields 7 and 8 of the register when it enters the account; SH OFF is
 #      refused (10053) and SH ON runs, the sentinel on the disk being the evidence.  K now turns the SH switch on for its own rows: its program waits in SH sleep
 #      and SH is OFF as delivered.
+#   N  the NET gate over the API (21 Oct 26): the server reads field 15 of the register when it enters the account and loads K$NET (yes is on; no, absent are off); the probe verb zznk shows it
 #   C2 S.71 (SD Core, 20 Oct 26) the reply to an INPUT prompt declares a length the server cannot accept ('garb' = 1,651,663,207; 5, below the header): the server
 #      ends the session at once and does not spin (the second packet reader, process_client_input; Core's part C2)
 #   K  S.71 CLEARINPUT after the connection has gone: the command waits in SH sleep, the client closes, CLEARINPUT then runs: the server ends and does not spin
@@ -66,6 +71,10 @@ SV = {0: "OK", 1: "ON.ERROR", 2: "ELSE", 3: "ERROR", 4: "LOCKED"}
 BOX = SYS = SD = PW = None
 passed = failed = 0
 WIRES = []
+ROWS = []                         # (name, ok) of every row of this run, in order: what a --mutant run is judged on
+_spec_n = importlib.util.spec_from_file_location("sandbox_sdnet", os.path.join(HERE, "sandbox-sdnet.py"))
+sn = importlib.util.module_from_spec(_spec_n)
+_spec_n.loader.exec_module(sn)    # the SDNet suite's lane (the K$NET probes, the register field 15) and its mutant machinery; main() points its row / say / ROWS at this file's
 
 
 def say(s=""):
@@ -75,6 +84,7 @@ def say(s=""):
 
 def row(name, ok, detail=""):
     global passed, failed
+    ROWS.append((name, bool(ok)))
     if ok:
         passed += 1
         say("  [PASS] " + name)
@@ -396,6 +406,21 @@ def section_s():
         os.remove(mark)
 
 
+def section_n():
+    say("\n--- N. the NET gate over the API (SDNet carry 9): the server loads K$NET when it enters the account, from register field 15 (only yes is on) ----------------------")
+    if not sn.prepare():
+        bail("the K$NET probe zznk did not compile, so no row about the gate over the API can be believed")
+    for rid, label, value, want in (("N1", "'yes'", "yes", "1"), ("N0", "'no'", "no", "0"), ("N2", "absent (a record of fourteen fields)", None, "0")):
+        sn.reg_net(value)
+        w = Wire(rid)
+        out = w.execute("zznk")
+        w.close()
+        m = re.search(r"NK net=(\d+) admin=(\d+)", out or "")
+        row("%s: with field 15 %s in the register an API session's K$NET is %s (APISRVR loads the gate when it enters the account) and the session is not an administrator" % (rid, label, want),
+            m is not None and m.group(1) == want and m.group(2) == "0", "reply %r" % (out,))
+    sn.reg_net("no")
+
+
 def section_k():
     say("\n--- K. CLEARINPUT after the connection has gone (S.71) ---------------------------------------------------------------------")
     # The program waits in SH sleep 2, so the account needs the SH switch (OFF as delivered, since the OS switch of 20 Oct 26): the register is written
@@ -618,11 +643,20 @@ def section_d():
     s1.close()
 
 
+# The mutants this suite judges (sandbox-sdnet.py's MUTANTS says what each changes; --mutant=NAME).  REQUIRED rows are listed BEFORE the first run of the mutant: a substring each, naming exactly one
+# row, that must FAIL; anything else that fails is EXTRA and fails the run.  Section N is all a mutant of the API server's load of the gate runs.
+MUTANT_KILLS = {
+    "apisrvr-net-never": dict(sections=("n",), required=["N1: with field 15 'yes'"]),
+    "apisrvr-net-always": dict(sections=("n",), required=["N0: with field 15 'no'", "N2: with field 15 absent"]),
+}
+
+
 def main():
     global BOX, SYS, SD, PW
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if len(args) != 1:
-        bail("usage: sandbox-apifile.py <dir> [--build]")
+    mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
+    if len(args) != 1 or (mutant is not None and mutant not in MUTANT_KILLS):
+        bail("usage: sandbox-apifile.py <dir> [--build] [--mutant=%s]" % "|".join(sorted(MUTANT_KILLS)))
     BOX = os.path.abspath(args[0])
     SYS = os.path.join(BOX, "sys")
     SD = os.path.join(SYS, "bin", "sd")
@@ -646,22 +680,37 @@ def main():
     if not PW:
         bail("the account password file is empty")
     subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120)
+    sn.BOX, sn.SYS = BOX, SYS
+    sn.ACCT, sn.REG = os.path.join(SYS, "user_accounts", sn.ACCOUNT), os.path.join(SYS, "accounts", sn.ACCOUNT)
+    sn.row, sn.say, sn.ROWS = row, say, ROWS          # the lane's setup rows and the mutant machinery report to THIS file's rows
+    if not sn.control_pristine():
+        bail("the sandbox is not pristine")
     try:
-        section_d()
-        section_f()
-        section_g()
-        put_programs()
-        section_c2()
-        section_s()
-        section_k()
-        section_l()
+        if mutant:
+            sn.mutant_begin(mutant)
+            section_n()
+        else:
+            section_d()
+            section_f()
+            section_g()
+            put_programs()
+            section_c2()
+            section_s()
+            section_n()
+            section_k()
+            section_l()
     finally:
         for w in list(WIRES):
             w.kill()
         subprocess.run([SD, "-cleanup"], env=env(), capture_output=True, timeout=60)
+        if mutant:
+            sn.mutant_end()
     say("\nsandbox-apifile: %d passed, %d failed" % (passed, failed))
     if passed + failed == 0:
         bail("no row ran - a broken test, not a pass")
+    if mutant:
+        k = MUTANT_KILLS[mutant]
+        return sn.mutant_verdict(mutant, k["required"], k.get("also", ()), k.get("survives", False))
     return 1 if failed else 0
 
 

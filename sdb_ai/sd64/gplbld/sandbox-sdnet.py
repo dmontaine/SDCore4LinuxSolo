@@ -5,13 +5,17 @@
 #                    fixture accounts, sandbox-gates.py and the sdfiles route); written FIRST, before the code existed, and run red on
 #                    8d0a720.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet.py <dir> [--build] [--sections=a,b]
+#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet.py <dir> [--build] [--sections=a,b] [--mutant=NAME]
+#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet.py --check-mutants        (free: no sandbox)
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (needs a `make`d bin/sd-solo).  With --build it is built first from THIS tree (it
 # must be empty or absent).  SDSOLOBOX_KEYSET=n picks the keys.  Exit 0 every row passed, 1 one failed, 2 it could not run.  Stop the
-# sandbox afterwards with sandbox-fromtree.py <dir> stop.  --sections= runs only the named parts (gate, defs, ordinary).
+# sandbox afterwards with sandbox-fromtree.py <dir> stop.  --sections= runs only the named parts (gate, defs, ordinary).  --mutant=NAME: see RUNTIME MUTANTS below.
 #
 # START-HISTORY:
+# 21 Oct 26 dm  RUNTIME MUTANTS of the whole SDNet client (this file holds the machinery and the table of what each mutant changes; sandbox-sdnet-login.py, sandbox-sdnetfile.py and
+#               sandbox-apifile.py each hold the rows that must fail for theirs).  Rows added so that a mutant has a row to fail: the object compiled $internal and COPIED into the account's
+#               own bp.out (the second layer of K$NET's set, op_kernel.c, which the compiler's refusal hides) and the control row that the sandbox is pristine.
 # 20 Oct 26 dm  Stage A of the SDNet carry (owner, 20 Oct: "core to solo complete, solo to core limited, core to core and solo to solo your
 #               judgement"): the gate (K$NET, register field 15, the same field that guards API request 29), set.server, list.servers and
 #               delete.server and the file netservers.  Nothing opens a remote file yet.
@@ -23,12 +27,14 @@
 # state and signs on again (the load is at sign-on).  EVIDENCE IS THE DISK: the definitions file is compared byte for byte before and after
 # every refusal.
 #
-# NOT RUN HERE, said plainly: an API session's load of the gate (a sandbox can host one, sandbox-req29.py reads the register itself), the
+# NOT RUN HERE, said plainly: an API session's load of the gate (sandbox-apifile.py section N runs it since 21 Oct 26; sandbox-req29.py reads the register itself), the
 # audit lines of an install, the key hash of a real server (stage B).
 
 import argparse
 import datetime
 import getpass
+import hashlib
+import importlib.util
 import os
 import re
 import shutil
@@ -45,6 +51,7 @@ ACCOUNT = "sduser"
 USER = getpass.getuser()
 SECRETS = []
 passed = failed = 0
+ROWS = []                       # (name, ok) of every row of this run, in order: what a MUTANT run is judged on
 BOX = SYS = ACCT = REG = ""
 
 PIN_A = "0123456789abcdef" * 4
@@ -66,6 +73,7 @@ def say(s=""):
 
 def row(name, ok, detail=""):
     global passed, failed
+    ROWS.append((name, bool(ok)))
     if ok:
         passed += 1
         say("  [PASS] " + name)
@@ -223,6 +231,385 @@ def compiled(out, n=1):
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
+# ---- RUNTIME MUTANTS (21 Oct 26) ---------------------------------------------------------------------------------------------------------
+# --mutant=NAME on sandbox-sdnet.py, sandbox-sdnet-login.py and sandbox-sdnetfile.py takes ONE rule of the SDNet client out of the SANDBOX's own copy and runs the suite's rows against it
+# (test-sdnet-units.py has the same rules as TEXT mutants; these are RUNTIME mutants, the rule gone from the running program).  WHAT is changed is here (MUTANTS: one place, so a name means the
+# same thing in every suite); WHICH ROWS MUST FAIL is in each suite (MUTANT_KILLS), written BEFORE the first run of the mutant: the run then says whether the rows that failed are exactly those.
+# A mutant that fails fewer rows is a rule no row guards; one that fails more is a row that guards the wrong thing (EXTRA), or a row that depends on the rule without naming it (listed as
+# `also`: it follows from the rule being gone).  A mutant that fails NO row is either a gap the table says it is (`survives`) or a hole.
+#   A BASIC program: <dir>/sys/gpl.bp/NAME is written from the sandbox's own staged copy <dir>/tree/sdsys/gpl.bp/NAME with the text changed (every old text must occur EXACTLY ONCE) and
+#   compiled there with BASIC gpl.bp NAME in an internal session.  The repository's tree is never touched.
+#   A kernel change: <dir>/mut-NAME is a copy of <dir>/tree with the one C change, built by make (only the changed file and the link are made), and its sd-solo is swapped in: the sandbox is
+#   stopped, the file copied over sys/bin/sd-solo, the sandbox started.  It is stopped with the SAME SDSOLOBOX_KEYSET it ran under, as ever.
+#   <dir>/.mutant names the mutant while it is in place.  A run that finds it (the run before was killed) puts the sandbox right FIRST, and EVERY run, mutant or not, has a control row that
+#   fails unless the programs a mutant may change are the staged bytes and sd-solo is the one the sandbox was built with.
+#   `python3 sandbox-sdnet.py --check-mutants` (free: no sandbox) says whether every old text still occurs exactly once in the repository's tree.
+
+# kind "bas": a program of sdsys/gpl.bp; kind "c": a file of the tree (path from sd64/), changed in a copy and made.
+MUTANTS = {
+    "netcred-read-private": (
+        "$netcred READ no longer tests the login file with SD_FILE_PRIVATE: a file with group bits, a link or a directory is then used",
+        [("bas", "netcred",
+          "         if SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then\n            err = 11454:@vm:server:@vm:path\n            return\n         end\n         line = ''\n",
+          "         if 0 then   ;* MUTANT: READ does not test the file\n            err = 11454:@vm:server:@vm:path\n            return\n         end\n         line = ''\n")]),
+    "netcred-exists-private": (
+        "$netcred EXISTS no longer tests the login file with SD_FILE_PRIVATE: a file that is not private, a link, is reported as a login",
+        [("bas", "netcred", "            if SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) = '1' then\n", "            if 1 then   ;* MUTANT: EXISTS does not test the file\n")]),
+    "netcred-delete-private": (
+        "$netcred DELETE no longer tests the login file with SD_FILE_PRIVATE: whatever has the name, a directory included, is removed",
+        [("bas", "netcred",
+          "         if SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then\n            err = 11454:@vm:server:@vm:path\n            return\n         end\n         if not(ospath(path, OS$DELETE)) then\n",
+          "         if 0 then   ;* MUTANT: DELETE does not test the file\n            err = 11454:@vm:server:@vm:path\n            return\n         end\n         if not(ospath(path, OS$DELETE)) then\n")]),
+    "netcred-ensure-private": (
+        "$netcred ENSURE no longer tests the directory it found or made with SD_FILE_PRIVATE",
+        [("bas", "netcred", "      if not(ospath(cred.dir, OS$EXISTS)) or SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then\n",
+          "      if not(ospath(cred.dir, OS$EXISTS)) then   ;* MUTANT: ENSURE does not test the directory\n")]),
+    "netcred-dir-private": (
+        "$netcred READ, WRITE, EXISTS and DELETE no longer test the store's directory with SD_FILE_PRIVATE before they look in it",
+        [("bas", "netcred", "   if not(dir.there) or SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then\n", "   if not(dir.there) then   ;* MUTANT: the directory is not tested\n")]),
+    "netcred-mkdir-755": (
+        "$netcred ENSURE makes the store's directory with mode 755, not 700",
+        [("bas", "netcred", "mkdir -m 700 -- '", "mkdir -m 755 -- '")]),
+    "netcred-tmp-private": (
+        "$netcred WRITE no longer tests the new file with SD_FILE_PRIVATE before it is renamed over the login (the umask still makes it private)",
+        [("bas", "netcred", "            if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then\n", "            if 0 then   ;* MUTANT: the new file is not tested\n")]),
+    "netcred-umask-untested": (
+        "$netcred WRITE makes the login file under umask 022 AND does not test the new file: a login of mode 644 is stored without a word",
+        [("bas", "netcred", "NETCRED.UMASK 63", "NETCRED.UMASK 18"),
+         ("bas", "netcred", "            if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then\n", "            if 0 then   ;* MUTANT: the new file is not tested\n")]),
+    "netcred-umask-022": (
+        "$netcred WRITE makes the login file under umask 022, not 077",
+        [("bas", "netcred", "NETCRED.UMASK 63", "NETCRED.UMASK 18")]),
+    "netcred-write-direct": (
+        "$netcred WRITE writes the login under its own name: no <server>.new, no rename over the old one",
+        [("bas", "netcred", "   tmp = path : '.new'\n", "   tmp = path   ;* MUTANT: no temporary file\n")]),
+    "setnetlogin-no-gate": (
+        "set.netlogin does not ask the NET gate",
+        [("bas", "setnetlogin", "   if not(is.admin) and not(kernel(K$NET, -1)) then\n", "   if 0 then   ;* MUTANT: the NET gate is not asked\n")]),
+    "setnetlogin-no-list": (
+        "set.netlogin does not ask whether the account is in the definition's accounts list",
+        [("bas", "setnetlogin", "      if index(',':downcase(defs<found,7>):',', ',':acc:',', 1) = 0 then\n", "      if 0 then   ;* MUTANT: the accounts list is not asked\n")]),
+    "setnetlogin-no-ensure": (
+        "set.netlogin does not call $netcred ENSURE: the store's directory is not made",
+        [("bas", "setnetlogin", "   call $netcred('ENSURE', name, rec, pin, err)\n", "   err = ''   ;* MUTANT: the store's directory is not made\n")]),
+    "setnetlogin-no-pin": (
+        "set.netlogin does not compare the key the server presents with the pin of the definition",
+        [("bas", "setnetlogin", "   if spki # pin then\n", "   if 0 then   ;* MUTANT: the pin is not compared\n")]),
+    "netfile-no-gate": (
+        "$netfile (the handler) does not ask the NET gate itself",
+        [("bas", "netfile", "   if not(is.admin) and not(kernel(K$NET, -1)) then gate.ok = @false\n", "   if 0 then gate.ok = @false   ;* MUTANT: the handler does not ask the gate\n")]),
+    "netfile-no-list": (
+        "$netfile (the handler) does not ask whether the account is in the definition's accounts list",
+        [("bas", "netfile", "      if index(',':downcase(accts):',', ',':acc:',', 1) = 0 then\n", "      if 0 then   ;* MUTANT: the accounts list is not asked\n")]),
+    "sdclient-no-pin": (
+        "!sdclient connect.keys does not compare the key the server presents with the pin (the login exchange is then sent to whatever answers)",
+        [("bas", "sdclient", "   if ('p' : spki) # ('p' : pin) then\n", "   if 0 then   ;* MUTANT: the pin is not compared\n")]),
+    "netfile-dial-first": (
+        "$netfile dials the server before the missing or untrusted stored login is refused (the login is judged after the server was dialled)",
+        [("bas", "netfile",
+          "   call $netcred('READ', srv, cred, pin, err)\n   if err # '' then\n      cred = ''\n",
+          "   call $netcred('READ', srv, cred, pin, err)\n   if err # '' then\n      mutant.skt = open.socket(host, port, SKT$BLOCKING + SKT$TLS, 5)   ;* MUTANT: dialled before the login is refused\n"
+          "      if status() = 0 then close.socket mutant.skt\n      cred = ''\n")]),
+    "login-net-never": (
+        "LOGIN does not load K$NET: no account ever holds the gate",
+        [("bas", "login", "   void kernel(K$NET, upcase(trim(acc.rec<ACC$NET>)) = 'YES')\n", "*  MUTANT: K$NET is not loaded\n")]),
+    "login-net-always": (
+        "LOGIN loads K$NET as on for every account, whatever field 15 says",
+        [("bas", "login", "   void kernel(K$NET, upcase(trim(acc.rec<ACC$NET>)) = 'YES')\n", "   void kernel(K$NET, 1)   ;* MUTANT: always on\n")]),
+    "apisrvr-net-never": (
+        "APISRVR does not load K$NET: no API session ever holds the gate",
+        [("bas", "apisrvr", "void kernel(K$NET,     api.net.grant)", "*  MUTANT: K$NET is not loaded")]),
+    "apisrvr-net-always": (
+        "APISRVR loads K$NET as on for every API session, whatever field 15 says",
+        [("bas", "apisrvr", "void kernel(K$NET,     api.net.grant)", "void kernel(K$NET, 1)   ;* MUTANT: always on")]),
+    "netfiles-gate-open": (
+        "the KERNEL's net_gate_ok() answers yes to every session (netfiles.c); the handler still asks",
+        [("c", "gplsrc/netfiles.c", "  return ((my_uptr->flags & USR_ADMIN) != 0) || ((my_uptr->flags & USR_NET) != 0);", "  return TRUE; /* MUTANT */")]),
+    "gate-both": (
+        "the kernel's net_gate_ok() AND the handler's check.gate both answer yes (the two layers of the gate, both gone)",
+        [("c", "gplsrc/netfiles.c", "  return ((my_uptr->flags & USR_ADMIN) != 0) || ((my_uptr->flags & USR_NET) != 0);", "  return TRUE; /* MUTANT */"),
+         ("bas", "netfile", "   if not(is.admin) and not(kernel(K$NET, -1)) then gate.ok = @false\n", "   if 0 then gate.ok = @false   ;* MUTANT: the handler does not ask the gate\n")]),
+    "knet-set-any": (
+        "K_NET can be SET by a program that is not $internal (the HDR_INTERNAL test of the set in op_kernel.c is gone)",
+        [("c", "gplsrc/op_kernel.c",
+          "      if (n >= 0) {\n        if (process.program.flags & HDR_INTERNAL) {\n          if (n > 0)\n            my_uptr->flags |= USR_NET;",
+          "      if (n >= 0) {\n        if (1 /* MUTANT */) {\n          if (n > 0)\n            my_uptr->flags |= USR_NET;")]),
+}
+MUTANT_PROGRAMS = sorted({p[1] for _w, parts in MUTANTS.values() for p in parts if p[0] == "bas"})
+_SBX = None
+
+
+def fromtree():
+    """sandbox-fromtree.py as a module: the Box that stops and starts a sandbox, replace_once, binary_keys_ok."""
+    global _SBX
+    if _SBX is None:
+        spec = importlib.util.spec_from_file_location("sandbox_fromtree", TOOL)
+        _SBX = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_SBX)
+    return _SBX
+
+
+def _read(path):
+    with open(path, encoding="latin-1", newline="") as f:
+        return f.read()
+
+
+def _write(path, text):
+    with open(path, "w", encoding="latin-1", newline="") as f:
+        f.write(text)
+
+
+def _sha(path):
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+def staged_bp(fn):
+    return os.path.join(BOX, "tree", "sdsys", "gpl.bp", fn)
+
+
+def sandbox_bp(fn):
+    return os.path.join(SYS, "gpl.bp", fn)
+
+
+def marker_path():
+    return os.path.join(BOX, ".mutant")
+
+
+def edited(text, edits, what):
+    """TEXT with each (old, new) applied; every old text must occur exactly once, or the mutant would be the fixed program under another name."""
+    for old, new in edits:
+        n = text.count(old)
+        if n != 1:
+            bail("mutant: the text to change is found %d times in %s, not once: %r" % (n, what, old[:80]))
+        text = text.replace(old, new)
+    return text
+
+
+def check_mutants():
+    """Free: every old text occurs exactly once in the repository's tree (no sandbox).  Returns the number of problems."""
+    bad = 0
+    for name, (_why, parts) in sorted(MUTANTS.items()):
+        by_file = {}
+        for kind, fn, old, new in parts:
+            by_file.setdefault((kind, fn), []).append(old)
+            if old == new:
+                print("  [FAIL] %s: the new text is the old text" % name)
+                bad += 1
+        for (kind, fn), olds in sorted(by_file.items()):
+            path = os.path.join(SD64, "sdsys", "gpl.bp", fn) if kind == "bas" else os.path.join(SD64, fn)
+            text = _read(path)
+            for old in olds:
+                n = text.count(old)
+                print("  [%s] %s: %s: the old text occurs %d time(s)" % ("PASS" if n == 1 else "FAIL", name, fn, n))
+                bad += (n != 1)
+    print("sandbox-sdnet: %d mutants, %d problem(s)" % (len(MUTANTS), bad))
+    return bad
+
+
+def pristine():
+    """(ok, what is wrong): no marker is left, every program a mutant may change is the staged bytes, and sd-solo is the one the sandbox was built with."""
+    wrong = []
+    if os.path.exists(marker_path()):
+        wrong.append("%s is left (a mutant run did not finish)" % marker_path())
+    for fn in MUTANT_PROGRAMS:
+        try:
+            if _read(sandbox_bp(fn)) != _read(staged_bp(fn)):
+                wrong.append("gpl.bp/%s is not the staged copy" % fn)
+        except OSError as e:
+            wrong.append("gpl.bp/%s: %s" % (fn, e))
+    try:
+        if _sha(os.path.join(SYS, "bin", "sd-solo")) != _sha(os.path.join(BOX, "tree", "bin", "sd-solo")):
+            wrong.append("bin/sd-solo is not the binary the sandbox was built with")
+    except OSError as e:
+        wrong.append("bin/sd-solo: %s" % e)
+    return not wrong, "; ".join(wrong)
+
+
+def compile_bp(fn):
+    """Compile gpl.bp/FN in the sandbox.  Right when SD says it compiled with no errors and no warning that a constant or variable is NOT ASSIGNED A VALUE (that one fails at run time; the pristine
+    login says another, 'assigned a value but never used', and that is not a failure).  Returns (ok, the output)."""
+    out = internal(["BASIC gpl.bp " + fn])
+    ok = has(out, r"^Compiled 1 program\(s\) with no errors") and not has(out, r"is not assigned a value")
+    return ok, out
+
+
+def swap_binary(src):
+    """Stop the sandbox, put SRC over sys/bin/sd-solo, start it."""
+    box = fromtree().Box(BOX)
+    if not box.stop():
+        bail("the sandbox would not stop (its keys are still held): is SDSOLOBOX_KEYSET the one it was built and started under?")
+    tmp = box.sd + ".new"
+    shutil.copy2(src, tmp)
+    os.replace(tmp, box.sd)
+    if not box.start():
+        bail("the sandbox would not start with %s" % src)
+    say("    sd-solo is now %s (sha256 %s)" % (src, _sha(box.sd)[:16]))
+
+
+def build_c_mutant(name, cparts):
+    """<dir>/mut-NAME: a copy of <dir>/tree with the C change(s), made.  Returns the path of its sd-solo."""
+    S = fromtree()
+    mdir = os.path.join(BOX, "mut-" + name)
+    if os.path.lexists(mdir):
+        shutil.rmtree(mdir)
+    shutil.copytree(os.path.join(BOX, "tree"), mdir, symlinks=True)
+    for fn, old, new in cparts:
+        S.replace_once(os.path.join(mdir, fn), old, new, "mutant " + name)
+    log = os.path.join(BOX, "make-mut-%s.log" % name)
+    objdir = os.path.join(mdir, "gplobj")
+    objs = {n: os.stat(os.path.join(objdir, n)).st_mtime_ns for n in os.listdir(objdir) if n.endswith(".o")}
+    say("    make in %s (log %s)" % (mdir, log))
+    with open(log, "w") as lf:
+        p = subprocess.run(["make"], cwd=mdir, stdout=lf, stderr=subprocess.STDOUT, text=True)
+    binary = os.path.join(mdir, "bin", "sd-solo")
+    if p.returncode != 0 or not os.path.isfile(binary):
+        bail("make failed for the mutant %s (exit %d); see %s" % (name, p.returncode, log))
+    remade = sorted(n for n in os.listdir(objdir) if n.endswith(".o") and os.stat(os.path.join(objdir, n)).st_mtime_ns != objs.get(n))
+    say("    make exit 0; objects made again: %s" % (", ".join(remade) or "NONE"))
+    want_objs = {os.path.basename(fn)[:-2] + ".o" for fn, _o, _n in cparts}
+    if not want_objs <= set(remade):
+        bail("make did not make %s again: the mutant would be the fixed program" % ", ".join(sorted(want_objs - set(remade))))
+    if _sha(binary) == _sha(os.path.join(BOX, "tree", "bin", "sd-solo")):
+        bail("the mutant binary is byte for byte the fixed one: the change was not built")
+    if not S.binary_keys_ok(binary, quiet=True):
+        bail("the mutant binary does not carry exactly the sandbox keys")
+    return binary
+
+
+def mutant_restore():
+    """Put the sandbox right: the programs a mutant may change are the staged bytes (and compiled from them) and sd-solo is the built one.  Returns what it had to change."""
+    changed = []
+    marked = ""
+    if os.path.exists(marker_path()):
+        marked = _read(marker_path()).strip()
+    names = {fn for fn in MUTANT_PROGRAMS if _read(sandbox_bp(fn)) != _read(staged_bp(fn))}
+    if marked in MUTANTS:
+        names |= {p[1] for p in MUTANTS[marked][1] if p[0] == "bas"}
+    for fn in sorted(names):
+        _write(sandbox_bp(fn), _read(staged_bp(fn)))
+        ok, out = compile_bp(fn)
+        if not ok:
+            bail("the staged %s did not recompile when the sandbox was put right: %r" % (fn, out[-4:]))
+        changed.append("gpl.bp/" + fn)
+    built = os.path.join(BOX, "tree", "bin", "sd-solo")
+    if _sha(os.path.join(SYS, "bin", "sd-solo")) != _sha(built):
+        swap_binary(built)
+        changed.append("bin/sd-solo")
+    if os.path.exists(marker_path()):
+        os.remove(marker_path())
+    for d in sorted(os.listdir(BOX)):
+        if d.startswith("mut-") and os.path.isdir(os.path.join(BOX, d)):
+            shutil.rmtree(os.path.join(BOX, d), ignore_errors=True)
+    return changed
+
+
+def mutant_begin(name):
+    why, parts = MUTANTS[name]
+    say("\n--- MUTANT %s: %s ---------------------------------------------------------------" % (name, why))
+    left = mutant_restore()
+    if left:
+        say("    a mutant was left in this sandbox by an earlier run; put right first: %s" % ", ".join(left))
+    ok, detail = pristine()
+    if not ok:
+        bail("the sandbox is not pristine before the mutant is put in: %s" % detail)
+    _write(marker_path(), name + "\n")
+    bas = {}
+    cparts = []
+    for kind, fn, old, new in parts:
+        if kind == "bas":
+            bas.setdefault(fn, []).append((old, new))
+        else:
+            cparts.append((fn, old, new))
+    for fn, edits in sorted(bas.items()):
+        _write(sandbox_bp(fn), edited(_read(staged_bp(fn)), edits, "the staged gpl.bp/" + fn))
+        for old, new in edits:
+            say("    gpl.bp/%s  was: %s" % (fn, old.rstrip("\n").replace("\n", " / ")[:150]))
+            say("    gpl.bp/%s  now: %s" % (fn, new.rstrip("\n").replace("\n", " / ")[:150]))
+        ok, out = compile_bp(fn)
+        if not ok:
+            bail("the mutant of gpl.bp/%s did not compile: %r" % (fn, out[-5:]))
+        say("    gpl.bp/%s compiled with the change" % fn)
+    if cparts:
+        for fn, old, new in cparts:
+            edited(_read(os.path.join(BOX, "tree", fn)), [(old, new)], "the staged " + fn)
+        swap_binary(build_c_mutant(name, cparts))
+
+
+def mutant_end():
+    left = mutant_restore()
+    ok, detail = pristine()
+    say("\n--- the mutant is out again: %s; the sandbox is pristine: %s ---" % (", ".join(left) or "nothing had to be changed", "yes" if ok else "NO: " + detail))
+    return ok
+
+
+def mutant_verdict(name, required, also=(), survives=False):
+    """Judge a mutant run.  REQUIRED: substrings each naming exactly ONE row, and that row must have failed.  ALSO: substrings of rows that may fail because the rule is gone (cascade); not required.
+    Anything else that failed is EXTRA.  SURVIVES: the table says no row can notice this mutant (a documented gap): the run is right when no row failed."""
+    bad_rows = [n for n, ok in ROWS if not ok]
+    say("\n=== MUTANT %s: %d rows run, %d failed" % (name, len(ROWS), len(bad_rows)))
+    problems = 0
+    named = set()
+    for sub in required:
+        hits = [(n, ok) for n, ok in ROWS if sub in n]
+        if len(hits) != 1:
+            say("  [FAIL] the expectation %r names %d rows, not one (a row was renamed, or its section was not run)" % (sub, len(hits)))
+            problems += 1
+            continue
+        named.add(hits[0][0])
+        if hits[0][1]:
+            say("  [MISSED] %s ... PASSED on the mutant: nothing guards the rule through this row" % hits[0][0][:110])
+            problems += 1
+        else:
+            say("  [CAUGHT] %s ..." % hits[0][0][:110])
+    tolerated = {n for n, _ok in ROWS if any(sub in n for sub in also)}
+    cascade = [n for n in bad_rows if n in tolerated and n not in named]
+    for n in cascade:
+        say("  [also]   %s ...  (follows from the rule being gone)" % n[:110])
+    extra = [n for n in bad_rows if n not in named and n not in tolerated]
+    for n in extra:
+        say("  [EXTRA]  %s ...  failed, and is on no list" % n[:110])
+        problems += 1
+    if survives:
+        if bad_rows:
+            say("  [FAIL] the table says this mutant SURVIVES every row, and %d row(s) failed: it is caught now; move it to a required list" % len(bad_rows))
+            problems += 1
+        else:
+            say("  [GAP, DOCUMENTED] no row failed: the rule is masked or has no row (see the table's reason)")
+    caught = sum(1 for n in named if n in bad_rows)
+    say("sandbox-sdnet: mutant %s: %s (%d required rows failed of %d, %d cascade, %d extra)" % (name, "AS EXPECTED, the rows that name it failed and no other" if not problems else "NOT AS EXPECTED", caught, len(required), len(cascade), len(extra)))
+    return 1 if problems else 0
+
+
+def control_pristine():
+    """Called by every suite once the sandbox is started and before any mutant is put in: a mutant left by a killed run is taken out, and a CONTROL row says the sandbox is pristine.
+    A run on a sandbox that is not would be judged on a program nobody meant to test."""
+    left = mutant_restore()
+    if left:
+        say("    a mutant was left in this sandbox by an earlier run; put right: %s" % ", ".join(left))
+    ok, detail = pristine()
+    row("CONTROL: the sandbox is pristine (the programs a mutant may change are the staged bytes, bin/sd-solo is the one it was built with, no mutant is marked)", ok, detail)
+    return ok
+
+
+def mutant_args(ap):
+    """The options of a suite that has mutants."""
+    ap.add_argument("--mutant", default=None, choices=sorted(MUTANTS), help="take one rule out of the sandbox's own copy and judge the rows (see MUTANT_KILLS)")
+
+
+def mutant_plan(a, kills):
+    """The --mutant option against the suite's MUTANT_KILLS: returns (mutant or None, the sections it runs or None).  A mutant the suite has no table for is refused."""
+    if not a.mutant:
+        return None, None
+    if getattr(a, "sections", ""):
+        bail("--mutant runs the sections listed for it in MUTANT_KILLS; do not combine it with --sections")
+    if a.mutant not in kills:
+        bail("this suite has no expectations for the mutant %s (it is judged by: see MUTANT_KILLS of the other suites); mutants here: %s" % (a.mutant, ", ".join(sorted(kills))))
+    return a.mutant, set(kills[a.mutant]["sections"])
+
+
+# --------------------------------------------------------------------------------------------------------------------------------
+
 ZZNK = "\n".join([
     "$internal", "program zznk", "$catalog $zznk", "$include keys.h", "$include int$keys.h",
     "   crt 'NK net=':kernel(K$NET,-1):' admin=':kernel(K$ADMINISTRATOR,-1)", "end", ""])
@@ -308,6 +695,25 @@ def gate_section():
     out = session(["BASIC bp zznkord", "RUN bp zznkord", "zznk"], quiet=True)
     row("an ordinary program that tries to set the key does not run (KERNEL is not a function for it), prints no 'after-set' line, and the key still reads 0",
         not has(out, r"^NO after-set=") and has(out, r"KERNEL") and nk(out) is not None and nk(out)[0] == "0", repr(out[-5:]))
+
+    # The OTHER way a program that is not $internal could reach the setter: an OBJECT compiled $internal (the probe zznkset, compiled in SDSYS) copied into the account's own bp.out.  The
+    # compiler never makes one in the account; this is the copy.  object.c takes HDR_INTERNAL off an object that is not from the global catalogue unless the session is the administrator,
+    # and op_kernel.c asks the flag again at the set: the second is the layer a runtime mutant of op_kernel.c takes out (--mutant=knet-set-any).  The same object as a catalogued VERB
+    # (the rows above) does set it, so the refusal here is the flag and not the program.
+    copy = os.path.join(ACCT, "bp.out", "zznkset")
+    try:
+        shutil.copy(os.path.join(SYS, "gpl.bp.out", "zznkset"), copy)
+        reg_net("no")
+        out = session(["RUN bp zznkset"], quiet=True)
+        row("an object compiled $internal and COPIED into the account's own bp.out runs without the flag (object.c): it cannot SET the key (field 15 no: before 0, set1 0, ask1 0, set0 0, ask0 0)",
+            has_line(out, "NS before=0 set1=0 ask1=0 set0=0 ask0=0"), repr(out[:4]))
+        reg_net("yes")
+        out = session(["RUN bp zznkset"], quiet=True)
+        row("...and it cannot CLEAR it either (field 15 yes: before 1, set1 1, ask1 1, set0 1, ask0 1: the key stays what the register says)",
+            has_line(out, "NS before=1 set1=1 ask1=1 set0=1 ask0=1"), repr(out[:4]))
+    finally:
+        if os.path.exists(copy):
+            os.remove(copy)
     reg_net("no")
 
 
@@ -598,19 +1004,44 @@ def ordinary_section():
 
 SECTIONS = (("gate", gate_section), ("defs", defs_section), ("ordinary", ordinary_section))
 
+# The mutants this suite judges (MUTANTS above says what each changes).  REQUIRED rows are listed BEFORE the first run of the mutant: a substring each, naming exactly one row, that must FAIL; `also`
+# may fail because the rule is gone; anything else that fails is EXTRA and fails the run.  `sections` is what the run runs.
+MUTANT_KILLS = {
+    # LOGIN never loads the gate: every row that expects the gate ON through a sign-on goes red, and no row that expects it off.
+    "login-net-never": dict(sections=("gate",), required=[
+        "field 15 yes -> net=1", "field 15 Yes (the test ignores case) -> net=1", "field 15 ' yes ' (spaces are trimmed) -> net=1",
+        "the administrator with the field on: admin=1 and net=1", "the same on a record that says yes: it starts from 1",
+        "CONTROL: a NEW session starts at the register's 1 again", "...and it cannot CLEAR it either"]),
+    # LOGIN loads it on whatever field 15 says: every row that expects the gate OFF through a sign-on goes red.
+    "login-net-always": dict(sections=("gate",), required=[
+        "field 15 no -> net=0", "field 15 blank field -> net=0", "field 15 a record with no field 15 -> net=0", "field 15 true (only yes is yes) -> net=0",
+        "the administrator (ADMIN) with the field off: admin=1 and net=0", "zznkset (an internal program) sets K$NET and reads it back",
+        "an ordinary program that tries to set the key does not run", "an object compiled $internal and COPIED into the account's own bp.out"]),
+    # the set in op_kernel.c no longer asks HDR_INTERNAL: only an object that is not $internal-flagged but carries the call reaches it, which the copy of the object into the account is.
+    "knet-set-any": dict(sections=("gate",), required=[
+        "an object compiled $internal and COPIED into the account's own bp.out", "...and it cannot CLEAR it either"]),
+}
+
 
 def main():
     global BOX, SYS, ACCT, REG
     ap = argparse.ArgumentParser()
-    ap.add_argument("dir")
+    ap.add_argument("dir", nargs="?")
     ap.add_argument("--build", action="store_true")
     ap.add_argument("--sections", default="")
+    ap.add_argument("--check-mutants", action="store_true", help="free: every mutant's old text still occurs exactly once in the repository's tree")
+    mutant_args(ap)
     a = ap.parse_args()
+    if a.check_mutants:
+        sys.exit(1 if check_mutants() else 0)
+    if not a.dir:
+        ap.error("a sandbox directory is needed")
+    mutant, msections = mutant_plan(a, MUTANT_KILLS)
     BOX = os.path.abspath(a.dir)
     SYS = os.path.join(BOX, "sys")
     ACCT = os.path.join(SYS, "user_accounts", ACCOUNT)
     REG = os.path.join(SYS, "accounts", ACCOUNT)
-    want = set(x for x in a.sections.split(",") if x)
+    want = msections if mutant else set(x for x in a.sections.split(",") if x)
     say("sandbox-sdnet: sandbox  %s" % BOX)
     say("sandbox-sdnet: tree     %s" % SD64)
     say("sandbox-sdnet: user %s; the one account is %s, its register record %s" % (USER, ACCOUNT, REG))
@@ -639,14 +1070,24 @@ def main():
     row("CONTROL: the ADMIN lane is an administrator (WHO.AM.I says Admin? %s)" % (adm.group(1) if adm else "-"), bool(adm) and adm.group(1) == "Yes", "output=%r" % (out[:4],))
     if not (adm and adm.group(1) == "Yes"):
         bail("the administrator lane is not an administrator: every set.server row would be meaningless")
-    prepare()
-
-    for name, section in SECTIONS:
-        if not want or name in want:
-            section()
+    if not control_pristine():
+        bail("the sandbox is not pristine")
+    try:
+        if mutant:
+            mutant_begin(mutant)
+        prepare()
+        for name, section in SECTIONS:
+            if not want or name in want:
+                section()
+    finally:
+        if mutant:
+            mutant_end()
 
     say("")
     say("sandbox-sdnet: %d passed, %d failed" % (passed, failed))
+    if mutant:
+        k = MUTANT_KILLS[mutant]
+        sys.exit(mutant_verdict(mutant, k["required"], k.get("also", ()), k.get("survives", False)))
     sys.exit(1 if failed else 0)
 
 
