@@ -386,7 +386,7 @@ Insufficient memory to reallocate array chunk
 %1 already had that access; nothing changed
 ```
 
-cited by: `setosacc`
+cited by: `setnetacc`, `setosacc`
 
 ### msg:10081
 > kind=message tier=reference since=- src=sdsys/messages/10081:1#cb0ce2a0
@@ -492,7 +492,7 @@ You cannot suspend your own account or the one you are standing in
 Unable to change the state of %1; its state in the register is unchanged
 ```
 
-cited by: `setosacc`
+cited by: `setnetacc`, `setosacc`
 
 ### msg:10117
 > kind=message tier=reference since=- src=sdsys/messages/10117:1#ca57bb67
@@ -4033,6 +4033,24 @@ Syntax: set.os.access   or   set.os.access sh on|off   or   set.os.access os on|
 
 cited by: `setosacc`
 
+### msg:11927
+> kind=message tier=reference since=- src=sdsys/messages/11927:1#db2fa9cd
+
+```
+Syntax: set.net.access   or   set.net.access on|off
+```
+
+cited by: `setnetacc`
+
+### msg:11928
+> kind=message tier=reference since=- src=sdsys/messages/11928:1#c16772f8
+
+```
+Account %1 has NET %2
+```
+
+cited by: `setnetacc`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 
@@ -5330,7 +5348,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `cleanac`, `config`, `cproc`, `listlck`, `listrdu`, `listu`, `restorea` and 5 more
+cited by: `backupa`, `cleanac`, `config`, `cproc`, `listlck`, `listrdu`, `listu`, `restorea` and 6 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
