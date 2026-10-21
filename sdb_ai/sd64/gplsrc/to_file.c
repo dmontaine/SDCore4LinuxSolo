@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  Solo carry 9 (SD Core 27db277): start_file()'s OS-access refusal (11180) names the account; the message was printed with "%1" in it (sysmsg_arg1()).
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on the pathname of a print file is back in start_file() (message 11180);
  *               the S.64 edit gate on it is still not here.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.63 OS-access test and the S.64 edit gate on the
@@ -264,7 +265,7 @@ Private void start_file(PRINT_UNIT* pu) {
        outside the account on SD Core before this.  The spooler's own directory and the aux port name jump to open_file below and are
        not asked.                                                                                                                      */
     if (!os_path_ok_for_account(fn)) {
-      k_error(sysmsg(11180), process.username);
+      k_error(sysmsg_arg1(11180, account()));
     }
 
   open_file:

@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  THE REFUSAL TO PRINT INTO A FILE OUTSIDE YOUR ACCOUNT NOW NAMES THE
+           ACCOUNT.  (SD CORE FOR LINUX FIXED THIS ON 20 OCT 2026; THE WINDOWS
+           PORT FOUND IT.)  When an account without OS access tried to print
+           to a pathname outside its own directory - SETPU, SETPTR ... AS
+           PATHNAME, or a "$hold ../.." print name - it was told "%1 has no OS
+           access ..." with the two characters "%1" printed as they stand,
+           because the message is written for BASIC to fill in and the print
+           code is C.  It now reads "sduser has no OS access ...", so the
+           person knows which account the administrator has to give os to
+           (set.os.access os on).  Nothing else about the refusal changed: the
+           same print is still refused, and the same ones are still allowed.
+
 20 Oct 26  API REQUEST 29 NO LONGER OPENS A FILE FOR ANY LOGIN JUST BECAUSE
            NETFILES HAS BIT 2 SET: IT NEEDS THE ACCOUNT'S NEW "NET GATE", WHICH
            THE ADMINISTRATOR TURNS ON WITH A NEW VERB, SET.NET.ACCESS.

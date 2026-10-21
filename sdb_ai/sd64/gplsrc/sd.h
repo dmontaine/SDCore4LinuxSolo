@@ -297,6 +297,7 @@ u_int32_t GetUnsignedInt(DESCRIPTOR * descr);
 /* MESSAGES.C */
 bool init_messages(void);
 char * sysmsg(int msg_no);
+char * sysmsg_arg1(int msg_no, const char * arg);
 int sysmsg_number_of(const char * p);
 
 /* NETFILES.C removed - SDNet (plan G4). sdnet.h is a different file (the

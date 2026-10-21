@@ -239,7 +239,7 @@ def checks(srcs, messages_dir):
     ck("C19 a print unit's FINAL path - from a raw pathname or from the '$hold name' marker, which a SETPU program can write itself and "
        "which must not climb out with '..' - is asked of the ACCOUNT (not the printing program, usually $internal) after every branch has "
        "built it and before the open, and the refusal is 11180",
-       0 < tsf < tmark < tgate < topen and tcpy < tgate and "sysmsg(11180)" in tf[tgate:topen] and "os_path_open_ok" not in tf[tsf:topen],
+       0 < tsf < tmark < tgate < topen and tcpy < tgate and "sysmsg_arg1(11180, account())" in tf[tgate:topen] and "os_path_open_ok" not in tf[tsf:topen],   # 20 Oct 26: names the ACCOUNT, %1 filled in C (Core 27db277)
        "start_file %s, marker %s, raw copy %s, gate %s, open_file %s" % (tsf, tmark, tcpy, tgate, topen))
 
     # ---- C (the routes Solo's first carry refused outright, until this switch existed) ------------------------------

@@ -405,9 +405,11 @@ def main():
             row("%s: SETPTR ... AS PATHNAME outside is accepted (no 'has no OS access')" % label, not has(out2, "has no OS access"), "output=%r" % (out2,))
         else:
             row("%s: SETPU cannot print into a file outside the account (refused at print time, no file, the program stopped)" % label,
-                has(out, "has no OS access") and not os.path.exists(os.path.join(OUT, "prt.out")) and not has(out, r"^T print-end$"), "output=%r" % (out,))
+                has(out, "sduser has no OS access") and not has(out, "%1") and not os.path.exists(os.path.join(OUT, "prt.out")) and not has(out, r"^T print-end$"),
+                "output=%r" % (out,))
             row("%s: a '$hold ../../..' print name does not climb out of the account (refused, no file, the program stopped)" % label,
-                has(out2, "has no OS access") and not os.path.exists(os.path.join(OUT, "hold.out")) and not has(out2, r"^T hold-end$"), "output=%r" % (out2,))
+                has(out2, "sduser has no OS access") and not has(out2, "%1") and not os.path.exists(os.path.join(OUT, "hold.out")) and not has(out2, r"^T hold-end$"),
+                "output=%r" % (out2,))
             row("%s: SETPTR ... AS PATHNAME outside the account is refused (11180)" % label,
                 sum(1 for ln in out2 if "has no OS access" in ln) >= 2, "output=%r" % (out2,))
 
