@@ -5,13 +5,19 @@
 #                          sandbox-net.py sections connect, netcred and netlogin (S.65 slices 2a and 2b), in Solo's one-account lane, WITHOUT the stand-ins SD Core needs for its
 #                          root helper (Solo has none: the store is made by $netcred itself).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet-login.py <dir> [--build] [--sections=connect,netcred,netlogin]
+#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet-login.py <dir> [--build] [--sections=connect,netcred,netlogin] [--mutant=NAME]
+#   (--mutant=NAME takes one rule out of the sandbox's own copy of $netcred or set.netlogin and says whether the rows that failed are exactly the rows listed for it in MUTANT_KILLS below;
+#   what each mutant changes is in sandbox-sdnet.py, MUTANTS)
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (needs a `make`d bin/sd-solo); SDSOLOBOX_KEYSET=n picks the keys.  With --build it is built first from THIS tree.  Exit 0 every row
 # passed, 1 one failed, 2 it could not run.  Stop the sandbox afterwards with the SAME SDSOLOBOX_KEYSET: sandbox-fromtree.py <dir> stop.  It needs the openssl command line (the
 # certificates and the expected pins are made with it, never by SD) and loads sandbox-sdnet.py for the lanes (an ordinary session, ADMIN, internal) and the helpers.
 #
 # START-HISTORY:
+# 21 Oct 26 dm  RUNTIME MUTANTS (--mutant, MUTANT_KILLS).  Four rows added because a mutant found no row: WRITE with nlcred.new in the way (the old login is never opened for writing), WRITE
+#               over a directory with a file in it (the mutant deleted the directory and made a login in its place), WRITE over a link, and the store's directory ABSENT when set.netlogin
+#               starts (the rows before it made the directory by hand, which hid a set.netlogin that never calls ENSURE).  Two isolations so that one fault does not fail every row after it:
+#               the directory is put right by hand after the ENSURE rows, and a login WRITE made wrong is made right by hand before the READ rows.  The sandbox-is-pristine control row.
 # 20 Oct 26 dm  Written for stage B of the SDNet carry (SD Core's S.65 slices 2a and 2b, carried to Solo 20 Oct).  Written after the code, run red on the stage A commit and green on stage B
 #               (see the status entry); each row says what the evidence is.
 # END-HISTORY
@@ -496,6 +502,19 @@ def plant(server, line=None, mode=0o600, raw=None):
     os.chmod(p, mode)
 
 
+def _read_text(path):
+    with open(path, encoding="latin-1") as f:
+        return f.read()
+
+
+def fix_store_dir():
+    """Put the store's directory right BY HAND (mode 700), so that a fault in the row that made it does not fail every row that follows; the rows that made it say whether it was right."""
+    try:
+        os.chmod(cred_dir(), 0o700)
+    except OSError:
+        pass
+
+
 def reset_store():
     d = cred_dir()
     if os.path.lexists(d) and d.startswith(s.SYS + os.sep):
@@ -543,11 +562,14 @@ def netcred_section():
         ended and res and res[0][2] == [] and st is not None and (st.st_mode & 0o7777) == 0o700 and st.st_uid == os.getuid(), repr((res, st and oct(st.st_mode))))
     res, ended, out = nc_session([L("ENSURE", "nlcred")])
     row("ENSURE again changes nothing and answers no error (idempotent)", ended and res and res[0][2] == [] and (os.lstat(cred_dir()).st_mode & 0o7777) == 0o700, repr(res))
+    fix_store_dir()         # the rows after this one test READ, WRITE and DELETE: a directory ENSURE made wrongly must not fail every one of them (the two rows above say it)
     res, ended, out = nc_session([L("WRITE", "nlcred", pin_a, *attrs)])
     st = os.lstat(cred_path("nlcred")) if os.path.exists(cred_path("nlcred")) else None
     row("WRITE stores ONE line v1|remote|salt|iterations|ClientKey|ServerKey|pin|date, the keys the ones hashlib derives, the pin the ARGUMENT, mode 600, no .new left",
         ended and res and res[0][2] == [] and cred_matches("nlcred", NL_REMOTE, SALT0, 4096, k["client_key_b64"], k["server_key_b64"], pin_a) and st is not None
         and (st.st_mode & 0o7777) == 0o600 and not os.path.exists(cred_path("nlcred") + ".new"), repr((res, st and oct(st.st_mode), read_cred("nlcred"))))
+    if st is None or (st.st_mode & 0o7777) != 0o600 or not cred_matches("nlcred", NL_REMOTE, SALT0, 4096, k["client_key_b64"], k["server_key_b64"], pin_a):
+        plant("nlcred", good)           # the same login made by hand: the READ rows below test READ, not WRITE (the row above says whether WRITE made it right)
     res, ended, out = nc_session([L("READ", "nlcred", pin_a), L("EXISTS", "nlcred")])
     row("READ with the same pin returns the seven values; EXISTS says 1",
         ended and len(res) == 2 and res[0][2] == [] and res[0][3][:5] == [NL_REMOTE, SALT0, "4096", k["client_key_b64"], k["server_key_b64"]] and res[0][3][5] == pin_a
@@ -581,7 +603,7 @@ def netcred_section():
     res, ended, out = nc_session([L("READ", "nldir", pin_a), L("DELETE", "nldir")])
     row("a DIRECTORY with the name of a login: READ and DELETE answer 11454 and it is left", ended and len(res) == 2 and all(r[2][:1] == ["11454"] for r in res) and os.path.isdir(cred_path("nldir")),
         repr(res))
-    os.rmdir(cred_path("nldir"))
+    shutil.rmtree(cred_path("nldir"), ignore_errors=True)       # (a mutant of DELETE may have taken it already)
     plant("nldamaged", raw=b"v1|alice|AAAA\n")
     res, ended, out = nc_session([L("READ", "nldamaged", pin_a)])
     row("a damaged file (too few fields): 11456 (damaged), not used", ended and res and res[0][2][:1] == ["11456"], repr(res))
@@ -598,6 +620,49 @@ def netcred_section():
     row("WRITE of an iteration count below the floor (4095): 11456, nothing changed", ended and res and res[0][2][:1] == ["11456"] and cred_state() == before, repr(res))
     res, ended, out = nc_session([L("WRITE", "nlcred", "zz", *attrs)])
     row("WRITE with a pin that is not 64 digits: 11459, nothing changed", ended and res and res[0][2][:1] == ["11459"] and cred_state() == before, repr(res))
+
+    say("  (WRITE goes through <server>.new: the login that is there is never opened for writing, and what is not a plain file is not written through or removed)")
+    newdir = cred_path("nlcred") + ".new"
+    inner = os.path.join(newdir, "inner")
+    os.mkdir(newdir)
+    os.mkdir(inner)
+    with open(os.path.join(inner, "held"), "w") as f:
+        f.write("a file in a directory nobody may write to: nlcred.new cannot be removed\n")
+    os.chmod(inner, 0o500)
+    before = cred_state()
+    try:
+        res, ended, out = nc_session([L("WRITE", "nlcred", pin_a, *attrs)])
+        after = cred_state()
+    finally:
+        os.chmod(inner, 0o700)
+        shutil.rmtree(newdir, ignore_errors=True)
+    row("WRITE when nlcred.new is in the way and cannot be removed: 11457, and the login that was there is the SAME BYTES, inode and mtime (the new login is made under another name and "
+        "renamed over the old one: the old one is never opened for writing)", ended and res and res[0][2][:1] == ["11457"] and after == before, repr((res, after == before)))
+    os.mkdir(cred_path("nlwdir"))
+    with open(os.path.join(cred_path("nlwdir"), "keep"), "w") as f:
+        f.write("kept\n")
+    res, ended, out = nc_session([L("WRITE", "nlwdir", pin_a, *attrs)])
+    row("WRITE over a name that is a DIRECTORY with a file in it: 11457, the directory and its file are still there, and no nlwdir.new is left",
+        ended and res and res[0][2][:1] == ["11457"] and os.path.isdir(cred_path("nlwdir")) and os.path.exists(os.path.join(cred_path("nlwdir"), "keep"))
+        and not os.path.exists(cred_path("nlwdir") + ".new"), repr((res, os.listdir(cred_dir()))))
+    shutil.rmtree(cred_path("nlwdir"), ignore_errors=True)
+    outside = os.path.join(s.BOX, "nlwoutside")
+    with open(outside, "w") as f:
+        f.write("a file outside the store\n")
+    if os.path.lexists(cred_path("nlwlink")):
+        os.remove(cred_path("nlwlink"))
+    os.symlink(outside, cred_path("nlwlink"))
+    res, ended, out = nc_session([L("WRITE", "nlwlink", pin_a, *attrs)])
+    st = os.lstat(cred_path("nlwlink")) if os.path.lexists(cred_path("nlwlink")) else None
+    row("WRITE over a name that is a SYMBOLIC LINK to a file outside the store: the link is replaced by a plain file of mode 600 holding the login, and the file it pointed to is untouched "
+        "(a login is never written through a link)",
+        ended and res and res[0][2] == [] and st is not None and (st.st_mode & 0o170000) == 0o100000 and (st.st_mode & 0o7777) == 0o600
+        and cred_matches("nlwlink", NL_REMOTE, SALT0, 4096, k["client_key_b64"], k["server_key_b64"], pin_a)
+        and os.path.exists(outside) and _read_text(outside) == "a file outside the store\n", repr((res, st and oct(st.st_mode), os.path.exists(outside))))
+    for p in (cred_path("nlwlink"), outside):
+        if os.path.lexists(p):
+            os.remove(p)
+
     res, ended, out = nc_session([L("DELETE", "nlcred"), L("EXISTS", "nlcred"), L("DELETE", "nlcred")])
     row("DELETE removes the login (the file is gone), EXISTS then says 0, and a second DELETE says 11453", ended and len(res) == 3 and res[0][2] == [] and not os.path.exists(cred_path("nlcred"))
         and res[1][3] == ["0"] and res[2][2][:1] == ["11453"], repr(res))
@@ -733,7 +798,9 @@ def netlogin_section():
         row("nlpin (server B's key, server A's pin) -> 11471, the server saw the handshake and ZERO packets, nothing stored",
             has_msg(out, s.msg(11471, H, pb, "nlpin")) and d["conns"] == 1 and d["types"] == [] and r["before"] == r["after"] and (cred_state() or {}).get("nlpin") is None, repr((out[-3:], d["types"])))
 
-        say("  (the success: the account with the gate on, listed, the right password)")
+        say("  (the success: the account with the gate on, listed, the right password.  The store's directory is NOT there when the command starts - the rows above needed it made so that "
+            "a refusal could be compared byte for byte - so set.netlogin must make it itself)")
+        reset_store()
         r = nl_run("set.netlogin nlok", [NL_REMOTE, NL_PW], srvA)
         out, d = r["out"], r["d"]
         keys = netfake.derive(NL_PW, salt_a, 4096)
@@ -745,7 +812,7 @@ def netlogin_section():
             repr({k: d[k] for k in ("conns", "handshakes", "types", "ok", "bad", "errors")}))
         row("...the ClientProof the client sent EQUALS the one computed here (PBKDF2 of the typed password with the salt and count the server gave, over the AuthMessage the server recorded)",
             ex is not None and ex["proof"] == netfake.client_proof(keys["client_key"], keys["stored_key"], ex["authmsg"]), repr(ex and ex["proof"].hex()))
-        row("...the store holds the directory <sys>/netlogins (mode 700) and ONE file nlok (mode 600) with the keys hashlib derives from the password and the salt the server gave",
+        row("...the store holds the directory <sys>/netlogins (made by this command: mode 700) and ONE file nlok (mode 600) with the keys hashlib derives from the password and the salt the server gave",
             cred_matches("nlok", NL_REMOTE, salt_a, 4096, keys["client_key_b64"], keys["server_key_b64"], pin_a) and (os.lstat(cred_dir()).st_mode & 0o7777) == 0o700
             and (os.lstat(cred_path("nlok")).st_mode & 0o7777) == 0o600 and sorted(os.listdir(cred_dir())) == ["nlok"], repr((cred_state(), salt_a)))
         row("...the audit trail says 'set.netlogin server=nlok remote=%s' and carries no password, key or hash" % NL_REMOTE,
@@ -792,6 +859,47 @@ def netlogin_section():
 
 SECTIONS = (("connect", connect_section), ("netcred", netcred_section), ("netlogin", netlogin_section))
 
+# The mutants this suite judges (sandbox-sdnet.py's MUTANTS says what each changes; --mutant=NAME).  REQUIRED rows are listed BEFORE the first run of the mutant: a substring each, naming exactly one
+# row, that must FAIL; `also` may fail because the rule is gone; anything else that fails is EXTRA and fails the run.  `sections` is what the run runs.
+MUTANT_KILLS = {
+    # READ answers for a file that is not private (640, 604), a link, a directory: the four rows that put such a thing in the store and ask READ.  EXISTS and DELETE keep their own tests.
+    "netcred-read-private": dict(sections=("netcred",), required=[
+        "a login file with group bits (640)", "... and with a world bit (604)", "a SYMBOLIC LINK with the name of a login (to a good file)", "a DIRECTORY with the name of a login: READ and DELETE"]),
+    # the other two uses of the file test: EXISTS (the rows that put a 640 file and a link in the store and ask all three actions) and DELETE (the 640 file, and a directory it would remove).
+    "netcred-exists-private": dict(sections=("netcred",), required=[
+        "a login file with group bits (640)", "a SYMBOLIC LINK with the name of a login (to a good file)"]),
+    "netcred-delete-private": dict(sections=("netcred",), required=["a login file with group bits (640)", "a DIRECTORY with the name of a login: READ and DELETE"]),
+    # the directory's test: ENSURE's own, and the one before READ / WRITE / EXISTS / DELETE look in it; one row puts a 755 directory there and asks ENSURE, READ and WRITE.
+    "netcred-ensure-private": dict(sections=("netcred",), required=["a directory that is mode 755 (not private)"]),
+    "netcred-dir-private": dict(sections=("netcred",), required=["a directory that is mode 755 (not private)"]),
+    # ENSURE makes the directory 755 and its own private test then refuses it: the two rows that call ENSURE.
+    "netcred-mkdir-755": dict(sections=("netcred",), required=[
+        "ENSURE makes the directory <sys>/netlogins with mode 700", "ENSURE again changes nothing"]),
+    # WRITE does not test the new file, but the umask is still 077 and makes it private: NO ROW CAN NOTICE (a DOCUMENTED GAP of a redundant layer).  With the umask wrong too, nothing refuses a
+    # login of mode 644, and the row that asks for mode 600 does; the link row asks for 600 as well.
+    "netcred-tmp-private": dict(sections=("netcred",), required=[], survives=True),
+    "netcred-umask-untested": dict(sections=("netcred",), required=["WRITE stores ONE line v1|remote|salt"], also=["WRITE over a name that is a SYMBOLIC LINK"]),
+    # the file is made 644, the test after the write refuses it (11454): the row that WRITEs and expects it stored.  The rows that WRITE over something else expect other answers.
+    "netcred-umask-022": dict(sections=("netcred",), required=["WRITE stores ONE line v1|remote|salt"],
+        also=["WRITE over a name that is a DIRECTORY", "WRITE over a name that is a SYMBOLIC LINK", "WRITE when nlcred.new is in the way"]),
+    # the login is written under its own name: nlcred.new in the way no longer matters.  FIRST RUN (21 Oct 26): the list was the first row alone, the directory and link rows `also` (a guess at what
+    # the delete of a directory or a link does); the run failed the directory row too - the mutant deleted a directory with a file in it and made a login file in its place, which is what
+    # the row is for - and not the link row (the delete of a link removes the link only).  The directory row is REQUIRED now; the link row stays `also` (it passes on the mutant).
+    "netcred-write-direct": dict(sections=("netcred",), required=["WRITE when nlcred.new is in the way and cannot be removed", "WRITE over a name that is a DIRECTORY"],
+        also=["WRITE over a name that is a SYMBOLIC LINK"]),
+    # the gate: the four rows that put an account without the gate to set.netlogin (three field states, and the gate asked before the definition).
+    "setnetlogin-no-gate": dict(sections=("netlogin",), required=[
+        "the account with NET gate off (field 15 'no'), on a server it is LISTED for", "the account with a record with no NET field, on a server it is LISTED for",
+        "the account with field 15 'true': only yes is yes, on a server it is LISTED for", "the gate is asked BEFORE the definition: the gate off on a server that does not exist"]),
+    "setnetlogin-no-list": dict(sections=("netlogin",), required=["the gate on, a server whose list does not name the account"]),
+    "setnetlogin-no-pin": dict(sections=("netlogin",), required=["nlpin (server B's key, server A's pin) -> 11471"]),
+    # the directory is not made: the command ends with 11454 from $netcred WRITE.  The success rows that need the store, and the rows after that store logins, follow from it.
+    "setnetlogin-no-ensure": dict(sections=("netlogin",), required=[
+        "set.netlogin nlok: the header (11464), both prompts, and 'Your login on server nlok as", "...the store holds the directory <sys>/netlogins (made by this command",
+        "...the audit trail says 'set.netlogin server=nlok remote="],
+        also=["a good replacement is stored", "the administrator with the gate OFF on a server whose list names nobody", "delete.netlogin nlok: 'Your login on server nlok was deleted'"]),
+}
+
 
 def main():
     import argparse
@@ -799,12 +907,14 @@ def main():
     ap.add_argument("dir")
     ap.add_argument("--build", action="store_true")
     ap.add_argument("--sections", default="")
+    s.mutant_args(ap)
     a = ap.parse_args()
+    mutant, msections = s.mutant_plan(a, MUTANT_KILLS)
     s.BOX = os.path.abspath(a.dir)
     s.SYS = os.path.join(s.BOX, "sys")
     s.ACCT = os.path.join(s.SYS, "user_accounts", s.ACCOUNT)
     s.REG = os.path.join(s.SYS, "accounts", s.ACCOUNT)
-    want = set(x for x in a.sections.split(",") if x)
+    want = msections if mutant else set(x for x in a.sections.split(",") if x)
     say("sandbox-sdnet-login: sandbox  %s" % s.BOX)
     say("sandbox-sdnet-login: tree     %s" % s.SD64)
     if a.build:
@@ -832,14 +942,23 @@ def main():
     row("CONTROL: the ADMIN lane is an administrator (WHO.AM.I says Admin? %s)" % (adm.group(1) if adm else "-"), bool(adm) and adm.group(1) == "Yes", "output=%r" % (out[:4],))
     if not (adm and adm.group(1) == "Yes"):
         s.bail("the administrator lane is not an administrator: every set.server row would be meaningless")
+    if not s.control_pristine():
+        s.bail("the sandbox is not pristine")
     try:
+        if mutant:
+            s.mutant_begin(mutant)
         for name, section in SECTIONS:
             if not want or name in want:
                 section()
     finally:
+        if mutant:
+            s.mutant_end()
         cleanup()
     say("")
     say("sandbox-sdnet-login: %d passed, %d failed" % (s.passed, s.failed))
+    if mutant:
+        k = MUTANT_KILLS[mutant]
+        sys.exit(s.mutant_verdict(mutant, k["required"], k.get("also", ()), k.get("survives", False)))
     sys.exit(1 if s.failed else 0)
 
 
