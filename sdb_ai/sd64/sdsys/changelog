@@ -1,6 +1,62 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  THE SHELL AND OS ACCESS ARE NOW OFF UNTIL THE ADMINISTRATOR TURNS
+           THEM ON: TWO SWITCHES ON THE ONE ACCOUNT, "SH" AND "OS", AND A NEW
+           VERB, SET.OS.ACCESS, TO CHANGE THEM.  THE INSTALLER ASKS.
+           Until now every Solo account could run Linux commands from inside
+           SD and reach any file the Linux user could.  That was the owner's
+           ruling for the first release, and it is reversed: a delivered SD
+           starts tight and the administrator loosens it.  SD Core for Linux
+           has had per-account gates for this since 13 Oct 2026; Solo has one
+           account, so it has two switches on it, with the same two words.
+
+           What each switch turns on.  SH: the "sh" verb and "!".  OS:
+           OS.EXECUTE in a program; opening, listing, deleting or printing to
+           a file or directory outside the account by pathname (OPENSEQ,
+           OPENPATH, OPENTEMP, DIR, DELETESEQ, DIGEST of a file, OSPATH,
+           SETPTR ... AS PATHNAME, SETPU, a CSV report written to a pathname,
+           a print unit's SPOOLER string); a VOC pointer to a directory
+           outside the account; the embedded Python (starting it and running
+           code in it); and the "nano" and "micro" editors, which run outside
+           SD.  With a switch off the session is refused in words: "sduser is
+           not permitted to use the operating system shell", "sduser is not
+           permitted to use OS.EXECUTE", or "sduser has no OS access, so a
+           file or directory outside its own account cannot be reached by
+           pathname"; a file or directory outside the account that is opened
+           by OPENSEQ or OPENPATH simply does not open (status 3035).  The
+           account's own files, and SD's own files, are reached as before.
+
+           Who changes them, and when.  The administrator, after "admin":
+
+               set.os.access                 shows both
+               set.os.access sh on           (or off)
+               set.os.access os on           (or off)
+
+           One switch per command; both start off; the change is written to
+           the audit trail and is seen at the NEXT sign-on, by the keyboard,
+           ssh and the API alike, never by a session already running.  A
+           session that has typed "admin" needs neither switch.
+
+           The installer asks, on a terminal, whether to turn on the shell
+           and whether to turn on OS access, and each answer is no unless you
+           say yes.  "--os-access none|sh|os|both" and "os-access=" in a
+           control file answer it without a terminal; with no terminal, or
+           "--yes" and no "--os-access", nothing is turned on.  An UPGRADE
+           asks the same question and says that the shell and OS access were
+           always on until this release: left alone, an upgraded installation
+           has both OFF.  A program of yours that runs a shell command,
+           OS.EXECUTE, or opens a file outside the account stops working
+           until you say yes, so read this before you upgrade.
+
+           What it does not do.  A switch that is on gives a signed-in
+           session what the Linux user has, and nothing narrower: there is no
+           list of allowed commands or directories.  It does not stop a
+           person who already has a shell on the computer, and it is not a
+           substitute for a computer of the agent's own when an AI agent has
+           the account.  The API's confinement of a session to the account is
+           still not measured on Solo.
+
 20 Oct 26  AN AI AGENT CAN NOW BE GIVEN A TESTED GUIDE TO SD BASIC, A LOOK-UP
            PACK OF EVERYTHING THIS PRODUCT HAS, AND THE RULES THAT BIND IT.
            SD Core for Linux has had this since 19 Oct 2026; Solo has it now,
@@ -14,7 +70,7 @@ Next release - in progress
            a private Solo, in a plain session of the one account, sduser,
            that had not typed "admin"; and every line of the table "what SD
            does not have" still fails to compile, so the guide fails its own
-           test the day SD gains one.  A pack of 3,666 look-up chunks, each
+           test the day SD gains one.  A pack of 3,673 look-up chunks, each
            naming the file and line it came from: every verb, query keyword,
            statement, function, message, setting, dictionary item type and
            conversion code this product has, and the shipped VOC records and
@@ -26,27 +82,29 @@ Next release - in progress
            from SD Core.  Solo has one account, so the pack has no account
            words and no per-account gates.  The walls are the account
            password, "admin" (the administrator commands, and any change to
-           the VOC), the global catalogue and the compiler's restricted
-           names; the guide quotes each refusal in its own words and tells
-           an agent to stop at it.  And it says in so many words what is NOT
-           a wall: "sh", "!", OS.EXECUTE and OPENSEQ of any path are not
-           behind a gate in this release, they run with the Linux user's own
-           rights, and that is a fact and not a permission.  It also warns
-           that status 3035 on a write to the VOC is the "admin" wall and not
-           a full disk, whatever the run-time message guesses.  Because one
-           SD runs on a computer and there is one account, the recipe gives
-           the agent a computer, virtual machine or container of its own and
-           not a second Linux user on yours.
+           the VOC), the two OS switches (the entry above this one), the
+           global catalogue and the compiler's restricted names; the guide
+           quotes each refusal in its own words and tells an agent to stop
+           at it.  And it says in so many words what is NOT a wall: with a
+           switch turned on, "sh", "!", OS.EXECUTE and OPENSEQ of any path
+           run with the Linux user's own rights, and a switch the user
+           turned on is a fact and not a permission.  It also warns that
+           status 3035 on a write to the VOC is the "admin" wall and not a
+           full disk, whatever the run-time message guesses.  The recipe has
+           two shapes: the agent as a client of your installation with both
+           switches off, or, because one SD runs on a computer and there is
+           one account, a computer, virtual machine or container of its own
+           and not a second Linux user on yours.
 
            How it stays true.  The pack is generated from the product's own
            sources and documents; a free check (test-pack-units.py, 11 checks
            and 36 planted faults it must catch) fails when the two disagree,
            and a second check (sandbox-pack-examples.py) reads the pack
-           against a running Solo: all 173 verbs, the shipped VOC records and
+           against a running Solo: all 174 verbs, the shipped VOC records and
            the 74 dictionary items match, and the three refusals an agent
            meets first print the words the pack gives.  The guide's own
            suite, sandbox-guide.py, has a mutant that unlocks "admin" and
-           must go red on four rows; it does.
+           must go red on eight rows; it does.
 
            What it does not do.  It does not connect an agent to SD (no
            "sd-mcp", no "sdctl": the example .mcp.json says it does not work
