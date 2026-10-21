@@ -3731,6 +3731,709 @@ Cannot find item to run
 
 cited by: `cproc`
 
+### msg:11412
+> kind=message tier=reference since=- src=sdsys/messages/11412:1#30ebca09
+
+```
+Usage: set.server name host port account {pin | connect} {read | write} {accounts a,b,c} {no.query}
+```
+
+cited by: `setserver`
+
+### msg:11413
+> kind=message tier=reference since=- src=sdsys/messages/11413:1#422836ad
+
+```
+The pin is the server's public key hash: 64 hexadecimal digits from its administrator (nothing is dialled), or the word connect to see the hash the server presents and confirm it.  no.query never skips that question.
+```
+
+cited by: `setserver`
+
+### msg:11414
+> kind=message tier=reference since=- src=sdsys/messages/11414:1#63e79e31
+
+```
+Server name %1 is not valid: a lower case letter then up to 15 lower case letters or digits
+```
+
+cited by: `setserver`
+
+### msg:11415
+> kind=message tier=reference since=- src=sdsys/messages/11415:1#0b8548f8
+
+```
+Host %1 is not valid: 1 to 253 letters, digits, dots, hyphens or colons, not starting with a hyphen or a dot
+```
+
+cited by: `setserver`
+
+### msg:11416
+> kind=message tier=reference since=- src=sdsys/messages/11416:1#2d0835fe
+
+```
+Port %1 is not valid: a whole number from 1 to 65535
+```
+
+cited by: `setserver`
+
+### msg:11417
+> kind=message tier=reference since=- src=sdsys/messages/11417:1#ab960675
+
+```
+Remote account %1 is not valid: 1 to 32 letters, digits, dots, underscores or hyphens
+```
+
+cited by: `setserver`
+
+### msg:11418
+> kind=message tier=reference since=- src=sdsys/messages/11418:1#988d756c
+
+```
+The pin is not valid: it must be exactly 64 hexadecimal digits
+```
+
+cited by: `setserver`
+
+### msg:11419
+> kind=message tier=reference since=- src=sdsys/messages/11419:1#194598ce
+
+```
+Mode %1 is not valid: read or write
+```
+
+cited by: `setserver`
+
+### msg:11420
+> kind=message tier=reference since=- src=sdsys/messages/11420:1#71d040dd
+
+```
+The accounts list is not valid: registered account names separated by commas, with no space and no empty name, at most 2000 characters
+```
+
+cited by: `setserver`
+
+### msg:11421
+> kind=message tier=reference since=- src=sdsys/messages/11421:1#e053cbf2
+
+```
+Account %1 in the accounts list is not a registered account
+```
+
+cited by: `setserver`
+
+### msg:11422
+> kind=message tier=reference since=- src=sdsys/messages/11422:1#f53616a5
+
+```
+At most %1 servers can be defined.  Delete one first (delete.server)
+```
+
+cited by: `setserver`
+
+### msg:11423
+> kind=message tier=reference since=- src=sdsys/messages/11423:1#28aa63db
+
+```
+Server %1 is already defined (%2).  Replace it (y/<n>)?
+```
+
+cited by: `setserver`
+
+### msg:11424
+> kind=message tier=reference since=- src=sdsys/messages/11424:1#61eb5b9a
+
+```
+Server %1 (%2:%3) is defined
+```
+
+cited by: `setserver`
+
+### msg:11425
+> kind=message tier=reference since=- src=sdsys/messages/11425:1#6a4bcb87
+
+```
+Server %1 (%2:%3) was replaced
+```
+
+cited by: `setserver`
+
+### msg:11426
+> kind=message tier=reference since=- src=sdsys/messages/11426:1#5a189308
+
+```
+Server %1 was not changed
+```
+
+cited by: `setserver`
+
+### msg:11427
+> kind=message tier=reference since=- src=sdsys/messages/11427:1#e93de24c
+
+```
+Cannot read %1 (status %2)
+```
+
+cited by: `deleteserver`, `setserver`
+
+### msg:11428
+> kind=message tier=reference since=- src=sdsys/messages/11428:1#54e1b51d
+
+```
+Cannot write %1 (status %2).  The server definitions were not changed
+```
+
+### msg:11429
+> kind=message tier=reference since=- src=sdsys/messages/11429:1#09753b36
+
+```
+Usage: delete.server name
+```
+
+cited by: `deleteserver`
+
+### msg:11430
+> kind=message tier=reference since=- src=sdsys/messages/11430:1#7953f192
+
+```
+No server is defined with the name %1
+```
+
+cited by: `deleteserver`, `listservers`, `setnetlogin`
+
+### msg:11431
+> kind=message tier=reference since=- src=sdsys/messages/11431:1#cc1ef875
+
+```
+Server %1 was deleted
+```
+
+cited by: `deleteserver`
+
+### msg:11432
+> kind=message tier=reference since=- src=sdsys/messages/11432:1#f7204ee3
+
+```
+Usage: list.servers {name}
+```
+
+cited by: `listservers`
+
+### msg:11433
+> kind=message tier=reference since=- src=sdsys/messages/11433:1#ec87772f
+
+```
+No servers are defined
+```
+
+cited by: `listservers`
+
+### msg:11434
+> kind=message tier=reference since=- src=sdsys/messages/11434:1#5fc194bc
+
+```
+%1  %2  %3  %4
+```
+
+cited by: `listservers`
+
+### msg:11435
+> kind=message tier=reference since=- src=sdsys/messages/11435:1#b6c02a65
+
+```
+Defined on %1
+```
+
+cited by: `listservers`
+
+### msg:11436
+> kind=message tier=reference since=- src=sdsys/messages/11436:1#b0798a8c
+
+```
+The server definitions file has a line that is not a definition (line %1).  Nothing was changed
+```
+
+cited by: `deleteserver`, `listservers`, `setnetlogin`, `setserver`
+
+### msg:11437
+> kind=message tier=reference since=- src=sdsys/messages/11437:1#99aef9a9
+
+```
+Another session is changing the server definitions.  Try again in a moment
+```
+
+cited by: `deleteserver`, `setserver`
+
+### msg:11438
+> kind=message tier=reference since=- src=sdsys/messages/11438:1#71f8e797
+
+```
+none
+```
+
+cited by: `listservers`
+
+### msg:11439
+> kind=message tier=reference since=- src=sdsys/messages/11439:1#9b27cd6e
+
+```
+No account is listed, so no account may use server %1 yet.  Set it again with accounts, and give the account the NET gate (set.net.access on)
+```
+
+cited by: `setserver`
+
+### msg:11440
+> kind=message tier=reference since=- src=sdsys/messages/11440:1#b42f6f55
+
+```
+Connected to %1:%2 (a TLS handshake only: nothing was sent).  The server presented a public key with this hash:
+```
+
+cited by: `setserver`
+
+### msg:11441
+> kind=message tier=reference since=- src=sdsys/messages/11441:1#ec2b7394
+
+```
+Compare it with the hash the administrator of that server gives you, by a way that does not use this network.  If it differs, answer n: something may be standing between this server and that one.
+```
+
+cited by: `setserver`
+
+### msg:11442
+> kind=message tier=reference since=- src=sdsys/messages/11442:1#dec7c0d1
+
+```
+Trust this key (y/<n>)?
+```
+
+cited by: `setserver`
+
+### msg:11443
+> kind=message tier=reference since=- src=sdsys/messages/11443:1#1553c22a
+
+```
+The key was not trusted.  Nothing was written: server %1 is as it was
+```
+
+cited by: `setserver`
+
+### msg:11444
+> kind=message tier=reference since=- src=sdsys/messages/11444:1#064838bd
+
+```
+Cannot connect to %1:%2 (status %3, os error %4).  Nothing was written
+```
+
+cited by: `setserver`
+
+### msg:11445
+> kind=message tier=reference since=- src=sdsys/messages/11445:1#236583e2
+
+```
+The TLS handshake with %1:%2 did not complete.  Is that the API port of an SD server?  Nothing was written
+```
+
+cited by: `setserver`
+
+### msg:11446
+> kind=message tier=reference since=- src=sdsys/messages/11446:1#80bd54dc
+
+```
+%1:%2 completed the handshake but gave no public key hash.  Nothing was written
+```
+
+cited by: `setserver`
+
+### msg:11450
+> kind=message tier=reference since=- src=sdsys/messages/11450:1#17fdc305
+
+```
+Usage: set.netlogin server
+```
+
+cited by: `setnetlogin`
+
+### msg:11451
+> kind=message tier=reference since=- src=sdsys/messages/11451:1#ac223fec
+
+```
+Usage: delete.netlogin server
+```
+
+cited by: `deletenetlogin`
+
+### msg:11452
+> kind=message tier=reference since=- src=sdsys/messages/11452:1#f3f1e19a
+
+```
+Server name %1 is not valid
+```
+
+cited by: `deletenetlogin`, `setnetlogin`
+
+### msg:11453
+> kind=message tier=reference since=- src=sdsys/messages/11453:1#e79ae251
+
+```
+There is no login stored for server %1.  set.netlogin %1 makes one
+```
+
+cited by: `deletenetlogin`
+
+### msg:11454
+> kind=message tier=reference since=- src=sdsys/messages/11454:1#6f869101
+
+```
+The stored login for server %1 is not trusted: %2 is not a private plain file or directory owned by you.  Nothing was used
+```
+
+### msg:11455
+> kind=message tier=reference since=- src=sdsys/messages/11455:1#20014d3e
+
+```
+The stored login for server %1 was made for a different server key than the definition has now.  Run set.netlogin %1 again
+```
+
+### msg:11456
+> kind=message tier=reference since=- src=sdsys/messages/11456:1#96e7b468
+
+```
+The stored login for server %1 is damaged or cannot be read (%2)
+```
+
+### msg:11457
+> kind=message tier=reference since=- src=sdsys/messages/11457:1#609c9ab9
+
+```
+The login for server %1 could not be stored or removed (%2, status %3)
+```
+
+### msg:11458
+> kind=message tier=reference since=- src=sdsys/messages/11458:1#5e4240d3
+
+```
+No login can be kept for the Linux user %1
+```
+
+### msg:11459
+> kind=message tier=reference since=- src=sdsys/messages/11459:1#51dd3840
+
+```
+The pin of the server definition was not given, or is not 64 hexadecimal digits
+```
+
+### msg:11460
+> kind=message tier=reference since=- src=sdsys/messages/11460:1#def2c765
+
+```
+This account does not have the NET gate, so it cannot log in to a server.  Ask the administrator (set.net.access on)
+```
+
+cited by: `setnetlogin`
+
+### msg:11461
+> kind=message tier=reference since=- src=sdsys/messages/11461:1#0b3ca002
+
+```
+Account %1 is not listed for server %2.  Ask the administrator to list it (set.server ... accounts)
+```
+
+cited by: `setnetlogin`
+
+### msg:11463
+> kind=message tier=reference since=- src=sdsys/messages/11463:1#57d2fc49
+
+```
+The directory for your server logins is not ready or is not private (%1).  Nothing was done
+```
+
+### msg:11464
+> kind=message tier=reference since=- src=sdsys/messages/11464:1#c9fc842c
+
+```
+Setting up your login on server %1 (%2:%3).  Your password is used once here and is not stored
+```
+
+cited by: `setnetlogin`
+
+### msg:11465
+> kind=message tier=reference since=- src=sdsys/messages/11465:1#a0df0642
+
+```
+Remote user:
+```
+
+cited by: `setnetlogin`
+
+### msg:11466
+> kind=message tier=reference since=- src=sdsys/messages/11466:1#3c26905c
+
+```
+Remote password:
+```
+
+cited by: `setnetlogin`
+
+### msg:11467
+> kind=message tier=reference since=- src=sdsys/messages/11467:1#fb018a49
+
+```
+The remote user name is not valid (letters, digits, dots, underscores and hyphens, up to 32).  Nothing was changed
+```
+
+cited by: `setnetlogin`
+
+### msg:11468
+> kind=message tier=reference since=- src=sdsys/messages/11468:1#13e49a67
+
+```
+A password is required.  Nothing was changed
+```
+
+cited by: `setnetlogin`
+
+### msg:11469
+> kind=message tier=reference since=- src=sdsys/messages/11469:1#3c0647a0
+
+```
+Cannot connect to %1:%2 (status %3, os error %4).  Nothing was sent or stored
+```
+
+### msg:11470
+> kind=message tier=reference since=- src=sdsys/messages/11470:1#3d36575e
+
+```
+The TLS handshake with %1:%2 did not complete.  Nothing was sent or stored
+```
+
+### msg:11471
+> kind=message tier=reference since=- src=sdsys/messages/11471:1#d06551f0
+
+```
+The key presented by %1:%2 is not the key in the definition of server %3.  Nothing was sent to it and nothing was stored.  It is not the server that was defined, or its key was renewed
+```
+
+### msg:11472
+> kind=message tier=reference since=- src=sdsys/messages/11472:1#e4eb1788
+
+```
+The connection to %1:%2 failed or timed out at %3.  Nothing was stored
+```
+
+### msg:11473
+> kind=message tier=reference since=- src=sdsys/messages/11473:1#d1881dda
+
+```
+The server's %1 message was not valid (%2).  Nothing was stored
+```
+
+### msg:11474
+> kind=message tier=reference since=- src=sdsys/messages/11474:1#4d5fc1d7
+
+```
+The server refused the login%1.  Nothing was stored
+```
+
+### msg:11475
+> kind=message tier=reference since=- src=sdsys/messages/11475:1#8a96d15d
+
+```
+The server's signature did not verify, so it does not know the password or is not the real server.  Nothing was stored
+```
+
+### msg:11476
+> kind=message tier=reference since=- src=sdsys/messages/11476:1#a1b3cdf7
+
+```
+The keys could not be derived (%1).  Nothing was stored
+```
+
+### msg:11477
+> kind=message tier=reference since=- src=sdsys/messages/11477:1#53e9561d
+
+```
+Your login on server %1 as %2 is stored.  The password is not stored
+```
+
+cited by: `setnetlogin`
+
+### msg:11478
+> kind=message tier=reference since=- src=sdsys/messages/11478:1#fee681d8
+
+```
+Your login on server %1 was deleted
+```
+
+cited by: `deletenetlogin`
+
+### msg:11479
+> kind=message tier=reference since=- src=sdsys/messages/11479:1#64b7f9bd
+
+```
+The server at %1:%2 gave no public key hash.  Nothing was sent or stored
+```
+
+### msg:11490
+> kind=message tier=reference since=- src=sdsys/messages/11490:1#b23c2b93
+
+```
+Remote file handler: the operation %1 is not known
+```
+
+### msg:11491
+> kind=message tier=reference since=- src=sdsys/messages/11491:1#31ab149d
+
+```
+The file name %2 is not valid on server %1.  Use letters, digits and . _ - $ , up to 63 characters, with dict in front for a dictionary
+```
+
+### msg:11492
+> kind=message tier=reference since=- src=sdsys/messages/11492:1#4119dc78
+
+```
+The definition of server %1 cannot be used: its %2 is not valid
+```
+
+### msg:11493
+> kind=message tier=reference since=- src=sdsys/messages/11493:1#5b1a5b8c
+
+```
+This process already holds connections to %1 servers, so server %2 cannot be added.  Close the remote files of one first
+```
+
+### msg:11494
+> kind=message tier=reference since=- src=sdsys/messages/11494:1#26c1885a
+
+```
+No remote file is open with handle %1 for this account
+```
+
+### msg:11495
+> kind=message tier=reference since=- src=sdsys/messages/11495:1#da572aa0
+
+```
+The connection to server %1 was lost earlier, so its file (handle %2) is no longer open.  Open the file again
+```
+
+### msg:11496
+> kind=message tier=reference since=- src=sdsys/messages/11496:1#e3f98922
+
+```
+No login for server %1 can be read: %2
+```
+
+### msg:11497
+> kind=message tier=reference since=- src=sdsys/messages/11497:1#275cee96
+
+```
+The connection to server %1 was lost during %2.  Nothing more is sent on it.  Open the file again to reconnect
+```
+
+### msg:11498
+> kind=message tier=reference since=- src=sdsys/messages/11498:1#edcb1d3e
+
+```
+Cannot log in to server %1: %2
+```
+
+### msg:11499
+> kind=message tier=reference since=- src=sdsys/messages/11499:1#a86d7905
+
+```
+The connection to server %1 is no longer held by this process.  It is dropped.  Open the file again to reconnect
+```
+
+### msg:11500
+> kind=message tier=reference since=- src=sdsys/messages/11500:1#a00b4c8a
+
+```
+Server %1 answered %2 with an error: %3
+```
+
+### msg:11501
+> kind=message tier=reference since=- src=sdsys/messages/11501:1#a8627dbf
+
+```
+The file on server %1 is read only: %2 is refused.  Nothing was sent
+```
+
+### msg:11502
+> kind=message tier=reference since=- src=sdsys/messages/11502:1#31a29e32
+
+```
+FILEINFO key %2 of a file on server %1 is not answered yet
+```
+
+### msg:11503
+> kind=message tier=reference since=- src=sdsys/messages/11503:1#c9886f28
+
+```
+The record id for the file on server %1 is not valid (%2)
+```
+
+### msg:11504
+> kind=message tier=reference since=- src=sdsys/messages/11504:1#f718efa6
+
+```
+Server %1 sent a reply to %2 that cannot be used (%3)
+```
+
+### msg:11505
+> kind=message tier=reference since=- src=sdsys/messages/11505:1#9a9a2c7a
+
+```
+This process already has %2 remote files open (server %1).  Close one first
+```
+
+### msg:11506
+> kind=message tier=reference since=- src=sdsys/messages/11506:1#ed63e35f
+
+```
+The field number for the file on server %1 is not valid (%2)
+```
+
+### msg:11507
+> kind=message tier=reference since=- src=sdsys/messages/11507:1#9dd79c9c
+
+```
+The program that handles files on another server could not be used: %1
+```
+
+### msg:11508
+> kind=message tier=reference since=- src=sdsys/messages/11508:1#e34a76a3
+
+```
+The VOC entry for a file on another server is not valid: %1
+```
+
+### msg:11509
+> kind=message tier=reference since=- src=sdsys/messages/11509:1#bce7f06b
+
+```
+The connection to server %1 was lost during %2, so it is not known whether the change was made.  Nothing more is sent on it.  Open the file again and read the record to find out
+```
+
+### msg:11510
+> kind=message tier=reference since=- src=sdsys/messages/11510:1#e11eb2bc
+
+```
+A file on server %1 cannot be changed or locked inside a transaction: %2 is refused.  Nothing was sent
+```
+
+### msg:11511
+> kind=message tier=reference since=- src=sdsys/messages/11511:1#e555394f
+
+```
+%2 is not available for a file on server %1.  Nothing was sent
+```
+
+### msg:11512
+> kind=message tier=reference since=- src=sdsys/messages/11512:1#990667ba
+
+```
+The lock kind for the file on server %1 is not valid (%2)
+```
+
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371
 
@@ -5348,7 +6051,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `cleanac`, `config`, `cproc`, `listlck`, `listrdu`, `listu`, `restorea` and 6 more
+cited by: `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `listlck`, `listrdu`, `listservers` and 9 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -5471,7 +6174,7 @@ cited by: `findfile`
 Unexpected token (%1)
 ```
 
-cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 53 more
+cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 54 more
 
 ### msg:2019
 > kind=message tier=reference since=- src=sdsys/messages/2019:1#a22e9c3b
@@ -11543,7 +12246,7 @@ Authentication succeeded but the session could not take your Linux identity
 Cannot open ACCOUNTS file in SDSYS account
 ```
 
-cited by: `backupa`, `restorea`, `settingsr`
+cited by: `backupa`, `restorea`, `setserver`, `settingsr`
 
 ### msg:6001
 > kind=message tier=reference since=- src=sdsys/messages/6001:1#3e29c383

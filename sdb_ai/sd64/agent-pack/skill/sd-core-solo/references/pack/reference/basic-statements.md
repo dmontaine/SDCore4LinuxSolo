@@ -1053,6 +1053,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `matwrite` *matrix* `to` *file.var*, *id* {`on error` …}
 
 - a statement of SD BASIC
+- docs: `User/markdown/42-sd-sdnet.md` line 132
 
 ### basic:stmt:matwritecsv
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:467#ebc52c64
@@ -2240,6 +2241,7 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 `writev` *var* `to` *file.var*, *id*, *field* {`on error` …}
 
 - a statement of SD BASIC
+- docs: `User/markdown/42-sd-sdnet.md` line 132
 
 ### basic:stmt:writevu
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:463#31962050 src2=docs:tools/syntax-shapes.txt:279#4879aacd
@@ -2247,3 +2249,4 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 `writevu` *var* `to` *file.var*, *id*, *field* {`on error` …}
 
 - a statement of SD BASIC
+- docs: `User/markdown/42-sd-sdnet.md` line 133
