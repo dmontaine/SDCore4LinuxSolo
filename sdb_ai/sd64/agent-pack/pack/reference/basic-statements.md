@@ -815,7 +815,7 @@ clause of `find`, `findstr` and `locate`
 `$include` *record*   ·   `$include` *file* *record*
 
 - a statement of SD BASIC
-- docs: `GettingStarted/markdown/07-programmer-commands.md` line 76
+- docs: `GettingStarted/markdown/07-programmer-commands.md` line 81
 
 ### basic:stmt:inherit
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:423#16759eb0 src2=docs:tools/syntax-shapes.txt:113#4f4f0ac1
