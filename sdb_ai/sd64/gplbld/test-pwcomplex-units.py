@@ -330,6 +330,12 @@ def main():
         "guard arm demoted past the catch-all: %r -> %s (ours: %s)"
         % (TAB_ROW, got, basic_verdict(model, TAB_ROW)))
 
+    # 20 Oct 26 (Solo carry 7, SD Core's 00a5888, encryption layer 3): ENCRYPT.KEY asks for the passphrase a data key is made from.  It is not
+    # an SD password: nothing is stored or compared, SDKEY() turns it into a key and it is gone.  The strength of that passphrase is the
+    # person's (the page says so); the rule above is for the passwords SD sets, and a 4-class rule would refuse the long word passphrases that
+    # are the better choice.  A named list, not a pattern, and a row below asserts the exempt program sets no SD password.
+    NOT_SD_PASSWORD_PROMPTS = {"encryptkey": "the passphrase a data encryption key is made from, used once by SDKEY() and not stored"}
+
     # ---- P: THE PARTITION.  Every prompt that sets a password runs the rule.
     # ---- This is the regression no row about the rule itself can see: the
     # ---- rule can be perfect and simply not reached.
@@ -337,12 +343,21 @@ def main():
     gplbp = os.path.join(SD64, "sdsys", "gpl.bp")
     prompts = []
     verify_only = []
+    exempt = []
     for name in sorted(os.listdir(gplbp)):
         path = os.path.join(gplbp, name)
         if not os.path.isfile(path):
             continue
         body = open(path, "rb").read().decode("latin-1")
         if re.search(r"^\s*input\s+\S+\s+HIDDEN\s*$", body, re.M | re.I):
+            if name in NOT_SD_PASSWORD_PROMPTS:
+                low = body.lower()
+                bad = [w for w in ("cred-own", "cred_set", "set_acc_password", "setpw", "pw_complex(") if w in low]
+                exempt.append(name)
+                row("P  exempt     ", not bad,
+                    "%-28s asks for a passphrase that is not an SD password (%s) and sets none; found %r"
+                    % ("sdsys/gpl.bp/" + name, NOT_SD_PASSWORD_PROMPTS[name], bad))
+                continue
             # A prompt that only VERIFIES a password (calls !CRED_VERIFY, never
             # !CRED_SET) must NOT apply the rule: a password set before the
             # rule, or by another port, would lock its owner out of login.
@@ -361,7 +376,10 @@ def main():
         # would refuse a correct old password.  So the row goes red if it does.
         row("P  verify-only", re.search(r"pw_complex\s*\(", vbody) is None,
             "%-28s only verifies (CRED_VERIFY, no CRED_SET) and does not call pw_complex" % where)
-    partition_skipped = not prompts and not verify_only
+    partition_skipped = not prompts and not verify_only and not exempt
+    if exempt and not prompts and not verify_only:
+        print("  [SKIP] P  partition   | the only password prompts in gpl.bp are the exempt ones above (not SD passwords); this leg measured "
+              "NOTHING about an SD password")
     if partition_skipped:
         # LSOLO 4 deleted every password prompt (MODIFY.PASSWORD, CREATE.ACCOUNT)
         # and LSOLO 6's SET.PASSWORD does not exist yet.  Said out loud, not

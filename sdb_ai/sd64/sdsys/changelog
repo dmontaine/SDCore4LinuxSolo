@@ -1,6 +1,53 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  A PROGRAM CAN NOW MAKE AN ENCRYPTION KEY FROM A PASSPHRASE, AND A
+           DICTIONARY ITEM CAN SHOW AN ENCRYPTED FIELD DECRYPTED.  SD DOES NOT
+           KEEP THE KEY.  (SD CORE FOR LINUX HAS HAD THIS SINCE 18 OCT 2026.)
+           Until now sdencrypt() and sddecrypt() worked, but the only way to
+           make a key they accept was an internal-only call, so an ordinary
+           program could not encrypt anything.  Now:
+
+             sdsalt()                    a fresh random salt (24 characters)
+             sdkey(passphrase, salt)     the 44-character key they always make
+             sdrandkey()                 a random key, for a program that will
+                                         keep it somewhere protected
+
+           sdkey() uses argon2id with 2 passes and 64 MiB, numbers that are
+           part of the key's format and are held by the build: the same
+           passphrase and salt make the same key on every later release.  A
+           call takes about a tenth of a second, so derive the key once per
+           run.  A bad salt is status 10206, a bad passphrase 10207.
+
+           The conversion XE, or XE;name, in field 3 of a dictionary item makes
+           "list customers name salary" show an encrypted salary decrypted for
+           a session that holds the key, and the stored cipher text for one
+           that does not (never a blank).  The key is looked up in a ring of 16
+           keys held in the memory of the session's own process: put there by
+           the new subroutines !keyset, !keyclear and !keylist, or by a person
+           at a terminal with the new verb encrypt.key, which asks for the
+           passphrase at a hidden prompt and writes only the key's NAME to the
+           audit trail.  The ring is never written to a file, the audit trail
+           or a como file, is empty at the start of every session and in a
+           phantom, and is emptied when a session takes its name (an API
+           login).  Used the other way, iconv with XE encrypts, and with no key
+           in the ring it answers the null string and sets 10208: it never
+           answers the plaintext.  New status codes 10206 to 10213 and
+           messages 11700 to 11713.  The client library also gains
+           SDChecksum(), the number checksum() gives for the same string,
+           worked out on the client with no connection.
+
+           What it does not do.  SD has no vault, no recovery and no
+           administrator override: a lost passphrase or salt is lost data.  A
+           query sees cipher text: sort by the field sorts it, "with salary =
+           41250" cannot match, total adds nothing useful, an index holds
+           cipher text.  Nothing hides the record id, the other fields, which
+           values are empty or how long a value is.  Anyone who holds the key,
+           or can read the memory of the process, sees the data; the disk is
+           protected by the operating system, not by SD.  Nothing here is
+           gated: these functions compute on what the program already holds
+           and give nothing away.
+
 20 Oct 26  THE SHELL AND OS ACCESS ARE NOW OFF UNTIL THE ADMINISTRATOR TURNS
            THEM ON: TWO SWITCHES ON THE ONE ACCOUNT, "SH" AND "OS", AND A NEW
            VERB, SET.OS.ACCESS, TO CHANGE THEM.  THE INSTALLER ASKS.

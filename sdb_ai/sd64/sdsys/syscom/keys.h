@@ -397,6 +397,10 @@
       * 15 Sep 26 dm - S.19, mirrored from gplsrc/keys.h: this API session's SCRAM
       *   c= value, base64("p=tls-exporter,," + binding), or "" with no TLS.
       $define SD_TLS_CBIND    110  ;* sd_tlssrv channel binding, 0 args
+      * 20 Oct 26 Solo carry 7 (SD Core's 00a5888).
+      * 18 Oct 26 dm - encryption layer 3, mirrored from gplsrc/keys.h: the key ring of the XE conversion.
+      *   Args: 'set', name, base64 key (answers the key id, 8 hex digits) / 'clear', name or * (answers how many) / 'list'.
+      $define SD_KEYRING      120  ;* sd_keyring key ring: set, clear, list
       
       * embedded python 
       

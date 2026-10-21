@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 SD Core for Linux Solo (Solo carry 7, SD Core's encryption layer 3, 00a5888; a DEVIATION from the Core template, flagged for the parity
+ *               audit): Core empties the key ring of the XE conversion (kr_wipe, sd_keyring.c) in the K_NET set that ends an account scope; Solo has no
+ *               K_NET and one account, so the ring is emptied where the session takes its name, K_SET_USERNAME's success branch.
  * 20 Oct 26 SD Core for Linux Solo (the OS switch, owner: two words like SD Core): K_SH, K_OS_EXEC and K_PATH_OK (93 to 95), SD Core's S.63 cases.
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): K_SET_USERNAME sets
  *               api_logged_in (kernel.h) in an API server, so that S.71's limit before the login can be asked of something that is true in Solo.
@@ -71,6 +74,7 @@
 #include "locks.h"
 
 extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
+void kr_wipe(void);        /* sd_keyring.c: empty the key ring of the XE conversion */
 
 #include <sys/wait.h>
 #include <pwd.h>
@@ -330,6 +334,7 @@ void op_kernel() {
             (process.program.flags & HDR_INTERNAL)) {
           strcpy(process.username, uname);
           strcpy((char *)(my_uptr->username), uname);
+          kr_wipe(); /* 20 Oct 26 Solo carry 7: the keys of the XE conversion belong to the account scope, and a new name is a new scope (Core wipes in K_NET) */
           /* 20 Oct 26 SD Core for Linux Solo (owner's permission, a deviation from the Core template): APISRVR calls this key once, after the SCRAM
              proof has been accepted, so the name taking is the login.  api_logged_in (kernel.h) lifts the limit on a packet before the login
              (op_tio.c, apipkt.h): SD Core asks `geteuid() == 0` there, which is never true in a Solo, whose server is never root.      */
