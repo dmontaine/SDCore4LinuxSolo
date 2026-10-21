@@ -334,7 +334,10 @@ def main():
     # an SD password: nothing is stored or compared, SDKEY() turns it into a key and it is gone.  The strength of that passphrase is the
     # person's (the page says so); the rule above is for the passwords SD sets, and a 4-class rule would refuse the long word passphrases that
     # are the better choice.  A named list, not a pattern, and a row below asserts the exempt program sets no SD password.
-    NOT_SD_PASSWORD_PROMPTS = {"encryptkey": "the passphrase a data encryption key is made from, used once by SDKEY() and not stored"}
+    # 20 Oct 26 (SDNet carry 9, SD Core's S.65 slice 2b): SET.NETLOGIN asks for the password of the user on ANOTHER SD server.  It is not an SD password
+    # and SD's rule must not judge it (the other server's own rule applies there); it is spent once on the SCRAM exchange and never stored.
+    NOT_SD_PASSWORD_PROMPTS = {"encryptkey": "the passphrase a data encryption key is made from, used once by SDKEY() and not stored",
+                               "setnetlogin": "the password of the user on another SD server, spent once on the SCRAM exchange"}
 
     # ---- P: THE PARTITION.  Every prompt that sets a password runs the rule.
     # ---- This is the regression no row about the rule itself can see: the
