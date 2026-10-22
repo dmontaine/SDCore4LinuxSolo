@@ -1,6 +1,33 @@
 Next release - in progress
 --------------------------
 
+21 Oct 26  SORTING A LONG LIST OF EQUAL OR ALREADY ORDERED KEYS NO LONGER TAKES MINUTES.
+           Carried from SD Core's change of 20 October.
+
+           What        SORT, SSELECT, SELECT and LIST with BY, the SORT() functions
+                       and the index builder all use one sort. It put each key into
+                       a tree one at a time, and the tree was never balanced, so a
+                       key equal to many others, or keys that arrived already in
+                       order, made it walk a longer and longer chain for every new
+                       key. Measured in SD Core on 100,000 records: all keys equal
+                       168 seconds, keys already in order 169 seconds, SELECT file
+                       BY a field of five values 94 seconds. Now the keys of a run
+                       are collected and sorted once. Measured here on 60,000 keys
+                       before the change: 36, 35 and 46 seconds for equal, ordered
+                       and numeric-ordered keys.
+           Why it      LIST or SELECT file BY a field with few different values (a
+           matters     status, a yes or no flag) is an ordinary query, and it could
+                       keep a user waiting for minutes for no reason.
+           Does not    The order is exactly the order it was: keys that compare
+                       equal still come out newest first, a sort that does not fit in
+                       SORTMEM still spills to work files and merges them as before,
+                       and every other key comes out in the same place (44 outputs,
+                       in memory and spilled, compared by MD5 with the old kernel's).
+                       A sort with UNIQUE, a COMPOUND or STRICT mode, or a right
+                       aligned key that holds both numbers and text at once is sorted
+                       the old way and is not faster. It does not change the hash
+                       that places records in a file, nor SORTMEM.
+
 21 Oct 26  RECORDLOCKED() OF A FILE ON ANOTHER SD SERVER NEEDS A WRITE DEFINITION,
            LIKE A LOCK (SDNET).  Carried from SD Core's change of 20 October.
 
