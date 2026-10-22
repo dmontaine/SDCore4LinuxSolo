@@ -1,6 +1,43 @@
 Next release - in progress
 --------------------------
 
+21 Oct 26  CSV, JSON AND XML: A CSV REPORT CAN BE WRITTEN AS A RECORD (AS), A
+           MULTIVALUED FIELD IS SPLIT OVER LINES, BASIC READS AND WRITES ALL
+           THREE FORMATS, AND FOUR NEW VERBS MOVE DATA BETWEEN FILES. Carried
+           from SD Core's changes of 20 October.
+
+           What        (1) CSV and DELIMITER reports of LIST, SORT and the other
+                       query verbs: "AS file id" writes the report as the record
+                       "id" of a directory file (NO.QUERY, APPENDING, a record that
+                       is there asks first); NO.QUERY with APPENDING is refused
+                       (message 11850), a hashed file (11851) and a missing id
+                       (11852) too. A multivalued field now gives one line for each
+                       value; RPT or REPEATING repeats a single valued column.
+                       (2) BASIC: READCSV, MATREADCSV, WRITECSV and MATWRITECSV take
+                       DELIMITER, QUOTE and ESCAPE; a quoted field with a line break
+                       is one row; CSVPARSE(), CSVBUILD() and CSVOPEN() read and
+                       write a whole CSV text as a data collection. (3) JSON:
+                       JBUILD() takes an indent; READJSON and WRITEJSON read and
+                       write JSON Lines; JMERGE() (RFC 7396), JPATCH() (RFC 6902),
+                       JPATH() (JSONPath, RFC 9535, indexes from 0) and JVALIDATE()
+                       (JSON Schema); the query verbs take JSON and JSON.LINES.
+                       (4) XML: XPARSE(), XBUILD() and XPATH() (XPath 1.0) read,
+                       write and search a document held as a data collection. (5)
+                       IMPORT.CSV, IMPORT.JSON, IMPORT.XML and CONVERT.DATA (CSV,
+                       JSON, JSON Lines and XML into one another), messages 11853 to
+                       11862.
+           Why it      A multivalued field used to be one cell with raw value marks
+           matters     in it, and moving data to or from a spreadsheet or a web
+                       service meant a BASIC program each time.
+           Does not    No ENCODING (SD has no character sets); no XSLT, XQuery or
+                       XML Schema; no DTD is read, so nothing a document says makes
+                       the parser read a file; a CSV cell is a string; an XML report
+                       with TO or AS is refused. A pathname goes through the OS
+                       access switch (os), as OSREAD and OSWRITE do. SOLO'S
+                       DIFFERENCE: SD Core also asks its edit gates of the file
+                       written; Solo has none, so only the os switch and the record
+                       lock are asked.
+
 21 Oct 26  SORTING A LONG LIST OF EQUAL OR ALREADY ORDERED KEYS NO LONGER TAKES MINUTES.
            Carried from SD Core's change of 20 October.
 

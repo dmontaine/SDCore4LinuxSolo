@@ -99,12 +99,12 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`disable.index`** *file* *index* … | **`all`**
 - **`display`** *text*
 - **`execute.list`** *command* {**`;`** *command* …}  —  a pair of brackets `()` in a command is replaced by each id of list 0 in turn
+- **`format`** {*file*} {*record*} {**`case`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
+- **`generate`** {**`dict`**} *file* *record* …
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
-- **`make.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
 - **`off`**
-- **`redo`** {**`times`** *n*} {**`every`** *s*} *command*
 - **`run`** {*file*} *record* {*arguments*}
 - **`scan`** {**`dict`**} *file* {*selection*} {*id* …} {**`all`**} {**`no.case`**} {**`all.match`** | **`no.match`**} {**`strings`** *file* *record*} **`for`** *"text"* …
 - **`search`** {**`dict`**} *file* {*selection*}
