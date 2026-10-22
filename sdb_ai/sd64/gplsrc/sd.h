@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 21 Oct 26 dm  Solo carry 10 (SD Core eb9ef4a, S.72b): NETG_PEEK (net_gate's read-mode test alone, for RECORDLOCKED()).
  * 20 Oct 26 dm  SDNet carry 9: SD Core's S.65 (slices 3c to 3e) and S.72 prototypes of netfiles.c, the NET_FILE kernel entry points; the S.64 edit-gate and S.66 / S.67
  *               prototypes that SD Core's history lines below mention are not here.
  * 20 Oct 26 dm  S.72: prototypes of net_filelock_step, net_fileunlock and net_recordlocked (netfiles.c).
@@ -345,6 +346,7 @@ const char * net_message(void);
 #define NETG_DELETE 2  /* DELETE */
 #define NETG_CLEAR 3   /* CLEARFILE */
 #define NETG_LOCK 4    /* READU READL MATREADU MATREADL READVU READVL RECORDLOCKU RECORDLOCKL */
+#define NETG_PEEK 5    /* RECORDLOCKED(): only the read-mode test of net_gate (S.72b) - it changes nothing, so a transaction does not matter */
 #define NET_LOCK_HELD 0
 #define NET_LOCK_WAIT 1
 #define NET_LOCK_LOCKED 2
@@ -441,6 +443,7 @@ void flush_dh_cache(void);
 /* OP_SH.C - the per-account OS-access switches (20 Oct 26, SD Core's S.63 carried to Solo) */
 bool os_gate_open(void);
 bool os_path_ok_for_account(const char * name);
+bool os_path_inside(const char * rootdir, const char * name);   /* 21 Oct 26, Solo carry 10: geometry only, for K_PATH_IN */
 bool os_path_open_ok(const char * name);
 
 /* OP_DIO3.C - line terminator modes of directory and sequential files (16 Oct 26, QM4 Fixes item 452) */

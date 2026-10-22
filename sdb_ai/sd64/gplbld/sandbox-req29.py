@@ -9,6 +9,8 @@
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 21 Oct 26 dm  SOLO CARRY 10 (SD Core's S.73 item 1), rows written FIRST: section X is no longer a documented limit.  The row X1 that said a pointer outside the account opens with the 'os'
+#               switch off is replaced by Core's rows X0 to X19 on Solo's one account (register field 8 toggled under the open session).
 # 20 Oct 26 dm  Written for Solo carry 8 (the owner's "q3 c": carry Core's fix for API request 29 with a NET gate), FIRST, and run red on Solo Dev 03deb57.
 #               The claim, read from apisrvr and never run: with bit 2 of NETFILES set in sd.conf, any API login can open the VOC-named file of ANY directory
 #               through request 29, because the request is gated by the bit alone - not by the own-account rule request 3 applies, not by a NET gate, and not by
@@ -32,7 +34,9 @@
 #   B  NETFILES=2, the NET gate on: the control that request 29 works for the account's own file, and adds no refusal to the audit trail
 #   C  the account rule: another account's register record (a decoy directory), SDSYS, an account named by a path, and the account suspended after the login
 #   D  the NET gate: off ('no') and absent (the register as delivered)
-#   X  A DOCUMENTED LIMIT: a file the VOC names with an F-pointer outside the account is opened without the 'os' switch being asked (Core's request 29 is the same)
+#   X  an F-pointer in the account's VOC that leads OUT of the account (an absolute path, a relative one that climbs out, a symbolic link, a sibling directory whose name begins with the
+#      account's, a system directory, a dictionary half) is refused (error ELSE, status 3035, audited) unless the account holds the 'os' switch; the same pointers open with it on; the
+#      switch is read at each request (S.73 item 1, SD Core 4f38ad4: until 21 Oct 26 this section recorded the opposite as a documented limit)
 #   E  SDCLIENT=1 with NETFILES=2: request 4 is refused (the control), and so must request 29 be
 #   V  the verb SET.NET.ACCESS (administrator only; no argument shows; ON and OFF write field 15 and nothing else; the syntax message), and request 29 after it
 
@@ -62,6 +66,7 @@ PLANTED = "secret of sduser"
 PLANTED_DECOY = "secret of the decoy"
 PLANTED_SYS = "secret of sdsys"
 PLANTED_OUTSIDE = "secret outside the account"
+PLANTED_SIB = "next door, and a prefix is not inside"
 NET_FIELD = 15
 
 
@@ -363,23 +368,92 @@ def main():
         reg_set(NET_FIELD, "yes")
 
         # --------------------------------------------------------------------------------------------------------------------
-        say("\n--- X. A DOCUMENTED LIMIT, held so that a change shows: where the file is is not asked --------------------------------------")
-        # an F-pointer in the account's VOC at a directory OUTSIDE the account (written by an internal program: the VOC is the administrator's).  Request 29 opens the
-        # file the VOC names by openpath from an internal program, so the OS switch (os, off here) is not asked of it.  Core's request 29 is the same.
+        say("\n--- X. an F-pointer OUTSIDE the account: refused unless the account holds the os switch (S.73 item 1, SD Core 4f38ad4; a documented limit in Solo until 21 Oct 26) ------------")
+        # An F-pointer in the account's VOC at a directory OUTSIDE the account (written by an internal program: the VOC is the administrator's).  Request 29 opens the file the VOC names with
+        # openpath from an internal program, which the OS gate exempts, so the OS switch (register field 8) was never asked of a path that leads out of the account.  The same eight pointers
+        # as Core's section X, in the one account Solo has; the switch is toggled in the register under the open session, which also shows it is read at each request.
         outside = os.path.join(SYS, "zzoutside")
-        shutil.rmtree(outside, ignore_errors=True)
-        os.makedirs(outside)
+        sib = ACCT + "-sib"
+        link = os.path.join(ACCT, "zzlink")
+        for p_ in (outside, sib):
+            shutil.rmtree(p_, ignore_errors=True)
+            os.makedirs(p_)
         put(os.path.join(outside, "k1"), PLANTED_OUTSIDE)
-        put(os.path.join(SYS, "bp", "zzptrfix"), "$internal\n   openpath '%s/voc' to v else crt 'FIX no voc' ; stop\n   write 'F':@fm:'%s':@fm:'' to v, 'zzptr'\n"
-            "   crt 'FIX done'\nend\n" % (ACCT, outside))
+        put(os.path.join(sib, "k1"), PLANTED_SIB)
+        if os.path.lexists(link):
+            os.remove(link)
+        os.symlink(outside, link)
+        pointers = [("zzpabs", outside, ""),                  # an absolute path outside the account
+                    ("zzprel", "../../zzoutside", ""),        # a relative path that climbs out of the account
+                    ("zzplnk", "zzlink", ""),                 # a name inside the account that is a symbolic link to the outside directory
+                    ("zzpsib", sib, ""),                      # the directory next to the account whose name begins with the account's own name
+                    ("zzpsys", "@SDSYS/messages", ""),        # a system directory of the installation
+                    ("zzpdic", "zzsec", outside),             # the data half is the account's own file, the DICTIONARY half is outside
+                    ("zzpin", "zzsec", ""),                   # the control: a file of the account, by a relative path
+                    ("zzpinab", ACCT + "/zzsec", "")]         # the control: the same file by an absolute path inside the account
+        put(os.path.join(SYS, "bp", "zzptrfix"), "\n".join(["$internal", "   openpath '%s/voc' to v else crt 'FIX no voc' ; stop" % ACCT]
+            + ["   write 'F':@fm:'%s':@fm:'%s' to v, '%s'" % (path, dpath, pid) for pid, path, dpath in pointers] + ["   crt 'FIX done'", "end", ""]))
         out = internal(["BASIC bp zzptrfix", "RUN bp zzptrfix"])
-        row("X0 an F-pointer at %s is written into sduser's VOC by an internal program (the 'os' switch is off: %r)" % (outside, reg_read()[7:8]),
-            has(out, r"^FIX done$"), repr(out[-4:]))
-        fno, r = open29(w, "sduser;zzptr")
+        row("X0 the eight F-pointers are written into sduser's VOC by an internal program", has(out, r"^FIX done$"), repr(out[-4:]))
+        if not has(out, r"^FIX done$"):
+            bail("the pointers were not written into the VOC, so no row below can be believed")
+        reg_set(8, "")
+        reg_now = reg_read()
+        say("      [evidence] register record: field 8 (os) %r, field 15 (net) %r; outside directory %s holds k1 = %r; link %s -> %s; sibling %s holds k1 = %r"
+            % (reg_now[7:8], reg_now[14:15], outside, open(os.path.join(outside, "k1")).read(), link, os.readlink(link), sib, open(os.path.join(sib, "k1")).read()))
+        row("X0a the register says os OFF and the NET gate ON (the rows below are only meaningful if it does)", reg_now[7:8] == [""] and reg_now[14:15] == ["yes"], repr(reg_now))
+        cases = [    # (what the request names, what it is, the record the disk holds in what it leads to; None: only the file number is judged)
+            ("zzpabs", "an absolute path outside the account", PLANTED_OUTSIDE),
+            ("zzprel", "a relative path that climbs out of the account (../../zzoutside)", PLANTED_OUTSIDE),
+            ("zzplnk", "a name inside the account that is a symbolic link to the outside directory", PLANTED_OUTSIDE),
+            ("zzpsib", "the directory next to the account whose name begins with the account's own name", PLANTED_SIB),
+            ("zzpsys", "a system directory of the installation (@SDSYS/messages)", None),
+            ("DICT zzpdic", "a pointer whose DICTIONARY half is outside (its data half is the account's own file)", PLANTED_OUTSIDE)]
+        controls = [("zzpin", "the account's own file by a relative path"), ("zzpinab", "the account's own file by an absolute path inside the account"),
+                    ("zzpdic", "the data half of the dictionary pointer (the account's own file)")]
+        for i, (name, what, planted) in enumerate(cases):
+            off = audit_off()
+            fno, r = open29(w, "sduser;" + name)
+            back = read_back(w, fno) if fno is not None else None
+            new = audit_new(off)
+            say("      [evidence] request 29 'sduser;%s' (%s), os OFF: file number %r, READ k1 %r, the disk holds %r" % (name, what, fno, back, planted))
+            row("X%d request 29 'sduser;%s' - %s - with the os switch OFF: refused with error ELSE and status 3035 (permission), no file number, and the planted record is not read" % (2 + i, name, what),
+                fno is None and r is not None and r[0] == 2 and r[1] == 3035 and (planted is None or back != planted),
+                "OPENED fno %r and READ %r  <- the claim is true; reply %r" % (fno, back, r))
+            if i in (0, 5):
+                row("X%da ...and the refusal is on the audit trail, in lower case: 'api refused request=29 reason=os gate off user=sduser account=sduser path=<the path the pointer names>'" % (2 + i),
+                    audit_has(new, r"api refused request=29 reason=os gate off user=sduser account=sduser path=/.+$"), repr(new))
+        for i, (name, what) in enumerate(controls):
+            off = audit_off()
+            fno, r = open29(w, "sduser;" + name)
+            back = read_back(w, fno) if fno is not None else None
+            new = audit_new(off)
+            row("X8%s CONTROL (inside the account): request 29 'sduser;%s' - %s - opens and reads %r with the os switch OFF, and the audit trail gains no refusal" % ("abc"[i], name, what, PLANTED),
+                fno is not None and back == PLANTED and new is not None and "request=29" not in new, repr((fno, back, r, new)))
+        reg_set(8, "yes")
+        off = audit_off()
+        for i, (name, what, planted) in enumerate(cases):
+            fno, r = open29(w, "sduser;" + name)
+            back = read_back(w, fno) if fno is not None else None
+            say("      [evidence] request 29 'sduser;%s' (%s), os ON: file number %r, READ k1 %r, the disk holds %r" % (name, what, fno, back, planted))
+            if planted is None:
+                row("X%d request 29 'sduser;%s' - %s - with the os switch ON (turned on in the register under the open session): opens" % (11 + i, name, what), fno is not None, repr((fno, r)))
+            else:
+                row("X%d request 29 'sduser;%s' - %s - with the os switch ON: opens and reads the planted %r" % (11 + i, name, what, planted), fno is not None and back == planted, repr((fno, back, r)))
+        new = audit_new(off)
+        row("X17 ...and no refusal is on the audit trail for any of them", new is not None and "request=29" not in new, repr(new))
+        reg_set(8, "")
+        fno, r = open29(w, "sduser;zzpabs")
         back = read_back(w, fno) if fno is not None else None
-        row("X1 DOCUMENTED LIMIT: request 29 'sduser;zzptr' opens the file the VOC names OUTSIDE the account and reads %r, with the NET gate on and the 'os' switch off"
-            % PLANTED_OUTSIDE, fno is not None and back == PLANTED_OUTSIDE, repr((fno, back, r)))
-        shutil.rmtree(outside, ignore_errors=True)
+        row("X19 the os switch is taken off again in the register AFTER the session signed on and after it was used: request 29 'sduser;zzpabs' is refused now (the register is read at each "
+            "request, as the NET gate is)", fno is None and r is not None and r[0] == 2 and r[1] == 3035 and back != PLANTED_OUTSIDE, "OPENED fno %r and READ %r; reply %r" % (fno, back, r))
+        fno, r = open29(w, "sduser;zzsec")
+        back = read_back(w, fno) if fno is not None else None
+        row("X9 CONTROL AFTER THE REFUSALS: 'sduser;zzsec' still opens and reads %r (so the refusals above are the rule and not a broken session)" % PLANTED, fno is not None and back == PLANTED, repr((fno, back)))
+        for p_ in (outside, sib):
+            shutil.rmtree(p_, ignore_errors=True)
+        if os.path.lexists(link):
+            os.remove(link)
         for d_ in ("bp", "bp.out"):
             p_ = os.path.join(SYS, d_, "zzptrfix")
             if os.path.exists(p_):

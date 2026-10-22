@@ -183,6 +183,9 @@
       $define K$SH              93       ;* may use SH and "!"
       $define K$OS.EXEC         94       ;* may use OS.EXECUTE and reach OS paths outside its account
       $define K$PATH.OK         95       ;* 1 if this account may open the pathname
+* 21 Oct 26 dm - Solo carry 10 (SD Core's S.73 item 1).  K$PATH.IN: "directory : @fm : pathname", 1 if the pathname is inside the directory (realpath, so ".." and links out
+*   do not count).  The geometry only: the OS gate is not asked.  API request 29 uses it with the named account's directory.  Must match gplsrc/keys.h.
+      $define K$PATH.IN         96       ;* 1 if the pathname is inside the directory
 * 20 Oct 26 SDNET CARRY 9 - SD Core's S.65 K$NET, at SD Core's number: the NET gate, settable only from $internal (LOGIN and APISRVR load it from
 *   register field 15 at account entry; the same field guards API request 29), -1 asks.  Must match gplsrc/keys.h.
       $define K$NET             127      ;* may open a file on another SD server (SDNet); account-scoped like K$SH; set from $internal, -1 asks

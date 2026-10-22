@@ -16,6 +16,10 @@
 # helpers) and, through it, sandbox-sdnet.py (the lanes).
 #
 # START-HISTORY:
+# 21 Oct 26 dm  SOLO CARRY 10 (SD Core's S.72b and S.73 item 2), rows written FIRST.  Section lockpeek (S72b-1 to 3): RECORDLOCKED() through a read-mode handle is refused with 11501 and nothing is
+#               sent; the write-mode control; a server that refuses request 34 to a login without its write group is reported as the handler's 11500, not the class's abort event.  Section silent
+#               (S73-0 to 5), with sd.conf at NETWAIT=2 NETREPLY=3 for its length: a server that never sends the Ack, a listener that never answers the hello, two that send half a TLS record, a
+#               slow server inside NETREPLY (the control) and a reply cut in the middle of its body, each printing the real seconds.  Core's own rows are sandbox-netfile.py section timeout.
 # 21 Oct 26 dm  RUNTIME MUTANTS (--mutant, MUTANT_KILLS).  Rows added because a mutant found no row: a stored login of mode 640 and a link to a good login (netcred READ's private test, end to end),
 #               the handler's own gate (an $internal program calls $netfile directly: the kernel's check is not on its way), and the kernel's gate before the handler is loaded (the handler
 #               replaced by a stub that says when it is reached: the kernel's and the handler's refusal are otherwise the same message and the same audit line, and the kernel mutant failed NO row).
@@ -32,6 +36,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -321,7 +326,119 @@ def write_section():
     s.reg_net("yes")
 
 
-SECTIONS = (("files", files_section), ("read", read_section), ("write", write_section))
+def lockpeek_section():
+    say("\n--- RECORDLOCKED() of a remote file is write-governed (S.72b, SD Core Dev eb9ef4a): a read-mode handle is refused and NOTHING is sent ---------------------------------")
+    s.reg_net("yes")
+    out, d = sess("zznrlr", ["open 'zznet1' to f else crt 'KR open-else ':status() ; stop", "crt 'KR rl ':recordlocked(f, 'c1')", "crt 'KR end'"])
+    row("S72b-1 RECORDLOCKED() through a READ-mode handle (zznet1, the server defined read) is refused with message 11501 naming the server and 'recordlocked' (it used to ask the server and "
+        "answer 0), and the program stops there", s.has_text(out, s.msg(11501, "nfa", "recordlocked")) and not any(x.startswith("rl ") or x == "end" for x in kr(out)), repr((kr(out), out[-3:])))
+    row("S72b-1a ...and NOTHING IS SENT for it: the fake's packet log holds the open and no request 34 (types %r)" % (d["types"],), netfake.R_OPEN in d["types"] and netfake.R_RECORDLOCKED not in d["types"],
+        repr(d["types"]))
+    out, d = sess("zznrlw", ["open 'zznetw' to f else crt 'KR open-else ':status() ; stop", "crt 'KR rl ':recordlocked(f, 'c1')", "close f", "crt 'KR end'"])
+    row("S72b-2 CONTROL: through a WRITE-mode handle (zznetw) RECORDLOCKED() is served - 0 for a record nobody holds - and request 34 was sent (so the refusal above is the mode and not a broken call)",
+        "rl 0" in kr(out) and "end" in kr(out) and netfake.R_RECORDLOCKED in d["types"], repr((kr(out), out[-3:], d["types"])))
+    out, d = sess("zznrlg", ["open 'zznetw' to f else crt 'KR open-else ':status() ; stop", "crt 'KR rl ':recordlocked(f, 'c1')", "crt 'KR end'"], cfg={"write_group": False})
+    shown = s.msg(11500, "nfw", "recordlocked", netfake.msg(11521, netfake.R_RECORDLOCKED))
+    row("S72b-3 a SD Core server that refuses request 34 to a login without its write group (an ON ERROR reply, message 11521): the person is told 'Server nfw answered recordlocked with an error: <the "
+        "text>' and the program stops - not the class's 'RECORDLOCKED generated an abort event'", s.has_text(out, shown) and not s.has_text(out, "generated an abort event") and "end" not in kr(out),
+        repr((kr(out), out[-3:])))
+
+
+def silent_section():
+    say("\n--- the silent server (S.73 item 2, SD Core Dev b052346): NETWAIT bounds the TLS handshake, NETREPLY every read, a reply cut in the middle is a lost connection --------------")
+    s.reg_net("yes")
+    conf = os.path.join(s.SYS, "sd.conf")
+    saved = s._read(conf)
+    def restart_sd(text):
+        """sd.conf is read when SD starts: stop the sandbox, write the file, start it again.  False when it does not come back."""
+        subprocess.run([sys.executable, s.TOOL, s.BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+        s._write(conf, text)
+        return subprocess.run([sys.executable, s.TOOL, s.BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120).returncode == 0
+
+    if not restart_sd(saved.rstrip("\n") + "\nNETWAIT=2\nNETREPLY=3\n"):
+        s.bail("SD does not start with NETWAIT=2 and NETREPLY=3 in sd.conf")
+    silent = ps_ack = ps_first = None
+    try:
+        silent = netfake.SilentListener()
+        ps_ack = netfake.PartialRecordServer(lg.C["c1"], lg.C["k1"], cut="ack", hold=12.0)
+        ps_first = netfake.PartialRecordServer(lg.C["c1"], lg.C["k1"], cut="first", hold=12.0)
+        gone = lg.closed_port()
+        pin = lg.C["pin_a"]
+        line = lg.valid_line(remote="alice", pin=pin, pw=PW, salt=P["salt"])
+        names = (("nfgone", gone), ("nfsil", silent.port), ("nfpk1", ps_ack.port), ("nfpk2", ps_first.port))
+        # at most 10 servers can be defined (message 11422): the seven of setup() and these four are 11, so five that no row here needs are deleted first
+        s.adm1(*(["delete.server %s" % n for n in ("nfnolist", "nfnocred", "nfpin", "nfmode", "nflink")]
+                 + ["set.server %s %s %d acct %s read accounts sduser" % (n, H, p, pin) for n, p in names]))
+        for n, _ in names:
+            lg.plant(n, line)
+        s.put(os.path.join(s.SYS, "bp", "zznfix2"), "\n".join([
+            "$internal",
+            "   openpath '%s/voc' to v else crt 'NFIX2 no voc' ; stop" % s.ACCT,
+            "   write 'N':@fm:'nfgone':@fm:'customers' to v, 'zznetgone'",
+            "   write 'N':@fm:'nfsil':@fm:'customers' to v, 'zznetsil'",
+            "   write 'N':@fm:'nfpk1':@fm:'customers' to v, 'zznetpk1'",
+            "   write 'N':@fm:'nfpk2':@fm:'customers' to v, 'zznetpk2'",
+            "   crt 'NFIX2 done'", "end", ""]))
+        out = s.internal(["BASIC bp zznfix2", "RUN bp zznfix2"])
+        row("SETUP: four more server definitions and N pointers (a closed port; a listener that accepts and never answers the hello; two servers that send half of a TLS record) and sd.conf says "
+            "NETWAIT=2 NETREPLY=3 for the rows below", s.has(out, r"^NFIX2 done$") and all(lg.entry(n) is not None for n, _ in names), repr((out[-3:], s.file_lines())))
+        opener = lambda ptr: ["open '%s' to f then crt 'KR opened' else crt 'KR open-else ':status()" % ptr, "crt 'KR end'"]
+
+        def timed(name, body, srv=None, cfg=None):
+            t0 = time.time()
+            o, dd = sess(name, body, srv=srv, cfg=cfg)
+            return o, dd, time.time() - t0
+
+        out, d, base = timed("zznsil0", opener("zznetgone"))
+        say("      [timing] CONTROL, a closed port (refused at once): the session took %.2f s" % base)
+        row("S73-0 CONTROL: a server on a closed port - the open fails at once with 'Cannot connect' (an error, which stops the program), so the next rows' waits are the time above this session's %.1f s" % base,
+            "opened" not in kr(out) and s.has_text(out, "Cannot log in to server nfgone: Cannot connect") and base < 4.0, repr((kr(out), out[-3:], base)))
+        out, d, took = timed("zznsil1", opener("zznet1"), cfg={"ack": False})
+        extra = took - base
+        say("      [timing] silent AFTER the handshake (the Ack never comes), NETREPLY=3: the session took %.2f s, so the wait was %.2f s" % (took, extra))
+        row("S73-1 A SERVER THAT COMPLETES THE HANDSHAKE AND NEVER SENDS THE ACK IS GIVEN UP ON AT NETREPLY=3 (it ran to the fake's own close at 5 s before): the open fails, %.1f s more than the "
+            "control (2.5 to 4.5 expected)" % extra, "opened" not in kr(out) and 2.5 <= extra <= 4.5, repr((kr(out), out[-3:], extra)))
+        out, d, took = timed("zznsil2", opener("zznetsil"))
+        extra = took - base
+        time.sleep(0.5)
+        say("      [timing] silent AT the handshake (TCP accepted, the hello never answered), NETWAIT=2: the session took %.2f s, so the wait was %.2f s (accepted %d, client closed %d)"
+            % (took, extra, silent.accepted, silent.count_closed()))
+        row("S73-2 NETWAIT=2 BOUNDS THE TLS HANDSHAKE: a listener that accepts the connection and never answers the hello - the open fails, %.1f s more than the control (1.5 to 3.9 expected; the "
+            "15 s that were fixed would be 15)" % extra, "opened" not in kr(out) and silent.accepted == 1 and 1.5 <= extra <= 3.9, repr((kr(out), out[-3:], extra, silent.accepted)))
+        row("S73-2a ...and the client closed the connection itself (the listener saw the close)", silent.count_closed() == 1, "closed %d" % silent.count_closed())
+        for ps, ptr, what in ((ps_ack, "zznetpk1", "the Ack as half of a TLS record"), (ps_first, "zznetpk2", "the reply to client-first as half of a TLS record (MID-REPLY)")):
+            out, d, took = timed("zznsil3", opener(ptr))
+            extra = took - base
+            time.sleep(0.6)
+            e = ps.log[-1] if ps.log else {}
+            say("      [timing] silent after %s, NETREPLY=3: the session took %.2f s, so the wait was %.2f s; the server sent %s of %s bytes of the record, the client closed %s s after"
+                % (what, took, extra, e.get("sent"), e.get("whole"), ("%.2f" % e["closed_after"]) if e.get("closed_after") is not None else "never"))
+            row("S73-3 NETREPLY=3 BOUNDS A READ THAT HOLDS HALF A TLS RECORD - %s: the open fails, %.1f s more than the control and the client closed %s s after the cut (2.5 to 4.5 expected; "
+                "the server would have held it 12 s)" % (what, extra, ("%.1f" % e["closed_after"]) if e.get("closed_after") is not None else "never"),
+                "opened" not in kr(out) and e.get("handshake") is True and e.get("sent") is not None and 0 < e["sent"] < e["whole"] and 2.5 <= extra <= 4.5
+                and e.get("closed_after") is not None and 2.0 <= e["closed_after"] <= 4.5, repr((kr(out), out[-3:], extra, e)))
+        reader = ["open 'zznet1' to f else crt 'KR open-else ':status() ; stop", "read r from f, 'c1' then crt 'KR read-c1 ':convert(@vm, '~', convert(@fm, '|', r)) else crt 'KR read-else ':status()",
+                  "crt 'KR end'"]
+        out0, d0, t0_ = timed("zznsil4", reader)
+        out, d, t1_ = timed("zznsil4", reader, cfg={"delay": {netfake.R_READ: 1.5}})
+        extra = t1_ - t0_
+        say("      [timing] a SLOW server (1.5 s before the reply to a READ), NETREPLY=3: the session took %.2f s, the same session with no delay %.2f s, so the extra was %.2f s" % (t1_, t0_, extra))
+        row("S73-4 A SLOW SERVER INSIDE NETREPLY IS NOT GIVEN UP ON: the reply to a READ comes after 1.5 s, NETREPLY=3 - the record is read, %.1f s more than the same session with no delay "
+            "(1.2 to 2.6 expected)" % extra, ("read-c1 " + show(RECS["c1"])) in kr(out) and ("read-c1 " + show(RECS["c1"])) in kr(out0) and 1.2 <= extra <= 2.6, repr((kr(out), extra)))
+        out, d, took = timed("zznsil5", reader, cfg={"short_reply": {netfake.R_READ: 14}, "short_reply_hold": 45.0, "idle": 60.0})
+        say("      [timing] a READ whose reply is cut after 14 bytes (the header and 4 bytes of the record), NETREPLY=3: the session took %.2f s" % took)
+        row("S73-5 A REPLY CUT IN THE MIDDLE OF ITS BODY IS A LOST CONNECTION: the READ is message 11497 'lost during read' naming the server (it was 'a reply that cannot be used', 11504, with the "
+            "connection kept), in %.1f s (2 to 20 expected; the fake would hold it 45)" % took,
+            s.has_text(out, s.msg(11497, "nfa", "read")) and not s.has_text(out, s.msg(11504, "nfa", "read", "answer -1")) and not any(x.startswith("read-c1") for x in kr(out)) and 2 <= took <= 20,
+            repr((kr(out), out[-3:], took)))
+    finally:
+        restart_sd(saved)
+        for sv in (silent, ps_ack, ps_first):
+            if sv is not None:
+                sv.close()
+
+
+SECTIONS = (("files", files_section), ("read", read_section), ("write", write_section), ("lockpeek", lockpeek_section), ("silent", silent_section))
 
 # The mutants this suite judges (sandbox-sdnet.py's MUTANTS says what each changes; --mutant=NAME).  REQUIRED rows are listed BEFORE the first run of the mutant: a substring each, naming exactly one
 # row, that must FAIL; `also` may fail because the rule is gone; anything else that fails is EXTRA and fails the run.  `survives` is a DOCUMENTED GAP: no row can notice the mutant.

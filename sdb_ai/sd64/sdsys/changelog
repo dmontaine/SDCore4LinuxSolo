@@ -1,6 +1,83 @@
 Next release - in progress
 --------------------------
 
+21 Oct 26  RECORDLOCKED() OF A FILE ON ANOTHER SD SERVER NEEDS A WRITE DEFINITION,
+           LIKE A LOCK (SDNET).  Carried from SD Core's change of 20 October.
+
+           What        RECORDLOCKED(f, id) of a remote file is asked of the other
+                       server only when the definition of that server (set.server)
+                       says write. A definition that says read stops the program at
+                       once with message 11501 ("... is read only: recordlocked is
+                       refused. Nothing was sent"); the function has no ON ERROR
+                       clause, so it always stops. A SD Core server also answers the
+                       request it sends (request 34) only to a login in its write
+                       group; to any other it replies with an error and the program
+                       stops with message 11500 and that machine's words, ending
+                       "(request 34)". Inside BEGIN TRANSACTION it still works for a
+                       write definition: it changes nothing.
+           Why it      The answer names the holder of a lock by his user number on the
+           matters     other server. A login that may read and nothing else has no
+                       business learning who is editing what.
+           Does not    It changes nothing about GETLOCKS() (still the local view),
+                       FILELOCK, FILEUNLOCK or the record locks.
+
+21 Oct 26  THE API'S "OPEN AN SDNET FILE" REQUEST NO LONGER FOLLOWS A VOC POINTER OUT
+           OF THE ACCOUNT UNLESS THE ACCOUNT HAS THE OS SWITCH ON. Carried from SD
+           Core's change of 20 October.
+
+           What        API request 29 opens a file named in the account's VOC for a
+                       client that is not a person at a terminal. It is refused as
+                       delivered (NETFILES=2 and the NET gate have to be turned on),
+                       and it did not ask the operating-system question: a file
+                       pointer in the VOC at a directory OUTSIDE the account (an
+                       absolute path, a relative path that climbs out, a link, a
+                       directory next to the account, a system file) was opened and
+                       read. It now asks, as DIR, OPENSEQ, OPENPATH and the OSCOPY
+                       verbs do: the pointer must lead inside the account's own
+                       directory unless the account has the os switch on
+                       (set.os.access os on). The register is read at each request,
+                       so taking the switch off applies at once to a client that is
+                       already signed in. A refusal is status 3035 and the audit
+                       trail gets "api refused request=29 reason=os gate off
+                       user=... account=... path=...". Both halves of a pointer are
+                       judged.
+           Why it      An administrator who turned the NET gate on and NETFILES=2 was
+           matters     not told that the account's files outside its own directory
+                       were open to that client too. This was the one route that
+                       skipped the os switch.
+           Does not    It does not change who may use request 29 at all. The pointers
+                       SD itself puts in the VOC lead out of the account and are
+                       refused here too, because a client of request 29 has no use for
+                       them. A pointer that opened before and leads out of an account
+                       whose os switch is off stops opening: turn the switch on if
+                       that was intended.
+
+21 Oct 26  A SERVER ON ANOTHER SD MACHINE THAT GOES SILENT IS NOW GIVEN UP ON AT
+           NETREPLY (AND NETWAIT FOR THE TLS HANDSHAKE), IN EVERY CASE WE KNOW OF.
+           Carried from SD Core's change of 20 October.
+
+           What        READ.SOCKET on a TLS socket (what SDNet uses) waited for the
+                       time it was given only while nothing had arrived. After the
+                       handshake a TLS 1.3 server sends its session tickets, and a
+                       server or a link that stops in the middle of a record leaves
+                       half of one; either made the socket readable, and the read
+                       behind it then waited with no limit of its own. The read now
+                       never blocks: it waits on the connection for the time that is
+                       LEFT. Second, the TLS handshake was bound by 15 seconds fixed,
+                       whatever NETWAIT said: NETWAIT now bounds the TCP connect and
+                       then the handshake, each. Third, a reply that stopped in the
+                       middle of its body was reported as "a reply that cannot be
+                       used", message 11504, with the connection kept although its
+                       stream was out of step; it is now the same lost connection as a
+                       reply that never started: message 11497 for a read, 11509 for
+                       a change, and the connection is dropped.
+           Why it      A pinned server that hangs held the session waiting on it for as
+           matters     long as it stayed that way; NETREPLY, which is what the setting
+                       is for, did not stop it.
+           Does not    A server that answers inside NETREPLY is read as before. A change
+                       that got no answer is still never sent again (11509). The limit
+                       is for each read, not for a whole reply.
+
 20 Oct 26  A PROGRAM CAN NOW OPEN A FILE THAT LIVES ON ANOTHER SD SERVER AND USE
            IT WITH READ, WRITE, SELECT AND LIST (SDNET).  IT IS OFF AS DELIVERED,
            IN FOUR PLACES.  This is the client SD Core for Linux built on

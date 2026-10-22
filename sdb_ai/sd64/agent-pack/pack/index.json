@@ -1382,7 +1382,7 @@
 "basic:func:recordlocked": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 21
 },
@@ -4786,7 +4786,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 936
+"words": 956
 },
 "dict:chaining": {
 "kind": "dict.conv",
@@ -22391,7 +22391,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1242
+"words": 1255
 },
 "sys:ikeys:lgn$": {
 "kind": "sys.keys",

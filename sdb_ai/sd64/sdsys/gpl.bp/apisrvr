@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 21 Oct 26 dm Solo carry 10 (SD Core's S.73 item 1, 4f38ad4): request 29 (vb.open.sdnet) asks the OS switch of the account named for a VOC pointer that leads out of the account: an
+*           F-pointer outside the account's directory is refused (error ELSE, status 3035, audit 'api refused request=29 reason=os gate off ...') unless that account holds os on.
+*           Needs K$PATH.IN (96), carried to the kernel the same day.  Solo has no SDSYS clause.
 * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1) - the NET gate (K$NET, register field 15) is loaded at every entry to an account,
 *           beside K$SH and K$OS.EXEC; a session that may not enter the account keeps the previous one's.
 * 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - the account's SH and OS.EXECUTE switches are
@@ -1771,6 +1774,25 @@ vb.open.sdnet.continue:
                                  if path[1,1] # @ds then
                                     * Convert voc item to absolute path
                                     path = acc : @ds : path
+                                 end
+
+                                 * 21 Oct 26 dm - THE OS SWITCH, ASKED OF A POINTER THAT LEADS OUT OF THE ACCOUNT (Solo carry 10, SD Core's S.73 item 1, 4f38ad4; in Solo
+                                 *   this was a documented limit).  The file is opened below with openpath from an internal program, which the OS gate exempts, so an
+                                 *   F-pointer in the account's VOC at a directory outside the account (a path, a relative path that climbs out, a link, another directory,
+                                 *   a system file) was opened for any caller the NET gate admitted.  DIR, OPENSEQ, the OSCOPY verbs and every OPEN in a program ask the
+                                 *   question, and now so does this.  It is asked of the account NAMED, by its register record read a moment ago in sdnet.account.check, not
+                                 *   of the switches this session loaded at sign-on: the register is read at each request, so taking os off reaches a client that is already
+                                 *   signed in.  An account with os on passes; any other path must be inside the account's directory (K$PATH.IN is the geometry alone, with
+                                 *   ".." and links resolved, and a name that merely begins with the account's name is not inside).  SOLO'S DIFFERENCE FROM CORE: no SDSYS
+                                 *   clause, because SDSYS is never a target of this request; the user in the audit line is net.who.
+                                 net.free = (upcase(trim(net.rec<ACC$OS.EXEC>)) = 'YES')
+                                 if not(net.free) then
+                                    if not(kernel(K$PATH.IN, acc : @fm : path)) then
+                                       void kernel(K$AUDIT, 'api refused request=29 reason=os gate off user=' : net.who : ' account=' : net.acct : ' path=' : path)
+                                       set.status ER$PERM
+                                       server.error = SV$ELSE
+                                       return
+                                    end
                                  end
 
                                  openpath path to files(i)

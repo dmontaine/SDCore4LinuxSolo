@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 21 Oct 26 dm Solo carry 10 (SD Core's S.73 item 1): path_inside_account() became path_inside_dir(rootdir, name) (rootdir NULL is the working directory, so the
+ *           account's own test is unchanged) and os_path_inside() is the geometry alone, for K_PATH_IN.
  * 20 Oct 26 SOLO OS SWITCH (the owner: two words like SD Core, SET.OS.ACCESS, the installer asks): SD Core's S.63 (13 Oct 26) carried
  *           to Solo, by hunk from Core 215ce2c and abcda0c.  os_permitted() is back and the gate reaches OS paths.  OS.EXECUTE and the SH
  *           verb are refused (10053, 10054) to an account that has not been given them; OPENSEQ, OPENPATH, DIR() and the other routes
@@ -76,7 +78,7 @@ Private void sh(bool capture);
 Private void sh_execute(char *command);
 Private int clparse(char *p, char *argv[], int maxargs);
 Private bool os_permitted(void);
-Private bool path_inside_account(const char *name);
+Private bool path_inside_dir(const char *rootdir, const char *name);
 
 int ChildPipe = -1;
 bool in_sh = FALSE; /* 0562 Doing SH command? */
@@ -157,7 +159,10 @@ Private bool os_permitted(void) {
   return os_gate_open();
 }
 
-Private bool path_inside_account(const char *name) {
+/* 21 Oct 26 (Solo carry 10, SD Core's second sitting of 13 Oct): the test is "inside THIS directory", and the account's own directory is the case where the directory
+   is the working directory (rootdir NULL).  A directory given is for API request 29 (os_path_inside, K_PATH_IN), which asks it of the account NAMED in the request.
+   A relative name is relative to the directory asked about.                                                                                                   */
+Private bool path_inside_dir(const char *rootdir, const char *name) {
   char cwd[PATH_MAX + 1];
   char root[PATH_MAX + 1];
   char work[2 * PATH_MAX + 2];
@@ -169,7 +174,11 @@ Private bool path_inside_account(const char *name) {
 
   if ((name == NULL) || (name[0] == '\0'))
     return FALSE;
-  if (getcwd(cwd, sizeof(cwd)) == NULL)
+  if (rootdir != NULL) {
+    if ((rootdir[0] != '/') || (strlen(rootdir) > PATH_MAX))
+      return FALSE;
+    strcpy(cwd, rootdir);
+  } else if (getcwd(cwd, sizeof(cwd)) == NULL)
     return FALSE;
   if (realpath(cwd, root) == NULL)
     return FALSE;
@@ -240,7 +249,13 @@ Private bool path_inside_account(const char *name) {
 bool os_path_ok_for_account(const char *name) {
   if (os_gate_open())
     return TRUE;
-  return path_inside_account(name);
+  return path_inside_dir(NULL, name);
+}
+
+/* os_path_inside()  -  is this pathname inside THAT directory?  The OS gate is not asked: this is the geometry alone, for a BASIC program (APISRVR's request 29)
+   that has already decided which directory is the account's.                                                                                            */
+bool os_path_inside(const char *rootdir, const char *name) {
+  return path_inside_dir(rootdir, name);
 }
 
 bool os_path_open_ok(const char *name) {

@@ -164,14 +164,14 @@ def checks(srcs, messages_dir):
     gate = gate[:gate.find("\n}") + 2] if "\n}" in gate else gate
     ck("C4 os_gate_open() is the administrator or USR_OS_EXEC, and does NOT look at HDR_INTERNAL",
        "USR_ADMIN" in gate and "USR_OS_EXEC" in gate and "HDR_INTERNAL" not in gate, gate.strip()[:120])
-    pia = block(sh, "Private bool path_inside_account(const char *name) {", 3200)
+    pia = block(sh, "Private bool path_inside_dir(const char *rootdir, const char *name) {", 3400)      # 21 Oct 26: was path_inside_account(name); rootdir NULL is the account (Solo carry 10)
     ck("C5 containment resolves with realpath() on both sides and tests a path-component boundary",
        pia.count("realpath(") >= 2 and "strncmp(resolved, root, root_len)" in pia
        and "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')" in pia)
     ck("C6 a '..' tail that cannot be resolved is refused, and so is an account rooted at /",
        'strcmp(p + 1, "..") == 0' in pia and "root_len == 1" in pia)
     ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment",
-       re.search(r"bool os_path_ok_for_account\(const char \*name\) \{\s*if \(os_gate_open\(\)\)\s*return TRUE;\s*return path_inside_account\(name\);", sh))
+       re.search(r"bool os_path_ok_for_account\(const char \*name\) \{\s*if \(os_gate_open\(\)\)\s*return TRUE;\s*return path_inside_dir\(NULL, name\);", sh))
     ck("C8 os_path_open_ok: an $internal program is trusted, anyone else is asked",
        re.search(r"bool os_path_open_ok\(const char \*name\) \{\s*if \(process\.program\.flags & HDR_INTERNAL\)\s*return TRUE;\s*"
                  r"return os_path_ok_for_account\(name\);", sh))
@@ -420,7 +420,7 @@ MUTANTS = [
     ("sh() takes the stack before it refuses", "C1", swap("op_sh.c", "if (!os_permitted())\n    k_error(sysmsg(10054), process.username);", "k_get_string(descr);")),
     ("os_gate_open() trusts an $internal program", "C4", sub("op_sh.c", "return (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC)) != 0;", "return (process.program.flags & HDR_INTERNAL) || (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC)) != 0;")),
     ("containment compares without a component boundary", "C5", sub("op_sh.c", "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')", "1")),
-    ("os_path_ok_for_account always says yes", "C7", sub("op_sh.c", "  return path_inside_account(name);", "  return TRUE;")),
+    ("os_path_ok_for_account always says yes", "C7", sub("op_sh.c", "  return path_inside_dir(NULL, name);", "  return TRUE;")),
     ("OPENSEQ asks after the port test", "C9", swap("op_seqio.c", "if (!os_path_open_ok(file_name)) {\n      process.status = ER_PERM;\n      goto exit_op_openseq;\n    }", "if (is_port(file_name)) /* Opening a port */")),
     ("OPENPATH is asked even for a VOC-named file (the wrong half of the test)", "C12", sub("op_dio1.c", "if (!map_name && !os_path_open_ok(pathname)) {", "if (map_name && !os_path_open_ok(pathname)) {")),
     ("kernel(K_SH) lets any caller set the flag", "C13", sub("op_kernel.c", "if (process.program.flags & HDR_INTERNAL) {\n          if (n > 0)\n            my_uptr->flags |= USR_SH;", "if (1) {\n          if (n > 0)\n            my_uptr->flags |= USR_SH;")),

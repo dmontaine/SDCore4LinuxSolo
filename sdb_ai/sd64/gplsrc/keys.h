@@ -255,12 +255,16 @@
      K_PATH_OK  the argument is a pathname; the answer is 1 if THIS ACCOUNT may open it - whoever asks.
                 An $internal program is exempt from the gate itself, so it must ask on the user's behalf; it cannot be
                 allowed to be the way round the gate.
+     K_PATH_IN  (21 Oct 26, Solo carry 10, SD Core's second sitting of 13 Oct) the argument is a directory, a field mark and a pathname;
+                the answer is 1 if the pathname is inside that directory (realpath, so .. and links out do not count).  The geometry
+                only: it does not ask the gate.  API request 29 uses it, with the named account's directory, for a VOC pointer that
+                leads out of the account (S.73 item 1).
    LOGIN loads the first two from fields 7 and 8 of the account's register record (blank is OFF); APISRVR loads them when it
-   enters the account itself.  GPL.BP/INT$KEYS.H carries the same numbers.  (K_PATH_IN, 96, is not carried: it serves SD Core's
-   SD.ACCOUNTS gate, and Solo has one account.)                                                                                 */
+   enters the account itself.  GPL.BP/INT$KEYS.H carries the same numbers.                                                       */
 #define K_SH                 93
 #define K_OS_EXEC            94
 #define K_PATH_OK            95
+#define K_PATH_IN            96
 
 /* 30 Sep 26 SD Core for Linux Solo - LSOLO 12, RULING 33 (the Windows Solo
    key, same number).  WAS THIS SESSION ADMITTED WITH THE GLOBAL PASSWORD?
