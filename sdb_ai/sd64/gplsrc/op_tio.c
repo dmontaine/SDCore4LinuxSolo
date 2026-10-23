@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 22 Oct 26 SD Core for Linux Solo (Solo carry 13): tio_init() starts the display at DEFAULT_WIDTH by DEFAULT_DEPTH + 1 (140 by 43), Core's 18 Oct 26 change.
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): the "before login" argument of
  *               api_packet_length_ok() is `is_sdApiSrvr && !api_logged_in` (kernel.h, set by K_SET_USERNAME), not `is_sdApiSrvr && geteuid() == 0`: a Solo server is
  *               never root, so Core's test is never true here and no limit applied before the login.
@@ -3339,7 +3340,11 @@ bool tio_init() {
   tio.lptr_0.next = NULL;
   tio.lptr_0.unit = 0;
 
-  tio_set_printer(DISPLAY, PRINT_TO_DISPLAY, 37, 120, 0, 0, 0);
+  /* 18 Oct 26 dm - the display before anything is known: DEFAULT_WIDTH wide and one line deeper than DEFAULT_DEPTH (the
+     original text had 37 for 36, and nothing records why).  A console session has it overwritten with DEFAULT_DEPTH in
+     init_console() at once; a phantom or API session keeps it.  The relation is kept.                                  */
+
+  tio_set_printer(DISPLAY, PRINT_TO_DISPLAY, DEFAULT_DEPTH + 1, DEFAULT_WIDTH, 0, 0, 0);
 
   tio_set_printer(0, PRINT_TO_PRINTER, pcfg.lptrhigh, pcfg.lptrwide, 0, 0, 0);
 

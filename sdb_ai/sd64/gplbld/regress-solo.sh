@@ -1,0 +1,31 @@
+#!/bin/bash
+# regress-solo.sh - Solo's existing sandbox suites, one after another on ONE built Solo sandbox, a verdict line for each.
+#
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/regress-solo.sh <dir> [logdir]
+#
+# <dir> is a sandbox made by this tree's gplbld/sandbox-fromtree.py (all), e.g.
+#   SDSOLOBOX_KEYSET=0 python3 gplbld/sandbox-fromtree.py <dir> all
+# (no sudo; own shared-memory keys; the live Solo is never touched).  Every suite runs with SDSOLOBOX_KEYSET=0, so nothing else may hold
+# keys 0x53434CA1/A2 meanwhile.  logdir (default /tmp/regress-solo-logs) gets sandbox-<suite>.log for each.  Exit 0 when every suite exited 0.
+# Written 22 Oct 2026 for carry 13 (the screen library, SED, IDE, CED, tool.keys); Solo has no regress.sh of its own and the list below is the
+# whole of Solo's sandbox set at that date.  A failure that looks like left-over state is rerun alone on a FRESH sandbox before it is believed.
+# Add sandbox-tk-solo.py's own run (the new suite of carry 13) at the end: it is in the list.
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+BOX="$1"
+LOGS="${2:-/tmp/regress-solo-logs}"
+[ -n "$BOX" ] || { echo "usage: regress-solo.sh <sandbox dir> [logdir]"; exit 2; }
+mkdir -p "$LOGS"
+cd "$HERE" || exit 2
+bad=0
+for s in tk-solo apifile crypt csvb csvq guide jsonx osgate pack-examples req29 sdnet-login sdnetfile sdnet sortord txnfail vocguard xmlx; do
+  f="sandbox-$s.py"
+  if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
+  t0=$(date +%s)
+  SDSOLOBOX_KEYSET=0 timeout 3000 python3 "$f" "$BOX" > "$LOGS/sandbox-$s.log" 2>&1
+  rc=$?
+  [ $rc -eq 0 ] || bad=$((bad + 1))
+  echo "SUITE $s: exit $rc, $(( $(date +%s) - t0 )) s, $(grep -E 'passed|PASS.*of|[0-9]+ pass' "$LOGS/sandbox-$s.log" | tail -1 | cut -c1-130)"
+done
+echo "regress-solo: $bad suite(s) did not exit 0; logs in $LOGS"
+[ $bad -eq 0 ]

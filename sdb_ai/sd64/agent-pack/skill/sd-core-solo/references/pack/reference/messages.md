@@ -2259,6 +2259,69 @@ Element not found in the collection
 
 cited by: `debug`
 
+### msg:11132
+> kind=message tier=reference since=- src=sdsys/messages/11132:1#a6aa4a8c
+
+```
+Collection editor: %1
+```
+
+cited by: `ced_edit`
+
+### msg:11133
+> kind=message tier=reference since=- src=sdsys/messages/11133:1#709a2322
+
+```
+Name
+```
+
+cited by: `ced_edit`
+
+### msg:11134
+> kind=message tier=reference since=- src=sdsys/messages/11134:1#3deb7456
+
+```
+Type
+```
+
+cited by: `ced_edit`
+
+### msg:11135
+> kind=message tier=reference since=- src=sdsys/messages/11135:1#8dce170d
+
+```
+Value
+```
+
+cited by: `ced_edit`
+
+### msg:11136
+> kind=message tier=reference since=- src=sdsys/messages/11136:1#08c4956b
+
+```
+Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF3               Rename the selected element\nF4               Change its data type\nF5 or Ctrl-C     Copy the selected element\nF6 or Ctrl-X     Cut the selected element\nF7 or Ctrl-V     Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nF1 or ?          This screen
+```
+
+cited by: `ced_edit`
+
+### msg:11138
+> kind=message tier=reference since=- src=sdsys/messages/11138:1#c073dc83
+
+```
+Path: %1
+```
+
+cited by: `ced_edit`
+
+### msg:11139
+> kind=message tier=reference since=- src=sdsys/messages/11139:1#4afb33c0
+
+```
+F1 help   Return open   Esc up   Ins insert   Del delete   Q quit
+```
+
+cited by: `ced_edit`
+
 ### msg:1114
 > kind=message tier=reference since=- src=sdsys/messages/1114:1#2be25e15
 
@@ -2266,12 +2329,183 @@ cited by: `debug`
 Deadlock detected
 ```
 
+### msg:11140
+> kind=message tier=reference since=- src=sdsys/messages/11140:1#9e627c7b
+
+```
+New name
+```
+
+cited by: `ced_edit`
+
+### msg:11141
+> kind=message tier=reference since=- src=sdsys/messages/11141:1#fd21889a
+
+```
+That name is already in use
+```
+
+cited by: `ced_edit`
+
+### msg:11142
+> kind=message tier=reference since=- src=sdsys/messages/11142:1#92359fb3
+
+```
+A name must not be empty or contain a slash
+```
+
+cited by: `ced_edit`
+
+### msg:11143
+> kind=message tier=reference since=- src=sdsys/messages/11143:1#c5e0f804
+
+```
+The elements of an array have no names to change
+```
+
+cited by: `ced_edit`
+
+### msg:11145
+> kind=message tier=reference since=- src=sdsys/messages/11145:1#f6c3eb3a
+
+```
+The type of this element cannot be changed
+```
+
+cited by: `ced_edit`
+
+### msg:11146
+> kind=message tier=reference since=- src=sdsys/messages/11146:1#c07793a4
+
+```
+Position (1 to %1)
+```
+
+cited by: `ced_edit`
+
+### msg:11147
+> kind=message tier=reference since=- src=sdsys/messages/11147:1#8dce170d
+
+```
+Value
+```
+
+cited by: `ced_edit`
+
+### msg:11148
+> kind=message tier=reference since=- src=sdsys/messages/11148:1#9a2e6c35
+
+```
+That is not a number
+```
+
+cited by: `ced_edit`
+
+### msg:11149
+> kind=message tier=reference since=- src=sdsys/messages/11149:1#68506508
+
+```
+That is not true or false
+```
+
+cited by: `ced_edit`
+
 ### msg:1115
 > kind=message tier=reference since=- src=sdsys/messages/1115:1#57c76fdd
 
 ```
 Invalid print unit
 ```
+
+### msg:11150
+> kind=message tier=reference since=- src=sdsys/messages/11150:1#c6ef8abb
+
+```
+Nothing has been copied or cut
+```
+
+cited by: `ced_edit`
+
+### msg:11151
+> kind=message tier=reference since=- src=sdsys/messages/11151:1#1fe2a080
+
+```
+Save changes (Y/N)?
+```
+
+cited by: `ced_edit`
+
+### msg:11152
+> kind=message tier=reference since=- src=sdsys/messages/11152:1#c0ae8f6e
+
+```
+Saved
+```
+
+cited by: `ced_edit`
+
+### msg:11153
+> kind=message tier=reference since=- src=sdsys/messages/11153:1#f1e0fa36
+
+```
+The record was not saved (error %1)
+```
+
+cited by: `ced_edit`
+
+### msg:11154
+> kind=message tier=reference since=- src=sdsys/messages/11154:1#1da9b7b9
+
+```
+Record '%1' is not a JSON object or array
+```
+
+cited by: `ced`
+
+### msg:11155
+> kind=message tier=reference since=- src=sdsys/messages/11155:1#dc6f5a97
+
+```
+New record '%1': C = collection, A = array, Esc = cancel
+```
+
+cited by: `ced`
+
+### msg:11156
+> kind=message tier=reference since=- src=sdsys/messages/11156:1#f5540ab6
+
+```
+The name of this element is empty or contains a slash, so it cannot be changed here
+```
+
+cited by: `ced_edit`
+
+### msg:11157
+> kind=message tier=reference since=- src=sdsys/messages/11157:1#03b4acbd
+
+```
+Record id
+```
+
+cited by: `ced`
+
+### msg:11158
+> kind=message tier=reference since=- src=sdsys/messages/11158:1#c5e934ac
+
+```
+A null cannot be edited; change its type with F4
+```
+
+cited by: `ced_edit`
+
+### msg:11159
+> kind=message tier=reference since=- src=sdsys/messages/11159:1#92d0c4e2
+
+```
+a variable
+```
+
+cited by: `ced_sub`
 
 ### msg:1116
 > kind=message tier=reference since=- src=sdsys/messages/1116:1#e2bef70c
@@ -2394,7 +2628,7 @@ cited by: `movelist`
 %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname (the administrator can give it: set.os.access os on)
 ```
 
-cited by: `convertdata`, `importdata`, `qproc`, `setptr`
+cited by: `convertdata`, `importdata`, `qproc`, `sed`, `setptr`
 
 ### msg:1119
 > kind=message tier=reference since=- src=sdsys/messages/1119:1#0860c7cd
@@ -2403,12 +2637,165 @@ cited by: `convertdata`, `importdata`, `qproc`, `setptr`
 File operation not allowed in transaction
 ```
 
+### msg:11192
+> kind=message tier=reference since=- src=sdsys/messages/11192:1#63e73326
+
+```
+This terminal cannot show colour
+```
+
+cited by: `sed`
+
+### msg:11193
+> kind=message tier=reference since=- src=sdsys/messages/11193:1#7bee43cb
+
+```
+SYNTAX takes ON, OFF, LIGHT or DARK
+```
+
+cited by: `sed`
+
+### msg:11194
+> kind=message tier=reference since=- src=sdsys/messages/11194:1#93509bf6
+
+```
+Nothing to undo
+```
+
+cited by: `sed`
+
+### msg:11195
+> kind=message tier=reference since=- src=sdsys/messages/11195:1#97c7f367
+
+```
+Nothing to redo
+```
+
+cited by: `sed`
+
+### msg:11196
+> kind=message tier=reference since=- src=sdsys/messages/11196:1#1cf3ab93
+
+```
+MOUSE takes ON or OFF
+```
+
+cited by: `sed`
+
+### msg:11197
+> kind=message tier=reference since=- src=sdsys/messages/11197:1#5cc349b1
+
+```
+%1 needs a window of at least %2 columns by %3 lines; this one is %4
+```
+
+cited by: `sl_need`
+
+### msg:11199
+> kind=message tier=reference since=- src=sdsys/messages/11199:1#2d4eb512
+
+```
+IDE: %1
+```
+
+cited by: `ide`
+
 ### msg:1120
 > kind=message tier=reference since=- src=sdsys/messages/1120:1#49d76837
 
 ```
  in dictionary expression
 ```
+
+### msg:11200
+> kind=message tier=reference since=- src=sdsys/messages/11200:1#5a136e34
+
+```
+Cannot open the file %1
+```
+
+cited by: `ide`
+
+### msg:11201
+> kind=message tier=reference since=- src=sdsys/messages/11201:1#aa715e2b
+
+```
+Cannot read record %1 in file %2
+```
+
+cited by: `ide`
+
+### msg:11202
+> kind=message tier=reference since=- src=sdsys/messages/11202:1#8c0f6040
+
+```
+Saved %1 %2
+```
+
+cited by: `ide`
+
+### msg:11203
+> kind=message tier=reference since=- src=sdsys/messages/11203:1#e0d0ef37
+
+```
+%1 %2 has been changed by someone else.  Overwrite it?
+```
+
+cited by: `ide`
+
+### msg:11204
+> kind=message tier=reference since=- src=sdsys/messages/11204:1#47e44900
+
+```
+%1 %2 has changes.  Save them?
+```
+
+cited by: `ide`
+
+### msg:11205
+> kind=message tier=reference since=- src=sdsys/messages/11205:1#9ef81488
+
+```
+Compiled %1 %2 with no errors
+```
+
+cited by: `ide`
+
+### msg:11206
+> kind=message tier=reference since=- src=sdsys/messages/11206:1#e177d350
+
+```
+%1 error(s) in %2 %3
+```
+
+cited by: `ide`
+
+### msg:11207
+> kind=message tier=reference since=- src=sdsys/messages/11207:1#caa40654
+
+```
+Catalogued %1 %2
+```
+
+cited by: `ide`
+
+### msg:11208
+> kind=message tier=reference since=- src=sdsys/messages/11208:1#221ccacd
+
+```
+Name of the new record:
+```
+
+cited by: `ide`
+
+### msg:11209
+> kind=message tier=reference since=- src=sdsys/messages/11209:1#baba61b4
+
+```
+Line number:
+```
+
+cited by: `ide`
 
 ### msg:1121
 > kind=message tier=reference since=- src=sdsys/messages/1121:1#c8b8bfeb
@@ -2417,6 +2804,96 @@ File operation not allowed in transaction
  at line %d of %s
 ```
 
+### msg:11210
+> kind=message tier=reference since=- src=sdsys/messages/11210:1#f7e9ddd5
+
+```
+Find in the records of %1:
+```
+
+cited by: `ide`
+
+### msg:11211
+> kind=message tier=reference since=- src=sdsys/messages/11211:1#bbdd34a6
+
+```
+%1 line(s) found in %2
+```
+
+cited by: `ide`
+
+### msg:11212
+> kind=message tier=reference since=- src=sdsys/messages/11212:1#080eca3d
+
+```
+Choose a file or a record in the tree first
+```
+
+cited by: `ide`
+
+### msg:11213
+> kind=message tier=reference since=- src=sdsys/messages/11213:1#e42b6d1a
+
+```
+Line %1, column %2
+```
+
+cited by: `ide`
+
+### msg:11214
+> kind=message tier=reference since=- src=sdsys/messages/11214:1#7d136ffe
+
+```
+The IDE\n\nTab, Shift-Tab   Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nF2 or Ctrl-S     Save the record\nCtrl-W           Write the text to another record\n
+```
+
+cited by: `ide`
+
+### msg:11215
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#cccc2a02
+
+```
+F4               Next error or result\nF5               Run          F7  Compile\nF8               Compile and catalogue\nF9               Compile and debug\nCtrl-L           Go to a line\nF11              Find in the records of the file\nCtrl-E           Edit the record in SED (its save returns here)\n
+```
+
+cited by: `ide`
+
+### msg:11216
+> kind=message tier=reference since=- src=sdsys/messages/11216:1#170a40ee
+
+```
+Ctrl-F, Ctrl-B   Find forward, backward   Ctrl-R  Replace\nF6               Next record tab\nF3               Go to the tree\nF10 or Esc      The menus\nCtrl-Q           Quit\nF1               This screen\nCtrl-P, Ctrl-U   A word back, on
+```
+
+cited by: `ide`
+
+### msg:11217
+> kind=message tier=reference since=- src=sdsys/messages/11217:1#9b6cc6f0
+
+```
+Record %1 already exists in %2
+```
+
+cited by: `ide`
+
+### msg:11218
+> kind=message tier=reference since=- src=sdsys/messages/11218:1#d5cde776
+
+```
+No record is open
+```
+
+cited by: `ide`
+
+### msg:11219
+> kind=message tier=reference since=- src=sdsys/messages/11219:1#c9fcb2f4
+
+```
+Only the first %1 records of %2 are listed
+```
+
+cited by: `ide`
+
 ### msg:1122
 > kind=message tier=reference since=- src=sdsys/messages/1122:1#63a0966a
 
@@ -2424,12 +2901,84 @@ File operation not allowed in transaction
  in %s
 ```
 
+### msg:11220
+> kind=message tier=reference since=- src=sdsys/messages/11220:1#39fd25a9
+
+```
+(no record)
+```
+
+cited by: `ide`
+
+### msg:11221
+> kind=message tier=reference since=- src=sdsys/messages/11221:1#ea967600
+
+```
+Line
+```
+
+cited by: `ide`
+
+### msg:11222
+> kind=message tier=reference since=- src=sdsys/messages/11222:1#68f4145f
+
+```
+Message
+```
+
+cited by: `ide`
+
+### msg:11223
+> kind=message tier=reference since=- src=sdsys/messages/11223:1#e9f404a9
+
+```
+Press Return to go back to the IDE
+```
+
+cited by: `ide`
+
 ### msg:1123
 > kind=message tier=reference since=- src=sdsys/messages/1123:1#90800fd7
 
 ```
 Runfile %s not found
 ```
+
+### msg:11231
+> kind=message tier=reference since=- src=sdsys/messages/11231:1#f1702b46
+
+```
+Messages
+```
+
+cited by: `ide`
+
+### msg:11232
+> kind=message tier=reference since=- src=sdsys/messages/11232:1#23d3a9d0
+
+```
+Replace this text:
+```
+
+cited by: `ide`
+
+### msg:11233
+> kind=message tier=reference since=- src=sdsys/messages/11233:1#cfa2a879
+
+```
+With:
+```
+
+cited by: `ide`
+
+### msg:11234
+> kind=message tier=reference since=- src=sdsys/messages/11234:1#5e14fcb2
+
+```
+%1 replacement(s)
+```
+
+cited by: `ide`
 
 ### msg:11235
 > kind=message tier=reference since=- src=sdsys/messages/11235:1#6ca769bf
@@ -2445,12 +2994,48 @@ ML and MR conversions take a format mask in round brackets, not negatives in rou
 A select that finds records executes the first command in the data queue
 ```
 
+### msg:11237
+> kind=message tier=reference since=- src=sdsys/messages/11237:1#6ce6c512
+
+```
+Files
+```
+
+cited by: `ide`
+
+### msg:11238
+> kind=message tier=reference since=- src=sdsys/messages/11238:1#2a4d562b
+
+```
+Tabs
+```
+
+cited by: `ide`
+
+### msg:11239
+> kind=message tier=reference since=- src=sdsys/messages/11239:1#c7e9fb2e
+
+```
+Editor
+```
+
+cited by: `ide`
+
 ### msg:1124
 > kind=message tier=reference since=- src=sdsys/messages/1124:1#5e2c82a3
 
 ```
 Locally catalogued subroutine %s not found
 ```
+
+### msg:11240
+> kind=message tier=reference since=- src=sdsys/messages/11240:1#f1702b46
+
+```
+Messages
+```
+
+cited by: `ide`
 
 ### msg:11243
 > kind=message tier=reference since=- src=sdsys/messages/11243:1#1c97aafe
@@ -4434,6 +5019,60 @@ A file on server %1 cannot be changed or locked inside a transaction: %2 is refu
 The lock kind for the file on server %1 is not valid (%2)
 ```
 
+### msg:11600
+> kind=message tier=reference since=- src=sdsys/messages/11600:1#64ada5ed
+
+```
+The window is %1 and %2 is laid out for %3: the cursor is off the screen and keys are ignored. Make the window larger to carry on, or press Ctrl-Q to leave.
+```
+
+cited by: `sl_guard`
+
+### msg:11601
+> kind=message tier=reference since=- src=sdsys/messages/11601:1#c047ed47
+
+```
+Leave? (changes are NOT saved) y/n
+```
+
+cited by: `sl_guard`
+
+### msg:11602
+> kind=message tier=reference since=- src=sdsys/messages/11602:1#c71c7c85
+
+```
+%1 needs a window of at least %2 columns by %3 lines for its full-screen display; this one is %4, so it is using line mode
+```
+
+cited by: `sl_need`
+
+### msg:11603
+> kind=message tier=reference since=- src=sdsys/messages/11603:1#595cb968
+
+```
+%1 %2 has changes.  Save them, then edit in SED?
+```
+
+cited by: `ide`
+
+### msg:11604
+> kind=message tier=reference since=- src=sdsys/messages/11604:1#cea0c5bc
+
+```
+Back from SED: %1 %2 is saved
+```
+
+cited by: `ide`
+
+### msg:11605
+> kind=message tier=reference since=- src=sdsys/messages/11605:1#f532bf4b
+
+```
+Back from SED: %1 %2 is as it was
+```
+
+cited by: `ide`
+
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371
 
@@ -4559,6 +5198,114 @@ cited by: `encryptkey`
 ```
 
 cited by: `encryptkey`
+
+### msg:11800
+> kind=message tier=reference since=- src=sdsys/messages/11800:1#dd02a6e6
+
+```
+%1 is for the administrator only: it runs for SDSYS, logged in at the machine's own keyboard
+```
+
+cited by: `tk_open`
+
+### msg:11801
+> kind=message tier=reference since=- src=sdsys/messages/11801:1#d37bdde2
+
+```
+%1 needs a terminal and cannot run as a phantom
+```
+
+cited by: `tk_open`
+
+### msg:11802
+> kind=message tier=reference since=- src=sdsys/messages/11802:1#f1e73f18
+
+```
+%1 could not take the screen
+```
+
+cited by: `tk_open`
+
+### msg:11803
+> kind=message tier=reference since=- src=sdsys/messages/11803:1#b3aca92c
+
+```
+administrator
+```
+
+cited by: `tk_open`
+
+### msg:11822
+> kind=message tier=reference since=- src=sdsys/messages/11822:1#bca2b715
+
+```
+filter:
+```
+
+cited by: `sl_pickwin`
+
+### msg:11823
+> kind=message tier=reference since=- src=sdsys/messages/11823:1#16620e18
+
+```
+%1 of %2
+```
+
+cited by: `sl_pickwin`
+
+### msg:11824
+> kind=message tier=reference since=- src=sdsys/messages/11824:1#3102548b
+
+```
+%1 marked
+```
+
+cited by: `sl_pickwin`
+
+### msg:11825
+> kind=message tier=reference since=- src=sdsys/messages/11825:1#ab919e07
+
+```
+? shows help for the highlighted entry
+```
+
+cited by: `sl_pickwin`
+
+### msg:11826
+> kind=message tier=reference since=- src=sdsys/messages/11826:1#90226a14
+
+```
+nothing matches
+```
+
+cited by: `sl_pickwin`
+
+### msg:11827
+> kind=message tier=reference since=- src=sdsys/messages/11827:1#c739eecb
+
+```
+%1 shown
+```
+
+cited by: `sl_pickwin`
+
+### msg:11828
+> kind=message tier=reference since=- src=sdsys/messages/11828:1#d0ec8a24
+
+```
+%1 or more shown
+```
+
+cited by: `sl_pickwin`
+
+### msg:11829
+> kind=message tier=reference since=- src=sdsys/messages/11829:1#8919a2e8
+
+```
+none yet: %1 records searched, a key that moves down goes on
+```
+
+cited by: `sl_pickwin`
 
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
@@ -5665,7 +6412,7 @@ cited by: `basic`, `como`, `cproc`, `printer`
 Record is locked by user %1
 ```
 
-cited by: `ed`
+cited by: `ed`, `sed`
 
 ### msg:1430
 > kind=message tier=reference since=- src=sdsys/messages/1430:1#4ffe33ab
@@ -5701,7 +6448,7 @@ cited by: `como`, `phantom`, `setqueue`
 Record '%1' is locked by user %2
 ```
 
-cited by: `cname`, `ed`, `qproc`
+cited by: `ced`, `cname`, `ed`, `qproc`
 
 ### msg:1434
 > kind=message tier=reference since=- src=sdsys/messages/1434:1#b88599a8
@@ -6296,7 +7043,7 @@ cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `cl
 File not found
 ```
 
-cited by: `analyseidx`, `buildi`, `clearfl`, `cname`, `createi`, `ct`, `delete`, `deletei` and 13 more
+cited by: `analyseidx`, `buildi`, `ced`, `clearfl`, `cname`, `createi`, `ct`, `delete` and 15 more
 
 ### msg:2020
 > kind=message tier=reference since=- src=sdsys/messages/2020:1#ddb8a0ce
@@ -6404,7 +7151,7 @@ cited by: `_voc_cat`
 Use active select list (First item '%1') (y/<n>)? 
 ```
 
-cited by: `cd`, `copy`, `ct`, `delete`, `deletef`, `ed`
+cited by: `cd`, `copy`, `ct`, `delete`, `deletef`, `ed`, `sed`
 
 ### msg:2051
 > kind=message tier=reference since=- src=sdsys/messages/2051:1#26979478
@@ -6524,7 +7271,7 @@ Full pathname required
 File name required
 ```
 
-cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `clearfl`, `cname`, `configf`, `copyp` and 16 more
+cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `ced`, `clearfl`, `cname`, `configf` and 17 more
 
 ### msg:2105
 > kind=message tier=reference since=- src=sdsys/messages/2105:1#05b315af
@@ -6551,7 +7298,7 @@ cited by: `ct`
 Null record name ignored
 ```
 
-cited by: `ct`, `delete`
+cited by: `ced`, `ct`, `delete`
 
 ### msg:2108
 > kind=message tier=reference since=- src=sdsys/messages/2108:1#f443697f
@@ -8971,7 +9718,7 @@ cited by: `settrig`
 Data validation error: %1
 ```
 
-cited by: `cname`, `copy`, `delete`, `ed`
+cited by: `cname`, `copy`, `delete`, `ed`, `sed`
 
 ### msg:3010
 > kind=message tier=reference since=- src=sdsys/messages/3010:1#8ebb8330
@@ -14102,7 +14849,7 @@ cited by: `ed`
 File name? 
 ```
 
-cited by: `ed`
+cited by: `ed`, `sed`
 
 ### msg:6502
 > kind=message tier=reference since=- src=sdsys/messages/6502:1#a95ef750
@@ -14111,7 +14858,7 @@ cited by: `ed`
 File name = %1
 ```
 
-cited by: `ed`
+cited by: `ed`, `sed`
 
 ### msg:6503
 > kind=message tier=reference since=- src=sdsys/messages/6503:1#b91733b2
@@ -14120,7 +14867,7 @@ cited by: `ed`
 Record name? 
 ```
 
-cited by: `ed`
+cited by: `ed`, `sed`
 
 ### msg:6504
 > kind=message tier=reference since=- src=sdsys/messages/6504:1#41ee50b9
@@ -14640,7 +15387,7 @@ Compiling %1
 Cannot format dictionary item
 ```
 
-cited by: `ed`
+cited by: `ed`, `sed`
 
 ### msg:6562
 > kind=message tier=reference since=- src=sdsys/messages/6562:1#6f050a46
@@ -15336,12 +16083,16 @@ Press Return to add a new item, Kill line to remove next item
 Tab interval in &SED.OPTIONS& must be in range 1 to 99
 ```
 
+cited by: `sed`
+
 ### msg:6628
 > kind=message tier=reference since=- src=sdsys/messages/6628:1#d90e794a
 
 ```
 Unrecognised option keyword in &SED.OPTIONS& (%1)
 ```
+
+cited by: `sed`
 
 ### msg:6629
 > kind=message tier=reference since=- src=sdsys/messages/6629:1#8c15b37b
@@ -15350,12 +16101,16 @@ Unrecognised option keyword in &SED.OPTIONS& (%1)
 Require line number or field,value,subvalue position
 ```
 
+cited by: `sed`
+
 ### msg:6630
 > kind=message tier=reference since=- src=sdsys/messages/6630:1#aeace272
 
 ```
 Error in field,value,subvalue position
 ```
+
+cited by: `sed`
 
 ### msg:6631
 > kind=message tier=reference since=- src=sdsys/messages/6631:1#2e26f7f8
@@ -15378,12 +16133,16 @@ Query replace:
 Replace by: 
 ```
 
+cited by: `sed`
+
 ### msg:6634
 > kind=message tier=reference since=- src=sdsys/messages/6634:1#eff060b9
 
 ```
 Too many buffers
 ```
+
+cited by: `sed`
 
 ### msg:6635
 > kind=message tier=reference since=- src=sdsys/messages/6635:1#a8e61f72
@@ -15392,6 +16151,8 @@ Too many buffers
 End of line
 ```
 
+cited by: `sed`
+
 ### msg:6636
 > kind=message tier=reference since=- src=sdsys/messages/6636:1#1d6d520e
 
@@ -15399,7 +16160,7 @@ End of line
 Import file: 
 ```
 
-cited by: `ed`
+cited by: `ed`, `sed`
 
 ### msg:6637
 > kind=message tier=reference since=- src=sdsys/messages/6637:1#9b5e24d4
@@ -15408,7 +16169,7 @@ cited by: `ed`
 Record: 
 ```
 
-cited by: `ed`
+cited by: `ed`, `sed`
 
 ### msg:6638
 > kind=message tier=reference since=- src=sdsys/messages/6638:1#e7e1f137
@@ -15417,12 +16178,16 @@ cited by: `ed`
 Extension: 
 ```
 
+cited by: `sed`
+
 ### msg:6639
 > kind=message tier=reference since=- src=sdsys/messages/6639:1#f0c1460c
 
 ```
 Value/subvalue not present. Extend item?
 ```
+
+cited by: `sed`
 
 ### msg:6640
 > kind=message tier=reference since=- src=sdsys/messages/6640:1#f1124044
@@ -15431,12 +16196,16 @@ Value/subvalue not present. Extend item?
 Not found.
 ```
 
+cited by: `sed`
+
 ### msg:6641
 > kind=message tier=reference since=- src=sdsys/messages/6641:1#beff1a84
 
 ```
 Modified edit buffer for this record will be lost. Continue with delete?
 ```
+
+cited by: `sed`
 
 ### msg:6642
 > kind=message tier=reference since=- src=sdsys/messages/6642:1#6a3ea989
@@ -15445,12 +16214,16 @@ Modified edit buffer for this record will be lost. Continue with delete?
 The buffer for this record will also be deleted. Continue with delete?
 ```
 
+cited by: `sed`
+
 ### msg:6643
 > kind=message tier=reference since=- src=sdsys/messages/6643:1#2acd6187
 
 ```
 Unable to delete item
 ```
+
+cited by: `sed`
 
 ### msg:6644
 > kind=message tier=reference since=- src=sdsys/messages/6644:1#31d4bafd
@@ -15459,12 +16232,16 @@ Unable to delete item
 Extension %1 not found
 ```
 
+cited by: `sed`
+
 ### msg:6645
 > kind=message tier=reference since=- src=sdsys/messages/6645:1#9fc8f58a
 
 ```
 Error %1 running extension
 ```
+
+cited by: `sed`
 
 ### msg:6646
 > kind=message tier=reference since=- src=sdsys/messages/6646:1#dca795f7
@@ -15473,12 +16250,16 @@ Error %1 running extension
 Record not found. Press RETURN to continue.
 ```
 
+cited by: `sed`
+
 ### msg:6647
 > kind=message tier=reference since=- src=sdsys/messages/6647:1#f63548ef
 
 ```
 Illegal buffer number
 ```
+
+cited by: `sed`
 
 ### msg:6648
 > kind=message tier=reference since=- src=sdsys/messages/6648:1#3f495ead
@@ -15487,12 +16268,16 @@ Illegal buffer number
 Cannot delete only buffer
 ```
 
+cited by: `sed`
+
 ### msg:6649
 > kind=message tier=reference since=- src=sdsys/messages/6649:1#efe2c63a
 
 ```
 Delete modified buffer?
 ```
+
+cited by: `sed`
 
 ### msg:6650
 > kind=message tier=reference since=- src=sdsys/messages/6650:1#81d7e4ab
@@ -15501,12 +16286,16 @@ Delete modified buffer?
 Replace? (Space = replace, Return = skip, Cancel = abort)
 ```
 
+cited by: `sed`
+
 ### msg:6651
 > kind=message tier=reference since=- src=sdsys/messages/6651:1#962ae267
 
 ```
 Writing record...
 ```
+
+cited by: `sed`
 
 ### msg:6652
 > kind=message tier=reference since=- src=sdsys/messages/6652:1#5d0d53e4
@@ -15515,12 +16304,16 @@ Writing record...
 Error %1 writing record
 ```
 
+cited by: `sed`
+
 ### msg:6653
 > kind=message tier=reference since=- src=sdsys/messages/6653:1#a362bce5
 
 ```
 This record may not be written
 ```
+
+cited by: `sed`
 
 ### msg:6654
 > kind=message tier=reference since=- src=sdsys/messages/6654:1#6b7e645e
@@ -15529,12 +16322,16 @@ This record may not be written
 Search: 
 ```
 
+cited by: `sed`
+
 ### msg:6655
 > kind=message tier=reference since=- src=sdsys/messages/6655:1#efb4a5b7
 
 ```
 Key binding for action %1 does not start with a control character
 ```
+
+cited by: `sed`
 
 ### msg:6656
 > kind=message tier=reference since=- src=sdsys/messages/6656:1#1426f19e
@@ -15543,12 +16340,16 @@ Key binding for action %1 does not start with a control character
 Duplicate key bindings. Actions %1 and %2
 ```
 
+cited by: `sed`
+
 ### msg:6657
 > kind=message tier=reference since=- src=sdsys/messages/6657:1#042ae8d5
 
 ```
 Ambiguous key bindings. Actions %1 and %2
 ```
+
+cited by: `sed`
 
 ### msg:6658
 > kind=message tier=reference since=- src=sdsys/messages/6658:1#633d08ee
@@ -15557,12 +16358,16 @@ Ambiguous key bindings. Actions %1 and %2
 Press key for which encoding is to be inserted
 ```
 
+cited by: `sed`
+
 ### msg:6659
 > kind=message tier=reference since=- src=sdsys/messages/6659:1#343d9339
 
 ```
 Press RETURN to resume editing.
 ```
+
+cited by: `sed`
 
 ### msg:6660
 > kind=message tier=reference since=- src=sdsys/messages/6660:1#86eaebe6
@@ -15571,12 +16376,16 @@ Press RETURN to resume editing.
 Building list of records in file...
 ```
 
+cited by: `sed`
+
 ### msg:6661
 > kind=message tier=reference since=- src=sdsys/messages/6661:1#ae77090c
 
 ```
 Reading record...
 ```
+
+cited by: `sed`
 
 ### msg:6662
 > kind=message tier=reference since=- src=sdsys/messages/6662:1#172ecaf3
@@ -15585,12 +16394,16 @@ Reading record...
 Record is locked for creation by another user.
 ```
 
+cited by: `sed`
+
 ### msg:6663
 > kind=message tier=reference since=- src=sdsys/messages/6663:1#54fe5462
 
 ```
 Create new record?
 ```
+
+cited by: `sed`
 
 ### msg:6664
 > kind=message tier=reference since=- src=sdsys/messages/6664:1#8a53e094
@@ -15599,12 +16412,16 @@ Create new record?
 Record is locked by another user. Read only access available
 ```
 
+cited by: `sed`
+
 ### msg:6665
 > kind=message tier=reference since=- src=sdsys/messages/6665:1#75d6a174
 
 ```
 New record.
 ```
+
+cited by: `sed`
 
 ### msg:6666
 > kind=message tier=reference since=- src=sdsys/messages/6666:1#d4ca6304
@@ -15613,12 +16430,16 @@ New record.
 Error reloading record.
 ```
 
+cited by: `sed`
+
 ### msg:6667
 > kind=message tier=reference since=- src=sdsys/messages/6667:1#67bfc9d5
 
 ```
 File name: 
 ```
+
+cited by: `sed`
 
 ### msg:6668
 > kind=message tier=reference since=- src=sdsys/messages/6668:1#f508640b
@@ -15627,12 +16448,16 @@ File name:
 Old buffer
 ```
 
+cited by: `sed`
+
 ### msg:6669
 > kind=message tier=reference since=- src=sdsys/messages/6669:1#8a1a3d4d
 
 ```
 Write file: 
 ```
+
+cited by: `sed`
 
 ### msg:6670
 > kind=message tier=reference since=- src=sdsys/messages/6670:1#5275efb8
@@ -15641,12 +16466,16 @@ Write file:
 File not found. Press RETURN to continue.
 ```
 
+cited by: `sed`
+
 ### msg:6671
 > kind=message tier=reference since=- src=sdsys/messages/6671:1#1474cbed
 
 ```
 Record exists. Overwrite?
 ```
+
+cited by: `sed`
 
 ### msg:6672
 > kind=message tier=reference since=- src=sdsys/messages/6672:1#3fb9b97f
@@ -15655,12 +16484,16 @@ Record exists. Overwrite?
 Export record: 
 ```
 
+cited by: `sed`
+
 ### msg:6673
 > kind=message tier=reference since=- src=sdsys/messages/6673:1#b91169f0
 
 ```
 No buffers available
 ```
+
+cited by: `sed`
 
 ### msg:6674
 > kind=message tier=reference since=- src=sdsys/messages/6674:1#d18b6c61
@@ -15669,12 +16502,16 @@ No buffers available
 Quoted string contains delimiter
 ```
 
+cited by: `sed`
+
 ### msg:6675
 > kind=message tier=reference since=- src=sdsys/messages/6675:1#f9d352b1
 
 ```
 Template string may not contain both single and double quotes
 ```
+
+cited by: `sed`
 
 ### msg:6676
 > kind=message tier=reference since=- src=sdsys/messages/6676:1#270d6a33
@@ -15683,12 +16520,16 @@ Template string may not contain both single and double quotes
 Rebuilding explore buffer...
 ```
 
+cited by: `sed`
+
 ### msg:6677
 > kind=message tier=reference since=- src=sdsys/messages/6677:1#aff2bf39
 
 ```
 (no lock)
 ```
+
+cited by: `sed`
 
 ### msg:6678
 > kind=message tier=reference since=- src=sdsys/messages/6678:1#2a088e48
@@ -15697,12 +16538,16 @@ Rebuilding explore buffer...
 No mark
 ```
 
+cited by: `sed`
+
 ### msg:6679
 > kind=message tier=reference since=- src=sdsys/messages/6679:1#e4571490
 
 ```
 Not now
 ```
+
+cited by: `sed`
 
 ### msg:6680
 > kind=message tier=reference since=- src=sdsys/messages/6680:1#608e2342
@@ -15711,12 +16556,16 @@ Not now
 Buffer has no associated file
 ```
 
+cited by: `sed`
+
 ### msg:6681
 > kind=message tier=reference since=- src=sdsys/messages/6681:1#7468b69e
 
 ```
 Read only buffer
 ```
+
+cited by: `sed`
 
 ### msg:6682
 > kind=message tier=reference since=- src=sdsys/messages/6682:1#4c48c8b4
@@ -15725,12 +16574,16 @@ Read only buffer
 Record changed.  Quit without saving? 
 ```
 
+cited by: `sed`
+
 ### msg:6683
 > kind=message tier=reference since=- src=sdsys/messages/6683:1#e7d3c5a2
 
 ```
 Command: 
 ```
+
+cited by: `sed`
 
 ### msg:6684
 > kind=message tier=reference since=- src=sdsys/messages/6684:1#edc36dd8
@@ -15739,12 +16592,16 @@ Command:
 Cannot compile dictionary item.
 ```
 
+cited by: `sed`
+
 ### msg:6685
 > kind=message tier=reference since=- src=sdsys/messages/6685:1#e5ccda5d
 
 ```
 Compiling %1 %2
 ```
+
+cited by: `sed`
 
 ### msg:6686
 > kind=message tier=reference since=- src=sdsys/messages/6686:1#30f33877
@@ -15753,12 +16610,16 @@ Compiling %1 %2
 Compilation complete
 ```
 
+cited by: `sed`
+
 ### msg:6687
 > kind=message tier=reference since=- src=sdsys/messages/6687:1#c5c8167b
 
 ```
 Compiled with errors
 ```
+
+cited by: `sed`
 
 ### msg:6688
 > kind=message tier=reference since=- src=sdsys/messages/6688:1#a2631a48
@@ -15767,12 +16628,16 @@ Compiled with errors
 Compiling extension...
 ```
 
+cited by: `sed`
+
 ### msg:6689
 > kind=message tier=reference since=- src=sdsys/messages/6689:1#d198df61
 
 ```
 Key bindings = %1
 ```
+
+cited by: `sed`
 
 ### msg:6690
 > kind=message tier=reference since=- src=sdsys/messages/6690:1#2b56264d
@@ -15781,12 +16646,16 @@ Key bindings = %1
 Default (fundamental) key bindings in use
 ```
 
+cited by: `sed`
+
 ### msg:6691
 > kind=message tier=reference since=- src=sdsys/messages/6691:1#2cbaeca1
 
 ```
 Unrecognised LNUM option - Expected ON, OFF, ALL, ON ALL or OFF ALL
 ```
+
+cited by: `sed`
 
 ### msg:6692
 > kind=message tier=reference since=- src=sdsys/messages/6692:1#7d221130
@@ -15795,12 +16664,16 @@ Unrecognised LNUM option - Expected ON, OFF, ALL, ON ALL or OFF ALL
 No key binding record name given
 ```
 
+cited by: `sed`
+
 ### msg:6693
 > kind=message tier=reference since=- src=sdsys/messages/6693:1#fde01dd0
 
 ```
 Key binding record not found
 ```
+
+cited by: `sed`
 
 ### msg:6694
 > kind=message tier=reference since=- src=sdsys/messages/6694:1#49a8ccac
@@ -15809,6 +16682,8 @@ Key binding record not found
 Cannot load key bindings - &SED.BINDINGS& file not open
 ```
 
+cited by: `sed`
+
 ### msg:6695
 > kind=message tier=reference since=- src=sdsys/messages/6695:1#6ae99571
 
@@ -15816,12 +16691,16 @@ Cannot load key bindings - &SED.BINDINGS& file not open
 Cannot save key bindings - &SED.BINDINGS& file not open
 ```
 
+cited by: `sed`
+
 ### msg:6696
 > kind=message tier=reference since=- src=sdsys/messages/6696:1#2c273b1f
 
 ```
 Destination printer name required after %1
 ```
+
+cited by: `sed`
 
 ### msg:6697
 > kind=message tier=reference since=- src=sdsys/messages/6697:1#36eb50d1
@@ -15837,12 +16716,16 @@ Unexpected arguments in SPOOL command
 Wait...
 ```
 
+cited by: `sed`
+
 ### msg:6699
 > kind=message tier=reference since=- src=sdsys/messages/6699:1#9a7d0c4b
 
 ```
 Destination printer not available. Error %1
 ```
+
+cited by: `sed`
 
 ### msg:6700
 > kind=message tier=reference since=- src=sdsys/messages/6700:1#4bd3649a
@@ -16671,12 +17554,16 @@ cited by: `nls`
 (modified)
 ```
 
+cited by: `sed`
+
 ### msg:6911
 > kind=message tier=reference since=- src=sdsys/messages/6911:1#61de5ba7
 
 ```
 Tab interval must be in range 1 to 99
 ```
+
+cited by: `sed`
 
 ### msg:6912
 > kind=message tier=reference since=- src=sdsys/messages/6912:1#4d53cf68
@@ -16685,12 +17572,16 @@ Tab interval must be in range 1 to 99
 Expected PROC or FUNC
 ```
 
+cited by: `sed`
+
 ### msg:6913
 > kind=message tier=reference since=- src=sdsys/messages/6913:1#b5147a7d
 
 ```
 Arguments already defined
 ```
+
+cited by: `sed`
 
 ### msg:6914
 > kind=message tier=reference since=- src=sdsys/messages/6914:1#7d90a9be
@@ -16699,12 +17590,16 @@ Arguments already defined
 Argument name not found where expected
 ```
 
+cited by: `sed`
+
 ### msg:6915
 > kind=message tier=reference since=- src=sdsys/messages/6915:1#b6763e75
 
 ```
 Duplicated argument name
 ```
+
+cited by: `sed`
 
 ### msg:6916
 > kind=message tier=reference since=- src=sdsys/messages/6916:1#11ffd71b
@@ -16713,12 +17608,16 @@ Duplicated argument name
 Too many arguments
 ```
 
+cited by: `sed`
+
 ### msg:6917
 > kind=message tier=reference since=- src=sdsys/messages/6917:1#e60fb6aa
 
 ```
 Unrecognised option : %1
 ```
+
+cited by: `sed`
 
 ### msg:6918
 > kind=message tier=reference since=- src=sdsys/messages/6918:1#d1af1b71
@@ -16727,12 +17626,16 @@ Unrecognised option : %1
 Expected left bracket before procedure/function body
 ```
 
+cited by: `sed`
+
 ### msg:6919
 > kind=message tier=reference since=- src=sdsys/messages/6919:1#077ab81c
 
 ```
 Expected right bracket
 ```
+
+cited by: `sed`
 
 ### msg:6920
 > kind=message tier=reference since=- src=sdsys/messages/6920:1#a2eb6e76
@@ -16741,12 +17644,16 @@ Expected right bracket
 Expected name for local PROC/FUNC
 ```
 
+cited by: `sed`
+
 ### msg:6921
 > kind=message tier=reference since=- src=sdsys/messages/6921:1#cf1e63d3
 
 ```
 Duplicate local PROC/FUNC name
 ```
+
+cited by: `sed`
 
 ### msg:6922
 > kind=message tier=reference since=- src=sdsys/messages/6922:1#96a4a019
@@ -16755,12 +17662,16 @@ Duplicate local PROC/FUNC name
 Expected end of source
 ```
 
+cited by: `sed`
+
 ### msg:6923
 > kind=message tier=reference since=- src=sdsys/messages/6923:1#722d93d6
 
 ```
 Local PROC %1 used as FUNC
 ```
+
+cited by: `sed`
 
 ### msg:6924
 > kind=message tier=reference since=- src=sdsys/messages/6924:1#d988c277
@@ -16769,12 +17680,16 @@ Local PROC %1 used as FUNC
 Local FUNC %1 used as PROC
 ```
 
+cited by: `sed`
+
 ### msg:6925
 > kind=message tier=reference since=- src=sdsys/messages/6925:1#a268dede
 
 ```
 Argument count mismatch in local PROC/FUNC %1
 ```
+
+cited by: `sed`
 
 ### msg:6926
 > kind=message tier=reference since=- src=sdsys/messages/6926:1#1517481b
@@ -16783,12 +17698,16 @@ Argument count mismatch in local PROC/FUNC %1
 Local PROC not referenced
 ```
 
+cited by: `sed`
+
 ### msg:6927
 > kind=message tier=reference since=- src=sdsys/messages/6927:1#6c43b0d7
 
 ```
 Local FUNC not referenced
 ```
+
+cited by: `sed`
 
 ### msg:6928
 > kind=message tier=reference since=- src=sdsys/messages/6928:1#b711ddc5
@@ -16797,12 +17716,16 @@ Local FUNC not referenced
 External references:
 ```
 
+cited by: `sed`
+
 ### msg:6929
 > kind=message tier=reference since=- src=sdsys/messages/6929:1#671959bd
 
 ```
 %1 (function, %2 arguments)
 ```
+
+cited by: `sed`
 
 ### msg:6930
 > kind=message tier=reference since=- src=sdsys/messages/6930:1#ad8c77db
@@ -16811,12 +17734,16 @@ External references:
 %1 (%2 arguments)
 ```
 
+cited by: `sed`
+
 ### msg:6931
 > kind=message tier=reference since=- src=sdsys/messages/6931:1#e7827dbf
 
 ```
 Procedure has too many local variables
 ```
+
+cited by: `sed`
 
 ### msg:6932
 > kind=message tier=reference since=- src=sdsys/messages/6932:1#0c475dca
@@ -16825,12 +17752,16 @@ Procedure has too many local variables
 Object code is too large to process
 ```
 
+cited by: `sed`
+
 ### msg:6933
 > kind=message tier=reference since=- src=sdsys/messages/6933:1#181f2c69
 
 ```
 Expected left bracket
 ```
+
+cited by: `sed`
 
 ### msg:6934
 > kind=message tier=reference since=- src=sdsys/messages/6934:1#0b908392
@@ -16839,12 +17770,16 @@ Expected left bracket
 Misuse of function that returns a value
 ```
 
+cited by: `sed`
+
 ### msg:6935
 > kind=message tier=reference since=- src=sdsys/messages/6935:1#22bab91d
 
 ```
 Expected function name
 ```
+
+cited by: `sed`
 
 ### msg:6936
 > kind=message tier=reference since=- src=sdsys/messages/6936:1#40d3c1b3
@@ -16853,12 +17788,16 @@ Expected function name
 Insufficient arguments in %1 function. Expected %2.
 ```
 
+cited by: `sed`
+
 ### msg:6937
 > kind=message tier=reference since=- src=sdsys/messages/6937:1#fd592c5c
 
 ```
 EXIT not in LOOP
 ```
+
+cited by: `sed`
 
 ### msg:6938
 > kind=message tier=reference since=- src=sdsys/messages/6938:1#b4d522f2
@@ -16867,12 +17806,16 @@ EXIT not in LOOP
 Expected variable name
 ```
 
+cited by: `sed`
+
 ### msg:6939
 > kind=message tier=reference since=- src=sdsys/messages/6939:1#4e6e8339
 
 ```
 Internal error - Invalid function for proc stack
 ```
+
+cited by: `sed`
 
 ### msg:6940
 > kind=message tier=reference since=- src=sdsys/messages/6940:1#e081469e
@@ -16881,12 +17824,16 @@ Internal error - Invalid function for proc stack
 Unexpected end of source program
 ```
 
+cited by: `sed`
+
 ### msg:6941
 > kind=message tier=reference since=- src=sdsys/messages/6941:1#3b6e96fe
 
 ```
 Function returns no value
 ```
+
+cited by: `sed`
 
 ### msg:6942
 > kind=message tier=reference since=- src=sdsys/messages/6942:1#c606a7fc
@@ -16895,6 +17842,8 @@ Function returns no value
 Unrecognised system variable : %1
 ```
 
+cited by: `sed`
+
 ### msg:6943
 > kind=message tier=reference since=- src=sdsys/messages/6943:1#5251dc3f
 
@@ -16902,12 +17851,16 @@ Unrecognised system variable : %1
 Syntax error
 ```
 
+cited by: `sed`
+
 ### msg:6944
 > kind=message tier=reference since=- src=sdsys/messages/6944:1#fcecc421
 
 ```
 Mark characters not allowed in string literals
 ```
+
+cited by: `sed`
 
 ### msg:6945
 > kind=message tier=reference since=- src=sdsys/messages/6945:1#d9dccf78
@@ -17007,6 +17960,8 @@ Data entry key bindings\n\nCtrl-A   Home   Position cursor at start of data\nCtr
 No records
 ```
 
+cited by: `sed`
+
 ### msg:6969
 > kind=message tier=reference since=- src=sdsys/messages/6969:1#c52495cf
 
@@ -17059,12 +18014,16 @@ cited by: `ed`
 A value edit buffer exists for this record
 ```
 
+cited by: `sed`
+
 ### msg:6975
 > kind=message tier=reference since=- src=sdsys/messages/6975:1#47e1745b
 
 ```
 This is a value edit buffer
 ```
+
+cited by: `sed`
 
 ### msg:6976
 > kind=message tier=reference since=- src=sdsys/messages/6976:1#273ccfbd
