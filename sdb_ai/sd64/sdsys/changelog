@@ -1,6 +1,63 @@
 Next release - in progress
 --------------------------
 
+23 Oct 26  THE ACCOUNT CAN ASK AN AI A QUESTION WITH THE ai VERB, ONCE THE
+           ADMINISTRATOR HAS CHOSEN A PROVIDER ON THE NEW AI CHOICE PAGE, GIVEN
+           IT A MODEL AND A KEY, AND TURNED THE AI GATE ON. NOTHING IS ON AS
+           DELIVERED. Carried from SD Core's change of 23 October.
+
+           What        ai text (a new verb) shows what will be sent - the
+                       provider, the model, the size, one fixed sentence and your
+                       text - and sends it only when you answer y or yes; anything
+                       else, including an input that has ended, sends nothing.
+                       The answer is printed as plain text. Text that ends with a
+                       question mark goes in quotes, because TCL does not run a
+                       command that ends with one. The administrator (admin
+                       first): tool.ai is the page - Anthropic, OpenAI, DeepSeek
+                       and Custom in a table with a check box on the provider in
+                       use (none checked is off), each with its address filled in
+                       and the model and key for you to supply; Custom is the
+                       fourth choice, where you fill in everything - and below it
+                       the one switch, the ai gate. set.ai does the same from the
+                       prompt (set.ai gate on, set.ai provider NAME, set.ai model
+                       PROVIDER NAME, set.ai key PROVIDER, ...). The requests go
+                       through a small helper, sd-ai, which systemd starts for
+                       each request on a socket of your own (a new user unit,
+                       sd-solo-ai.socket, written by the installer and by an
+                       upgrade). It is the only part of SD that connects outward
+                       and the only part that reads a key. The key is typed at the
+                       helper's own prompt, which shows nothing; it does not pass
+                       through SD, the page or the audit trail, and is kept in a
+                       private file in the ai directory of your Solo directory.
+                       The kernel writes the audit line (ai request account=...
+                       program=... bytes.out=...) before it connects. Limits:
+                       20 requests an hour and 100000 tokens a day, 30 seconds,
+                       65536 bytes each way and 1024 tokens an answer; set.ai
+                       limit changes them.
+           Why it      You can ask for an explanation or a draft without leaving
+           matters     SD, and the administrator decides which provider and model
+                       and whether the AI is on at all, in one place, with the key
+                       kept out of SD's reach.
+           Does not    NOTHING IS ON AS DELIVERED: no provider, no model, no key,
+                       and the gate is off. WEAKER THAN SD CORE: Solo makes no
+                       operating system user of its own, so the helper runs as
+                       YOU. Any program you run, not only SD, can talk to its
+                       socket, change its settings and make it use the key; SD
+                       itself keeps the gate and never shows the key, but it
+                       cannot stop another program of yours. What leaves the
+                       machine is the text you typed, after you have seen it; the
+                       helper uses https only, always checks the certificate and
+                       the host name, follows no redirect and sends the key only to
+                       the provider's address. Custom lets the administrator name
+                       any https address and a private certificate file, which is a
+                       deliberate widening: leave it unfilled to allow the three
+                       named providers only. The answer is plain ASCII, never run.
+                       NOT BUILT: an AI line on the home screen, in the IDE, SED
+                       or CED, applying a suggestion, and any other provider's
+                       request layout. NOT SHOWN: a run against a real provider
+                       (the OpenAI layout in particular follows its documentation)
+                       and a real install with the systemd user socket.
+
 23 Oct 26  THE HOME SCREEN IS NOW WHERE A SESSION STARTS: TILES, A TERMINAL AND
            SIGN OUT; THE ADMINISTRATOR'S SETTINGS FOR IT; [?] HELP ON THE
            ADMINISTRATOR'S PAGES; AND pdf TO READ THE DOCUMENTATION. Carried

@@ -236,6 +236,11 @@ cp -R gplbld/nanocfg "$H/nanocfg"
 # built from a clone always has it).
 mkdir -p "$H/tools"
 cp gplbld/solo-service.sh gplbld/solo-ssh.sh gplbld/solo-sshguard.py "$H/tools/"   # sshguard: the ssh lockout, LSOLO 29
+# 23 Oct 26 - LSOLO 66 (Solo carry 15, S.69 step 2): the AI helper, its client and the table of the three shipped providers.  They run as the user (the user unit
+# sd-solo-ai.socket, solo-service.sh); the settings and keys the helper keeps are in <home>/ai, which the helper makes (mode 0700) on its first change.
+cp gplbld/sd-ai gplbld/sd-ai-ctl gplbld/ai-providers "$H/tools/"
+chmod 0755 "$H/tools/sd-ai" "$H/tools/sd-ai-ctl"
+chmod 0644 "$H/tools/ai-providers"
 # 02 Oct 26 - LSOLO 20 (S.50): BACKUP.ACCOUNT / RESTORE.ACCOUNT's archive tool, in
 # bin beside sd, which runs it: the helpers name <sysdir>/bin/sd-accarchive and
 # start_sd() runs "sd-accarchive swap" to put a waiting restore in place.

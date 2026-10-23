@@ -32,6 +32,7 @@ messages
 netfiles
 object
 objprog
+op_ai
 op_arith
 op_array
 op_btree

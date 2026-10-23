@@ -149,6 +149,63 @@ ssh_apply() {
   local s; s="$(systemctl --user is-active "$SSH_SOCKET" 2>&1)"
   [ "$s" = "active" ] || { systemctl --user status "$SSH_SOCKET" --no-pager 2>&1 | tail -12; fail "$SSH_SOCKET is '$s', not active"; }
 }
+# ---- the AI helper's units (LSOLO 66, Solo carry 15 of S.69 step 2).  A Unix socket in the user's runtime directory, mode 0600, and one short-lived
+# "sd-ai" process per connection, AS THE USER (Solo has no other OS user: owner's answer of 23 Oct 2026, "same-user helper").  The socket has no network
+# address and the helper does nothing until the administrator has turned the gate on, chosen a provider and given a model and a key, so the units are
+# always written; "ai TREE --print" shows them and writes nothing.  No filesystem sandboxing (ProtectHome, ProtectSystem): a user manager cannot always
+# make the namespaces it needs, and a unit that fails to start would take the whole feature away; what a user manager always allows is kept.
+AI_SOCKET="sd-solo-ai.socket"
+AI_TEMPLATE="sd-solo-ai@.service"
+ai_socket_text() {
+  cat <<UNIT
+[Unit]
+Description=SD Core for Linux Solo (the AI helper's socket)
+
+[Socket]
+ListenStream=%t/sd-solo-ai.sock
+SocketMode=0600
+Accept=true
+MaxConnections=16
+
+[Install]
+WantedBy=sockets.target
+UNIT
+}
+ai_template_text() {   # ai_template_text TREE PYTHON
+  cat <<UNIT
+[Unit]
+Description=SD Core for Linux Solo (the AI helper, one request)
+
+[Service]
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+ExecStart=$2 $1/tools/sd-ai --state $1/ai --providers $1/tools/ai-providers
+RuntimeMaxSec=330
+UMask=0077
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+UNIT
+}
+# ai_apply TREE: writes the two units and starts the socket.  One pair per user, as for ssh: refuse to replace a pair that names another tree.
+ai_apply() {
+  local tree="$1" other
+  if [ -f "$UNITDIR/$AI_TEMPLATE" ] && ! grep -qF -e " $tree/tools/sd-ai " "$UNITDIR/$AI_TEMPLATE"; then
+    other="$(sed -n 's#^ExecStart=[^ ]* \(.*\)/tools/sd-ai .*#\1#p' "$UNITDIR/$AI_TEMPLATE" | head -1)"
+    refuse "the AI helper's units installed for this user belong to another Solo tree (${other:-unknown}); doing this for $tree would replace them"
+  fi
+  [ -f "$tree/tools/sd-ai" ] || fail "$tree/tools/sd-ai is missing (the AI helper); an upgrade installs it"
+  systemctl --user disable --now "$AI_SOCKET" >/dev/null 2>&1 || true
+  mkdir -p "$UNITDIR" || fail "mkdir $UNITDIR"
+  ai_socket_text > "$UNITDIR/$AI_SOCKET"
+  ai_template_text "$tree" "$(ssh_python_path)" > "$UNITDIR/$AI_TEMPLATE"
+  systemctl --user daemon-reload || fail "daemon-reload"
+  systemctl --user enable --now "$AI_SOCKET" 2>&1 | tail -2
+  local s; s="$(systemctl --user is-active "$AI_SOCKET" 2>&1)"
+  [ "$s" = "active" ] || { systemctl --user status "$AI_SOCKET" --no-pager 2>&1 | tail -12; fail "$AI_SOCKET is '$s', not active"; }
+}
 ssh_check_tree() {   # ssh_check_tree TREE
   case "$1" in /*) ;; *) refuse "HOME_DIR must be an absolute path (got '$1')" ;; esac
   [ -x "$1/bin/sd-solo" ]  || refuse "$1/bin/sd-solo is not there"
@@ -172,6 +229,15 @@ if [ "${1:-}" = "ssh" ] && [ "$#" -eq 4 ] && [ "$4" = "--print" ]; then
   exit 0
 fi
 
+# "ai TREE --print": the AI helper's two units on stdout, nothing written, no systemctl (what the free test reads).
+if [ "${1:-}" = "ai" ] && [ "$#" -eq 3 ] && [ "$3" = "--print" ]; then
+  ssh_check_tree "$2"
+  echo "# $AI_SOCKET"; ai_socket_text
+  echo
+  echo "# $AI_TEMPLATE"; ai_template_text "$2" "$(ssh_python_path)"
+  exit 0
+fi
+
 command -v systemctl >/dev/null || refuse "systemctl is not available"
 systemctl --user is-system-running >/dev/null 2>&1 || {
   st="$(systemctl --user is-system-running 2>&1)"
@@ -180,8 +246,8 @@ systemctl --user is-system-running >/dev/null 2>&1 || {
 
 cmd="${1:-}"
 case "$cmd" in
-  install|remove|status|ssh) shift ;;
-  *) refuse "usage: bash $0 install HOME_DIR [--api off|local|open] [--ssh off|local|open] | ssh HOME_DIR off|local|open [--print] | remove | status" ;;
+  install|remove|status|ssh|ai) shift ;;
+  *) refuse "usage: bash $0 install HOME_DIR [--api off|local|open] [--ssh off|local|open] | ssh HOME_DIR off|local|open [--print] | ai HOME_DIR [--print] | remove | status" ;;
 esac
 
 linger_state() { loginctl show-user "$USER" -p Linger --value 2>/dev/null || echo unknown; }
@@ -208,14 +274,23 @@ if [ "$cmd" = "ssh" ]; then
   exit 0
 fi
 
+if [ "$cmd" = "ai" ]; then
+  [ "$#" -eq 1 ] || refuse "usage: bash $0 ai HOME_DIR [--print]"
+  ssh_check_tree "$1"
+  ai_apply "$1"
+  echo "SOLO AI HELPER SOCKET READY"
+  exit 0
+fi
+
 if [ "$cmd" = "status" ]; then
   echo "unit directory : $UNITDIR"
-  for u in "$DAEMON" "$SOCKET" "$TEMPLATE" "$SSH_SOCKET" "$SSH_TEMPLATE"; do
+  for u in "$DAEMON" "$SOCKET" "$TEMPLATE" "$SSH_SOCKET" "$SSH_TEMPLATE" "$AI_SOCKET" "$AI_TEMPLATE"; do
     [ -f "$UNITDIR/$u" ] && echo "  present      : $u" || echo "  absent       : $u"
   done
   echo "daemon         : $(systemctl --user is-active "$DAEMON" 2>&1)   (enabled: $(systemctl --user is-enabled "$DAEMON" 2>&1))"
   echo "api socket     : $(systemctl --user is-active "$SOCKET" 2>&1)"
   echo "ssh socket     : $(systemctl --user is-active "$SSH_SOCKET" 2>&1)"
+  echo "ai socket      : $(systemctl --user is-active "$AI_SOCKET" 2>&1)"
   echo "linger         : $(linger_state)"
   exit 0
 fi
@@ -223,11 +298,12 @@ fi
 if [ "$cmd" = "remove" ]; then
   echo "removing the SD Core for Linux Solo user units"
   systemctl --user disable --now "$SSH_SOCKET" >/dev/null 2>&1 || true
+  systemctl --user disable --now "$AI_SOCKET" >/dev/null 2>&1 || true
   systemctl --user disable --now "$SOCKET" >/dev/null 2>&1 || true
   systemctl --user disable --now "$DAEMON" >/dev/null 2>&1 || true
-  for u in "$SSH_SOCKET" "$SSH_TEMPLATE" "$SOCKET" "$TEMPLATE" "$DAEMON"; do rm -f "$UNITDIR/$u"; done
+  for u in "$SSH_SOCKET" "$SSH_TEMPLATE" "$AI_SOCKET" "$AI_TEMPLATE" "$SOCKET" "$TEMPLATE" "$DAEMON"; do rm -f "$UNITDIR/$u"; done
   systemctl --user daemon-reload || fail "daemon-reload"
-  for u in "$DAEMON" "$SOCKET" "$SSH_SOCKET"; do
+  for u in "$DAEMON" "$SOCKET" "$SSH_SOCKET" "$AI_SOCKET"; do
     [ -f "$UNITDIR/$u" ] && fail "$UNITDIR/$u is still there"
   done
   echo "linger is left as it was ($(linger_state)); this script never disables it."
@@ -333,6 +409,10 @@ fi
 
 # The ssh units; ssh_apply also removes a pair left by an earlier install when this one says off.
 ssh_apply "$H" "$ssh"
+
+# The AI helper's socket (LSOLO 66): always written, inert until the administrator has set the AI up (set.ai).
+ai_apply "$H"
+echo "  ai helper  : socket $(systemctl --user is-active "$AI_SOCKET" 2>&1) (off until set.ai gate on)"
 
 lg="$(linger_state)"
 if [ "$lg" != "yes" ] && [ "$want_linger" = "yes" ]; then

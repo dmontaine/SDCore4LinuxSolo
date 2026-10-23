@@ -152,9 +152,10 @@ fi
 if [ -f "$H/tools/solo-service.sh" ]; then
   bash "$H/tools/solo-service.sh" remove 2>&1 | tail -2
 else
-  systemctl --user disable --now sd-solo-ssh.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
+  systemctl --user disable --now sd-solo-ssh.socket sd-solo-ai.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
   rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service \
-        "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh@.service
+        "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh@.service \
+        "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ai.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ai@.service
   systemctl --user daemon-reload 2>/dev/null || true
 fi
 for n in sd-solo sd; do   # the new name, then an old install's

@@ -999,6 +999,9 @@ if [ "$upgrade" -eq 1 ]; then
         fi
       fi
     fi
+    # LSOLO 66 (Solo carry 15, S.69 step 2): the AI helper's two user units.  An install from before this release has none; they are written (inert until the
+    # administrator has set the AI up) and the socket started.  The script refuses a pair that names another tree, and the upgrade goes on without it.
+    bash "$HOME_DIR/tools/solo-service.sh" ai "$HOME_DIR" 2>&1 | tail -2 || true
   else
     say "There was no service; starting SD directly ($HOME_DIR/bin/sd-solo -start)."
     "$HOME_DIR/bin/sd-solo" -start >/dev/null 2>&1 || true

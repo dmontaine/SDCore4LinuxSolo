@@ -386,6 +386,14 @@
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
 
+/* 23 Oct 26 dm - Solo carry 15 (S.69 step 2; the numbers are Core's, 160 to 163, so a program means the same on both).  The in-SD AI helper's transport (op_ai.c).  Only a
+   $internal program may call them (anything else is answered ERR, internal).  The argument of K_AI_START is  system <FM> maxtokens <FM> prompt ; the answers are strings,
+   described at the head of op_ai.c.  K_AI_START writes the audit line itself, before it connects.  GPL.BP/INT$KEYS.H carries the same numbers. */
+#define K_AI_START           160
+#define K_AI_POLL            161
+#define K_AI_CANCEL          162
+#define K_AI_STATUS          163
+
 /* PTERM() function action keys */
 #define PT_BREAK              1
 #define PT_INVERT             2
