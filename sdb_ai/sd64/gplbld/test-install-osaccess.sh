@@ -89,7 +89,7 @@ check() {   # check INSTALLER STAGE SAMPLE - every row, against these three file
   row "the question is asked on an upgrade BEFORE 'Continue?' and on a first install BEFORE the passwords" \
     "$(awk '/^if \[ "\$upgrade" -eq 1 \]; then$/ {u=1} u && /^  ask_os_access$/ {a=NR} u && /read -r -p "Continue\? \[Y\/n\] "/ && !c {c=NR} /^ask_os_access$/ {i=NR} /^get_password\(\) \{/ {g=NR} END {exit !(a && c && a<c && i && g && i<g)}' "$inst" && echo 0 || echo 1)"
   row "both solo-stage.sh calls pass the answer (a fresh stage, and --upgrade), none when there is none" \
-    "$(grep -q 'solo-stage.sh" --upgrade --os-access "\${os_access:-none}" "\$HOME_DIR"' "$inst" && grep -q 'st_args+=(--os-access "\${os_access:-none}")' "$inst" && echo 0 || echo 1)"
+    "$(grep -q 'solo-stage.sh" --upgrade --os-access "\${os_access:-none}" --viewer "\${viewer:-none}" "\$HOME_DIR"' "$inst" && grep -q 'st_args+=(--os-access "\${os_access:-none}" --viewer "\${viewer:-none}")' "$inst" && echo 0 || echo 1)"
   row "the summary and the log carry the state: the installer fails if solo-stage printed no 'OS access:' line" \
     "$([ "$(grep -c "solo-stage: OS access: //p" "$inst")" -ge 2 ] && grep -q "say \"  shell and OS  : " "$inst" && echo 0 || echo 1)"
   row "an upgrade still refuses every other install option (os-access is the one exception)" \
@@ -133,7 +133,7 @@ the answer is not kept when one was given|i|s/\[ -z "\$os_access" \] || return 0
 os_access_word says sh for both|i|s/if \[ "\$1" = 1 \] \&\& \[ "\$2" = 1 \]; then echo both/if [ "$1" = 1 ] \&\& [ "$2" = 1 ]; then echo sh/
 the first install no longer asks|i|s/^ask_os_access$/true/
 the upgrade passes no answer to solo-stage|i|s/--upgrade --os-access "\${os_access:-none}"/--upgrade/
-the fresh stage passes no answer to solo-stage|i|s/st_args+=(--os-access "\${os_access:-none}")/true/
+the fresh stage passes no answer to solo-stage|i|s/st_args+=(--os-access "\${os_access:-none}" --viewer "\${viewer:-none}")/true/
 the control file's os-access is not read|i|s/os-access)       cf_osacc=/os-accessX)      cf_osacc=/
 the summary line is gone|i|s/say "  shell and OS  : /say "  /
 solo-stage turns on OS for sh|s|s/case "\$osaccess" in os|both) osacc_one OS ;; esac/case "$osaccess" in sh|os|both) osacc_one OS ;; esac/

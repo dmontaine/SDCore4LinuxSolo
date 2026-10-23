@@ -77,12 +77,20 @@ reloaddir=""
 # to turn ON for the account after it exists (SET.OS.ACCESS SH ON, SET.OS.ACCESS OS ON, in an internal session).  none, and no option,
 # leaves both as they are: OFF on a new account, and whatever they were on an upgrade.  The installer's question is what gives it.
 osaccess=""
-usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] [--reload-data DIR] [--os-access none|sh|os|both] HOME_DIR
-       bash $0 --upgrade [--os-access none|sh|os|both] HOME_DIR"
-while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--reload-data" ] || [ "${1:-}" = "--os-access" ] || [ "${1:-}" = "--upgrade" ]; do
+# --viewer NAME|none (23 Oct 26, Solo carry 14): a PDF reader to allow for the pdf verb (SET.VIEWER ADD PDF NAME, in an internal session, which tests the program).  none, and no
+# option, allow nothing: the list is empty as delivered, and an upgrade keeps what the administrator allowed.  The installer's question is what gives it.
+viewer=""
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] [--reload-data DIR] [--os-access none|sh|os|both] [--viewer NAME|none] HOME_DIR
+       bash $0 --upgrade [--os-access none|sh|os|both] [--viewer NAME|none] HOME_DIR"
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--reload-data" ] || [ "${1:-}" = "--os-access" ] || [ "${1:-}" = "--viewer" ] || [ "${1:-}" = "--upgrade" ]; do
   if [ "$1" = "--upgrade" ]; then upgrade=1; shift; continue; fi
   [ "$#" -ge 3 ] || refuse "$usage"
   if [ "$1" = "--reload-data" ]; then reloaddir="$2"; shift 2; continue; fi
+  if [ "$1" = "--viewer" ]; then
+    case "$2" in none) viewer="" ;; ""|.*|*[!a-z0-9._+-]*) refuse "--viewer must be none or the name of a reader: letters, digits and . _ + - (got '$2')" ;; *) viewer="$2" ;; esac
+    shift 2
+    continue
+  fi
   if [ "$1" = "--os-access" ]; then
     case "$2" in none|sh|os|both) osaccess="$2" ;; *) refuse "--os-access must be none, sh, os or both (got '$2')" ;; esac
     shift 2
@@ -426,6 +434,33 @@ printf '%s\n' "$oa_plain" | tail -2
 oa_line="$(printf '%s\n' "$oa_plain" | grep -E '^Account sduser has SH (yes|no), OS\.EXECUTE (yes|no)[[:space:]]*$' | tail -1)"
 [ -n "$oa_line" ] || fail "SET.OS.ACCESS (no argument) did not print its 'Account sduser has SH ..., OS.EXECUTE ...' line"
 echo "solo-stage: OS access: $oa_line"
+
+# 23 Oct 26, Solo carry 14 (S.75): THE DOCUMENTATION.  The pdf directory the pdf verb reads ($H/pdf; the PDFs are generated from the documentation and are not part of the source, so
+# the administrator puts them there with DOCS.INSTALL), the context help ($H/context.help; LOAD.HELP, idempotent: an upgrade refreshes the shipped records and keeps ones the
+# administrator added), and the PDF reader the person said yes to (--viewer NAME; none and no option allow nothing, and an upgrade keeps what was allowed).  None of this stops the
+# install: a step that did not do what it should says so in a WARNING line and the stage goes on.  The reader goes through SET.VIEWER, which tests the program, and the
+# result is judged on the list file, not on sd's exit code (sd exits 0 when it refused).
+mkdir -p "$H/pdf" || fail "making $H/pdf"
+echo
+echo "Loading the context help ($SD -internal LOAD.HELP)"
+lh_out="$(sdi LOAD.HELP 2>&1)" || true
+lh_plain="$(printf '%s\n' "$lh_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+printf '%s\n' "$lh_plain" | tail -2
+if printf '%s\n' "$lh_plain" | grep -qE '^Context help: [0-9]+ new, [0-9]+ changed, [0-9]+ already current, [0-9]+ added by the administrator and kept[[:space:]]*$'; then
+  echo "solo-stage: context help: loaded"
+else
+  echo "solo-stage: WARNING: LOAD.HELP did not report; the [?] buttons have no text until you type ADMIN and then LOAD.HELP"
+fi
+if [ -n "$viewer" ]; then
+  echo "Allowing the PDF reader $viewer ($SD -internal SET.VIEWER ADD PDF $viewer)"
+  sv_out="$(sdi SET.VIEWER ADD PDF "$viewer" 2>&1)" || true
+  printf '%s\n' "$sv_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' | tail -2
+fi
+if grep -qs '^pdf ' "$H/viewers"; then
+  echo "solo-stage: PDF reader: allowed $(sed -n 's/^pdf //p' "$H/viewers" | tr '\n' ' ')"
+else
+  echo "solo-stage: PDF reader: none allowed$([ -z "$viewer" ] || echo " (WARNING: $viewer was asked for and was not allowed; ADMIN, then set.viewer add pdf $viewer)")"
+fi
 
 # Ruling 33: the SD Core server's programs in GLOBAL.BP.OUT go into the global
 # catalogue, last, whether or not there is a global password (without one it says so and succeeds).

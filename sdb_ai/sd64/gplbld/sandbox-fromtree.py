@@ -545,6 +545,11 @@ def layout(box):
     for d in ("user_accounts", "group_accounts"):
         os.makedirs(os.path.join(box.root, d), exist_ok=True)
     say("    layout: sys/bin/sd -> sd-solo, sd.conf -> sys/sd.conf, user_accounts/ and group_accounts/ (empty) made")
+    # 23 Oct 26 (Solo carry 14, S.75): a session on a terminal now starts in the HOME SCREEN unless the system default says terminal, and every pty suite types at the prompt, so the
+    # sandbox starts at the terminal (Core's tool writes the same file); the suites that test the home screen change it for their own rows.
+    with open(os.path.join(box.sys, "start.default"), "w") as f:
+        f.write("terminal\n")
+    say("    layout: sys/start.default says terminal (the delivered default is menu; the sandbox starts at the prompt)")
 
 
 def do_all(box):

@@ -71,7 +71,14 @@
 #                                 On a terminal the installer asks (a fresh install and an upgrade, default no); with
 #                                 no terminal, with --yes and no --os-access, or with none, both stay as they are
 #                                 (off on a new account, as you left them on an upgrade).  The control file's os-access.
-#   --enable-linger               run "loginctl enable-linger" so SD survives sign-out
+#   --viewer NAME|none            the answer to the question "allow a PDF reader to show the documentation?" (23 Oct 2026,
+#                                 Solo carry 14): the pdf verb shows a documentation PDF even when the account has no OS
+#                                 access, so it starts only a reader the administrator allowed.  NOTHING IS ALLOWED unless you
+#                                 say so (default no); NAME is a reader found in /usr/bin, /usr/local/bin or /bin (evince,
+#                                 okular, zathura, atril, xreader, mupdf, qpdfview, xpdf).  Asked on a terminal when such a
+#                                 reader is installed and none is allowed yet; with no terminal, with --yes, or with none,
+#                                 nothing is allowed.  Later: ADMIN, then set.viewer add pdf NAME.  The control file's viewer.
+#   --enable-linger              run "loginctl enable-linger" so SD survives sign-out
 #   --skip-packages               do not install packages; check the tools instead
 #   --no-service                  do not install the systemd user service
 #   --yes                         do not ask "Continue?" (nor the shell and OS access question: with --yes and no --os-access
@@ -81,7 +88,7 @@
 #                                 the passwords, sd.conf, the audit trail, GLOBAL.BP.OUT and the
 #                                 deny list are kept.  A safety copy of the whole tree is made
 #                                 first (<home>.before-upgrade-<time>) and put back if any step
-#                                 fails.  Takes no password and no other install option but --os-access.
+#                                 fails.  Takes no password and no other install option but --os-access and --viewer.
 #
 # EXIT: 0 installed and self-checked; 1 a step failed; 2 refused to start.
 # The last line of a good install is "SOLO INSTALL COMPLETE <home>".
@@ -153,9 +160,11 @@ api="" ; api_port="4249"
 ssh=""; ssh_port="4251"
 ssh_key=""; enable_linger=0; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
 os_access=""   # 20 Oct 26, the OS switch: none|sh|os|both once answered (by --os-access, the control file, or the question)
+viewer=""      # 23 Oct 26, Solo carry 14: a PDF reader to allow for the pdf verb (a name), or none; "" until answered
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --os-access)              [ "$#" -ge 2 ] || refuse "--os-access needs none, sh, os or both"; os_access="$2"; shift 2 ;;
+    --viewer)                 [ "$#" -ge 2 ] || refuse "--viewer needs a reader name or none"; viewer="$2"; shift 2 ;;
     --home)                   [ "$#" -ge 2 ] || refuse "--home needs a directory"; HOME_DIR="$2"; shift 2 ;;
     --control-file)           [ "$#" -ge 2 ] || refuse "--control-file needs a file"; control_file="$2"; shift 2 ;;
     --managed)                refuse "--managed is gone: there is one install now. A computer is managed if it has a global password: give --global-password-file FILE, or answer the global password question; leave it blank if no SD Core server manages this computer." ;;
@@ -173,7 +182,7 @@ while [ "$#" -gt 0 ]; do
     --no-service)             no_service=1; shift ;;
     --yes)                    assume_yes=1; shift ;;
     --upgrade)                upgrade=1; shift ;;
-    -h|--help)                sed -n '2,85p' "$0"; exit 0 ;;
+    -h|--help)                sed -n '2,93p' "$0"; exit 0 ;;
     *) refuse "unknown option: $1 (see --help)" ;;
   esac
 done
@@ -182,6 +191,7 @@ case "$HOME_DIR" in *" "*|*'"'*|*"'"*|*'\'*|*'$'*|*'`'*|*'%'*) refuse "the insta
 case "$api" in ""|off|local|open) ;; *) refuse "--api must be off, local or open (got '$api')" ;; esac
 case "$ssh" in ""|off|local|open) ;; *) refuse "--ssh must be off, local or open (got '$ssh')" ;; esac
 case "$os_access" in ""|none|sh|os|both) ;; *) refuse "--os-access must be none, sh, os or both (got '$os_access')" ;; esac
+case "$viewer" in ""|none) ;; *[!a-z0-9._+-]*|.*) refuse "--viewer must be none or the name of a reader: letters, digits and . _ + - (got '$viewer')" ;; esac
 if [ "$ssh" = "off" ] && [ -n "$ssh_key" ]; then refuse "--ssh-key needs ssh on; give --ssh local or --ssh open, or leave --ssh out"; fi
 if [ -n "${SDSOLO_TEST_SSH_PORT:-}" ]; then
   case "$SDSOLO_TEST_SSH_PORT" in *[!0-9]*) refuse "SDSOLO_TEST_SSH_PORT must be a number (got '$SDSOLO_TEST_SSH_PORT')" ;; esac
@@ -343,9 +353,42 @@ ask_os_access() {   # settles os_access when --os-access and the control file ga
 }
 # END os_access
 
+# 23 Oct 26, Solo carry 14 (S.75; SD Core's installer has the same question): THE QUESTION ABOUT A PDF READER.  The pdf verb shows the documentation even when the account has
+# no OS access, which is a looser default than Solo's, so the list of readers it may start is EMPTY as delivered and this asks once, default NO.  It is asked on a terminal
+# when a known reader is installed in /usr/bin, /usr/local/bin or /bin and the tree has no reader allowed yet (an upgrade keeps what the administrator chose); the answer is
+# --viewer, and solo-stage.sh runs set.viewer, which tests the program.  With no terminal, with --yes, or with none, nothing is allowed.
+# The functions between the markers are run by gplbld/test-install-viewer.sh: keep them free of anything but their arguments and the variables named in them.
+# BEGIN viewer_ask
+find_pdf_reader() {   # find_pdf_reader: the first known reader that is installed, or nothing
+  local v d
+  for v in evince okular zathura atril xreader mupdf qpdfview xpdf; do
+    for d in /usr/bin /usr/local/bin /bin; do
+      if [ -x "$d/$v" ]; then echo "$v"; return 0; fi
+    done
+  done
+  return 0
+}
+ask_viewer() {   # settles viewer when --viewer and the control file gave none: asks on a terminal, else none
+  local found
+  [ -z "$viewer" ] || return 0
+  if [ "$interactive" -ne 1 ] || [ "$assume_yes" -eq 1 ]; then
+    viewer="none"
+    return 0
+  fi
+  if grep -qs '^pdf ' "$HOME_DIR/viewers"; then viewer="none"; return 0; fi
+  found="$(find_pdf_reader)"
+  if [ -z "$found" ]; then viewer="none"; return 0; fi
+  say
+  say "The pdf verb shows the documentation in a PDF reader, even when your account may not run programs."
+  say "  It starts only a reader that the administrator has allowed, and none is allowed unless you say so.  $found is installed here."
+  say "  You can change this later: type ADMIN, then set.viewer."
+  if os_yn "Allow $found to show the documentation?"; then viewer="$found"; else viewer="none"; fi
+}
+# END viewer_ask
+
 # An upgrade asks only that one question (above) and reads the install's own record; a first install does
 # everything from here to "scratch space".
-cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_ssh=""; cf_linger=""; cf_deny=""; cf_reload=""; cf_osacc=""
+cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_ssh=""; cf_linger=""; cf_deny=""; cf_reload=""; cf_osacc=""; cf_viewer=""
 ACC_PW=""; ADM_PW=""; GLB_PW=""
 ssh_wanted=0; first_login=0
 if [ "$upgrade" -eq 1 ]; then
@@ -364,6 +407,7 @@ if [ "$upgrade" -eq 1 ]; then
   say "  replaced    : programs and system objects; a safety copy of the whole tree is made first"
   say "  running as  : $(id -un)"
   ask_os_access
+  ask_viewer
   if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
     read -r -p "Continue? [Y/n] " a < /dev/tty; a="${a:-y}"
     case "$a" in y|Y|yes|YES) ;; *) refuse "cancelled by you; nothing was changed" ;; esac
@@ -388,6 +432,7 @@ if [ -n "$control_file" ]; then
       ssh)             cf_ssh="${val//[[:space:]]/}" ;;
       reload-data)     cf_reload="$val" ;;
       os-access)       cf_osacc="${val//[[:space:]]/}" ;;
+      viewer)          cf_viewer="${val//[[:space:]]/}" ;;
       ssh-match)       warn "the control file's ssh-match is gone (LSOLO 29: Solo's ssh has its own port, 4251, and no longer uses the machine's sshd_config); ignored" ;;
       enable-linger)   cf_linger="$val" ;;
       *) warn "the control file has an item this installer does not know, ignored: $key" ;;
@@ -408,6 +453,8 @@ if [ -n "$control_file" ]; then
   [ -n "$reload_ans" ] || reload_ans="$cf_reload"
   case "$cf_osacc" in ""|none|sh|os|both) ;; *) refuse "os-access in the control file must be none, sh, os or both (got '$cf_osacc')" ;; esac
   [ -n "$os_access" ] || os_access="$cf_osacc"
+  case "$cf_viewer" in ""|none) ;; *[!a-z0-9._+-]*|.*) refuse "viewer in the control file must be none or the name of a reader: letters, digits and . _ + - (got '$cf_viewer')" ;; esac
+  [ -n "$viewer" ] || viewer="$cf_viewer"
   if [ "$ssh" = "off" ] && [ -n "$ssh_key" ]; then refuse "an ssh public key needs ssh on: the install says ssh off and also gives a key (--ssh-key or the control file's ssh-public-key-file)"; fi
 fi
 
@@ -448,6 +495,8 @@ fi
 
 # 20 Oct 26, the OS switch: the shell and OS access question (see ask_os_access above); OFF unless the answer says otherwise.
 ask_os_access
+# 23 Oct 26, Solo carry 14: the PDF reader question (see ask_viewer above); NOTHING is allowed unless the answer says so.
+ask_viewer
 
 # passwords, in the owner's order (ruling 30): account, administrator, then - if there is one - global
 get_password() {   # get_password VAR "what" "from-file" "from-control"
@@ -714,7 +763,7 @@ if [ "$upgrade" -eq 1 ]; then
     had_service=1
     systemctl --user stop sd-solo-ssh.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
   fi
-  if ! bash "$SRC/gplbld/solo-stage.sh" --upgrade --os-access "${os_access:-none}" "$HOME_DIR" > "$WORK/stage.log" 2>&1; then
+  if ! bash "$SRC/gplbld/solo-stage.sh" --upgrade --os-access "${os_access:-none}" --viewer "${viewer:-none}" "$HOME_DIR" > "$WORK/stage.log" 2>&1; then
     tail -25 "$WORK/stage.log"
     [ "$had_service" -eq 0 ] || systemctl --user start sd-solo.service sd-solo-api.socket sd-solo-ssh.socket >/dev/null 2>&1 || true
     fail "the upgrade (full log: $WORK/stage.log - removed when this script ends). The tree was put back as it was; if the log above does not say so, do not use $HOME_DIR: your data is in the safety copy $HOME_DIR.before-upgrade-*"
@@ -723,6 +772,7 @@ if [ "$upgrade" -eq 1 ]; then
     || fail "the stage log has no 'solo-stage: UPGRADE COMPLETE'"
   os_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: OS access: //p' | tail -1)"
   [ -n "$os_state" ] || fail "the stage log has no 'solo-stage: OS access:' line (SET.OS.ACCESS did not report)"
+  viewer_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: PDF reader: //p' | tail -1)"
   upgrade_backup="$(cat "$HOME_DIR/.last-upgrade-backup" 2>/dev/null || true)"
   rm -f "$HOME_DIR/.last-upgrade-backup"
   { printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; \
@@ -745,12 +795,13 @@ printf '%s\n' "$ADM_PW" > "$WORK/adm.pw"; st_args+=(--admin-password-file "$WORK
 if [ "$managed" -eq 1 ]; then printf '%s\n' "$GLB_PW" > "$WORK/glb.pw"; st_args+=(--global-password-file "$WORK/glb.pw"); fi
 if [ -n "$cf_deny" ]; then st_args+=(--deny-verbs "$cf_deny"); fi
 if [ -n "$reload_dir" ]; then st_args+=(--reload-data "$reload_dir"); fi
-st_args+=(--os-access "${os_access:-none}")
+st_args+=(--os-access "${os_access:-none}" --viewer "${viewer:-none}")
 bash "$SRC/gplbld/solo-stage.sh" "${st_args[@]}" "$HOME_DIR" > "$WORK/stage.log" 2>&1 \
   || { tail -25 "$WORK/stage.log"; fail "the bootstrap (full log: $WORK/stage.log - removed when this script ends; re-run the failing step by hand from $SRC/gplbld/solo-stage.sh)"; }
 rm -f "$WORK/acc.pw" "$WORK/adm.pw" "$WORK/glb.pw"
 os_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: OS access: //p' | tail -1)"
 [ -n "$os_state" ] || fail "the stage log has no 'solo-stage: OS access:' line (SET.OS.ACCESS did not report)"
+viewer_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: PDF reader: //p' | tail -1)"
 if [ "$first_login" -eq 0 ]; then
   grep -qx 'SOLO PASSWORD SET ACCOUNT' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
     || fail "the stage log has no 'SOLO PASSWORD SET ACCOUNT'"
@@ -1046,6 +1097,7 @@ fi
 say "  command name  : sd-solo starts this one (plain sd is the multi-user SD Core's, if it is installed)"
 say "  administrator : type ADMIN     (the administrator password unlocks the administrator commands)"
 say "  shell and OS  : ${os_state:-unknown}   (off unless turned on; type ADMIN, then set.os.access, to see or change it)"
+say "  pdf reader    : ${viewer_state:-unknown}   (none is allowed unless you said so; ADMIN, then set.viewer; documents: docs.install, then pdf)"
 say "  service       : ${svc_state:-not installed}"
 [ "$api" = "off" ] || say "  API           : $api, port $api_port (TLS 1.3, account password)"
 [ "$ssh" = "off" ] || say "  ssh           : $ssh, port $ssh_port (ssh -p $ssh_port $(id -un)@<this computer>: your Linux password, then the SD account password); optional keys: bash $HOME_DIR/tools/solo-ssh.sh key-add $HOME_DIR <public key file>"
