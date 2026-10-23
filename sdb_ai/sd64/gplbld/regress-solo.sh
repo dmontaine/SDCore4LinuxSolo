@@ -22,7 +22,9 @@ for s in tk-solo apifile crypt csvb csvq guide jsonx osgate pack-examples req29 
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)
-  SDSOLOBOX_KEYSET=0 timeout 3000 python3 "$f" "$BOX" > "$LOGS/sandbox-$s.log" 2>&1
+  # txnfail builds its own sandboxes (a fixed one and a mutant per fix) in a directory it is given, which must be empty or absent
+  if [ "$s" = txnfail ]; then args=(--dir "$BOX-txnfail" --clean); else args=("$BOX"); fi
+  SDSOLOBOX_KEYSET=0 timeout 3000 python3 "$f" "${args[@]}" > "$LOGS/sandbox-$s.log" 2>&1
   rc=$?
   [ $rc -eq 0 ] || bad=$((bad + 1))
   echo "SUITE $s: exit $rc, $(( $(date +%s) - t0 )) s, $(grep -E 'passed|PASS.*of|[0-9]+ pass' "$LOGS/sandbox-$s.log" | tail -1 | cut -c1-130)"
