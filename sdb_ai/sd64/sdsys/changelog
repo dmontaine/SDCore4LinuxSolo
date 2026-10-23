@@ -1,6 +1,54 @@
 Next release - in progress
 --------------------------
 
+23 Oct 26  THE HOME SCREEN IS NOW WHERE A SESSION STARTS: TILES, A TERMINAL AND
+           SIGN OUT; THE ADMINISTRATOR'S SETTINGS FOR IT; [?] HELP ON THE
+           ADMINISTRATOR'S PAGES; AND pdf TO READ THE DOCUMENTATION. Carried
+           from SD Core's changes of 22 and 23 October.
+
+           What        (1) A session on a terminal opens the home screen: tiles
+                       for the Editor (sed), the IDE, the Record editor (ced), a
+                       Terminal and the Keys test (tool.keys), and Sign out at
+                       the top right. The arrow keys, Tab, a letter, Enter, the
+                       mouse and the wheel move and start; F5 builds it again,
+                       F10 opens its menu bar, Ctrl-Q signs out. The Terminal tile
+                       gives the ordinary prompt and exit comes back to the
+                       screen; the verbs are home, menu and exit (at a prompt that
+                       did not come from the screen, exit ends the session as
+                       quit does). (2) The administrator (admin first):
+                       set.start.default menu or terminal chooses where a session
+                       starts; set.tile sduser <tile> off or on takes a tile off
+                       the page (editor, ide, ced, terminal, keys; sign out
+                       cannot be turned off); set.pins on lets the account add
+                       programs of its own to its screen (my.menu); tool.menus is
+                       the page that shows those settings and runs the verbs once
+                       you answer Run. (3) Every row of that page has a [?]
+                       (F1, ? or a click) with a short help box, kept in the file
+                       context.help (load.help fills it). (4) pdf shows a
+                       documentation PDF in a reader the administrator has
+                       allowed (set.viewer; tool.viewers is the page for it), for
+                       the account even though its os switch is off; docs.install
+                       copies the PDF files in. (5) The IDE's menu bar showed
+                       "Message not found" for all six of its menus since 22
+                       October (six message files were left out of that carry);
+                       they are there now.
+           Why it      A person who signs on sees what they can do, and the
+           matters     administrator can keep an account to that screen. A
+                       document can be read without opening the shell to anyone.
+           Does not    THE DELIVERED START CHANGES: a session on a terminal now
+                       opens the home screen. If you want the command prompt as
+                       before, type admin and then set.start.default terminal.
+                       There is no Switch account (Solo has one account). Turning
+                       Terminal off keeps the person from the prompt the screen
+                       gives, not from the programs behind the other tiles; an
+                       account kept to the screen should have the editor and
+                       IDE tiles off as well. Nothing is allowed to show a
+                       document as delivered: the installer asks, and the answer
+                       is No unless you type y. The PDF files themselves are not
+                       in the source; docs.install copies them. Not built yet:
+                       sub-menus, a live line on a tile and a list of the last
+                       commands.
+
 22 Oct 26  THE SCREEN LIBRARY, THE EDITORS AND THE TERMINAL DIAGNOSTIC, AS IN
            SD CORE: SED, IDE, CED, TOOL.KEYS, NEW CONTROLS AND ACCELERATOR KEYS.
            Carried from SD Core's changes of 14 to 22 October.

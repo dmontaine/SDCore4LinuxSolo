@@ -10,6 +10,8 @@
 # Written 22 Oct 2026 for carry 13 (the screen library, SED, IDE, CED, tool.keys); Solo has no regress.sh of its own and the list below is the
 # whole of Solo's sandbox set at that date.  A failure that looks like left-over state is rerun alone on a FRESH sandbox before it is believed.
 # Add sandbox-tk-solo.py's own run (the new suite of carry 13) at the end: it is in the list.
+# 23 Oct 2026, carry 14: home-solo (sandbox-home-solo.py: the home screen, tiles off, set.pins, the context help, pdf, set.viewer, docs.install, tool.menus and tool.viewers).
+#   It changes start.default, the register record's tile and pins fields and the viewers file while it runs and puts them back; it leaves start.default saying terminal.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -18,12 +20,16 @@ LOGS="${2:-/tmp/regress-solo-logs}"
 mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
-for s in tk-solo apifile crypt csvb csvq guide jsonx osgate pack-examples req29 sdnet-login sdnetfile sdnet sortord txnfail vocguard xmlx; do
+# txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
+for s in tk-solo home-solo apifile crypt csvb csvq guide jsonx osgate pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)
-  # txnfail builds its own sandboxes (a fixed one and a mutant per fix) in a directory it is given, which must be empty or absent
-  if [ "$s" = txnfail ]; then args=(--dir "$BOX-txnfail" --clean); else args=("$BOX"); fi
+  # txnfail builds its own sandboxes (a fixed one and a mutant per fix) in a directory it is given, which must be empty or absent; the shared sandbox is stopped first
+  if [ "$s" = txnfail ]; then
+    SDSOLOBOX_KEYSET=0 python3 sandbox-fromtree.py "$BOX" stop > "$LOGS/stop-before-txnfail.log" 2>&1
+    args=(--dir "$BOX-txnfail" --clean)
+  else args=("$BOX"); fi
   SDSOLOBOX_KEYSET=0 timeout 3000 python3 "$f" "${args[@]}" > "$LOGS/sandbox-$s.log" 2>&1
   rc=$?
   [ $rc -eq 0 ] || bad=$((bad + 1))

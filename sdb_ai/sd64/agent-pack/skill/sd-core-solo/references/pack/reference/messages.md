@@ -2937,11 +2937,53 @@ Press Return to go back to the IDE
 
 cited by: `ide`
 
+### msg:11225
+> kind=message tier=reference since=- src=sdsys/messages/11225:1#27278247
+
+```
+&File|&New record~~new|&Save~F2~save|Save &as~^W~writeas|&Close record~~close|&Quit~^Q~quit
+```
+
+### msg:11226
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#ed0fbbf0
+
+```
+&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~F6~nexttab|&Files and records~F3~tree|&Edit in SED~^E~sed
+```
+
+### msg:11227
+> kind=message tier=reference since=- src=sdsys/messages/11227:1#a97fcac3
+
+```
+&Search|&Find in the records~F11~find|&Replace in the record~^R~replace
+```
+
+### msg:11228
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#91222fca
+
+```
+&Build|&Compile~F7~compile|Compile and &catalogue~F8~catalog|&Run~F5~run|&Debug~F9~debug
+```
+
+### msg:11229
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#6a4f14eb
+
+```
+&View|&Theme~~theme
+```
+
 ### msg:1123
 > kind=message tier=reference since=- src=sdsys/messages/1123:1#90800fd7
 
 ```
 Runfile %s not found
+```
+
+### msg:11230
+> kind=message tier=reference since=- src=sdsys/messages/11230:1#ec1bd1bf
+
+```
+&Help|&Keys~F1~help
 ```
 
 ### msg:11231
@@ -5199,6 +5241,51 @@ cited by: `encryptkey`
 
 cited by: `encryptkey`
 
+### msg:11720
+> kind=message tier=reference since=- src=sdsys/messages/11720:1#685cbe4c
+
+```
+docs.install directory; copies the PDF files of that directory into the pdf directory of the install directory
+```
+
+cited by: `docsinst`
+
+### msg:11721
+> kind=message tier=reference since=- src=sdsys/messages/11721:1#3115c3d1
+
+```
+The directory %1 cannot be read, or is not a plain path of letters, digits and / . _ -
+```
+
+cited by: `docsinst`
+
+### msg:11722
+> kind=message tier=reference since=- src=sdsys/messages/11722:1#46a96997
+
+```
+Copied %1 document(s) into the pdf directory; skipped %2
+```
+
+cited by: `docsinst`
+
+### msg:11723
+> kind=message tier=reference since=- src=sdsys/messages/11723:1#ec85ac26
+
+```
+Skipped %1: %2
+```
+
+cited by: `docsinst`
+
+### msg:11724
+> kind=message tier=reference since=- src=sdsys/messages/11724:1#19874be3
+
+```
+There is no pdf directory in the install directory (the stage script makes it), so there is nowhere to copy the documents
+```
+
+cited by: `docsinst`
+
 ### msg:11800
 > kind=message tier=reference since=- src=sdsys/messages/11800:1#dd02a6e6
 
@@ -5233,7 +5320,88 @@ cited by: `tk_open`
 administrator
 ```
 
-cited by: `tk_open`
+cited by: `tk_open`, `tool_home`
+
+### msg:11804
+> kind=message tier=reference since=- src=sdsys/messages/11804:1#58a916a2
+
+```
+there is nothing to run
+```
+
+cited by: `tk_run`
+
+### msg:11805
+> kind=message tier=reference since=- src=sdsys/messages/11805:1#769214f4
+
+```
+%1 is not one of the commands this tool may run
+```
+
+cited by: `tk_run`
+
+### msg:11806
+> kind=message tier=reference since=- src=sdsys/messages/11806:1#94aef6cc
+
+```
+%1 has a character that a command word may not have: use a-z, 0-9, dot, dash or underscore
+```
+
+cited by: `tk_run`
+
+### msg:11807
+> kind=message tier=reference since=- src=sdsys/messages/11807:1#c5e7c01d
+
+```
+the command is too long to run from this tool
+```
+
+cited by: `tk_run`
+
+### msg:11810
+> kind=message tier=reference since=- src=sdsys/messages/11810:1#007ef519
+
+```
+nothing was run: what was typed is not %1
+```
+
+cited by: `tk_confirm`
+
+### msg:11811
+> kind=message tier=reference since=- src=sdsys/messages/11811:1#d52a820a
+
+```
+this will run:
+```
+
+cited by: `tk_confirm`
+
+### msg:11812
+> kind=message tier=reference since=- src=sdsys/messages/11812:1#f80473b7
+
+```
+Run this command?
+```
+
+cited by: `tk_confirm`
+
+### msg:11813
+> kind=message tier=reference since=- src=sdsys/messages/11813:1#09708d8f
+
+```
+type %1 to run it
+```
+
+cited by: `tk_confirm`
+
+### msg:11821
+> kind=message tier=reference since=- src=sdsys/messages/11821:1#0994d85e
+
+```
+nothing was run
+```
+
+cited by: `tk_confirm`
 
 ### msg:11822
 > kind=message tier=reference since=- src=sdsys/messages/11822:1#bca2b715
@@ -5306,6 +5474,141 @@ none yet: %1 records searched, a key that moves down goes on
 ```
 
 cited by: `sl_pickwin`
+
+### msg:11830
+> kind=message tier=reference since=- src=sdsys/messages/11830:1#0d88e05f
+
+```
+No help has been written for this yet
+```
+
+cited by: `tk_help`
+
+### msg:11831
+> kind=message tier=reference since=- src=sdsys/messages/11831:1#ac73568b
+
+```
+The file context.help has no record %1.
+```
+
+cited by: `tk_help`
+
+### msg:11832
+> kind=message tier=reference since=- src=sdsys/messages/11832:1#df07cee7
+
+```
+Help is not installed here: there is no file context.help.  The administrator loads it with load.help.
+```
+
+cited by: `tk_help`
+
+### msg:11835
+> kind=message tier=reference since=- src=sdsys/messages/11835:1#8113ac02
+
+```
+The help text directory %1 is missing or empty
+```
+
+cited by: `loadhelp`
+
+### msg:11838
+> kind=message tier=reference since=- src=sdsys/messages/11838:1#084a9dfa
+
+```
+Could not make the file context.help
+```
+
+cited by: `loadhelp`
+
+### msg:11839
+> kind=message tier=reference since=- src=sdsys/messages/11839:1#c8951c90
+
+```
+Context help: %1 new, %2 changed, %3 already current, %4 added by the administrator and kept
+```
+
+cited by: `loadhelp`
+
+### msg:11840
+> kind=message tier=reference since=- src=sdsys/messages/11840:1#170e2ed3
+
+```
+Skipped %1 in the help text directory: %2
+```
+
+cited by: `loadhelp`
+
+### msg:11841
+> kind=message tier=reference since=- src=sdsys/messages/11841:1#ee3ede9e
+
+```
+Could not write the help record %1
+```
+
+cited by: `loadhelp`
+
+### msg:11843
+> kind=message tier=reference since=- src=sdsys/messages/11843:1#dfadd38c
+
+```
+pdf {name}; pdf alone lists the documents
+```
+
+cited by: `pdf`
+
+### msg:11844
+> kind=message tier=reference since=- src=sdsys/messages/11844:1#6bca02b4
+
+```
+%1 is not a document name
+```
+
+cited by: `pdf`
+
+### msg:11845
+> kind=message tier=reference since=- src=sdsys/messages/11845:1#8ac76c92
+
+```
+There is no document %1; pdf alone lists them
+```
+
+cited by: `pdf`
+
+### msg:11846
+> kind=message tier=reference since=- src=sdsys/messages/11846:1#1e07ab40
+
+```
+No viewer has been allowed for documents.  The administrator names one with set.viewer.
+```
+
+cited by: `pdf`
+
+### msg:11847
+> kind=message tier=reference since=- src=sdsys/messages/11847:1#42ce07ac
+
+```
+This session has no graphical display (DISPLAY and WAYLAND_DISPLAY are empty), so a viewer cannot show the document
+```
+
+cited by: `pdf`
+
+### msg:11848
+> kind=message tier=reference since=- src=sdsys/messages/11848:1#b7ba323d
+
+```
+Opened %1 with %2
+```
+
+cited by: `pdf`
+
+### msg:11849
+> kind=message tier=reference since=- src=sdsys/messages/11849:1#6c44f3bb
+
+```
+The viewer %1 cannot be used: %2
+```
+
+cited by: `pdf`, `setviewer`
 
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
@@ -5419,6 +5722,286 @@ cited by: `convertdata`
 ```
 
 cited by: `importdata`
+
+### msg:11863
+> kind=message tier=reference since=- src=sdsys/messages/11863:1#4c7fbc57
+
+```
+home needs a terminal
+```
+
+cited by: `tool_home`
+
+### msg:11864
+> kind=message tier=reference since=- src=sdsys/messages/11864:1#561b5657
+
+```
+Terminal - type exit to return to the home screen
+```
+
+cited by: `tool_home`
+
+### msg:11865
+> kind=message tier=reference since=- src=sdsys/messages/11865:1#3abaa22f
+
+```
+Press Enter to return to the home screen
+```
+
+cited by: `tool_home`
+
+### msg:11866
+> kind=message tier=reference since=- src=sdsys/messages/11866:1#40549194
+
+```
+Sign out of SD?
+```
+
+cited by: `tool_home`
+
+### msg:11870
+> kind=message tier=reference since=- src=sdsys/messages/11870:1#f9935a86
+
+```
+set.start.default {menu | terminal}
+```
+
+cited by: `setstart`
+
+### msg:11871
+> kind=message tier=reference since=- src=sdsys/messages/11871:1#02e59fc6
+
+```
+Accounts with no start setting of their own start at: %1
+```
+
+cited by: `setstart`
+
+### msg:11872
+> kind=message tier=reference since=- src=sdsys/messages/11872:1#98d8543e
+
+```
+The system default start could not be written
+```
+
+cited by: `setstart`
+
+### msg:11873
+> kind=message tier=reference since=- src=sdsys/messages/11873:1#862d2fe7
+
+```
+The system default start is already %1; nothing changed
+```
+
+cited by: `setstart`
+
+### msg:11874
+> kind=message tier=reference since=- src=sdsys/messages/11874:1#1dfe847d
+
+```
+set.tile account tile {on | off}; set.tile alone lists what is off
+```
+
+cited by: `settile`
+
+### msg:11875
+> kind=message tier=reference since=- src=sdsys/messages/11875:1#3e8491eb
+
+```
+Tile %1 is now off for %2
+```
+
+### msg:11876
+> kind=message tier=reference since=- src=sdsys/messages/11876:1#2e484553
+
+```
+Tile %1 is now on for %2
+```
+
+### msg:11877
+> kind=message tier=reference since=- src=sdsys/messages/11877:1#b9b6da18
+
+```
+Tile %1 was already %2 for %3; nothing changed
+```
+
+cited by: `settile`
+
+### msg:11878
+> kind=message tier=reference since=- src=sdsys/messages/11878:1#50a869f6
+
+```
+Sign out cannot be turned off: a person must always be able to leave
+```
+
+cited by: `settile`
+
+### msg:11880
+> kind=message tier=reference since=- src=sdsys/messages/11880:1#dfba4a90
+
+```
+Tiles off for %1: %2
+```
+
+cited by: `settile`
+
+### msg:11881
+> kind=message tier=reference since=- src=sdsys/messages/11881:1#6e6f324e
+
+```
+%1 is not a tile name: lower case letters, digits, dots and hyphens, 32 at most
+```
+
+cited by: `settile`
+
+### msg:11882
+> kind=message tier=reference since=- src=sdsys/messages/11882:1#3d05f790
+
+```
+Every tile is on
+```
+
+cited by: `settile`
+
+### msg:11883
+> kind=message tier=reference since=- src=sdsys/messages/11883:1#c6f94e41
+
+```
+%1 is not a standard tile; it applies only to a tile of that name in a page record
+```
+
+cited by: `settile`
+
+### msg:11884
+> kind=message tier=reference since=- src=sdsys/messages/11884:1#e9834d1f
+
+```
+The tile list could not be written
+```
+
+cited by: `settile`
+
+### msg:11885
+> kind=message tier=reference since=- src=sdsys/messages/11885:1#013fc51a
+
+```
+Account %1 may add its own programs to the home screen: %2
+```
+
+cited by: `setpins`
+
+### msg:11886
+> kind=message tier=reference since=- src=sdsys/messages/11886:1#d16100f1
+
+```
+The administrator has not allowed this account to add its own programs to the home screen
+```
+
+cited by: `mymenu`
+
+### msg:11887
+> kind=message tier=reference since=- src=sdsys/messages/11887:1#c66934eb
+
+```
+Documents (%1); pdf name opens one:
+```
+
+cited by: `pdf`
+
+### msg:11888
+> kind=message tier=reference since=- src=sdsys/messages/11888:1#b2710aae
+
+```
+There are no documents: there is no pdf directory in the install directory, or it holds none
+```
+
+cited by: `pdf`
+
+### msg:11890
+> kind=message tier=reference since=- src=sdsys/messages/11890:1#4388825a
+
+```
+set.viewer {add | remove} pdf program; set.viewer alone says which programs are allowed
+```
+
+cited by: `setviewer`
+
+### msg:11891
+> kind=message tier=reference since=- src=sdsys/messages/11891:1#1cdbc8d8
+
+```
+The program %1 is now allowed for %2
+```
+
+### msg:11892
+> kind=message tier=reference since=- src=sdsys/messages/11892:1#78f8eedd
+
+```
+The program %1 is no longer allowed for %2
+```
+
+### msg:11893
+> kind=message tier=reference since=- src=sdsys/messages/11893:1#92cc2076
+
+```
+The program %1 was already allowed for %2; nothing changed
+```
+
+cited by: `setviewer`
+
+### msg:11894
+> kind=message tier=reference since=- src=sdsys/messages/11894:1#646e654a
+
+```
+The program %1 was not allowed for %2; nothing changed
+```
+
+cited by: `setviewer`
+
+### msg:11895
+> kind=message tier=reference since=- src=sdsys/messages/11895:1#d6afcbdd
+
+```
+Allowed for %1: %2
+```
+
+cited by: `setviewer`
+
+### msg:11896
+> kind=message tier=reference since=- src=sdsys/messages/11896:1#904741c4
+
+```
+No program is allowed to be started without os.execute
+```
+
+cited by: `setviewer`
+
+### msg:11897
+> kind=message tier=reference since=- src=sdsys/messages/11897:1#22d7f490
+
+```
+%1 is not a purpose that can be set; only pdf can
+```
+
+cited by: `setviewer`
+
+### msg:11898
+> kind=message tier=reference since=- src=sdsys/messages/11898:1#fe5cbe39
+
+```
+The list of allowed programs could not be written
+```
+
+cited by: `setviewer`
+
+### msg:11899
+> kind=message tier=reference since=- src=sdsys/messages/11899:1#008f8e7a
+
+```
+%1 was not found in /usr/bin, /usr/local/bin or /bin
+```
+
+cited by: `setviewer`
 
 ### msg:11900
 > kind=message tier=reference since=- src=sdsys/messages/11900:1#877e0c48
@@ -5613,6 +6196,33 @@ Account %1 has NET %2
 ```
 
 cited by: `setnetacc`
+
+### msg:11930
+> kind=message tier=reference since=- src=sdsys/messages/11930:1#f7b6c28d
+
+```
+set.pins {on | off}; set.pins alone says whether the account may add its own programs to the home screen
+```
+
+cited by: `setpins`
+
+### msg:11931
+> kind=message tier=reference since=- src=sdsys/messages/11931:1#c628fcfe
+
+```
+Own programs for %1 were already %2; nothing changed
+```
+
+cited by: `setpins`
+
+### msg:11932
+> kind=message tier=reference since=- src=sdsys/messages/11932:1#86147641
+
+```
+The permission to add programs to the home screen could not be written
+```
+
+cited by: `setpins`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
@@ -6911,7 +7521,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `listlck`, `listrdu`, `listservers` and 9 more
+cited by: `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `listlck`, `listrdu` and 15 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -7360,6 +7970,8 @@ cited by: `setacc`, `setfile`
 ```
 Account name is invalid
 ```
+
+cited by: `settile`
 
 ### msg:2203
 > kind=message tier=reference since=- src=sdsys/messages/2203:1#816984c8
@@ -13128,6 +13740,8 @@ Account already exists
 ```
 Account name is invalid
 ```
+
+cited by: `setpins`, `settile`
 
 ### msg:6004
 > kind=message tier=reference since=- src=sdsys/messages/6004:1#34da8e01
