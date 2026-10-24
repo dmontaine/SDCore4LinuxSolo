@@ -8678,14 +8678,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 9
 },
 "msg:11284": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 13
 },
 "msg:11285": {
 "kind": "message",
@@ -10183,7 +10183,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 24
+"words": 25
 },
 "msg:11608": {
 "kind": "message",
@@ -19164,7 +19164,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 17
+"words": 18
 },
 "msg:6460": {
 "kind": "message",
@@ -28049,6 +28049,13 @@
 "tier": "reference",
 "words": 52
 },
+"tcl:tool.gates": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 73
+},
 "tcl:tool.keys": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -28062,6 +28069,13 @@
 "since": "-",
 "tier": "reference",
 "words": 48
+},
+"tcl:tool.sessions": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 61
 },
 "tcl:tool.viewers": {
 "kind": "tcl.verb",

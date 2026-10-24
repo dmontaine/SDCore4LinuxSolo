@@ -49,6 +49,8 @@ def read(path):
 def load():
     src = {n: read(os.path.join(GPL, n)) for n in PROGS}
     src["tool_ai"] = read(os.path.join(GPL, "tool_ai"))     # 23 Oct 26, carry 15: the AI page asks for tool.ai.providers and tool.ai.accounts
+    src["tool_sessions"] = read(os.path.join(GPL, "tool_sessions"))   # 24 Oct 26, carry 20: the sessions and locks page asks for tool.sessions.page
+    src["tool_gates"] = read(os.path.join(GPL, "tool_gates"))         # 24 Oct 26, carry 20b: the gates page asks for tool.gates.page
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
@@ -143,7 +145,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"])))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|sessions|gates)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_gates"])))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 11 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -160,12 +162,24 @@ def checks(s):
        "call $tk_help('mark', 66, 2, 0, 0)" in tv and "call $tk_help('mark', 134, 2, 0, 0)" in tv and "case nm = 'f1' or nm = '?'" in tv and "call $tk_help('hit', mev, 66, 2, hit.allowed)" in tv
        and "call $tk_help('hit', mev, 134, 2, hit.found)" in tv and "allow = 'set.viewer'" in tv and "tool.viewers.allowed" in tv and "tool.viewers.found" in tv)
 
+    tsn = strip(s["tool_sessions"])
+    ck("P17d tool.sessions: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only logout, unlock and inhibit.login, and it wraps with $tk_wrap",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tsn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm, 0, 0)" in tsn and "call $tk_help('hit', mev, 134, 2, hit.m)" in tsn
+       and "allow = 'logout unlock inhibit.login'" in tsn and tsn.count("allow = ") == 1 and "tool.sessions.page" in hts and "call $tk_wrap(lines<wi>, 134, pieces)" in tsn and "rest[cut" not in tsn)
+
+    tgn = strip(s["tool_gates"])
+    ck("P17e tool.gates: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only set.os.access, set.net.access and set.ai, and it wraps with $tk_wrap",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tgn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)" in tgn and "call $tk_help('hit', mev, 134, 2, hit.m)" in tgn
+       and "allow = 'set.os.access set.net.access set.ai'" in tgn and tgn.count("allow = ") == 1 and "tool.gates.page" in hts and "call $tk_wrap(lines<wi>, 134, pieces)" in tgn and "rest[cut" not in tgn)
+
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
        "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, 63, pieces)" in tm and "call $tk_wrap(lines<wi>, 134, pieces)" in tv
        and "rest[cut" not in tc and "rest[cut" not in tm and "rest[cut" not in tv and "wl[wp" not in tm)
+    ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed in Core's tool.gates, 24 Oct 26)",
+       "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
-    every = th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc
+    every = th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tsn + "\n" + tgn
     want = {"$tk_help": 5, "$tk_wrap": 3, "!viewlist": 4, "$tk_run": 5, "$tk_confirm": 5}
     wrong = {k: [n for n in arg_counts(every, k) if n != v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
@@ -216,6 +230,14 @@ MUTANTS = [
     ("$tk_wrap cuts a word at the wrong place", "tk_wrap", "rest[cut, 1] # ' '", "rest[cut, 1] # 'x'"),
     ("tool.viewers can run another command", "tool_viewers", "allow = 'set.viewer'", "allow = 'set.viewer sh'"),
     ("tool.viewers loses a [?]", "tool_viewers", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("$tk_confirm appends the explanation lines unwrapped again", "tk_confirm", "            call $tk_wrap(lines<li>, wrapw, pieces)\n            for p = 1 to dcount(pieces, @fm)\n               body<-1> = pieces<p>\n            next p", "            body<-1> = lines<li>"),
+    ("$tk_confirm wraps the explanation at a width the box cuts", "tk_confirm", "call $tk_wrap(lines<li>, wrapw, pieces)", "call $tk_wrap(lines<li>, 200, pieces)"),
+    ("tool.sessions loses its [?]", "tool_sessions", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.sessions calls $tk_help with too few arguments", "tool_sessions", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm)"),
+    ("tool.sessions can run another command", "tool_sessions", "allow = 'logout unlock inhibit.login'", "allow = 'logout unlock inhibit.login sh'"),
+    ("tool.gates loses its [?]", "tool_gates", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.gates calls $tk_help with too few arguments", "tool_gates", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm)"),
+    ("tool.gates can run another command", "tool_gates", "allow = 'set.os.access set.net.access set.ai'", "allow = 'set.os.access set.net.access set.ai sh'"),
     ("a help record names a page that is not there", "ht.tool.menus.pins", "06-administrator-commands", "no-such-page"),
     ("a help record has no title", "ht.tool.menus.pins", "Programs of the account's own\n", "\n"),
     ("a help record has a tab in it", "ht.tool.menus.starts-in", "Chooses what you see", "\tChooses what you see"),

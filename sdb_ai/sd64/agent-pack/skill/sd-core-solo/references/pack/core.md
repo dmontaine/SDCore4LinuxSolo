@@ -132,7 +132,7 @@ The VOC record types (field 1, character 1, is the type). Each type is the chunk
 | `D` | descriptor | a data descriptor, which is what dictionary records are |
 
 ### core:walls
-> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:117#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:136#ef1e8155
+> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:164#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:183#ef1e8155
 
 Solo has ONE account, `sduser`, and two per-account switches, the shell (`sh`, `!`) and OS access (`os.execute`, a path outside the account, the embedded Python, nano and micro), both OFF as delivered and turned on by the administrator with `set.os.access`; it has no other gate and no gate words. What limits a session is below, quoted from Solo's own pages (`GettingStarted/markdown/12-security.md`, `GettingStarted/markdown/06b-operating-system-access.md`).
 

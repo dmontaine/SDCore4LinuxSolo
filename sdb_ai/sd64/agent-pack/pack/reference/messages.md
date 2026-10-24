@@ -3411,7 +3411,7 @@ Logins are already inhibited by %1. Switch it off first (inhibit.login off)
 Logins are allowed
 ```
 
-cited by: `inhibit`
+cited by: `inhibit`, `tool_sessions`
 
 ### msg:11284
 > kind=message tier=reference since=- src=sdsys/messages/11284:1#b523acca
@@ -3420,7 +3420,7 @@ cited by: `inhibit`
 Logins are inhibited by %1 (user %2)
 ```
 
-cited by: `inhibit`
+cited by: `inhibit`, `tool_sessions`
 
 ### msg:11285
 > kind=message tier=reference since=- src=sdsys/messages/11285:1#c5b76206
@@ -5220,7 +5220,7 @@ cited by: `setai`
 The AI helper could not be reached: it is not running, or it is not installed
 ```
 
-cited by: `ai`, `setai`, `tk_ai`, `tool_ai`
+cited by: `ai`, `setai`, `tk_ai`, `tool_ai`, `tool_gates`
 
 ### msg:11608
 > kind=message tier=reference since=- src=sdsys/messages/11608:1#53bb63db
@@ -16056,7 +16056,7 @@ cited by: `listlck`
 Record lock limit (NUMLOCKS) = %1, Current = %2, Peak = %3
 ```
 
-cited by: `listrdu`
+cited by: `listrdu`, `tool_sessions`
 
 ### msg:6460
 > kind=message tier=reference since=- src=sdsys/messages/6460:1#d0351c82
