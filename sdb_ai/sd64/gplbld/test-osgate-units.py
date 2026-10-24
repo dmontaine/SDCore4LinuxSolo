@@ -57,6 +57,8 @@ FILES = {
     "qproc": os.path.join(GPL, "qproc"),
     "apisrvr": os.path.join(GPL, "apisrvr"),
     "_voc_ref": os.path.join(GPL, "_voc_ref"),
+    "_oscopy": os.path.join(GPL, "_oscopy"),
+    "_ioscopy": os.path.join(GPL, "_ioscopy"),
     "acc_os_info": os.path.join(GPL, "acc_os_info"),
     "setosacc": os.path.join(GPL, "setosacc"),
     "solo_account": os.path.join(GPL, "solo_account"),
@@ -119,6 +121,13 @@ def block(text, start_marker, length):
     return text[i:i + length] if i >= 0 else ""
 
 
+def func_body(text, marker):
+    """A C function from its first line to the closing brace in column 0, or '' when the marker is absent."""
+    i = at(text, marker)
+    j = text.find("\n}\n", i) if i >= 0 else -1
+    return text[i:j + 2] if j > 0 else ""
+
+
 def checks(srcs, messages_dir):
     """[(id, ok, detail)] - every invariant the switch rests on."""
     rows = []
@@ -132,7 +141,7 @@ def checks(srcs, messages_dir):
     nums = {}
     for m in re.finditer(r"#define\s+(K_[A-Z0-9_]+)\s+(\d+)", c["keys.h"]):
         nums.setdefault(int(m.group(2)), []).append(m.group(1))
-    for key, want in (("K_SH", 93), ("K_OS_EXEC", 94), ("K_PATH_OK", 95)):
+    for key, want in (("K_SH", 93), ("K_OS_EXEC", 94), ("K_PATH_OK", 95), ("K_EDIT_OS_OK", 126)):
         m = re.search(r"#define\s+%s\s+(\d+)" % key, c["keys.h"])
         ck("K1 %s is %d in gplsrc/keys.h (Core's number)" % (key, want), m and int(m.group(1)) == want, m.group(0) if m else "absent")
         bkey = key.replace("K_", "K$").replace("_", ".")
@@ -164,12 +173,14 @@ def checks(srcs, messages_dir):
     gate = gate[:gate.find("\n}") + 2] if "\n}" in gate else gate
     ck("C4 os_gate_open() is the administrator or USR_OS_EXEC, and does NOT look at HDR_INTERNAL",
        "USR_ADMIN" in gate and "USR_OS_EXEC" in gate and "HDR_INTERNAL" not in gate, gate.strip()[:120])
-    pia = block(sh, "Private bool path_inside_dir(const char *rootdir, const char *name) {", 3400)      # 21 Oct 26: was path_inside_account(name); rootdir NULL is the account (Solo carry 10)
+    # 24 Oct 26 (Solo carry 19): path_inside_dir() was split; the resolution is resolve_gate_path(), the boundary test stays in path_inside_dir()
+    rgp = func_body(sh, "Private bool resolve_gate_path(const char *rootdir, const char *name, char *root, char *resolved) {")
+    pia = func_body(sh, "Private bool path_inside_dir(const char *rootdir, const char *name) {")      # 21 Oct 26: was path_inside_account(name); rootdir NULL is the account (Solo carry 10)
     ck("C5 containment resolves with realpath() on both sides and tests a path-component boundary",
-       pia.count("realpath(") >= 2 and "strncmp(resolved, root, root_len)" in pia
+       rgp.count("realpath(") >= 2 and "resolve_gate_path(rootdir, name, root, resolved)" in pia and "strncmp(resolved, root, root_len)" in pia
        and "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')" in pia)
     ck("C6 a '..' tail that cannot be resolved is refused, and so is an account rooted at /",
-       'strcmp(p + 1, "..") == 0' in pia and "root_len == 1" in pia)
+       'strcmp(p + 1, "..") == 0' in rgp and "root_len == 1" in rgp)
     ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment",
        re.search(r"bool os_path_ok_for_account\(const char \*name\) \{\s*if \(os_gate_open\(\)\)\s*return TRUE;\s*return path_inside_dir\(NULL, name\);", sh))
     ck("C8 os_path_open_ok: an $internal program is trusted, anyone else is asked",
@@ -256,6 +267,85 @@ def checks(srcs, messages_dir):
     lp = c["linuxprt.c"]
     ck("C23 SETPTR ... SPOOLER's string is run only by a session that holds the gate (os_gate_open), anyone else prints through the configured spooler",
        "(pu->spooler != NULL) && os_gate_open()" in lp)
+
+    # ---- O. the VOC's own files by pathname (Solo carry 19, 24 Oct 26) ---------------------------------------------------
+    # An ordinary session with the OS switch off overwrote, appended to and deleted voc/%0 with OSCOPY, !IOSCOPY, OPENSEQ + WRITESEQ and DELETESEQ
+    # (measured).  The gate above is geometry (inside the account or not); this one is about WHAT is inside it.  Core's S.64 shape, one kind: a component
+    # named voc below the account's own directory.  The runtime rows are sandbox-oscarry-solo.py section V.
+    ev = func_body(sh, "int edit_os_path_refusal(const char *name, bool include_leaf) {")
+    o_ex = at(ev, "if (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC))")
+    o_nm = at(ev, "(name[0] == '\\0')")
+    o_rs = at(ev, "resolve_gate_path(NULL, name, root, resolved)")
+    o_out = at(ev, "strncmp(resolved, root, root_len) != 0")
+    o_lp = at(ev, 'strncasecmp(p, "voc", 3) == 0')
+    ck("O1 edit_os_path_refusal(): the administrator and an account with OS.EXECUTE are not asked, then an empty name, then the path is resolved as the OS gate resolves it "
+       "and a path that cannot be resolved is REFUSED (a gate that fails open on a path it cannot read is decoration), then a path outside the account is the OS gate's, "
+       "then each component is tested",
+       0 < o_ex < o_nm < o_rs < o_out < o_lp
+       and re.search(r"if \(my_uptr->flags & \(USR_ADMIN \| USR_OS_EXEC\)\)\s*return EDIT_NONE;", ev)
+       and re.search(r"if \(!resolve_gate_path\(NULL, name, root, resolved\)\)\s*return EDIT_VOC;", ev),
+       "exempt %s, empty %s, resolve %s, outside %s, loop %s" % (o_ex, o_nm, o_rs, o_out, o_lp))
+    ck("O1a a component named voc is refused in any case, the final one only when include_leaf says so (a record called voc in an ordinary directory file is a plain file), "
+       "and the rest of the path is EDIT_NONE",
+       re.search(r"\(n == 3\) && \(strncasecmp\(p, \"voc\", 3\) == 0\) && \(include_leaf \|\| \(\*more != '\\0'\)\)\)\s*return EDIT_VOC;", ev)
+       and ev.rstrip().endswith("return EDIT_NONE;\n}"), ev[-200:].strip())
+    ck("O2 path_inside_dir() and edit_os_path_refusal() resolve through the SAME function (resolve_gate_path), so the VOC test sees the path the OS gate saw",
+       "resolve_gate_path(rootdir, name, root, resolved)" in pia and "resolve_gate_path(NULL, name, root, resolved)" in ev)
+    lc = func_body(sh, "bool edit_leaf_counts(const char *name) {")
+    ck("O3 edit_leaf_counts(): a name that is not there counts for nothing, a plain file is a record and not a VOC, anything else (a directory, a link) counts",
+       "lstat(name, &sb) != 0" in lc and "return FALSE;" in lc and "return !S_ISREG(sb.st_mode);" in lc, lc.strip()[:160])
+    sq2 = c["op_seqio.c"]
+    fo = func_body(sq2, "Private void openseq(bool map_name) {")
+    ob = at(fo, "edit_blocked = (edit_os_path_refusal(fullpathname, FALSE) != EDIT_NONE);")
+    ost = at(fo, "stat(fullpathname, &stat_buf)")
+    ck("O4 OPENSEQ asks for a file (not a port, not a $internal program) BEFORE it stats or opens it, and the answer makes the open read only and refuses CREATING",
+       0 < ob < ost and re.search(r"if \(!\(flags & SQ_PORT\) && !\(process\.program\.flags & HDR_INTERNAL\)\)\s*edit_blocked = ", fo)
+       and "(op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked" in fo and "(op_flags & 0x400) && edit_blocked" in fo
+       and "read_only || edit_blocked" in fo, "ask %s, stat %s" % (ob, ost))
+    fdq = func_body(sq2, "void op_delseq() {")
+    dg1 = at(fdq, "if (!os_path_open_ok(file_name)) {")
+    dg2 = at(fdq, "(edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)")
+    dst = at(fdq, "stat(file_name, &stat_buf)")
+    ck("O5 DELETESEQ asks (not a $internal program) AFTER the OS gate and BEFORE it stats or removes anything, and the refusal is ER_PERM",
+       0 < dg1 < dg2 < dst and re.search(r"if \(!\(process\.program\.flags & HDR_INTERNAL\) && \(edit_os_path_refusal\(file_name, FALSE\) != EDIT_NONE\)\) \{\s*process\.status = ER_PERM;\s*goto exit_op_delseq;", fdq),
+       "gate %s, voc %s, stat %s" % (dg1, dg2, dst))
+    osp2 = func_body(xf, "Private void x_ospath() {")
+    og1 = at(osp2, "if (!os_path_open_ok(path)) {")
+    og2 = at(osp2, "edit_os_path_refusal(path, (key == 5) ? edit_leaf_counts(path) : TRUE)")
+    ck("O6 OSPATH delete (5), make a directory (13) and 14 ask for the VOC AFTER the OS gate, not for a $internal program, with the deleted name counted when it is not a plain file "
+       "and a directory made always counted; the refusal is ER_PERM",
+       0 < og1 < og2 and re.search(r"\(\(key == 5\) \|\| \(key == 13\) \|\| \(key == 14\)\) && !\(process\.program\.flags & HDR_INTERNAL\) &&", osp2)
+       and "process.status = ER_PERM;" in osp2[og2:og2 + 160], "gate %s, voc %s" % (og1, og2))
+    tg = at(sk, "os_path_ok_for_account(trace_path)")
+    te = at(sk, "edit_os_path_refusal(trace_path, FALSE) != EDIT_NONE")
+    to = at(sk, "O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW")
+    ck("O7 the socket trace log asks for the VOC (not for a $internal program) AFTER the OS gate and BEFORE the log is opened, and the refusal is ER_PERM",
+       0 < tg < te < to and "HDR_INTERNAL" in sk[te - 90:te] and "process.status = ER_PERM;" in sk[te:to], "gate %s, voc %s, open %s" % (tg, te, to))
+    pg = at(tf, "os_path_ok_for_account(fn)", tsf)
+    pe = at(tf, "edit_os_path_refusal(fn, FALSE) != EDIT_NONE", tsf)
+    ck("O8 a print file asks for the VOC AFTER the OS gate and BEFORE the open, of the ACCOUNT's session (a report is usually a $internal program, so no HDR_INTERNAL exemption), "
+       "and the refusal is message 11008",
+       0 < tsf < pg < pe < topen and "HDR_INTERNAL" not in tf[pg:topen] and "k_error(sysmsg(11008))" in tf[pe:topen], "gate %s, voc %s, open_file %s" % (pg, pe, topen))
+    ko = block(kn, "case K_EDIT_OS_OK: {", 800)
+    ko = ko[:ko.find("} break;")] if "} break;" in ko else ko
+    ck("O9 kernel(K_EDIT_OS_OK) starts at 0 (an empty or unreadable name is a refusal), the administrator gets 1, anybody else gets edit_os_path_refusal about the name with "
+       "the final component counted when edit_leaf_counts says so",
+       ko.find("result.data.value = 0;") >= 0 and ko.find("result.data.value = 0;") < ko.find("USR_ADMIN") < ko.find("edit_os_path_refusal(")
+       and "if (my_uptr->flags & USR_ADMIN)\n        result.data.value = 1;" in ko
+       and "edit_os_path_refusal(edit_os_name, edit_leaf_counts(edit_os_name)) == EDIT_NONE) ? 1 : 0" in ko, ko.strip()[:140])
+    oc2 = c["_oscopy"]
+    cpth = oc2[at(oc2, "check.paths:"):]
+    ck1 = at(cpth, "kernel(K$PATH.OK, source)")
+    ck2 = at(cpth, "kernel(K$EDIT.OS.OK, target)")
+    ck3 = at(cpth, "ospath(source, OS$EXISTS)")
+    ck("O10 !OSCOPY asks K$EDIT.OS.OK about the TARGET after both K$PATH.OK questions and before it looks at the source (reading is not a change), and the answer is -4",
+       0 < ck1 < ck2 < ck3 and "K$EDIT.OS.OK, source" not in oc2 and re.search(r"kernel\(K\$EDIT\.OS\.OK, target\)\) then\s*status = -4", cpth), "path %s, edit %s, exists %s" % (ck1, ck2, ck3))
+    ic = c["_ioscopy"]
+    i1 = at(ic, "kernel(K$PATH.OK, source)")
+    i2 = at(ic, "kernel(K$EDIT.OS.OK, target)")
+    i3 = at(ic, "ospath(source, OS$EXISTS)")
+    ck("O11 !IOSCOPY asks the same, in the same order, and returns -4 at once",
+       0 < i1 < i2 < i3 and "K$EDIT.OS.OK, source" not in ic and re.search(r"if not\(kernel\(K\$EDIT\.OS\.OK, target\)\) then\s*status = -4\s*return", ic), "path %s, edit %s, exists %s" % (i1, i2, i3))
 
     # ---- B. BASIC --------------------------------------------------------------------------------------------------
     cp = c["cproc"]
@@ -365,7 +455,7 @@ def checks(srcs, messages_dir):
        'os_yn "Turn on the shell' in ins and 'os_yn "Turn on OS access' in ins
        and re.search(r"os_yn\(\) \{[^}]*y\|Y\|yes\|YES\) return 0 ;; \*\) return 1 ;; esac\s*\}", ins))
     ck("I2 the question is asked on an upgrade and on a first install (the one run in which the owner's own Solo loses sh)",
-       ins.count("ask_os_access") >= 3 and 'solo-stage.sh" --upgrade --os-access' in ins and 'st_args+=(--os-access "${os_access:-none}")' in ins)
+       ins.count("ask_os_access") >= 3 and 'solo-stage.sh" --upgrade --os-access' in ins and 'st_args+=(--os-access "${os_access:-none}"' in ins)      # 24 Oct 26: --viewer follows it since carry 14; the pin ended at the bracket and had been red since
     ck("I3 an unattended run is none: no terminal or --yes and no answer",
        'os_access="none"' in ins and '[ "$interactive" -ne 1 ] || [ "$assume_yes" -eq 1 ]' in ins)
     ck("I4 the answer is applied by the verb in an internal session, and only for the words the owner said",
@@ -377,6 +467,7 @@ def checks(srcs, messages_dir):
             "10080": "%1 already had that access; nothing changed",
             "10102": "Account %1 has SH %2, OS.EXECUTE %3",
             "10114": "Unable to change the state of %1; its state in the register is unchanged",
+            "11008": "The VOC can only be changed after admin",
             "11180": "%1 has no OS access",
             "11926": "Syntax: set.os.access"}
     for num, text in want.items():
@@ -430,6 +521,23 @@ MUTANTS = [
     ("DIGEST asks nobody", "C20", sub("op_xfun.c", "} else if (!os_path_open_ok(path)) {", "} else if (0) {")),
     ("the trace log asks nobody", "C22", sub("op_skt.c", "if (!os_path_ok_for_account(trace_path)) {", "if (0) {")),
     ("the spooler string is run for everybody", "C23", sub("linuxprt.c", "(pu->spooler != NULL) && os_gate_open()", "(pu->spooler != NULL)")),
+    # Solo carry 19 (24 Oct 26): the VOC's own files by pathname (O).
+    ("the VOC test no longer exempts the administrator and OS.EXECUTE (it asks everybody)", "O1", sub("op_sh.c", "if (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC))\n    return EDIT_NONE;", "if (0)\n    return EDIT_NONE;")),
+    ("a path that cannot be resolved is let through", "O1", sub("op_sh.c", "if (!resolve_gate_path(NULL, name, root, resolved))\n    return EDIT_VOC;", "if (!resolve_gate_path(NULL, name, root, resolved))\n    return EDIT_NONE;")),
+    ("a component named VOC is not a VOC (the test is case sensitive)", "O1a", sub("op_sh.c", 'strncasecmp(p, "voc", 3) == 0', 'strncmp(p, "voc", 3) == 0')),
+    ("a directory called voc as the final name is never one (include_leaf ignored)", "O1a", sub("op_sh.c", "(include_leaf || (*more != '\\0'))", "(*more != '\\0')")),
+    ("the VOC test resolves the path its own way", "O2", sub("op_sh.c", "if (!resolve_gate_path(NULL, name, root, resolved))\n    return EDIT_VOC;", "if (realpath(name, resolved) == NULL)\n    return EDIT_VOC;")),
+    ("a link or a directory is a record for edit_leaf_counts", "O3", sub("op_sh.c", "return !S_ISREG(sb.st_mode);", "return FALSE;")),
+    ("OPENSEQ never asks", "O4", sub("op_seqio.c", "edit_blocked = (edit_os_path_refusal(fullpathname, FALSE) != EDIT_NONE);", "edit_blocked = FALSE;")),
+    ("CREATING in a VOC is allowed", "O4", sub("op_seqio.c", "} else if ((op_flags & 0x400) && edit_blocked)", "} else if ((op_flags & 0x400) && 0)")),
+    ("DELETESEQ never asks", "O5", sub("op_seqio.c", "if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {", "if (0) {")),
+    ("OSPATH delete counts a plain file's own name but never a directory's", "O6", sub("op_xfun.c", "(key == 5) ? edit_leaf_counts(path) : TRUE", "FALSE")),
+    ("the trace log never asks", "O7", sub("op_skt.c", "(edit_os_path_refusal(trace_path, FALSE) != EDIT_NONE)", "0")),
+    ("a print file never asks", "O8", sub("to_file.c", "if (edit_os_path_refusal(fn, FALSE) != EDIT_NONE) {", "if (0) {")),
+    ("kernel(K_EDIT_OS_OK) says yes to everybody", "O9", sub("op_kernel.c", "edit_os_path_refusal(edit_os_name, edit_leaf_counts(edit_os_name)) == EDIT_NONE) ? 1 : 0", "1) ? 1 : 0")),
+    ("!OSCOPY does not ask about the target", "O10", sub("_oscopy", "end else if not(kernel(K$EDIT.OS.OK, target)) then", "end else if 0 then")),
+    ("!OSCOPY asks about the source, which is only read", "O10", sub("_oscopy", "end else if not(kernel(K$EDIT.OS.OK, target)) then", "end else if not(kernel(K$EDIT.OS.OK, source)) then")),
+    ("!IOSCOPY does not ask about the target", "O11", sub("_ioscopy", "   if not(kernel(K$EDIT.OS.OK, target)) then", "   if 0 then")),
     ("the SH verb refuses after the metacharacter test", "B2", swap("cproc", "if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then\n      display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell\n      return\n   end\n",
                                                                     "display sysmsg(5240, 2) ;* Error xx executing operating system command\n      return\n   end\n")),
     ("LOGIN loads the switches from the wrong field", "B3", sub("login", "upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES'", "upcase(trim(acc.rec<ACC$SH>)) = 'YES'")),

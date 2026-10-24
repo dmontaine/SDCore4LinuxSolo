@@ -19,6 +19,8 @@
 #   A  the OS switch OFF (the delivered state): OSCOPY / !OSCOPY / !IOSCOPY / SELECT.DIR inside the account work and outside it are refused with
 #      nothing on the disk; SET.MODE is refused for an ordinary session and not for the administrator; ACCOUNT.PATH and VOCPATH answer for the
 #      account's own paths and not for an F-pointer that leads out of it (3035)
+#   V  the VOC's own files by pathname with the switch OFF (Solo carry 19): OSCOPY, !IOSCOPY, OPENSEQ, DELETESEQ and OSPATH on voc/%1 change nothing
+#      (the bytes are the evidence); the administrator and an account with the switch ON are not asked
 #   B  the OS switch ON (set.os.access os on): the same routes reach outside; SET.MODE changes the bits on the disk
 #   C  LOCK.TRACER: the administrator's, off until switched on, the log shows a record locked by a program, an ordinary session is refused
 #   D  INHIBIT.LOGIN: a second session is refused (11281) while a first holds it, the setter can switch it off, a setter that is gone does not lock
@@ -58,6 +60,8 @@ MUTANTS = {
     "oscopy-no-gate": ("_oscopy", "      if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then\n", "      if @false then\n", "off", ["A5", "A5b", "A6"]),
     "seldir-no-gate": ("seldir", "   if not(kernel(K$PATH.OK, path)) then\n", "   if @false then\n", "off", ["A8"]),
     "setmode-no-gate": ("setmode", "   if not(kernel(K$ADMINISTRATOR, -1) or kernel(K$OS.EXEC, -1)) then\n", "   if @false then\n", "off", ["A11"]),
+    "voc-oscopy-ask-out": ("_oscopy", "      end else if not(kernel(K$EDIT.OS.OK, target)) then\n", "      end else if @false then\n", "voc", ["V1", "V2"]),
+    "voc-ioscopy-ask-out": ("_ioscopy", "   if not(kernel(K$EDIT.OS.OK, target)) then\n", "   if @false then\n", "voc", ["V3"]),
     "inhibit-always-allowed": ("login_inhibit", "               allowed = is.admin\n", "               allowed = @true\n", "inhibit", ["D4", "D5", "D8"]),   # (a TEST that gave an error would refuse EVERY session, the mutant runner's own included)
 }
 
@@ -211,7 +215,7 @@ def sec_voc():
             shutil.copyfile(keep, tgt)
 
     try:
-        row("V0 setup: the VOC's file voc/%1 is there (%d bytes) and a copy is kept" % (len(orig), len(orig)), True)
+        row("V0 setup: the VOC's file voc/%%1 is there (%d bytes) and a copy is kept" % len(orig), True)
         out = session(["OSCOPY %s %s OVERWRITE" % (junk, tgt)])
         ok = has(out, r"has no OS access") and intact()
         row("V1 OSCOPY over a file of the VOC is refused and the bytes are as they were", ok, "output=%r intact=%r" % (out, intact()))
@@ -497,6 +501,7 @@ def main():
     try:
         if a.mutant is None:
             sec_off()
+            sec_voc()
             sec_on()
             sec_tracer()
             sec_inhibit()
@@ -512,7 +517,7 @@ def main():
             if not has(out, r"^Compiled 1 program\(s\) with no errors"):
                 bail("mutant %s: %s did not compile in the sandbox: %r" % (a.mutant, mprog, out[-4:]))
             say("sandbox-oscarry-solo: MUTANT %s: %s changed and recompiled in the sandbox; the rows that must fail, and nothing else: %s" % (a.mutant, mprog, ", ".join(_want)))
-            {"off": sec_off, "inhibit": sec_inhibit}[section]()
+            {"off": sec_off, "voc": sec_voc, "inhibit": sec_inhibit}[section]()
     finally:
         if mprog is not None:                  # the sandbox's program put back from the tree, whatever happened
             shutil.copyfile(os.path.join(og.SD64, "sdsys", "gpl.bp", mprog), os.path.join(og.SYS, "gpl.bp", mprog))

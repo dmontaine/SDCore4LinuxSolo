@@ -3092,7 +3092,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 30
 },
 "basic:stmt:crt": {
 "kind": "basic.statement",

@@ -1,6 +1,40 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  A SESSION WITHOUT THE OS SWITCH CAN NO LONGER CHANGE THE ACCOUNT'S OWN VOC
+           THROUGH AN OPERATING SYSTEM PATH, AND AN UNINSTALL THAT KEEPS YOUR DATA NOW
+           KEEPS NEWVOC.MODS TOO. Carried from SD Core's edit gates (SOLO CARRY 19).
+
+           What        A path that runs through a directory called voc below the
+                       account's own directory (voc/%0, voc/%1 are the VOC's own files)
+                       is refused to a session that has not got the OS switch, for
+                       everything that writes, makes or deletes there: OSCOPY and the
+                       subroutines !OSCOPY and !IOSCOPY (as the target), OPENSEQ with
+                       WRITESEQ or CREATING (the file is opened read only), DELETESEQ,
+                       OSPATH deleting or making a directory, a print file (SETPTR ...
+                       AS PATHNAME, then LIST ... LPTR: message 11008) and the socket
+                       trace file. Reading is not refused. The administrator (after
+                       ADMIN) and an account with the OS switch on are not asked, as in
+                       SD Core. Separately, deletesdsolo.sh --keep-data now leaves a
+                       newvoc.mods directory beside the account and sd.conf, the
+                       installer accepts the folder with it in, and a reload puts it
+                       back before the VOC is refreshed, so your own VOC records are
+                       applied again at once.
+           Why it      MEASURED on a fresh Solo: an ordinary session with the switch off
+           matters     overwrote, appended to and deleted the VOC's file voc/%0 with
+                       OSCOPY, !IOSCOPY, OPENSEQ and WRITESEQ, and DELETESEQ. The rule
+                       that protects the VOC watched the record routes only, and the VOC
+                       is also a directory of files. A newvoc.mods you had written was
+                       lost with the rest of the installation by an uninstall that kept
+                       your data.
+           Does not    Cover CREATE.FILE or OPENTEMP made inside the VOC's directory
+                       (SD Core's create_edit_refusal; not carried), or ask about the
+                       program files and dictionaries SD Core also protects: Solo has
+                       no such gates. A newvoc.mods that is a link or a file, rather
+                       than a directory, is not kept. NOT SHOWN: an uninstall and a
+                       fresh install over a kept folder on a real Solo (the check reads
+                       the scripts and runs the keep step on scratch folders).
+
 24 Oct 26  THE DEBUGGER IS SD CORE'S, WITH ITS 140 BY 42 LAYOUT AND AN AI COMMAND; AND
            THE FEATURES SOLO WAS HOLDING BACK ARE IN: OSCOPY, SELECT.DIR, SET.MODE,
            ACCOUNT.PATH(), VOCPATH(), LOCK.TRACER, INHIBIT.LOGIN AND NEWVOC.MODS.
@@ -42,9 +76,9 @@ Next release - in progress
                        none of the OS-path features reaches outside your account. The
                        multiuser SD Core also asks whether an account may change a
                        program file, VOC or dictionary that an OSCOPY target runs
-                       through; Solo has no such gates. A deletesdsolo.sh --keep-data
-                       does not keep newvoc.mods (only the account and sd.conf), an
-                       upgrade does. The debugger's AI command is not in line mode or
+                       through; Solo has no such gates. An upgrade keeps newvoc.mods,
+                       and so does deletesdsolo.sh --keep-data (see the entry above).
+                       The debugger's AI command is not in line mode or
                        in a phantom. NOT SHOWN: the API refusal of INHIBIT.LOGIN on a
                        running server (source only).
 

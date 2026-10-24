@@ -501,6 +501,17 @@ if [ -n "$reloaddir" ]; then
   cp -a "$reloaddir/user_accounts/sduser" "$H/user_accounts/sduser" || fail "copying the kept account into $H/user_accounts"
   chmod -R go-rwx "$H/user_accounts/sduser"
   [ -d "$H/user_accounts/sduser/voc" ] || fail "the reloaded account has no voc"
+  # 24 Oct 26 (PAL-36, the owner: "build the keep cycle"): the administrator's site-local VOC additions (newvoc.mods, QM4 gap 501) were kept beside the account
+  # by deletesdsolo.sh; put them back BEFORE the VOC is refreshed below, because UPDATE.ACCOUNTS applies them.  Only a real directory is taken (the installer's
+  # is_kept_tree refuses a link); the new tree has none of its own, and whatever is there is replaced whole.  The line the installer reads is printed either way.
+  reload_mods="none was saved"
+  if [ -d "$reloaddir/newvoc.mods" ] && [ ! -L "$reloaddir/newvoc.mods" ]; then
+    rm -rf "$H/newvoc.mods" || fail "removing the new tree's newvoc.mods before the reload"
+    cp -a "$reloaddir/newvoc.mods" "$H/newvoc.mods" || fail "copying the kept newvoc.mods into $H"
+    chmod -R go-rwx "$H/newvoc.mods"
+    reload_mods="reloaded"
+  fi
+  echo "solo-stage: newvoc.mods: $reload_mods"
   if [ -f "$reloaddir/sd.conf" ]; then
     cp "$H/sd.conf" "$H/sd.conf.default" || fail "keeping the default sd.conf"
     cp "$reloaddir/sd.conf" "$H/sd.conf" && chmod 600 "$H/sd.conf" || fail "copying the saved sd.conf"

@@ -48,7 +48,7 @@
 #                                 it blank.  Having one is what makes the computer "managed".
 #   --reload-data                 when the install directory holds the data and configuration that
 #                                 "deletesdsolo.sh --keep-data" left there (a .sdcore-kept stamp, the
-#                                 account's files, sd.conf), use them in this NEW install.  Passwords are
+#                                 account's files, sd.conf, newvoc.mods), use them in this NEW install.  Passwords are
 #                                 not kept: the install still asks for new ones.  On a terminal the
 #                                 installer asks by itself; with no terminal and no answer it reloads.
 #   --start-clean                 the opposite answer: the kept data is moved aside to <home>.kept-<time>
@@ -211,18 +211,26 @@ fi
 interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
 
 # ---------------------------------------------------------------- what is already here
-is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves - the stamp, the account, sd.conf, nothing else
+# BEGIN is_kept_tree
+is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves - the stamp, the account, sd.conf and, if there was one, newvoc.mods; nothing else
   local d="$1" e
   { [ -f "$d/.sdcore-kept" ] && [ ! -f "$d/.sdcoresolo" ] && [ -d "$d/user_accounts/sduser/voc" ]; } || return 1
   { [ ! -L "$d" ] && [ ! -L "$d/user_accounts" ] && [ ! -L "$d/user_accounts/sduser" ]; } || return 1
   [ "$(stat -c %u "$d/user_accounts/sduser")" = "$(id -u)" ] || return 1
   for e in "$d"/* "$d"/.[!.]* "$d"/..?*; do
     [ -e "$e" ] || [ -L "$e" ] || continue
-    case "${e##*/}" in user_accounts|sd.conf|.sdcore-kept) ;; *) return 1 ;; esac
+    case "${e##*/}" in
+      user_accounts|sd.conf|.sdcore-kept) ;;
+      # 24 Oct 26 (PAL-36): the administrator's site-local VOC additions are read into the VOC as the administrator, so only a REAL directory owned by this user is
+      # accepted: a link, a file of that name, or somebody else's directory makes the folder "not ours" and the install refuses it, as it refuses any other stranger.
+      newvoc.mods) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      *) return 1 ;;
+    esac
   done
   [ -z "$(ls -A "$d/user_accounts" | grep -v '^sduser$')" ] || return 1
   return 0
 }
+# END is_kept_tree
 if [ -f "$HOME_DIR/.sdcoresolo" ] && [ "$upgrade" -eq 0 ]; then
   refuse "SD Core for Linux Solo is already installed in $HOME_DIR.
   To bring it up to the current release, keeping your account, data and passwords:
@@ -237,11 +245,11 @@ if [ "$upgrade" -eq 1 ]; then
     || refuse "--upgrade keeps the passwords (and so whether a global password is set), the account's data and sd.conf, and the API and ssh settings as installed; it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key or --enable-linger option"
 elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
   # LSOLO 39: the one non-empty directory this installer will use is what deletesdsolo.sh --keep-data leaves:
-  # the stamp, the account and sd.conf and NOTHING else (a folder you have put other things in is never touched).
+  # the stamp, the account, sd.conf and, if there was one, newvoc.mods, and NOTHING else (a folder you have put other things in is never touched).
   if is_kept_tree "$HOME_DIR"; then
     kept_tree=1
   else
-    refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree or the data and configuration one left (the .sdcore-kept stamp, user_accounts/sduser and sd.conf, and nothing else); this script will not use it"
+    refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree or the data and configuration one left (the .sdcore-kept stamp, user_accounts/sduser, sd.conf and a newvoc.mods directory, and nothing else); this script will not use it"
   fi
 fi
 # 02 Oct 26 - THE MULTI-USER PRODUCT NO LONGER BLOCKS THIS INSTALL (owner, 2 Oct 2026: yes to
@@ -480,7 +488,7 @@ ask_yn() {   # ask_yn "question" default(y|n)  -> 0 yes, 1 no ; non-interactive:
 # data is reloaded (it is kept either way, and an unattended install was given its passwords).
 if [ "$kept_tree" -eq 1 ]; then
   say "Saved data was found: $HOME_DIR"
-  say "  (the account's files$([ -f "$HOME_DIR/sd.conf" ] && echo " and sd.conf"), left here by deletesdsolo.sh$(sed -n 's/^commit \(.......\).*/ from commit \1/p' "$HOME_DIR/.sdcore-kept" | head -1)$(sed -n 's/^kept \([0-9-]*\)T.*/ on \1/p' "$HOME_DIR/.sdcore-kept" | head -1))"
+  say "  (the account's files$([ -f "$HOME_DIR/sd.conf" ] && echo " and sd.conf")$([ -d "$HOME_DIR/newvoc.mods" ] && echo " and your local VOC modifications (newvoc.mods)"), left here by deletesdsolo.sh$(sed -n 's/^commit \(.......\).*/ from commit \1/p' "$HOME_DIR/.sdcore-kept" | head -1)$(sed -n 's/^kept \([0-9-]*\)T.*/ on \1/p' "$HOME_DIR/.sdcore-kept" | head -1))"
   say "  Passwords are not kept: this install asks for new ones."
   if [ -z "$reload_ans" ]; then
     if [ "$interactive" -eq 1 ]; then
@@ -811,11 +819,17 @@ else
   [ ! -e "$HOME_DIR/\$cred/sduser" ] || fail "\$cred/sduser exists on a first-login install"
 fi
 [ -f "$HOME_DIR/user_accounts/sduser/voc/%0" ] || [ -d "$HOME_DIR/user_accounts/sduser" ] || fail "the account directory is missing"
-reload_note=""
+reload_note=""; mods_note=""
 if [ -n "$reload_dir" ]; then
   # LSOLO 39: anchored on the stage's own success line, whose config part says what happened to sd.conf.
   reload_note="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^SOLO RELOAD DONE data=reloaded config=//p' | head -1)"
   [ -n "$reload_note" ] || fail "the stage log has no 'SOLO RELOAD DONE data=reloaded' (the saved data in $reload_dir was NOT reloaded)"
+  # 24 Oct 26 (PAL-36): a newvoc.mods directory kept beside the account is put back by the stage before the VOC is refreshed; it says so on a line of its own.
+  # When the kept folder HAS one, a stage that did not put it back is a failure: the administrator's VOC additions would be gone without a word.
+  mods_note="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: newvoc.mods: //p' | tail -1)"
+  if [ -d "$reload_dir/newvoc.mods" ]; then
+    [ "$mods_note" = "reloaded" ] || fail "the kept folder has a newvoc.mods but the stage log has no 'solo-stage: newvoc.mods: reloaded' (it was NOT put back; it is still in $reload_dir)"
+  fi
 fi
 
 # what was installed
@@ -1087,7 +1101,7 @@ else
 fi
 say "  home          : $HOME_DIR      ($mode_name)"
 if [ -n "${reload_note:-}" ]; then
-  say "  reloaded      : your saved data; configuration: $reload_note"
+  say "  reloaded      : your saved data; configuration: $reload_note$([ "${mods_note:-}" != reloaded ] || echo "; your local VOC modifications (newvoc.mods)")"
   say "                  (your data as you left it is still in $kept_aside, a safety copy; delete it when you are satisfied)"
 elif [ -n "${kept_aside:-}" ]; then
   say "  saved data    : NOT reloaded; it is in $kept_aside (not deleted)"

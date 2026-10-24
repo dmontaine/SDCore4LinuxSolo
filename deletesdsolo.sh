@@ -14,7 +14,8 @@
 # key and key file).  Run as YOUR OWN USER, never as root.
 #
 # YOUR DATA AND CONFIGURATION.  The account's files live in <home>/user_accounts/sduser and
-# the configuration is <home>/sd.conf.  --keep-data LEAVES BOTH WHERE THEY ARE and removes
+# the configuration is <home>/sd.conf.  --keep-data LEAVES BOTH WHERE THEY ARE - and, if you made one, the
+# <home>/newvoc.mods directory of your own VOC additions - and removes
 # everything else in <home> (programs, system files, passwords, audit trail, deny list, keys);
 # --delete-data removes <home> whole.  Asked when neither is given; with no terminal to ask on, the
 # data is KEPT (nothing is deleted unasked, as in Windows Solo's silent uninstall).  06 Oct 2026 (LSOLO 39,
@@ -37,6 +38,19 @@ say()  { printf '%s\n' "$*"; }
 warn() { printf '%b%s%b\n' "$YELLOW" "$*" "$NC"; }
 refuse() { printf '%bREFUSED: %s%b\n' "$RED" "$*" "$NC" >&2; exit 2; }
 fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
+
+# BEGIN keep_prune
+# keep_prune DIR: what --keep-data leaves in DIR.  24 Oct 2026 (PAL-36, the owner: "build the keep cycle"): the account folders, sd.conf and, when it is a REAL
+# directory, newvoc.mods - the administrator's site-local VOC additions (QM4 gap 501), which are the user's work and not part of the installation, as in SD Core,
+# where the remover saves @sdsys/newvoc.mods and the installer puts it back.  A file or a link called newvoc.mods is not kept: it is not what the VOC reads.
+# Returns find's status.  (An empty array is expanded with the + form: bash before 4.4 calls "${keep[@]}" unbound under set -u.)
+keep_prune() {
+  local d="$1"
+  local -a keep=()
+  if [ -d "$d/newvoc.mods" ] && [ ! -L "$d/newvoc.mods" ]; then keep=(! -name newvoc.mods); fi
+  find "$d" -mindepth 1 -maxdepth 1 ! -name user_accounts ! -name sd.conf ${keep[@]+"${keep[@]}"} -exec rm -rf {} +
+}
+# END keep_prune
 
 [ "$(id -u)" -ne 0 ] || refuse "run this as your own user, not root"
 
@@ -199,7 +213,7 @@ if [ "$data" = "keep" ]; then
     # list and the keys are NOT kept: they belong to the install, and a new one asks for new passwords.
     stamp="$(mktemp)" || fail "mktemp"
     { [ ! -f "$H/.sdcore-install" ] || cat "$H/.sdcore-install"; printf 'kept %s\n' "$(date -Is)"; } > "$stamp"
-    find "$H" -mindepth 1 -maxdepth 1 ! -name user_accounts ! -name sd.conf -exec rm -rf {} + || fail "removing the installation from $H"
+    keep_prune "$H" || fail "removing the installation from $H"
     find "$H/user_accounts" -mindepth 1 -maxdepth 1 ! -name sduser -exec rm -rf {} + || fail "removing the other accounts' folders from $H/user_accounts"
     mv "$stamp" "$H/.sdcore-kept" && chmod 600 "$H/.sdcore-kept" || fail "writing $H/.sdcore-kept"
     chmod -R go-rwx "$H"
@@ -208,6 +222,7 @@ if [ "$data" = "keep" ]; then
     say "removed everything in $H except your data and configuration"
     say "your data is in $H/user_accounts/sduser"
     if [ -f "$H/sd.conf" ]; then say "your configuration is in $H/sd.conf"; else warn "there is no $H/sd.conf to keep"; fi
+    if [ -d "$H/newvoc.mods" ]; then say "your local VOC modifications are in $H/newvoc.mods"; fi
     say "a new install into $H will offer to reload them; to remove them for good: rm -rf $H"
   else
     warn "there is no $H/user_accounts/sduser to keep"
