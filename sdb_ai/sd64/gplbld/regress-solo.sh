@@ -17,6 +17,9 @@
 # 23 Oct 2026, carry 16: ai-line-solo (sandbox-ai-line-solo.py: the AI line of the home screen, $tk_ai, against the real helper and the fake provider).  It runs after ai-solo and
 #   starts from nothing of ai-solo's: it removes <dir>/ai and makes it again, turns the helper's gate on and off with set.ai, leaves the gate on, and sets start.default to terminal.
 #   Its mutants (--mutant=no-preview|action-not-checked|command-default-run|command-not-cleaned) are not run from here.
+# 24 Oct 2026, carry 17: ai-apps-solo (sandbox-ai-apps-solo.py: the AI in the IDE, SED and CED, against the real helper and the fake provider).  It runs after ai-line-solo, recompiles tk_ai,
+#   sl_form, ide, sed and ced_edit in the sandbox, leaves three records in the account's bp file and the AI configured, and sets start.default to terminal.  Its mutants
+#   (--mutant=ide-edit-by-enter|sed-saves|ced-saves|ced-invalid-accepted) are not run from here.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -26,7 +29,7 @@ mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
 # txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
-for s in tk-solo home-solo ai-solo ai-line-solo apifile crypt csvb csvq guide jsonx osgate pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx txnfail; do
+for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)

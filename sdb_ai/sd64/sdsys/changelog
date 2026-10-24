@@ -1,6 +1,36 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE IDE, SED AND CED CAN BE ASKED ABOUT WHAT YOU ARE EDITING WHEN THE AI
+           IS ON, WITH THE SAME PREVIEW OF EVERYTHING THAT IS SENT, AND THE CHANGES THE
+           AI PROPOSES ARE SHOWN AS A DIFF. WITHOUT THE AI NOTHING IN THEM CHANGES.
+           Carried from SD Core's changes of 24 October.
+
+           What        The IDE gets an AI menu (Explain the error, Explain the
+                       selection, Ask about this record) and an AI> row under the
+                       editor. SED gets two Tools items, Ask the AI... and Explain the
+                       selection (also the commands AI and AI.SELECTION). CED gets F2:
+                       explain the selected element, ask about the record, undo the AI's
+                       last change; the AI sees the record as indented JSON. Everywhere
+                       Enter shows what will be sent (provider, model, instruction, the
+                       text and your question) with Send and Cancel, and Cancel is the
+                       default. An answer may propose changes: each is a diff; Accept puts
+                       them in the buffer (the IDE and SED: one Undo step; CED: the record
+                       is marked changed and the menu undoes them), Reject is the default,
+                       and nothing is saved - Save is yours. A set of changes is taken
+                       whole or not at all (old text missing or twice, overlapping, more
+                       than 8, more than 30 lines are ignored and said so); CED also
+                       refuses a result that is not a JSON object or array. A command in an
+                       answer is ignored.
+           Why it      The same help where you edit programs and data, with every byte that
+           matters     leaves the machine shown first and every change visible before it
+                       is made.
+           Does not    The AI never saves, compiles or runs anything. Not built: an AI
+                       command in the debugger (Solo's debugger is older than SD Core's and
+                       has not been carried yet), SED's split window (the AI sees the buffer
+                       you are in), and an AI that stores a paragraph or a dictionary item
+                       itself. NOT SHOWN: a run against a real provider.
+
 23 Oct 26  THE HOME SCREEN HAS AN AI LINE WHEN THE AI IS ON: TYPE WHAT YOU WANT,
            SEE EXACTLY WHAT WILL BE SENT, AND ACCEPT A TILE OR RUN A COMMAND THE
            AI PROPOSES. WITHOUT THE AI THERE IS NO SUCH ROW AND NOTHING CHANGES.

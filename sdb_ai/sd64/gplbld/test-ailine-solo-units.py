@@ -23,8 +23,10 @@ SD64 = os.path.abspath(os.path.join(HERE, os.pardir))
 GPL = os.path.join(SD64, "sdsys", "gpl.bp")
 MSG = os.path.join(SD64, "sdsys", "messages")
 FILES = {"tk_ai": os.path.join(GPL, "tk_ai"), "tool_home": os.path.join(GPL, "tool_home"), "tk.h": os.path.join(GPL, "tk.h"),
-         "int$keys.h": os.path.join(GPL, "int$keys.h")}
+         "int$keys.h": os.path.join(GPL, "int$keys.h"),
+         "ide": os.path.join(GPL, "ide"), "sl_form": os.path.join(GPL, "sl_form"), "sed": os.path.join(GPL, "sed"), "ced_edit": os.path.join(GPL, "ced_edit")}
 MSGS = list(range(11635, 11653))
+MSGS2 = list(range(11653, 11681))        # Solo carry 17 (24 Oct 26): the IDE (11653-11669), SED and CED (11670-11680).  11681 is the debugger's, which Solo does not have (its debugger is not Core's)
 
 
 def read(p):
@@ -58,7 +60,7 @@ def msg_files():
 
 def load():
     s = {k: read(p) for k, p in FILES.items()}
-    s["msgs"] = {n: (read(os.path.join(MSG, str(n))) if os.path.exists(os.path.join(MSG, str(n))) else None) for n in MSGS}
+    s["msgs"] = {n: (read(os.path.join(MSG, str(n))) if os.path.exists(os.path.join(MSG, str(n))) else None) for n in MSGS + MSGS2}
     s["msgfiles"] = msg_files()
     return s
 
@@ -126,6 +128,57 @@ def checks(s):
        "switch" not in home.lower() and "is_grp_member" not in home, "")
     ck("S4 tk_ai reads the helper's gate, not a Linux group: no group test, no register read, no modify.account word in the file", not re.search(r"is_grp_member|openpath|ACC\$|modify\.account|ai-on", ai), "")
     ck("S5 the history of each carried file says so (Solo carry 16), so the next reader knows the code is Core's d6c031e", "Solo carry 16" in s["tk_ai"] and "SOLO CARRY 16" in s["tool_home"], "")
+
+    # Solo carry 17 (24 Oct 2026): AI line stages 2 and 3 - the IDE, SED and CED (the debugger's is not carried: Solo's debugger is older than Core's)
+    edits = ai[ai.find("read.edits:"):ai.find("map1:")]
+    ide = strip_bas(s["ide"])
+    apply_ = ide[ide.find("ai.apply:"):ide.find("get.context:")]
+    splice = ai[ai.find("splice.edits:"):ai.find("* ----", ai.find("splice.edits:"))]
+    ck("E1 edits are all or none: a set with one edit that does not fit gives the note 11660 and returns BEFORE the diff is built and before pk is set to 'edit'",
+       ordered(edits, "if bad.why # '' then", "note.p = sysmsg(11660, bad.why)", "return", "diff.lines = ''", "pk = 'edit'"), "")
+    ck("E2 an old text must be in the text shown exactly once and be what the model was shown there (not found, found twice, differs from the original)",
+       ordered(edits, "ep = index(tbm, eo, 1)", "bad.why = 'old text not found'", "index(tbm, eo, 2) > 0", "bad.why = 'old text found more than once'", "tb.raw[ep, len(eo)] # eo"), "")
+    ck("E3 at most 8 edits, no empty old text, no new text over 4000 bytes, no two edits that overlap, and a diff of more than 30 lines is not offered (11659)",
+       all(w in edits for w in ("for ei = 1 to 8", "'more than 8 edits'", "bad.why = 'an empty old text'", "len(en) > 4000", "epos<i> + elen<i> > epos<i + 1>", "bad.why = 'two edits overlap'", "if dl > 30 then", "sysmsg(11659, dl)")), "")
+    ck("E4 a change to a text is never accepted by Enter alone: the popup of an edit has Accept and Reject and Reject is the default", re.search(r"case pk = 'edit'.*?btn = '&Accept,&Reject'\s*\n\s*dflt = 2", ask, re.S) is not None, "")
+    ck("E5 the diff shows EVERY edit in full: each old line with -, each new line with +, the change number and the line it is at (11658)",
+       ordered(edits, "sysmsg(11658, k, ed.n, line.no)", "'- ' : field(eo, nl, j)", "'+ ' : field(en, nl, j)"), "")
+    ck("E6 an app that has nowhere to run a command says so ('nocmd') and a command is then ignored; an action is looked for first, edits second, a command last",
+       "no.cmd" in ai and ordered(prop, "if found then", "if pk = '' and tbm # '' then gosub read.edits", "if pk = '' and not(no.cmd) then"), "")
+    ck("E7 the accepted edits are returned only for an edit proposal, with the model's own words: pk, the edit list, the argument, the words", "(if pk = 'action' then pid else (if pk = 'edit' then ed.list else pcmd))" in ask, "")
+    ck("I1 the edits are applied only if the buffer still holds, at every place, exactly what the model was shown ($tk_ai 'splice'): it answers null otherwise, and the IDE then says 11666, changes nothing and returns",
+       ordered(splice, "s.now[s.off + s.p, s.l] # s.win[s.p, s.l]", "if not(s.fits) then return", "s.new = s.now")
+       and ordered(apply_, "call $tk_ai('splice'", "if ai.sp = '' then", "msg = sysmsg(11666)", "return", "mw{'value'} = "), "")
+    ck("I2 the change is ONE undo step: the old text and cursor go on the memo's undo stack before the new value is set, and redo is forgotten",
+       ordered(apply_, "mw{'undo'} = ai.snap", "mw{'redo'} = ''", "mw{'value'} = "), "")
+    ck("I3 the IDE writes nothing to the disk for the AI: no write, no save in the routine that applies the edits", not re.search(r"\b(write|writev|save|do\.save|delete)\b", apply_), "")
+    ck("I4 the AI is asked through $tk_ai only, only when a record is open, and the IDE gives the text, the line it starts at, the selection and 'nocmd'",
+       ide.count("call $tk_ai('ask'") == 1 and ordered(ide, "ai.go:", "if nbuf = 0 then", "msg = sysmsg(11662)", "call $tk_ai('ask'") and "ai.sel : @fm : 'nocmd'" in ide, "")
+    ck("I5 the AI entry, the AI menu and the shorter table exist only when the AI is usable (ai.on, from $tk_ai usable)", "call $tk_ai('usable', '', ai.on, ai.pm)" in ide and "ai.rows = (if ai.on then 1 else 0)" in ide
+       and "if j = 11230 and ai.on then" in ide and ordered(ide, "if ai.on then", "screen label f, 'ailab'", "screen entry f, 'ai'"), "")
+    ck("I6 a request typed in the AI entry goes through the same route as the menu (ai.go), and only on Enter (the entry activates)", "case focus.id = 'ai'" in ide and "gosub ai.go" in ide and "aw{'activate'} = 1" in ide, "")
+    ck("I7 sl_form lets an entry activate on Enter only when the app asked for it (the flag), so no other form's entry changes", "(aw{'type'} = 'entry' and aw{'activate'} + 0)" in strip_bas(s["sl_form"]), "")
+    ck("M3 messages 11653 to 11680 exist, each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS2), repr([n for n in MSGS2 if s["msgs"][n] is None]))
+    sed = strip_bas(s["sed"])
+    sed_ai = sed[sed.find("ai.run:"):sed.find("ai.say:")]
+    ced = strip_bas(s["ced_edit"])
+    ced_ai = ced[ced.find("ai.menu:"):ced.find("revert:")]
+    ck("X1 the shared routines are the library's: 'select', 'window' and 'splice' are in $tk_ai and the IDE and SED use them (CED the window and the splice), no editor has its own copy",
+       all(("case op = '%s'" % o) in ai for o in ("select", "window", "splice")) and "call $tk_ai('window'" in ide and "call $tk_ai('splice'" in ide and "call $tk_ai('select'" in ide
+       and "call $tk_ai('window'" in sed and "call $tk_ai('splice'" in sed and "call $tk_ai('select'" in sed and "call $tk_ai('window'" in ced and "call $tk_ai('splice'" in ced
+       and "ai.total = dcount" in ide and "> 24000" not in ide and "> 24000" not in sed, "")
+    ck("X2 SED offers the AI only when it is usable for the account: the menu items and the command both ask ai.ok ($tk_ai 'usable', once at the start), and the command says 11670 otherwise",
+       "call $tk_ai('usable', '', ai.ok, ai.pm)" in sed and ordered(sed, "if ai.ok then", "'Ask the &AI...'", "'Ex&plain the selection'") and ordered(sed_ai, "if not(ai.ok) then", "sysmsg(11670)", "return"), "")
+    ck("X3 SED sends nothing but through $tk_ai 'ask' (ONE call: the preview, the wait, the answer), the text and the selection as the model is told, 'nocmd' (a command is ignored), the mouse reports off while it runs and the screen drawn again after",
+       sed_ai.count("call $tk_ai('ask'") == 1 and "'nocmd'" in sed_ai and ordered(sed_ai, "gosub mouse.disarm", "call $tk_ai('ask'", "mat image = sw.space ; mat simage = ''", "gosub refresh.all"), "")
+    ck("X4 SED applies an accepted set to its BUFFER only: not in a read only buffer, only if it still fits (11666), by rebuilding the chunks (the main loop's capture before the command is the undo step), and the routine saves nothing",
+       ordered(sed_ai, "ai.apply:", "if read.only then", "gosub read.only.buffer", "call $tk_ai('splice'", "if ai.sp = '' then", "sysmsg(11666)", "gosub rebuild.chunks", "record.updated = @true")
+       and not re.search(r"\b(save\.record|write|writeu|writev)\b", sed_ai), "")
+    ck("X5 CED offers F2 only when the AI is usable; an accepted set must leave a JSON collection or array (else 11677 and c is not touched); the old record is kept for one undo BEFORE c is replaced; the routines save nothing",
+       "case c.key = 'f2' and ai.ok" in ced and "call $tk_ai('usable', '', ai.ok, ai.pm)" in ced
+       and ordered(ced_ai, "ai.apply:", "call $tk_ai('splice'", "ai.y = jparse(ai.sp<1>)", "if ai.bad then", "sysmsg(11677)", "return", "ai.undo = jbuild(c)", "c = ai.y", "dirty = @true")
+       and "'nocmd'" in ced_ai and not re.search(r"\b(save\.record|writeu|writev)\b", ced_ai), "")
+    ck("X6 Solo's debugger has no AI command (its debugger is older than Core's: no relayout, no 140 by 42 layout): the debugger asks nothing of $tk_ai", "tk_ai" not in read(os.path.join(GPL, "debug")), "")
     return rows
 
 
@@ -151,8 +204,25 @@ MUTANTS = [
     ("a message is missing", "msgfiles", None, None, "S2"),
     ("the kernel key START is not Solo's", "int$keys.h", "$define K$AI.START        160", "$define K$AI.STARTX       160", "S1"),
     ("the carry is not recorded in tk_ai", "tk_ai", "Solo carry 16 (Core d6c031e)", "Core d6c031e", "S5"),
+    # Solo carry 17 (the first of these is marker 18 for --from=18)
+    ("an old text found twice is accepted", "tk_ai", "               case index(tbm, eo, 2) > 0\n", "               case @false\n", "E2"),
+    ("a bad edit is only skipped, not the whole set", "tk_ai", "      note.p = sysmsg(11660, bad.why)\n      return\n", "      note.p = sysmsg(11660, bad.why)\n", "E1"),
+    ("Enter accepts an edit", "tk_ai", "         dflt = 2                                         ;* a change to a text is never accepted by Enter alone", "         dflt = 1", "E4"),
+    ("splice applies without the fit test", "tk_ai", "      if s.now[s.off + s.p, s.l] # s.win[s.p, s.l] then s.fits = 0", "      null", "I1"),
+    ("the IDE's change is not an undo step", "ide", "   mw{'undo'} = ai.snap : @fm : mw{'undo'}\n", "", "I2"),
+    ("the IDE saves after applying", "ide", "   msg = sysmsg(11661, ai.n)\n", "   msg = sysmsg(11661, ai.n)\n   write ai.new on fv, bi<cb>\n", "I3"),
+    ("the IDE does not say nocmd", "ide", "ai.sel : @fm : 'nocmd'", "ai.sel", "I4"),
+    ("every entry activates", "sl_form", "(aw{'type'} = 'entry' and aw{'activate'} + 0)", "aw{'type'} = 'entry'", "I7"),
+    ("SED saves after applying", "sed", "   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", "   gosub save.record\n   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", "X4"),
+    ("SED applies in a read only buffer", "sed", "   if read.only then\n      gosub read.only.buffer\n      return\n   end\n   gosub save.current\n   gosub assemble.record\n   ai.now", "   gosub save.current\n   gosub assemble.record\n   ai.now", "X4"),
+    ("SED offers the AI without the gate", "sed", "   if ai.ok then\n      ml = '-' ; mc = 'x:' ; gosub add.item\n      ml = 'Ask the &AI...'", "   if @true then\n      ml = '-' ; mc = 'x:' ; gosub add.item\n      ml = 'Ask the &AI...'", "X2"),
+    ("SED lets the mouse report during the wait", "sed", "   gosub mouse.disarm\n   call $tk_ai('ask'", "   call $tk_ai('ask'", "X3"),
+    ("CED accepts invalid JSON", "ced_edit", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", "X5"),
+    ("CED replaces c before keeping the old record", "ced_edit", "   ai.undo = jbuild(c)\n   c = ai.y\n", "   c = ai.y\n   ai.undo = jbuild(c)\n", "X5"),
+    ("CED saves after applying", "ced_edit", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", "X5"),
 ]
 M_SOLO = 10
+M_STAGE23 = 18
 
 
 def run(over=None):
