@@ -13,8 +13,10 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
-* 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 18): Core's text without the S.64 edit-gate question (K$EDIT.OS.OK) and the S.67 journal note (K$MASTERS), which Solo
-*               does not have; the question that is asked is the OS switch's K$PATH.OK (set.os.access os on).
+* 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 19): the S.64 question is back as Core asks it (K$EDIT.OS.OK, status -4), answered for the VOC alone, after MEASURING that an
+*               ordinary session could copy over voc/%0.  An account without the OS switch still gets -4 only for a path outside its directory or through a VOC.
+* 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 18): Core's text without the S.67 journal note (K$MASTERS), which Solo does not have; the OS switch's K$PATH.OK is
+*               asked (set.os.access os on).
 * 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 is a path outside the account
 *               for an account without OS.EXECUTE.  A measured !OSCOPY by such an account read AND wrote files
 *               outside its directory.
@@ -81,6 +83,10 @@ check.paths:
 *   the copy runs with the permissions of the Linux user.  It is asked here, as the account, for BOTH paths and
 *   BEFORE the existence test, so that -2 does not tell an account without OS access which files exist elsewhere.
       if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then
+         status = -4
+      end else if not(kernel(K$EDIT.OS.OK, target)) then
+*        24 Oct 26 dm - Solo carry 19 (SD Core's S.64 text, VOC only): a copy INTO a VOC (any component of the target below the account is one) is a change to it and
+*        needs the administrator.  Asked for the target only: reading it is not a change.
          status = -4
       end else
          if not(ospath(source, OS$EXISTS)) then

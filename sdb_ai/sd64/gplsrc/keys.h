@@ -265,6 +265,10 @@
 #define K_OS_EXEC            94
 #define K_PATH_OK            95
 #define K_PATH_IN            96
+/* 24 Oct 26, Solo carry 19.  K_EDIT_OS_OK, at SD Core's number (126, free here): the argument is an OPERATING SYSTEM pathname that the caller is about to write, create, delete or
+   copy into (OSCOPY, !IOSCOPY); 1 if no component of it below the account's directory names a VOC that THIS SESSION may not change (op_sh.c edit_os_path_refusal(): the
+   administrator and an account with OS.EXECUTE are not asked).  Not asked for reading.  Asked in addition to K_PATH_OK by the $internal programs that write a path for the user. */
+#define K_EDIT_OS_OK         126
 
 /* 30 Sep 26 SD Core for Linux Solo - LSOLO 12, RULING 33 (the Windows Solo
    key, same number).  WAS THIS SESSION ADMITTED WITH THE GLOBAL PASSWORD?

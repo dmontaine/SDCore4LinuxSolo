@@ -18,6 +18,7 @@
   	  * 
   	  * 
 	  * START-HISTORY:
+	  * 24 Oct 26 dm  Solo carry 19: K$EDIT.OS.OK (126), SD Core's number, for the OS-path programs that write for the user (!OSCOPY, !IOSCOPY).
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
 	  * 22 Oct 26 dm  Solo carry 13: DEFAULT.WIDTH 140 and DEFAULT.DEPTH 42 (were 120 and 36), as Core's 18 Oct 26 change; gplsrc/tio.h has the same two.
@@ -187,6 +188,9 @@
 * 21 Oct 26 dm - Solo carry 10 (SD Core's S.73 item 1).  K$PATH.IN: "directory : @fm : pathname", 1 if the pathname is inside the directory (realpath, so ".." and links out
 *   do not count).  The geometry only: the OS gate is not asked.  API request 29 uses it with the named account's directory.  Must match gplsrc/keys.h.
       $define K$PATH.IN         96       ;* 1 if the pathname is inside the directory
+* 24 Oct 26 dm - Solo carry 19.  K$EDIT.OS.OK, at SD Core's number: an OS pathname about to be written, created, deleted or copied into (!OSCOPY, !IOSCOPY); 1 if no component of it
+*   below the account's directory names a VOC that this session may not change.  Must match gplsrc/keys.h.
+      $define K$EDIT.OS.OK      126      ;* an OS pathname about to be written, created, deleted or copied into: 1 if no VOC is on the way
 * 20 Oct 26 SDNET CARRY 9 - SD Core's S.65 K$NET, at SD Core's number: the NET gate, settable only from $internal (LOGIN and APISRVR load it from
 *   register field 15 at account entry; the same field guards API request 29), -1 asks.  Must match gplsrc/keys.h.
       $define K$NET             127      ;* may open a file on another SD server (SDNet); account-scoped like K$SH; set from $internal, -1 asks

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  Solo carry 19 (the owner's "check, and close it if open"): EDIT_NONE and EDIT_VOC and the prototypes of edit_os_path_refusal() and edit_leaf_counts() (op_sh.c), SD Core's
+ *               S.64 names for the OS-path routes to a VOC, which is all Solo classifies (ruling 14); the dictionary and program-file kinds are not here.
  * 21 Oct 26 dm  Solo carry 10 (SD Core eb9ef4a, S.72b): NETG_PEEK (net_gate's read-mode test alone, for RECORDLOCKED()).
  * 20 Oct 26 dm  SDNet carry 9: SD Core's S.65 (slices 3c to 3e) and S.72 prototypes of netfiles.c, the NET_FILE kernel entry points; the S.64 edit-gate and S.66 / S.67
  *               prototypes that SD Core's history lines below mention are not here.
@@ -460,6 +462,11 @@ bool os_gate_open(void);
 bool os_path_ok_for_account(const char * name);
 bool os_path_inside(const char * rootdir, const char * name);   /* 21 Oct 26, Solo carry 10: geometry only, for K_PATH_IN */
 bool os_path_open_ok(const char * name);
+/* 24 Oct 26, Solo carry 19: the OS-path routes to the VOC (SD Core's S.64 names, VOC only).  EDIT_VOC: no component of the path below the account's directory may name a VOC. */
+#define EDIT_NONE 0
+#define EDIT_VOC  1
+int edit_os_path_refusal(const char * name, bool include_leaf);
+bool edit_leaf_counts(const char * name);
 
 /* OP_DIO3.C - line terminator modes of directory and sequential files (16 Oct 26, QM4 Fixes item 452) */
 u_char crlf_from_vflags(const char * vflags);

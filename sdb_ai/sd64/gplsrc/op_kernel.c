@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 SD Core for Linux Solo (Solo carry 19): K_EDIT_OS_OK (126, SD Core's number and name), an OS pathname about to be written, created, deleted or copied into: asks edit_os_path_refusal()
+ *           (op_sh.c; the VOC is the one kind Solo classifies).  !OSCOPY and !IOSCOPY ask it, as Core's do.
  * 21 Oct 26 SD Core for Linux Solo (Solo carry 10, SD Core's S.73 item 1): K_PATH_IN (96), SD Core's second-sitting case of 13 Oct, for API request 29's OS question.
  * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1, 9d6f407): K_NET (127), the NET gate as the user flag USR_NET (SD Core keeps it in
  *               a gates word); set from a $internal program, -1 asks; a set also empties the key ring of the XE conversion, as SD Core's does.  Carry 7's wipe
@@ -603,6 +605,20 @@ void op_kernel() {
       result.data.value = 0;
       if (k_get_c_string(descr, path_ok_name, MAX_PATHNAME_LEN) > 0)
         result.data.value = os_path_ok_for_account(path_ok_name) ? 1 : 0;
+    } break;
+
+    /* 24 Oct 26 dm - Solo carry 19 (SD Core's S.64 case, VOC only): an OS pathname about to be written to (OSCOPY, !IOSCOPY); see keys.h.  An empty or unreadable
+       argument is a refusal for anybody who is not the administrator.                                                                                           */
+    case K_EDIT_OS_OK: {
+      char edit_os_name[MAX_PATHNAME_LEN + 1];
+
+      result.data.value = 0;
+      if (my_uptr->flags & USR_ADMIN)
+        result.data.value = 1;
+      else if (k_get_c_string(descr, edit_os_name, MAX_PATHNAME_LEN) > 0)
+        /* The target may be a directory the file is copied INTO (a VOC): its own name counts then (edit_leaf_counts); a plain file or a name not made yet is a
+           record, and only what is above it is asked. */
+        result.data.value = (edit_os_path_refusal(edit_os_name, edit_leaf_counts(edit_os_name)) == EDIT_NONE) ? 1 : 0;
     } break;
 
     /* K_PATH_IN: "<directory><field mark><pathname>" - is the pathname inside the directory?  Geometry only (SD Core's second sitting of

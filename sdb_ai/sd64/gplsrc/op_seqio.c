@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  Solo carry 19 (measured: an ordinary session overwrote and deleted the VOC's files by pathname): OPENSEQ opens read only, and cannot create, a file under a
+ *               VOC, and DELETESEQ of one is refused - SD Core's S.64 hunks (edit_os_path_refusal(), include_leaf FALSE) with Solo's one kind, the VOC.
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on OPENSEQ and on DELETESEQ of a pathname is back, as Core's; the S.64 edit
  *               gates are still not here (Solo has voc_guard).
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.63 OS-access tests on OPENSEQ and DELETESEQ
@@ -65,6 +67,7 @@
 
 #include "sd.h"
 #include "dh_int.h"
+#include "header.h" /* HDR_INTERNAL: the VOC gate of the OS-path routes (24 Oct 26, Solo carry 19) */
 #include <poll.h>
 
 /* Modified by Composer AI - 2026/06/10.
@@ -235,6 +238,13 @@ void op_delseq() {
       process.status = ER_PERM;
       goto exit_op_delseq;
     }
+  }
+
+  /* 24 Oct 26 dm - Solo carry 19 (SD Core's S.64 hunk, VOC only): deleting a file of a VOC is a change to it, past the test in op_dio3.c.  A $internal program is
+     trusted, as in os_path_open_ok().  The final name is a plain file (S_ISREG below), a record and not a VOC, so only what is above it is asked (include_leaf FALSE). */
+  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {
+    process.status = ER_PERM;
+    goto exit_op_delseq;
   }
 
   /* Check file exists */
@@ -440,6 +450,7 @@ Private void openseq(bool map_name) {
   bool read_only = FALSE;
   int16_t blocking_user;
   bool record_locked = FALSE; /* 14 Sep 26 - lock_record() succeeded */
+  bool edit_blocked = FALSE;  /* 24 Oct 26, Solo carry 19: a path in a VOC, which the session may not change */
   int status;
   u_int16_t flags = 0;
   char* p;
@@ -608,6 +619,13 @@ Private void openseq(bool map_name) {
        file_name        Port name
  */
 
+  /* 24 Oct 26 dm - Solo carry 19 (SD Core's S.64 hunk, VOC only).  A VOC is a directory of files, so OPENSEQ and WRITESEQ change one as WRITE would, past the test in
+     op_dio3.c (measured: voc/%0 overwritten and deleted by an ordinary session with the OS switch off).  A session that may not change the file gets the sequential
+     file READ ONLY, and cannot create one there.  A $internal program is trusted, as in os_path_open_ok.  The final name is a record (a regular file, a device or a
+     FIFO, never a directory): only what is above it is asked (include_leaf FALSE). */
+  if (!(flags & SQ_PORT) && !(process.program.flags & HDR_INTERNAL))
+    edit_blocked = (edit_os_path_refusal(fullpathname, FALSE) != EDIT_NONE);
+
   if (!(flags & SQ_PORT)) /* Not a port */
   {
     /* Check if record to open exists */
@@ -638,7 +656,7 @@ Private void openseq(bool map_name) {
 
       /* Check if we have write access */
 
-      if ((op_flags & P_READONLY) || access(fullpathname, 2)) {
+      if ((op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked) {
         read_only = TRUE;
       }
 
@@ -650,6 +668,10 @@ Private void openseq(bool map_name) {
         process.status = ER_FNF;
         goto exit_op_openseq;
       }
+    } else if ((op_flags & 0x400) && edit_blocked) /* CREATING in a place the session may not change (24 Oct 26, Solo carry 19) */
+    {
+      process.status = ER_PERM;
+      goto exit_op_openseq;
     } else if (op_flags & 0x400) /* CREATING (and SHARED, which includes it): make the file now */
     {
       /* 12 Oct 26, openQM items 485 and 397 */
@@ -680,7 +702,7 @@ Private void openseq(bool map_name) {
   fvar->id_len = 0;
   fvar->id = NULL;
   fvar->flags = 0;
-  if (read_only)
+  if (read_only || edit_blocked) /* edit_blocked also covers a file that does not exist yet: its first WRITESEQ is refused */
     fvar->flags |= FV_RDONLY;
 
   if (flags & SQ_NOTFL) /* Not really a file at all */

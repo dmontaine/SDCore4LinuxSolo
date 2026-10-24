@@ -13,7 +13,8 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
-* 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 18): as _OSCOPY, without the S.64 edit-gate question and the S.67 journal note (Solo has neither).
+* 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 19): the S.64 question is back as in _OSCOPY (VOC alone).
+* 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 18): as _OSCOPY, without the S.67 journal note (Solo has none).
 * 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 as in _OSCOPY.
 * 12 Oct 26 dm  1.2-0 openQM ref 369.  The syntax is SD's own.
 * END-HISTORY
@@ -47,6 +48,11 @@ $include int$keys.h
    end
 * 13 Oct 26 dm - S.63: asked as the account, for both paths, before the existence test (see _OSCOPY).
    if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then
+      status = -4
+      return
+   end
+* 24 Oct 26 dm - Solo carry 19 (SD Core's S.64 text, VOC only): a copy INTO a VOC is a change to it and needs the administrator (the target only).
+   if not(kernel(K$EDIT.OS.OK, target)) then
       status = -4
       return
    end

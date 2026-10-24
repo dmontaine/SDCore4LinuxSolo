@@ -28,11 +28,12 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | Type | Name | What it does |
 |---|---|---|
 | `D` | direct | references a field number in the data record |
+| `E` | element | like `D`, but field 2 is the **path** of an element of a **data collection** record instead of a field number — see SD TCL - Data Collection Files |
 | `I` | indirect | an expression that returns a value — a virtual field |
 | `C` | calculated | like I but compiled with the BASIC compiler and returning via `@ANS` |
 | `A` | A-type | Pick-style data definition, with a different field layout |
 | `S` | S-type | identical to `A` in SD — kept for compatibility |
-| `L` | link | used only in query processor commands, to join to another file |
+| `L` | link | names another file and how to find the record in it, so that a query or an I-type can use its fields as `link%item` |
 | `PH` | phrase | a stored fragment substituted into a query command line |
 | `X` | text | miscellaneous data — not a field definition |
 
@@ -86,30 +87,30 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalogue`** — the same verb as **`catalog`**
-- **`cd`** {**`dict`** | **`data`**} *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`cd local`**  ·  **`cd all`**
-- **`clear.select`** {*list.no*}
 - **`copy from`** {**`dict`**} *src* {**`to`** {**`dict`**} *tgt*} {*id* …} {**`(options`**}
-- **`copy.listp`** {{**`dict`**} *file*} {*name* … | **`*`**} {**`(`***options*}
+- **`copyp`** {**`dict`**} *file* *id* … {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
 - **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*}
 - **`create.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
 - **`ct`** {**`dict`**} *file* {*id* … | **`*`**} {**`(options`**}
-- **`decatalog`** {*file*} *name* …
-- **`delete.index`** *file* *field* … | **`all`**
+- **`delete`** {**`dict`**} *file* {*id* …} {**`no.query`**}
 - **`disable.index`** *file* *index* … | **`all`**
 - **`display`** *text*
-- **`execute.list`** *command* {**`;`** *command* …}  —  a pair of brackets `()` in a command is replaced by each id of list 0 in turn
+- **`ed`** {**`dict`**} *file* {*id* …}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`generate`** {**`dict`**} *file* *record* …
 - **`home`**  —  the home screen: tiles for the account's tools, a terminal and sign out
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
+- **`make.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
 - **`off`**
+- **`profiler on`** {**`user`** *n*} {*event* …} | **`off`** {**`user`** *n*} | {**`display`**} {**`user`** *n*}
 - **`run`** {*file*} *record* {*arguments*}
 - **`scan`** {**`dict`**} *file* {*selection*} {*id* …} {**`all`**} {**`no.case`**} {**`all.match`** | **`no.match`**} {**`strings`** *file* *record*} **`for`** *"text"* …
 - **`search`** {**`dict`**} *file* {*selection*}
 - **`select`** {**`dict`**} *file* {*selection*} {*list.no*}
 - **`selectindex`** {**`dict`**} *file* *index* {*value*} {**`to`** *n*}
+- **`set.trigger`** *file* *name* {*modes*}
 - **`sort`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 
 ### core:voc-types

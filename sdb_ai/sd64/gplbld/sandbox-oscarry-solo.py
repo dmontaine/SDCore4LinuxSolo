@@ -184,6 +184,106 @@ def sec_off():
         has(out, r"^VP pointer-out \[\] st=3035$"), "output=%r" % (out,))
 
 
+def sec_voc():
+    """Solo carry 19.  MEASURED before it was closed: an ordinary session with the OS switch OFF overwrote, appended to and deleted voc/%0 with OSCOPY, !IOSCOPY, OPENSEQ +
+    WRITESEQ and DELETESEQ.  The target is voc/%1 (a copy is kept and put back after every row); the evidence is its bytes on the disk."""
+    ACCT = og.ACCT
+    say("\n=== V. the VOC's own files by pathname, the OS switch OFF (Solo carry 19) =========================================")
+    reg_state(False, False)
+    voc = os.path.join(ACCT, "voc")
+    tgt = os.path.join(voc, "%1")
+    keep = tgt + ".keep"
+    orig = slurp(tgt)
+    if not orig:
+        row("V0 setup: the VOC's file voc/%1 is there and not empty", False, "no bytes at %s" % tgt)
+        return
+    shutil.copyfile(tgt, keep)
+    junk = os.path.join(ACCT, "zzjunk")
+    put(junk, "JUNK-JUNK-JUNK\n")
+    new = os.path.join(voc, "zznew")
+    clean(new)
+
+    def intact():
+        return slurp(tgt) == orig
+
+    def restore():
+        if not intact():
+            shutil.copyfile(keep, tgt)
+
+    try:
+        row("V0 setup: the VOC's file voc/%1 is there (%d bytes) and a copy is kept" % (len(orig), len(orig)), True)
+        out = session(["OSCOPY %s %s OVERWRITE" % (junk, tgt)])
+        ok = has(out, r"has no OS access") and intact()
+        row("V1 OSCOPY over a file of the VOC is refused and the bytes are as they were", ok, "output=%r intact=%r" % (out, intact()))
+        restore()
+        out = session(["OSCOPY %s %s APPEND" % (junk, tgt)])
+        ok = has(out, r"has no OS access") and intact()
+        row("V2 OSCOPY ... APPEND to a file of the VOC is refused and the bytes are as they were", ok, "output=%r intact=%r" % (out, intact()))
+        restore()
+        out = run_prog("zzvoc3", ["call !ioscopy('%s', '%s', st)" % (junk, tgt), "crt 'V3 status ':st"])
+        ok = has(out, r"^V3 status -4$") and intact()
+        row("V3 !IOSCOPY over a file of the VOC answers -4 and the bytes are as they were", ok, "output=%r intact=%r" % (out, intact()))
+        restore()
+        out = run_prog("zzvoc4", ["openseq '%s' to f then" % tgt, "   crt 'V4 opened'", "   writeseq 'JUNK' to f else crt 'V4 write-refused'", "   closeseq f",
+                                  "end else crt 'V4 open-refused ':status()"])
+        ok = compiled(out) and has(out, r"^V4 (opened|open-refused)") and (has(out, r"^V4 write-refused$") or has(out, r"^V4 open-refused")) and intact()
+        row("V4 OPENSEQ + WRITESEQ of a file of the VOC changes nothing (the open is read only or refused; the write is refused)", ok, "output=%r intact=%r" % (out, intact()))
+        restore()
+        out = run_prog("zzvoc5", ["openseq '%s' creating to f then" % new, "   crt 'V5 created'", "   closeseq f", "end else crt 'V5 refused ':status()"])
+        ok = compiled(out) and has(out, r"^V5 refused ") and not os.path.exists(new)
+        row("V5 OPENSEQ ... CREATING a new file inside the VOC's directory is refused and nothing is made", ok, "output=%r exists=%r" % (out, os.path.exists(new)))
+        clean(new)
+        out = run_prog("zzvoc6", ["deleteseq '%s' then crt 'V6 deleted' else crt 'V6 refused ':status()" % tgt])
+        ok = compiled(out) and has(out, r"^V6 refused ") and os.path.exists(tgt) and intact()
+        row("V6 DELETESEQ of a file of the VOC is refused and the file is still there, whole", ok, "output=%r exists=%r intact=%r" % (out, os.path.exists(tgt), intact()))
+        if not os.path.exists(tgt):
+            shutil.copyfile(keep, tgt)
+        restore()
+        out = run_prog("zzvoc7", ["x = ospath('%s', 5)" % tgt, "crt 'V7 delete ':x:' st=':status()", "y = ospath('%s', 13)" % new, "crt 'V7 mkdir ':y:' st=':status()"])      # OS$DELETE 5, OS$MKDIR 13
+        ok = compiled(out) and has(out, r"^V7 delete 0 st=\d+$") and has(out, r"^V7 mkdir 0 st=\d+$") and os.path.exists(tgt) and intact() and not os.path.exists(new)
+        row("V7 OSPATH delete of a file of the VOC and OSPATH mkdir inside it answer false, and the disk is as it was", ok, "output=%r exists=%r intact=%r newdir=%r" % (out, os.path.exists(tgt), intact(), os.path.exists(new)))
+        if not os.path.exists(tgt):
+            shutil.copyfile(keep, tgt)
+        clean(new)
+        restore()
+        # a symbolic link inside the account that leads into the VOC does not get round it (the name is resolved)
+        link = os.path.join(ACCT, "zzvlink")
+        clean(link)
+        os.symlink(voc, link)
+        out = run_prog("zzvoc8", ["openseq '%s/%%1' to f then" % link, "   crt 'V8 opened'", "   writeseq 'JUNK' to f else crt 'V8 write-refused'", "   closeseq f", "end else crt 'V8 open-refused ':status()"])
+        ok = compiled(out) and (has(out, r"^V8 write-refused$") or has(out, r"^V8 open-refused")) and intact()
+        row("V8 a symbolic link in the account that points at the VOC's directory does not get round it", ok, "output=%r intact=%r" % (out, intact()))
+        restore()
+        clean(link)
+        # controls: a file that is not the VOC's is written, copied and deleted as ever
+        other = os.path.join(ACCT, "zzvother")
+        clean(other)
+        out = run_prog("zzvoc9", ["openseq '%s' creating to f then" % other, "   writeseq 'PLAIN' to f else crt 'V9 write-failed'", "   closeseq f", "   crt 'V9 written'", "end else crt 'V9 not-opened ':status()"])
+        row("V9 CONTROL: OPENSEQ + WRITESEQ of a file of the account that is not the VOC's still works (the file is on the disk)", has(out, r"^V9 written$") and slurp(other) is not None, "output=%r" % (out,))
+        clean(other)
+        # the administrator is not asked: ADMIN, then a copy of a new file into the VOC's directory
+        out = session(["OSCOPY %s %s" % (junk, new)], unlock=True)
+        row("V10 the administrator (ADMIN typed) may put a file in the VOC's directory: 'copied to', the file is on the disk", has(out, r"copied to") and os.path.exists(new), "output=%r" % (out,))
+        clean(new)
+        # the documented limit: an account with the OS switch ON has a shell (os.execute) and reaches the files as it always could
+        reg_state(False, True)
+        out = session(["OSCOPY %s %s" % (junk, new)])
+        row("V11 LIMIT, as in SD Core: with the OS switch ON the session is not asked (it has a shell), the copy is made", has(out, r"copied to") and os.path.exists(new), "output=%r" % (out,))
+        clean(new)
+    finally:
+        reg_state(False, False)
+        if not os.path.exists(tgt) or not intact():
+            shutil.copyfile(keep, tgt)
+        clean(keep)
+        clean(junk)
+        clean(new)
+        for pn in ("zzvoc3", "zzvoc4", "zzvoc5", "zzvoc6", "zzvoc7", "zzvoc8", "zzvoc9"):
+            for d in ("bp", "bp.out"):
+                q = os.path.join(ACCT, d, pn)
+                if os.path.exists(q):
+                    os.remove(q)
+
+
 def sec_on():
     ACCT, OUT = og.ACCT, og.OUT
     say("\n=== B. the OS switch ON (set.os.access os on) =========================================================================")

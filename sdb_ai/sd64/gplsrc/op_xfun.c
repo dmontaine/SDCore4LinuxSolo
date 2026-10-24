@@ -1090,6 +1090,15 @@ Private void x_ospath() {
           text = TRUE;
         goto ospath_done;
       }
+      /* 24 Oct 26, Solo carry 19 (SD Core's S.64 part 2 hunk, VOC only): the keys that DELETE or MAKE a file or directory change a VOC when the path runs through
+         one, which the gate above (geometry only) does not see.  Refused as a path outside the account is: STATUS() ER_PERM, the answer false.  The name deleted
+         counts when it is anything but a plain file; a directory made always counts.  (This opcode is not compiled for a $internal program, which has its own
+         OSPATH; the flag is tested as os_path_open_ok does.)                                                                                                   */
+      if (((key == 5) || (key == 13) || (key == 14)) && !(process.program.flags & HDR_INTERNAL) &&
+          (edit_os_path_refusal(path, (key == 5) ? edit_leaf_counts(path) : TRUE) != EDIT_NONE)) {
+        process.status = ER_PERM;
+        goto ospath_done;
+      }
       break;
     default:
       process.status = ER_ARGS;

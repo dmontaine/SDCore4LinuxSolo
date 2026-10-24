@@ -73,7 +73,7 @@ name rather than by path.
 
 
 ### voc:type:K
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:258#4f0b8cdd
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:260#4f0b8cdd
 
 **The K record — a keyword**
 
@@ -89,13 +89,30 @@ the words the query processor — `LIST`, `SELECT`, `SORT` and the rest —
 recognises inside a command line. `all` is `K` with number 5; `after` is
 `K` with a number; `and` is `K`.
 
-The 248 K-records in a stock VOC are the query processor's vocabulary,
+**A K record can also be a command.** When its fields 3 onwards are another
+VOC record (a `V` record, say), typing the K record's name runs that record as
+if it had been typed instead:
+
+```
+001  K
+002  1
+003  V
+004  CS
+005  /home/app/bp.out/report
+```
+
+This works for a locally catalogued subroutine too. The object is found by the
+last part of the pathname in field 5, which is the name it was catalogued
+under, so a program catalogued under a call name different from its program
+name is not reached this way.
+
+The 271 K-records in the shipped VOC are the query processor's vocabulary,
 and they are what makes a sentence like `list stock with qty > 100 by
 supplier` parse.
 
 
 ### voc:type:PA
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:225#9486a7c4
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:227#9486a7c4
 
 **The PA record — a paragraph**
 
@@ -133,7 +150,7 @@ expands to `list stock with no qty`.
 
 
 ### voc:type:PH
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:243#7acc327c
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:245#7acc327c
 
 **The PH record — a phrase**
 
@@ -165,14 +182,16 @@ expands to `list stock with no qty`.
 ```
 
 This is `sd.accounts`. Field 2 is the account name, field 3 is the file
-name in that account. `set.file` writes Q-pointers; see below.
+name in that account. `set.file` writes Q-pointers; see below. Since 16 Oct 2026 the
+target of `set.file` may itself be a Q-pointer, which makes a chain (not recommended, but it opens): each link is
+followed under the same rules, so a chain cannot reach where its links alone could not.
 
 `md` is a Q-pointer to `voc` — the VOC's own dictionary is reached
 through it, and it is how `dict voc` finds its records.
 
 
 ### voc:type:R
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:199#7919279b
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:201#7919279b
 
 **The R record — a remote record reference**
 
@@ -192,7 +211,7 @@ R-records pointing into `SD.VOCLIB`.
 
 
 ### voc:type:S
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:214#e478fff6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:216#e478fff6
 
 **The S record — a sentence**
 
@@ -265,7 +284,7 @@ a marginal verb.
 
 
 ### voc:type:X
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:275#f1c700c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:294#f1c700c1
 
 **The X record — text**
 
@@ -278,6 +297,9 @@ a marginal verb.
 This is `$release`, and it is the shipped VOC's **only** X-record. An X-record is
 **not a command** — it is miscellaneous data the VOC holds so that a program
 can read it by name with `read` from BASIC or `ct` from the command line.
+Two X-records that an account may add are read by SD itself and change what
+a command line does: `$private.voc` and `$voc.parser`, described on the next
+pages.
 
 **The licence and the contributor list are not VOC records at all**, despite
 looking like the obvious candidates. `config gpl` and `config contrib` shell

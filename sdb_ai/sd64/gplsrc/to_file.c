@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  Solo carry 19: start_file() refuses (11008) a print file whose path runs through a VOC (edit_os_path_refusal(), include_leaf FALSE): LIST ... LPTR to voc/%0 replaced it.
  * 20 Oct 26 dm  Solo carry 9 (SD Core 27db277): start_file()'s OS-access refusal (11180) names the account; the message was printed with "%1" in it (sysmsg_arg1()).
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on the pathname of a print file is back in start_file() (message 11180);
  *               the S.64 edit gate on it is still not here.
@@ -266,6 +267,12 @@ Private void start_file(PRINT_UNIT* pu) {
        not asked.                                                                                                                      */
     if (!os_path_ok_for_account(fn)) {
       k_error(sysmsg_arg1(11180, account()));
+    }
+    /* 24 Oct 26 dm - Solo carry 19 (SD Core's S.64 hunk, VOC only): a print file made in a VOC replaces what is there, which is a change to it; asked of the
+       ACCOUNT for the same reason as above.  The spooler's own directory is not one.  The print file itself is a plain file (include_leaf FALSE): only what is
+       above its name counts.  Message 11008, the VOC rule's own. */
+    if (edit_os_path_refusal(fn, FALSE) != EDIT_NONE) {
+      k_error(sysmsg(11008));
     }
 
   open_file:

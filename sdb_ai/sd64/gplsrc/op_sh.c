@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm Solo carry 19 (the owner: "check, and close it if open"): MEASURED, an ordinary session with the OS switch OFF could overwrite, append to and delete the VOC's
+ *           own files (voc/%0) through OSCOPY, !IOSCOPY, OPENSEQ + WRITESEQ and DELETESEQ, past the VOC rule (ruling 14) which only watches record writes.  The OS-path
+ *           routes now ask edit_os_path_refusal() (SD Core's S.64 name; here it knows one kind, a component named voc below the account's directory) and edit_leaf_counts().
+ *           path_inside_dir() was split: resolve_gate_path() is its resolution, shared with the new test (behaviour-preserving, the OS-gate rows prove it).
  * 21 Oct 26 dm Solo carry 10 (SD Core's S.73 item 1): path_inside_account() became path_inside_dir(rootdir, name) (rootdir NULL is the working directory, so the
  *           account's own test is unchanged) and os_path_inside() is the geometry alone, for K_PATH_IN.
  * 20 Oct 26 SOLO OS SWITCH (the owner: two words like SD Core, SET.OS.ACCESS, the installer asks): SD Core's S.63 (13 Oct 26) carried
@@ -61,6 +65,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 /* Modified by Composer AI - 2026/06/10.
@@ -162,11 +167,12 @@ Private bool os_permitted(void) {
 /* 21 Oct 26 (Solo carry 10, SD Core's second sitting of 13 Oct): the test is "inside THIS directory", and the account's own directory is the case where the directory
    is the working directory (rootdir NULL).  A directory given is for API request 29 (os_path_inside, K_PATH_IN), which asks it of the account NAMED in the request.
    A relative name is relative to the directory asked about.                                                                                                   */
-Private bool path_inside_dir(const char *rootdir, const char *name) {
+/* 24 Oct 26, Solo carry 19: the resolution half of path_inside_dir(), shared with edit_os_path_refusal().  ROOT (PATH_MAX + 1 bytes) is the directory asked about and
+   RESOLVED (2 * PATH_MAX + 2) the name, both through realpath() (what exists, then the tail), root without a trailing slash.  FALSE if either cannot be resolved,
+   the tail has a "." or "..", or the directory is "/".                                                                                                       */
+Private bool resolve_gate_path(const char *rootdir, const char *name, char *root, char *resolved) {
   char cwd[PATH_MAX + 1];
-  char root[PATH_MAX + 1];
   char work[2 * PATH_MAX + 2];
-  char resolved[2 * PATH_MAX + 2];      /* realpath() needs PATH_MAX; the tail is appended after it */
   char tail[PATH_MAX + 1];
   char *p;
   size_t root_len;
@@ -228,7 +234,7 @@ Private bool path_inside_dir(const char *rootdir, const char *name) {
   }
 
   if (tail[0] != '\0') {
-    if (strlen(resolved) + strlen(tail) + 2 > sizeof(resolved))
+    if (strlen(resolved) + strlen(tail) + 2 > (size_t)(2 * PATH_MAX + 2))
       return FALSE;
     if (strcmp(resolved, "/") != 0)
       strcat(resolved, "/");
@@ -240,7 +246,17 @@ Private bool path_inside_dir(const char *rootdir, const char *name) {
     root[--root_len] = '\0';
   if (root_len == 1)           /* an account at "/" would contain the whole machine: refuse */
     return FALSE;
+  return TRUE;
+}
 
+Private bool path_inside_dir(const char *rootdir, const char *name) {
+  char root[PATH_MAX + 1];
+  char resolved[2 * PATH_MAX + 2];      /* realpath() needs PATH_MAX; the tail is appended after it */
+  size_t root_len;
+
+  if (!resolve_gate_path(rootdir, name, root, resolved))
+    return FALSE;
+  root_len = strlen(root);
   if (strncmp(resolved, root, root_len) != 0)
     return FALSE;
   return (resolved[root_len] == '\0') || (resolved[root_len] == '/');
@@ -262,6 +278,73 @@ bool os_path_open_ok(const char *name) {
   if (process.program.flags & HDR_INTERNAL)
     return TRUE;
   return os_path_ok_for_account(name);
+}
+
+/* ======================================================================
+   edit_os_path_refusal()  -  the OS-PATH routes to the VOC: OPENSEQ, DELETESEQ, OSPATH (delete, make), OSRENAME, a print file, a trace file, OSCOPY.
+
+   24 Oct 26, Solo carry 19 (the owner: "check, and close it if open").  The VOC rule of 29 Sep (ruling 14, voc_write_refused() in op_dio3.c) watches the
+   RECORD routes: a file variable on the VOC.  The VOC is a directory of the account (voc/%0, voc/%1), so a pathname gives the same power past it: MEASURED
+   on a fresh sandbox, an ordinary session with the OS switch off overwrote, appended to and deleted voc/%0 with OSCOPY, !IOSCOPY, OPENSEQ + WRITESEQ and
+   DELETESEQ.  SD Core's S.64 closes these with edit_os_path_refusal(), which knows three kinds (VOC, dictionary, program file); Solo has one rule, the VOC's, so
+   this keeps Core's name and shape and classifies one: a component named voc (any case) below the account's own directory.
+
+   The path is resolved as the OS gate resolves it.  Returns EDIT_NONE when the session may go on, or EDIT_VOC.  Read-only use is not asked: the callers use
+   this where they would write, create, delete or rename.  INCLUDE_LEAF says whether the FINAL component counts: a caller that makes or removes a plain file
+   (OPENSEQ, DELETESEQ, a print file) passes FALSE, since a record called voc in an ordinary directory file is a plain file, not a VOC; one whose final name may
+   be a directory (OSCOPY's target, OSPATH deleting or making one) passes TRUE.  Every directory below the final component counts either way.
+
+   NOT ASKED: the administrator (ADMIN, who may change the VOC) and an account that holds OS.EXECUTE, which has a shell and reaches the files as it always could.
+   A path outside the account is the OS gate's to refuse, not this.  A path that cannot be resolved is refused.                                              */
+
+int edit_os_path_refusal(const char *name, bool include_leaf) {
+  char root[PATH_MAX + 1];
+  char resolved[2 * PATH_MAX + 2];
+  const char *rel;
+  const char *p;
+  const char *more;
+  size_t root_len;
+  size_t n;
+
+  if (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC))
+    return EDIT_NONE;
+  if ((name == NULL) || (name[0] == '\0'))
+    return EDIT_NONE;
+  if (!resolve_gate_path(NULL, name, root, resolved))
+    return EDIT_VOC;   /* cannot tell: refuse (a gate that fails open on a path it cannot read is decoration) */
+
+  root_len = strlen(root);
+  if ((strncmp(resolved, root, root_len) != 0) || ((resolved[root_len] != '\0') && (resolved[root_len] != '/')))
+    return EDIT_NONE;  /* outside the account's own directory: the OS gate has refused or allowed it */
+  rel = resolved + root_len;
+
+  for (p = rel; *p != '\0';) {
+    while (*p == '/')
+      p++;
+    n = 0;
+    while ((p[n] != '\0') && (p[n] != '/'))
+      n++;
+    more = p + n;
+    while (*more == '/')
+      more++;
+    if ((n == 3) && (strncasecmp(p, "voc", 3) == 0) && (include_leaf || (*more != '\0')))
+      return EDIT_VOC;
+    p += n;
+  }
+  return EDIT_NONE;
+}
+
+/* edit_leaf_counts()  -  for a caller that DELETES, or COPIES INTO, an OS pathname whose final name may be a plain file or a directory (OSCOPY's target, OSPATH's
+   delete): does that final name need classifying (include_leaf TRUE)?  Only if it is there and is not a plain file.  A plain file called voc is a record of whatever
+   directory holds it, not a VOC; a name not made yet becomes a plain file when copied to, and there is nothing to delete.  A link, which could be to a directory,
+   counts.  (SD Core's, unchanged.)                                                                                                                            */
+
+bool edit_leaf_counts(const char *name) {
+  struct stat sb;
+
+  if ((name == NULL) || (name[0] == '\0') || (lstat(name, &sb) != 0))
+    return FALSE;
+  return !S_ISREG(sb.st_mode);
 }
 
 /* ======================================================================

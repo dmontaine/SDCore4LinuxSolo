@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  Solo carry 19: SKT$INFO.TRACE refuses a log path that runs through a VOC (edit_os_path_refusal(), SD Core's S.64 hunk with Solo's one kind): it used to truncate
+ *               voc/%0 for an ordinary session with the OS switch off.
  * 21 Oct 26 dm  Solo carry 10 (SD Core b052346, S.73 item 2, THE SILENT SERVER): READ.SOCKET on a TLS socket reads without blocking and waits on the descriptor for the time that
  *               is left of the caller's timeout (tls_read_by_deadline); the TLS handshake of OPEN.SOCKET is bound by the fourth argument (NETWAIT) when there is one, by the 15 seconds
  *               that were fixed when there is not.  Before: a server that sent session tickets or half a record and then nothing was waited for with no limit of its own.
@@ -95,6 +97,7 @@ void k_error(char msg[], ...) __attribute__((noreturn));
 
 #include "sd.h"
 #include "keys.h"
+#include "header.h" /* HDR_INTERNAL: the VOC gate of SKT$INFO.TRACE (24 Oct 26, Solo carry 19) */
 #include "sdnet.h"
 #include "sd_tls.h"
 
@@ -925,6 +928,13 @@ void op_setskt() {
         /* 20 Oct 26 SOLO OS SWITCH: the trace log is a file the program names, i.e. an OS path, so it asks the ACCOUNT's gate as OPENSEQ does:
            an account without OS.EXECUTE may trace only into its own directory.  Until today it was refused to everybody. */
         if (!os_path_ok_for_account(trace_path)) {
+          process.status = ER_PERM;
+          break;
+        }
+        /* 24 Oct 26 dm - Solo carry 19 (SD Core's S.64 part 2 hunk, VOC only): the log is made or overwritten, which is a change to a VOC when the path runs
+           through one.  The final name is the log itself, a plain file open() makes, so only what is above it is asked; a $internal program is trusted as
+           os_path_open_ok trusts it. */
+        if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(trace_path, FALSE) != EDIT_NONE)) {
           process.status = ER_PERM;
           break;
         }
