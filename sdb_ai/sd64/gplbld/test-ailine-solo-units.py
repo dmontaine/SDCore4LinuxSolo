@@ -24,9 +24,9 @@ GPL = os.path.join(SD64, "sdsys", "gpl.bp")
 MSG = os.path.join(SD64, "sdsys", "messages")
 FILES = {"tk_ai": os.path.join(GPL, "tk_ai"), "tool_home": os.path.join(GPL, "tool_home"), "tk.h": os.path.join(GPL, "tk.h"),
          "int$keys.h": os.path.join(GPL, "int$keys.h"),
-         "ide": os.path.join(GPL, "ide"), "sl_form": os.path.join(GPL, "sl_form"), "sed": os.path.join(GPL, "sed"), "ced_edit": os.path.join(GPL, "ced_edit")}
+         "ide": os.path.join(GPL, "ide"), "sl_form": os.path.join(GPL, "sl_form"), "sed": os.path.join(GPL, "sed"), "ced_edit": os.path.join(GPL, "ced_edit"), "debug": os.path.join(GPL, "debug")}
 MSGS = list(range(11635, 11653))
-MSGS2 = list(range(11653, 11681))        # Solo carry 17 (24 Oct 26): the IDE (11653-11669), SED and CED (11670-11680).  11681 is the debugger's, which Solo does not have (its debugger is not Core's)
+MSGS2 = list(range(11653, 11682))        # Solo carry 17 (24 Oct 26): the IDE (11653-11669), SED and CED (11670-11680); carry 18 (24 Oct 26): the debugger's 11681
 
 
 def read(p):
@@ -178,7 +178,13 @@ def checks(s):
        "case c.key = 'f2' and ai.ok" in ced and "call $tk_ai('usable', '', ai.ok, ai.pm)" in ced
        and ordered(ced_ai, "ai.apply:", "call $tk_ai('splice'", "ai.y = jparse(ai.sp<1>)", "if ai.bad then", "sysmsg(11677)", "return", "ai.undo = jbuild(c)", "c = ai.y", "dirty = @true")
        and "'nocmd'" in ced_ai and not re.search(r"\b(save\.record|writeu|writev)\b", ced_ai), "")
-    ck("X6 Solo's debugger has no AI command (its debugger is older than Core's: no relayout, no 140 by 42 layout): the debugger asks nothing of $tk_ai", "tk_ai" not in read(os.path.join(GPL, "debug")), "")
+    dbg = strip_bas(s["debug"])
+    dbg_ai = dbg[dbg.find("ai.run:"):dbg.find("help:")]
+    ck("X6 the debugger offers the command AI only in the full-screen display and when the AI is usable (ai.ok is set only under full.screen), sends no text to edit (so no edit is asked for), ignores a command, and draws the screen again after",
+       ordered(dbg, "ai.ok = 0", "if full.screen then call $tk_ai('usable', '', ai.ok, ai.pm)") and "case action = 'AI' and ai.ok" in dbg and ": @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'" in dbg_ai
+       and ordered(dbg_ai, "call $tk_ai('ask'", "gosub relayout") and "'edit'" not in dbg_ai, "")
+    ck("X7 the debugger is Core's (carry 18): ai.ok lives in debug.h's common, not in a variable of initialise (the debugger is called afresh at each stop, so an unassigned variable broke every command at the second stop)",
+       "ai.ok" in read(os.path.join(GPL, "debug.h")) and "relayout:" in dbg and "read.layout:" in dbg, "")
     return rows
 
 
@@ -220,9 +226,12 @@ MUTANTS = [
     ("CED accepts invalid JSON", "ced_edit", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", "X5"),
     ("CED replaces c before keeping the old record", "ced_edit", "   ai.undo = jbuild(c)\n   c = ai.y\n", "   c = ai.y\n   ai.undo = jbuild(c)\n", "X5"),
     ("CED saves after applying", "ced_edit", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", "X5"),
+    ("the debugger offers AI outside the full-screen display", "debug", "   if full.screen then call $tk_ai('usable', '', ai.ok, ai.pm)", "   call $tk_ai('usable', '', ai.ok, ai.pm)", "X6"),
+    ("the debugger sends text to edit", "debug", ": @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'", ": @fm : ai.page : @fm : 1 : @fm : '' : @fm : 'nocmd'", "X6"),
 ]
 M_SOLO = 10
 M_STAGE23 = 18
+M_CARRY18 = 33
 
 
 def run(over=None):

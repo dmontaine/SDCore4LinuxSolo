@@ -1510,12 +1510,16 @@ Unassigned variable|%s
 Directory pathname required
 ```
 
+cited by: `seldir`
+
 ### msg:11051
 > kind=message tier=reference since=- src=sdsys/messages/11051:1#74195242
 
 ```
 Cannot read directory %1
 ```
+
+cited by: `seldir`
 
 ### msg:11052
 > kind=message tier=reference since=- src=sdsys/messages/11052:1#2c3cafa4
@@ -1612,12 +1616,16 @@ cited by: `lstterm`
 %1 copied to %2
 ```
 
+cited by: `oscopya`
+
 ### msg:11062
 > kind=message tier=reference since=- src=sdsys/messages/11062:1#1072bdbc
 
 ```
 Cannot copy %1 to %2 (status %3)
 ```
+
+cited by: `oscopya`
 
 ### msg:11063
 > kind=message tier=reference since=- src=sdsys/messages/11063:1#4d939273
@@ -1626,12 +1634,16 @@ Cannot copy %1 to %2 (status %3)
 Target %1 already exists: give overwrite or append
 ```
 
+cited by: `oscopya`
+
 ### msg:11064
 > kind=message tier=reference since=- src=sdsys/messages/11064:1#93cc59d0
 
 ```
 Source %1 not found
 ```
+
+cited by: `oscopya`
 
 ### msg:11065
 > kind=message tier=reference since=- src=sdsys/messages/11065:1#ca409583
@@ -2296,10 +2308,10 @@ Value
 cited by: `ced_edit`
 
 ### msg:11136
-> kind=message tier=reference since=- src=sdsys/messages/11136:1#08c4956b
+> kind=message tier=reference since=- src=sdsys/messages/11136:1#c6cd9815
 
 ```
-Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF3               Rename the selected element\nF4               Change its data type\nF5 or Ctrl-C     Copy the selected element\nF6 or Ctrl-X     Cut the selected element\nF7 or Ctrl-V     Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nF1 or ?          This screen
+Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF2               The AI menu (only when the AI is on for your account)\nF3               Rename the selected element\nF4               Change its data type\nF5 or Ctrl-C     Copy the selected element\nF6 or Ctrl-X     Cut the selected element\nF7 or Ctrl-V     Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nF1 or ?          This screen
 ```
 
 cited by: `ced_edit`
@@ -2628,7 +2640,7 @@ cited by: `movelist`
 %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname (the administrator can give it: set.os.access os on)
 ```
 
-cited by: `convertdata`, `importdata`, `qproc`, `sed`, `setptr`
+cited by: `convertdata`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir`, `setptr`
 
 ### msg:1119
 > kind=message tier=reference since=- src=sdsys/messages/1119:1#0860c7cd
@@ -3378,6 +3390,38 @@ A command is needed after EXECUTE.LIST
 
 cited by: `execlst`
 
+### msg:11281
+> kind=message tier=reference since=- src=sdsys/messages/11281:1#fa6b9365
+
+```
+SD is not accepting new sessions: logins have been inhibited by %1 (inhibit.login). Try again later.
+```
+
+### msg:11282
+> kind=message tier=reference since=- src=sdsys/messages/11282:1#3849415d
+
+```
+Logins are already inhibited by %1. Switch it off first (inhibit.login off)
+```
+
+### msg:11283
+> kind=message tier=reference since=- src=sdsys/messages/11283:1#2022b1c3
+
+```
+Logins are allowed
+```
+
+cited by: `inhibit`
+
+### msg:11284
+> kind=message tier=reference since=- src=sdsys/messages/11284:1#b523acca
+
+```
+Logins are inhibited by %1 (user %2)
+```
+
+cited by: `inhibit`
+
 ### msg:11285
 > kind=message tier=reference since=- src=sdsys/messages/11285:1#c5b76206
 
@@ -3614,6 +3658,51 @@ cited by: `analyseidx`
 ```
 Illegal argument count
 ```
+
+### msg:11310
+> kind=message tier=reference since=- src=sdsys/messages/11310:1#1be7e472
+
+```
+%1 record(s) set to mode %2
+```
+
+cited by: `setmode`
+
+### msg:11311
+> kind=message tier=reference since=- src=sdsys/messages/11311:1#238c7af8
+
+```
+The mode must be three octal digits (000 to 777)
+```
+
+cited by: `setmode`
+
+### msg:11312
+> kind=message tier=reference since=- src=sdsys/messages/11312:1#1f102086
+
+```
+Record '%1' could not be changed (status %2)
+```
+
+cited by: `setmode`
+
+### msg:11313
+> kind=message tier=reference since=- src=sdsys/messages/11313:1#7f6fd971
+
+```
+A directory file is required
+```
+
+cited by: `setmode`
+
+### msg:11314
+> kind=message tier=reference since=- src=sdsys/messages/11314:1#1c6e0072
+
+```
+SET.MODE changes operating system file permissions and needs the account's operating system access (set.os.access os on)
+```
+
+cited by: `setmode`
 
 ### msg:11315
 > kind=message tier=reference since=- src=sdsys/messages/11315:1#081b6893
@@ -5392,7 +5481,7 @@ cited by: `tk_ai`
 AI>
 ```
 
-cited by: `tk_ai`
+cited by: `ced_edit`, `ide`, `sed`, `tk_ai`
 
 ### msg:11637
 > kind=message tier=reference since=- src=sdsys/messages/11637:1#78c91c62
@@ -5535,6 +5624,267 @@ cited by: `tk_ai`
 ```
 The AI line is not available: %1
 ```
+
+### msg:11653
+> kind=message tier=reference since=- src=sdsys/messages/11653:1#634c14f6
+
+```
+You may also propose changes to the text shown below as "edits": a list of {"old": text copied EXACTLY from the text shown that occurs in it exactly once, "new": what replaces it}. Use whole lines, at most 8 edits, and give no edits unless the request asks for a change.
+```
+
+cited by: `tk_ai`
+
+### msg:11654
+> kind=message tier=reference since=- src=sdsys/messages/11654:1#6f065d2c
+
+```
+&AI|&Explain the error~~ai.error|Explain the &selection~~ai.sel|&Ask about this record~~ai.ask
+```
+
+cited by: `ide`
+
+### msg:11655
+> kind=message tier=reference since=- src=sdsys/messages/11655:1#2c9c29df
+
+```
+Ask the AI about this record (nothing is sent until you have seen it)
+```
+
+cited by: `ide`
+
+### msg:11656
+> kind=message tier=reference since=- src=sdsys/messages/11656:1#10902567
+
+```
+Explain this compile message and say how to fix it. The message: %1
+```
+
+cited by: `ide`
+
+### msg:11657
+> kind=message tier=reference since=- src=sdsys/messages/11657:1#59e55c0d
+
+```
+Explain the selected text: what it does, and anything wrong with it.
+```
+
+cited by: `ide`, `sed`
+
+### msg:11658
+> kind=message tier=reference since=- src=sdsys/messages/11658:1#f4d8dead
+
+```
+Change %1 of %2, at line %3:
+```
+
+cited by: `tk_ai`
+
+### msg:11659
+> kind=message tier=reference since=- src=sdsys/messages/11659:1#e90deb76
+
+```
+The proposed change is too long to show here in full (%1 lines), so it was not offered: ask for a smaller change
+```
+
+cited by: `tk_ai`
+
+### msg:11660
+> kind=message tier=reference since=- src=sdsys/messages/11660:1#3028bd86
+
+```
+The AI proposed a change that does not fit the text (%1): it was ignored
+```
+
+cited by: `tk_ai`
+
+### msg:11661
+> kind=message tier=reference since=- src=sdsys/messages/11661:1#97c30e5d
+
+```
+The AI's change is in the editor (%1 edits): Ctrl-Z takes it back as one step, and nothing is saved until you save
+```
+
+cited by: `ide`, `sed`
+
+### msg:11662
+> kind=message tier=reference since=- src=sdsys/messages/11662:1#70311a39
+
+```
+No record is open: open one first
+```
+
+cited by: `ide`
+
+### msg:11663
+> kind=message tier=reference since=- src=sdsys/messages/11663:1#d9341856
+
+```
+No message is selected in the table: compile first, or move to a message
+```
+
+cited by: `ide`
+
+### msg:11664
+> kind=message tier=reference since=- src=sdsys/messages/11664:1#58aacf2c
+
+```
+Nothing is selected: press Ctrl-G where the text starts, move to where it ends, then ask
+```
+
+cited by: `ide`
+
+### msg:11665
+> kind=message tier=reference since=- src=sdsys/messages/11665:1#435e7c1b
+
+```
+The AI proposes this change. The editor is changed only if you choose Accept, and nothing is saved:
+```
+
+cited by: `tk_ai`
+
+### msg:11666
+> kind=message tier=reference since=- src=sdsys/messages/11666:1#5734e8dc
+
+```
+The text changed while the AI was answering, so its change no longer fits: nothing was applied
+```
+
+cited by: `ced_edit`, `ide`, `sed`
+
+### msg:11667
+> kind=message tier=reference since=- src=sdsys/messages/11667:1#a2451611
+
+```
+The text sent is the record from line %1 on, as far as it fits (%2 lines); the AI cannot see the rest
+```
+
+cited by: `ced_edit`, `ide`, `sed`
+
+### msg:11668
+> kind=message tier=reference since=- src=sdsys/messages/11668:1#209376ed
+
+```
+The text being worked on: %1 lines, %2 bytes, from line %3
+```
+
+cited by: `tk_ai`
+
+### msg:11669
+> kind=message tier=reference since=- src=sdsys/messages/11669:1#ccdb789a
+
+```
+The selected text: %1 bytes
+```
+
+cited by: `tk_ai`
+
+### msg:11670
+> kind=message tier=reference since=- src=sdsys/messages/11670:1#79275020
+
+```
+The AI is not available here: it is off for this account, or no provider, model and key have been set
+```
+
+cited by: `sed`
+
+### msg:11671
+> kind=message tier=reference since=- src=sdsys/messages/11671:1#473b6fec
+
+```
+Nothing is selected: set the mark (Esc .) where the text starts, move to where it ends, then ask
+```
+
+cited by: `sed`
+
+### msg:11672
+> kind=message tier=reference since=- src=sdsys/messages/11672:1#5f20f247
+
+```
+&Explain the selected element
+```
+
+cited by: `ced_edit`
+
+### msg:11673
+> kind=message tier=reference since=- src=sdsys/messages/11673:1#1d554ac0
+
+```
+&Ask the AI about this record
+```
+
+cited by: `ced_edit`
+
+### msg:11674
+> kind=message tier=reference since=- src=sdsys/messages/11674:1#c617de90
+
+```
+&Undo the AI's last change
+```
+
+cited by: `ced_edit`
+
+### msg:11675
+> kind=message tier=reference since=- src=sdsys/messages/11675:1#f5298bb2
+
+```
+Nothing to explain: the container is empty
+```
+
+cited by: `ced_edit`
+
+### msg:11676
+> kind=message tier=reference since=- src=sdsys/messages/11676:1#d2fc89c8
+
+```
+The AI's change is in the record (%1 edits): choose Undo the AI's last change on F2 to take it back; nothing is saved until you save
+```
+
+cited by: `ced_edit`
+
+### msg:11677
+> kind=message tier=reference since=- src=sdsys/messages/11677:1#01ca2000
+
+```
+The AI's change would not leave valid JSON, so it was ignored
+```
+
+cited by: `ced_edit`
+
+### msg:11678
+> kind=message tier=reference since=- src=sdsys/messages/11678:1#74e3065c
+
+```
+Explain this part of the record: what it is for, and anything that looks wrong. The part is %1
+```
+
+cited by: `ced_edit`
+
+### msg:11679
+> kind=message tier=reference since=- src=sdsys/messages/11679:1#dd642d31
+
+```
+Nothing to undo: the AI has not changed this record
+```
+
+cited by: `ced_edit`
+
+### msg:11680
+> kind=message tier=reference since=- src=sdsys/messages/11680:1#ca4d84df
+
+```
+The AI's last change is taken back
+```
+
+cited by: `ced_edit`
+
+### msg:11681
+> kind=message tier=reference since=- src=sdsys/messages/11681:1#ac36e5ce
+
+```
+Explain where this program has stopped, what the lines round the stop do, and what to look at next.
+```
+
+cited by: `debug`
 
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371
@@ -7942,7 +8292,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `listlck`, `listrdu` and 16 more
+cited by: `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit`, `listlck` and 17 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -8065,7 +8415,7 @@ cited by: `findfile`
 Unexpected token (%1)
 ```
 
-cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 54 more
+cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 57 more
 
 ### msg:2019
 > kind=message tier=reference since=- src=sdsys/messages/2019:1#a22e9c3b
@@ -8074,7 +8424,7 @@ cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `cl
 File not found
 ```
 
-cited by: `analyseidx`, `buildi`, `ced`, `clearfl`, `cname`, `createi`, `ct`, `delete` and 15 more
+cited by: `analyseidx`, `buildi`, `ced`, `clearfl`, `cname`, `createi`, `ct`, `delete` and 16 more
 
 ### msg:2020
 > kind=message tier=reference since=- src=sdsys/messages/2020:1#ddb8a0ce
@@ -8182,7 +8532,7 @@ cited by: `_voc_cat`
 Use active select list (First item '%1') (y/<n>)? 
 ```
 
-cited by: `cd`, `copy`, `ct`, `delete`, `deletef`, `ed`, `sed`
+cited by: `cd`, `copy`, `ct`, `delete`, `deletef`, `ed`, `sed`, `setmode`
 
 ### msg:2051
 > kind=message tier=reference since=- src=sdsys/messages/2051:1#26979478
@@ -8200,7 +8550,7 @@ cited by: `clearfl`
 Record name(s), select list or ALL keyword required
 ```
 
-cited by: `delete`
+cited by: `delete`, `setmode`
 
 ### msg:2053
 > kind=message tier=reference since=- src=sdsys/messages/2053:1#bf49c5e4
@@ -8302,7 +8652,7 @@ Full pathname required
 File name required
 ```
 
-cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `ced`, `clearfl`, `cname`, `configf` and 17 more
+cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `ced`, `clearfl`, `cname`, `configf` and 18 more
 
 ### msg:2105
 > kind=message tier=reference since=- src=sdsys/messages/2105:1#05b315af
@@ -8329,7 +8679,7 @@ cited by: `ct`
 Null record name ignored
 ```
 
-cited by: `ced`, `ct`, `delete`
+cited by: `ced`, `ct`, `delete`, `setmode`
 
 ### msg:2108
 > kind=message tier=reference since=- src=sdsys/messages/2108:1#f443697f
@@ -8338,7 +8688,7 @@ cited by: `ced`, `ct`, `delete`
 Record '%1' not found
 ```
 
-cited by: `copy`, `copylst`, `ct`, `delete`, `ed`, `format`
+cited by: `copy`, `copylst`, `ct`, `delete`, `ed`, `format`, `setmode`
 
 ### msg:2109
 > kind=message tier=reference since=- src=sdsys/messages/2109:1#eb56206f
@@ -11831,7 +12181,7 @@ cited by: `savelst`, `shwlist`
 %1 record(s) selected to select list %2
 ```
 
-cited by: `formlst`, `getlist`, `mrglist`, `nselect`, `qselect`, `selecti`
+cited by: `formlst`, `getlist`, `mrglist`, `nselect`, `qselect`, `seldir`, `selecti`
 
 ### msg:3262
 > kind=message tier=reference since=- src=sdsys/messages/3262:1#d69a3c5a
@@ -11921,7 +12271,7 @@ cited by: `mrglist`
 Select list number missing or invalid
 ```
 
-cited by: `getlist`, `movelst`, `nselect`, `savelst`, `selecti`
+cited by: `getlist`, `movelst`, `nselect`, `savelst`, `seldir`, `selecti`, `setmode`
 
 ### msg:3272
 > kind=message tier=reference since=- src=sdsys/messages/3272:1#13d9433b

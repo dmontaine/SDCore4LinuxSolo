@@ -28,6 +28,8 @@
 * 18 Oct 26 dm  voc_refusal and voc_guard join the bootstrap list: BASIC calls !voc_guard (Solo carry A, owner's ruling B).
 * 03 Oct 26 dm  is_grp_member leaves the bootstrap list: the program is deleted
 *               (LSOLO 30), its last callers were LOGTO and the dead SDLocal login.
+* 24 Oct 26 dm  Solo carry 18: login_inhibit joins the bootstrap list (LOGIN calls it, INHIBIT.LOGIN, QM4 gaps Q-8); an optional newvoc.mods directory in
+*               @sdsys is copied into the VOC after voc_template (QM4 gap 501).
 * 02 Oct 26 dm  acc_hold joins the bootstrap list: LOGIN calls it (LSOLO 20).
 * 13 Sep 26 dm  gpl.bp record names are lower case (plan M): the bootstrap list
 *               and the installed-already check name them so.  Compiled headers
@@ -193,7 +195,21 @@ readnext id from 2 then
   end
   goto voc_nxt
 end
-   
+
+* 16 Oct 26 dm (Core) - QM4 gap 501: if newvoc.mods is present in @sdsys, copy its
+* records into the VOC as well (UPDATE.ACCOUNTS does the same for the account's VOC).
+openpath @sdsys:@ds:'newvoc.mods' to voc_m.f then
+  select voc_m.f to 2
+voc_mod_nxt:
+  readnext id from 2 then
+    read voc_item from voc_m.f, id then
+      write voc_item on voc, id
+    end
+    goto voc_mod_nxt
+  end
+  close voc_m.f
+end
+
 *  note all files must be opend via openpath, open depends on pcode!
 
 openpath @sdsys:@ds:'gcat' to gcat.f else
@@ -244,6 +260,8 @@ src.list<-1> = 'parser'
 *   object code in $LOGIN" with sd exiting 0 (measured in SD Core for Linux's
 *   sandbox, 1 Oct 2026).
 src.list<-1> = 'acc_hold'
+* 24 Oct 26 dm - Solo carry 18, INHIBIT.LOGIN: LOGIN calls !login_inhibit on every entry, for the same reason as !acc_hold.
+src.list<-1> = 'login_inhibit'
 * 18 Oct 26 dm - Solo carry A: BASIC (SECOND.COMPILE runs it) asks !voc_guard before it writes the object file of the source file it was
 *   given, and !voc_guard asks !voc_refusal; both must exist before the first BASIC runs.
 src.list<-1> = 'voc_refusal'

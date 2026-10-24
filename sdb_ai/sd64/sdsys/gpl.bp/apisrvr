@@ -49,6 +49,8 @@
 * 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - vb.local.login keeps only its refusal
 *           (request 25 stays in the dispatch table); the unreachable body, its
 *           is_grp_member test and the is_grp_member declaration are gone.
+* 24 Oct 26 SD Core for Linux Solo (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8): vb.scram.first refuses a new API session (11281) while the administrator has
+*           logins inhibited, after the backup login hold and before any credential is looked at.
 * 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - vb.scram.first refuses a new API
 *           session (13002) while a backup or restore runs.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 19) - request 49 (SrvrSshKey): the master
@@ -1229,6 +1231,15 @@ vb.scram.first:
                call !acc_hold('TEST', hold.info, hold.err)
                if hold.err # '' then
                   scram.refuse.reason = 'a backup or restore is running'
+                  abort.message = sysmsg(hold.err<1,1>, hold.err<1,2>, hold.err<1,3>)
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+* 24 Oct 26 SD Core for Linux Solo (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8), the same refusal, in the same place.
+               call !login_inhibit('TEST', hold.info, hold.err)
+               if hold.err # '' then
+                  scram.refuse.reason = 'logins are inhibited (inhibit.login)'
                   abort.message = sysmsg(hold.err<1,1>, hold.err<1,2>, hold.err<1,3>)
                   server.error = SV$ON.ERROR
                   goto exit.vb.scram.fail

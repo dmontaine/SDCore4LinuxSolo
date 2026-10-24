@@ -99,9 +99,9 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`disable.index`** *file* *index* … | **`all`**
 - **`display`** *text*
 - **`execute.list`** *command* {**`;`** *command* …}  —  a pair of brackets `()` in a command is replaced by each id of list 0 in turn
-- **`format`** {*file*} {*record*} {**`case`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`generate`** {**`dict`**} *file* *record* …
+- **`home`**  —  the home screen: tiles for the account's tools, a terminal and sign out
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
 - **`off`**

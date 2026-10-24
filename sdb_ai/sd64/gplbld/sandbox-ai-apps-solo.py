@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 #
-# sandbox-ai-apps-solo.py - the AI in the IDE, SED and CED (AI line stages 2 and 3), driven on a pseudo-terminal on a private SD Core for Linux Solo
-#                           (SOLO CARRY 17 of S.69, 24 Oct 2026; Core commit 0f0e6d9 and the stage 3 commit after it).  No install, no sudo.
+# sandbox-ai-apps-solo.py - the AI in the IDE, SED, CED and the debugger (AI line stages 2 and 3), driven on a pseudo-terminal on a private SD Core for Linux Solo
+#                           (SOLO CARRY 17 of S.69, 24 Oct 2026; Core commit 0f0e6d9 and the stage 3 commit after it; the debugger rows with the debugger's own carry, 24 Oct 2026).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-apps-solo.py <dir> [--build] [--mutant=NAME]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it
 # could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of a program and exit 0 means the rows that had to fail failed and no others (MUTANTS below).
-# Solo's counterpart of Core's sandbox-ai-ide.py (the IDE rows) and sandbox-ai-apps.py (SED and CED; the debugger is not carried: Solo's debugger is older than Core's).  The harness
+# Solo's counterpart of Core's sandbox-ai-ide.py (the IDE rows) and sandbox-ai-apps.py (SED, CED and the debugger).  The harness
 # is sandbox-ai-line-solo.py's (the home / ai modules, the helper's runner and the fake provider, the gate as the helper's setting); the programs run in the one account, sduser, at the
 # terminal prompt of a session that has just signed on (Core: a fixture account and SDTEST_ADMIN).  What each app DID is read from the DISK afterwards (CT in a pipe session), never
 # from what the screen said; "nothing was sent" from the fake's request log and the audit file.
@@ -20,7 +20,9 @@
 #           Explain the selection with no mark says so, with a mark previews the selected text; the command typed with its request
 #   C0-C7   CED: F2 does nothing with the AI off; on, a menu of three; the preview shows the record as indented JSON; the diff; Accept changes the record (not the disk); Ctrl-S saves;
 #           an edit that would leave invalid JSON is ignored; the AI's last change is undone from the menu; explain the selected element
-# NOT HELD: the end of the input during the wait, a record over 24000 bytes, SED's split window, the debugger, a real provider.
+#   D0-D4   the debugger: ai is not a command with the AI off; on, ai shows the program, the stack and the source round the stop in the preview; Send answers in words; the popup goes and
+#           the debugger's screen is whole and still works; the SECOND stop of the program has the command too (the setting is in the debugger's common)
+# NOT HELD: the end of the input during the wait, a record over 24000 bytes, SED's split window, the debugger in line mode and in a phantom, a real provider.
 import importlib.util
 import os
 import re
@@ -51,9 +53,10 @@ OK_REC = "zzaio" + RUN                   # crt 'hello' / x = 1 / crt 'bye' / end
 ERR_REC = "zzaie" + RUN                  # crt "one" / x = = 1 / end
 CED_REC = "zzaic" + RUN                  # {"name":"widget","size":3,"tags":["a","b"]}
 BODY = ["   crt 'hello'", "   x = 1", "   crt 'bye'", "end"]
-PROGS = ("sl_form", "tk_ai", "ide", "sed", "ced_edit")
+PROGS = ("sl_form", "tk_ai", "ide", "sed", "ced_edit", "debug")
+DBG_PROG = "zzaid" + RUN                 # x = 5 / y = 'abc' / debug / crt 'AFTER-DEBUG' / debug / crt 'AFTER-TWO' / end   (compiled DEBUGGING; two stops)
 FAILED_IDS = []
-DOWN, RIGHT, TAB, RET, ESC = "\x1bOB", "\x1bOC", "\t", "\r", "\x1b"
+DOWN, RIGHT, TAB, RET, ESC = "\x1b[B", "\x1b[C", "\t", "\r", "\x1b"      # a Solo session is not in application cursor-key mode: the keys are ESC [ B / C (sandbox-home-solo.py KEYS), not ESC O B / C as in Core's harness
 F10, F2, F7 = "\x1b[21~", "\x1bOQ", "\x1b[18~"
 CTRL_Z = "\x1a"
 TOOLS = RIGHT * 5                        # SED: F10 opens File; Tools is the sixth title
@@ -79,15 +82,18 @@ MUTANTS = {
     "sed-saves": ("sed", "   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", "   gosub save.record\n   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", ["S5", "S8"]),
     "ced-saves": ("ced_edit", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", ["C4"]),
     "ced-invalid-accepted": ("ced_edit", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", ["C6", "C7"]),
+    "dbg-no-source": ("debug", "   for ai.q = ai.first to ai.last\n", "   for ai.q = ai.first to ai.first - 1\n", ["D2"]),   # (D2 reads the request at the fake; D1's preview shows only the first eight lines of the page)
 }
-MUTANT_SECTIONS = {"ide-edit-by-enter": "ide", "sed-saves": "sed", "ced-saves": "ced", "ced-invalid-accepted": "ced"}
+MUTANT_SECTIONS = {"ide-edit-by-enter": "ide", "sed-saves": "sed", "ced-saves": "ced", "ced-invalid-accepted": "ced", "dbg-no-source": "dbg"}
 
 
 class Sess(H):
     """sandbox-home-solo.py's session, with a command typed at the prompt (the start setting is terminal)."""
 
-    def __init__(self, cmd, cols=140, rows=43):
+    def __init__(self, cmd, cols=140, rows=43, term=None):
         H.__init__(self, cols=cols, rows=rows)
+        if term:                 # a Solo session starts as terminal type `linux` (no alternate screen, F2 is ESC [ [ B): CED's F2 and the debugger's full-screen display need `TERM xterm`, as Core's harness types
+            self.typed("TERM %s\r" % term, idle=0.8)
         self.typed(cmd + "\r", idle=2.0)
 
     def lines(self):
@@ -138,8 +144,16 @@ def make_records():
         bail("the records were not made:\n" + out[-500:])
 
 
+def make_debug_program():
+    src = "\n".join(["   x = 5", "   y = 'abc'", "   debug", "   crt 'AFTER-DEBUG'", "   debug", "   crt 'AFTER-TWO'", "end", ""])      # two stops: ai.ok lives in debug.h's common, set at the FIRST
+    put(os.path.join(sh.ACCT, "bp", DBG_PROG), src)
+    out = "\n".join(plain(["BASIC bp %s DEBUGGING" % DBG_PROG]))
+    if "with no errors" not in out:
+        bail("the debugger's program did not compile:\n" + out[-500:])
+
+
 def setup_apps(mutant):
-    for n in PROGS:
+    for n in PROGS + ("debug.h",):
         shutil.copyfile(os.path.join(TREE, "sdsys", "gpl.bp", n), os.path.join(sh.SYS, "gpl.bp", n))
     if mutant is not None:
         prog, old, new, _k = MUTANTS[mutant]
@@ -218,6 +232,8 @@ def sec_ide():
     time.sleep(0.8)
     h.s.settle(0.5)
     arow("I7c", "ONE Ctrl-Z takes the change back", "crt 'hello world'" not in h.text() and "crt 'hello'" in h.text(), h.text()[-500:])
+    h.end()                              # a new session: the AI entry still holds the earlier requests' text, and the request would be appended to it
+    h = Sess("IDE bp %s" % OK_REC)
     focus_entry(h)
     h.keys("x [[edit_dup]]", RET, "s")
     T = wait_popup(h)
@@ -311,12 +327,12 @@ def sec_ced():
     say("\n--- CED")
     fm = ai.STATE["fm"]
     ll.configure(provider=False)
-    h = Sess("CED bp %s" % CED_REC)
+    h = Sess("CED bp %s" % CED_REC, term="xterm")
     h.keys(F2)
     arow("C0", "no provider: F2 does nothing (no AI menu), and the record is on screen", "Explain the selected element" not in h.text() and "widget" in h.text(), h.text()[-400:])
     h.end()
     ll.configure()
-    h = Sess("CED bp %s" % CED_REC)
+    h = Sess("CED bp %s" % CED_REC, term="xterm")
     h.keys(F2)
     T = h.text()
     arow("C1", "F2 opens a menu of three: Explain the selected element, Ask the AI about this record, Undo the AI's last change", "Explain the selected element" in T and "Ask the AI about this record" in T and "Undo the AI's last change" in T, T[-600:])
@@ -346,7 +362,7 @@ def sec_ced():
     h.s.settle(0.6)
     T = h.text()
     arow("C6", "Accept of a change that leaves invalid JSON is refused: the table still shows size 3 and the message says so", re.search(r"size\s+number\s+3", T) is not None and ai.msg(11677)[:30] in T, T[:300] + T[-300:])
-    h.keys(DOWN)
+    h.keys("\x1bOB")                     # xterm's Down (the session is TERM xterm here)
     n1 = len(fm.log)
     h.keys(F2)
     h.keys("e")
@@ -355,7 +371,7 @@ def sec_ced():
     h.keys(RET)
     h.end()
     make_records()
-    h = Sess("CED bp %s" % CED_REC)
+    h = Sess("CED bp %s" % CED_REC, term="xterm")
     ced_ask(h, "raise the size [[ced_ok]]")
     h.keys("s")
     wait_popup(h)
@@ -364,6 +380,45 @@ def sec_ced():
     h.keys("\x13")
     time.sleep(1.0)
     arow("C4c", "Ctrl-S saves the AI's change, as ever: the disk now says 4", '"size":4' in rec(CED_REC), rec(CED_REC)[-200:])
+    h.end()
+
+
+def sec_dbg():
+    say("\n--- the debugger")
+    ll.configure(provider=False)
+    h = Sess("RUN bp %s" % DBG_PROG, term="xterm")
+    T = "\n".join(h.keys("ai", RET))
+    arow("D0", "no provider: ai is not the debugger's (a format error), nothing is previewed", "This will be sent" not in T and "debug" in T, T[-300:])
+    h.end()
+    ll.configure()
+    fm = ai.STATE["fm"]
+    h = Sess("RUN bp %s" % DBG_PROG, term="xterm")
+    n0, a0 = len(fm.log), ai.audit_off()
+    T = "\n".join(h.keys("ai what is y [[sayonly]]", RET))
+    arow("D1", "ai: the preview names the program and line, the source round the stop and the request; nothing sent yet", "This will be sent to anthropic" in T and "who is using debugger" in T
+         and DBG_PROG in T and "debug" in T and "what is y [[sayonly]]" in T and len(fm.log) == n0, T[-1400:])
+    h.keys("s")
+    T = wait_popup(h)
+    rq = requests()
+    pr = ai.prompt_of(rq[-1][2]) if len(rq) > n0 else ""
+    rl = ai.req_lines(ai.audit_new(a0))
+    arow("D2", "Send: ONE request whose prompt has the stop and the source lines (x = 5, debug), ONE audit line, and the answer is words with Close", len(fm.log) == n0 + 1 and "x = 5" in pr and "debug" in pr
+         and len(rl) == 1 and "[ Close ]" in T, repr((len(fm.log) - n0, pr[-300:], rl)))
+    h.keys(RET)
+    time.sleep(0.6)
+    h.s.settle(0.6)
+    L = h.lines()
+    arow("D3", "the popup is gone and the debugger's screen is whole: the source with its line numbers, the command line on the last row", any(re.match(r"^\s*3:\s+debug", l) for l in L) and L[-1].startswith(">"), "\n".join(L[:6] + L[-4:]))
+    L = h.keys("/x", RET)
+    arow("D3b", "...and it goes on working: /x shows the variable", any("5" in l for l in L[-9:-1]), "\n".join(L[-9:]))
+    h.keys("r", RET)
+    time.sleep(1.5)
+    h.s.settle(0.6)
+    n1 = len(fm.log)
+    T = "\n".join(h.keys("ai again [[sayonly]]", RET))
+    arow("D4", "the SECOND stop of the program: ai works there too (the setting lives in the debugger's common, not in a variable of the first call), the preview is shown and nothing is sent", "This will be sent to anthropic" in T
+         and "again [[sayonly]]" in T and len(fm.log) == n1, T[-700:])
+    h.keys(RET)
     h.end()
 
 
@@ -378,20 +433,22 @@ def main():
         setup_apps(mutant)
         ll.configure()
         make_records()
+        make_debug_program()
         if mutant is None:
             sec_ide_off()
             sec_ide()
             sec_sed()
             sec_ced()
+            sec_dbg()
         else:
-            {"ide": sec_ide, "sed": sec_sed, "ced": sec_ced}[MUTANT_SECTIONS[mutant]]()
+            {"ide": sec_ide, "sed": sec_sed, "ced": sec_ced, "dbg": sec_dbg}[MUTANT_SECTIONS[mutant]]()
     finally:
         ai.teardown_ai()
         sh.teardown()
     say("\nsandbox-ai-apps-solo: %d passed, %d failed" % (sh.passed, sh.failed))
     if mutant is not None:
         want = sorted(set(MUTANTS[mutant][3]))
-        got = sorted({re.match(r"[ISC]\d+", i).group(0) for i in FAILED_IDS if re.match(r"[ISC]\d+", i)})
+        got = sorted({re.match(r"[ISCD]\d+", i).group(0) for i in FAILED_IDS if re.match(r"[ISCD]\d+", i)})
         ok = want == got
         say("sandbox-ai-apps-solo: MUTANT %s: the rows that failed are %s; they had to be exactly %s -> %s" % (mutant, got, want, "KILLED BY ITS OWN ROWS" if ok else "NOT AS EXPECTED"))
         return 0 if ok else 1

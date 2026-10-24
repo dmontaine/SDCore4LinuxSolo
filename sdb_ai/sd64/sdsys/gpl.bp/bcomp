@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 24 Oct 26 dm  SOLO CARRY 18: the functions ACCOUNT.PATH(name) and VOCPATH(file {, dict}) (QM4 gaps bundle Q-4) in the builtin function table, as Core has them; their programs are
+*               !accountpath and !vocpathfn (both ask K$PATH.OK, Solo's OS switch).
 * 22 Oct 26 dm  SOLO CARRY 13: the SCREEN.NAMES / SCREEN.DEFS table is Core's (the slider, selector, container, viewport, in, move, delete and scroll
 *               verbs; COLOR, ACCEL, PLACE and WORDS keywords; CLICK on MENUBAR).  Nothing else of Core's bcomp is carried by this entry.
 * 18 Oct 26 dm  SDSALT(), SDKEY(passphrase, salt) and SDRANDKEY() (encryption layer 2): XFUN rows 37-39, the first to write no
@@ -8377,6 +8379,8 @@ builtin.functions.load:
    bf.rows := @fm:"MERGELIST,!mergelistfn,SSS,0"
    bf.rows := @fm:"SORT.COMPARE,!sortcompare,SSSS,1"
    bf.rows := @fm:"CHILD,!child,S,0"
+   bf.rows := @fm:"ACCOUNT.PATH,!accountpath,S,0"
+   bf.rows := @fm:"VOCPATH,!vocpathfn,SS,1"
    bf.rows := @fm:"PARSE,!parsepattern,SSS,0"
    bf.rows := @fm:"TTYGET,!ttyget,,0"
    for bf.i = 1 to dcount(bf.rows, @fm)

@@ -1,6 +1,53 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE DEBUGGER IS SD CORE'S, WITH ITS 140 BY 42 LAYOUT AND AN AI COMMAND; AND
+           THE FEATURES SOLO WAS HOLDING BACK ARE IN: OSCOPY, SELECT.DIR, SET.MODE,
+           ACCOUNT.PATH(), VOCPATH(), LOCK.TRACER, INHIBIT.LOGIN AND NEWVOC.MODS.
+           Carried from SD Core (SOLO CARRY 18).
+
+           What        The debugger's full-screen display is laid out for a window of 140
+                       columns by 42 lines or more (a bigger one is used whole). On a
+                       smaller window it says so once and is line by line for the
+                       session; a window made smaller while it is up shows the upper
+                       left corner of the layout, and while the cursor is off the
+                       screen it takes no keys (Ctrl-Q, y leaves). With the AI on, the
+                       command AI (or AI and a question) asks about the stop: the
+                       program and line, the call stack and the source round the stop,
+                       with the same preview of everything that is sent; the answer is
+                       words only.
+                       OSCOPY copies an operating system file (overwrite, append); the
+                       subroutines !OSCOPY and !IOSCOPY do it from a program, a tree
+                       too. SELECT.DIR makes a select list of the names in an operating
+                       system directory. SET.MODE sets the permission bits of records
+                       of a directory file. ACCOUNT.PATH(name) and VOCPATH(file) tell
+                       where an account and a file are. All of these ask the OS switch
+                       about any path outside the account's own directory, as OPENSEQ
+                       does, so they are refused until you say set.os.access os on
+                       (SET.MODE is refused to a session without it altogether).
+                       LOCK.TRACER logs every lock any session takes or lets go, for
+                       the administrator to read. INHIBIT.LOGIN keeps new sessions out
+                       (at the keyboard, over ssh and through the API) while you
+                       maintain the system; the session that set it is the only one
+                       that can switch it off, and if that session ends the inhibit
+                       is ignored. NEWVOC.MODS: an optional directory file of VOC
+                       records of your own in the SD system directory, written to the
+                       account's VOC after the standard ones at install and at every
+                       UPDATE.ACCOUNTS.
+           Why it      These were in SD Core and not here: Solo had no OS switch to
+           matters     hold the file-system ones back, and its notes had put the rest
+                       with "Solo has one user". The debugger was a version behind the
+                       editors, which already had the 140 by 42 layout.
+           Does not    Change who may do what: with the OS switch off, as delivered,
+                       none of the OS-path features reaches outside your account. The
+                       multiuser SD Core also asks whether an account may change a
+                       program file, VOC or dictionary that an OSCOPY target runs
+                       through; Solo has no such gates. A deletesdsolo.sh --keep-data
+                       does not keep newvoc.mods (only the account and sd.conf), an
+                       upgrade does. The debugger's AI command is not in line mode or
+                       in a phantom. NOT SHOWN: the API refusal of INHIBIT.LOGIN on a
+                       running server (source only).
+
 24 Oct 26  THE IDE, SED AND CED CAN BE ASKED ABOUT WHAT YOU ARE EDITING WHEN THE AI
            IS ON, WITH THE SAME PREVIEW OF EVERYTHING THAT IS SENT, AND THE CHANGES THE
            AI PROPOSES ARE SHOWN AS A DIFF. WITHOUT THE AI NOTHING IN THEM CHANGES.
@@ -25,11 +72,11 @@ Next release - in progress
            Why it      The same help where you edit programs and data, with every byte that
            matters     leaves the machine shown first and every change visible before it
                        is made.
-           Does not    The AI never saves, compiles or runs anything. Not built: an AI
-                       command in the debugger (Solo's debugger is older than SD Core's and
-                       has not been carried yet), SED's split window (the AI sees the buffer
-                       you are in), and an AI that stores a paragraph or a dictionary item
-                       itself. NOT SHOWN: a run against a real provider.
+           Does not    The AI never saves, compiles or runs anything. Not built: SED's
+                       split window (the AI sees the buffer you are in), and an AI that
+                       stores a paragraph or a dictionary item itself. NOT SHOWN: a run
+                       against a real provider. (The debugger's AI command is in the
+                       entry above.)
 
 23 Oct 26  THE HOME SCREEN HAS AN AI LINE WHEN THE AI IS ON: TYPE WHAT YOU WANT,
            SEE EXACTLY WHAT WILL BE SENT, AND ACCEPT A TILE OR RUN A COMMAND THE

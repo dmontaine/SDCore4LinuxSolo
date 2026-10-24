@@ -19,7 +19,9 @@
 #   Its mutants (--mutant=no-preview|action-not-checked|command-default-run|command-not-cleaned) are not run from here.
 # 24 Oct 2026, carry 17: ai-apps-solo (sandbox-ai-apps-solo.py: the AI in the IDE, SED and CED, against the real helper and the fake provider).  It runs after ai-line-solo, recompiles tk_ai,
 #   sl_form, ide, sed and ced_edit in the sandbox, leaves three records in the account's bp file and the AI configured, and sets start.default to terminal.  Its mutants
-#   (--mutant=ide-edit-by-enter|sed-saves|ced-saves|ced-invalid-accepted) are not run from here.
+#   (--mutant=ide-edit-by-enter|sed-saves|ced-saves|ced-invalid-accepted|dbg-no-source) are not run from here.  Carry 18 added the debugger rows D0-D4 to it (it also recompiles debug).
+# 24 Oct 2026, carry 18: oscarry-solo (sandbox-oscarry-solo.py: OSCOPY, !IOSCOPY, SELECT.DIR, SET.MODE, ACCOUNT.PATH, VOCPATH, LOCK.TRACER, INHIBIT.LOGIN, newvoc.mods).  It runs after
+#   osgate, changes the register's OS field while it runs and puts it back off, starts a holder session that sleeps 30 s (twice) and kills one (the stale-setter row).
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -29,7 +31,7 @@ mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
 # txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
-for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx txnfail; do
+for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate oscarry-solo pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)
