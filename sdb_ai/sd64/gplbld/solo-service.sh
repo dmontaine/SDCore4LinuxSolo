@@ -221,7 +221,7 @@ ai_apply() {
 # sd-solo.service, so the daemon sat in that unit's cgroup with nothing watching it: if it died, sessions that were lost were never cleared down until SD was
 # restarted.  Now sd-solo.service runs "sd-solo -start -nodaemon" (no fork of the daemon) and wants sd-solo-lnxd.service, which runs the daemon in the foreground and
 # starts it again two seconds after it fails.  Restart=on-failure and NOT always: "sd-solo -stop" ends the daemon with SIGTERM, which it answers by exiting 0, and a
-# unit that restarted it would bring it back after every stop.  A start that fails again and again stops after five tries in a minute (reset-failed, then start).
+# unit that restarted it would bring it back after every stop.  Systemd allows five starts of the unit in 60 seconds and refuses the sixth: EVERY start counts (a restart after a crash and an administrator's own "systemctl --user restart" alike), so the unit may be "failed" after a crash that follows several restarts of your own (reset-failed, then start).
 # The daemon unit follows sd-solo.service: it starts after it (the segment sd-solo -start makes must exist) and stops with it (BindsTo=).  A second daemon is not
 # possible: sdlnxd ends if the segment names a live one.  UMask=0077 as for every Solo unit.  The unit text is in these two functions so that "daemon --print" and the
 # free test read what is written.

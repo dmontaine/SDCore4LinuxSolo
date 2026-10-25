@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  THE UNINSTALLER STOPS WHEN IT CANNOT REMOVE THE SYSTEMD USER UNITS, INSTEAD OF DELETING THE INSTALLATION AROUND THEM.
+           Found by running the uninstaller from a shell that could not reach the systemd user manager (an ssh command, a cron job).
+
+             What        deletesdsolo.sh now finds your user manager's socket under /run/user/<your number> when the shell has no
+                         XDG_RUNTIME_DIR, and asks "solo-service.sh remove" to take the units away as before. If that is refused, it
+                         removes the unit files itself - every file in ~/.config/systemd/user whose name begins sd-solo, and the links
+                         that enable them - and tells systemd to reload. If any such file is still there afterwards it stops with an
+                         error that names the files, BEFORE it stops SD or removes anything else, and says to run it again from a login
+                         session or with XDG_RUNTIME_DIR set.
+             Why it      The uninstaller used to hide the refusal and go on to delete the installation. What was left was a service,
+             matters     enabled to start at every login, that pointed at a program that was no longer there, and the daemon's unit
+                         and the AI units with it.
+             Does not    Change what an uninstall removes when the units can be removed, or touch a unit file whose name does not begin
+                         sd-solo. It cannot make a user manager that is not running reachable; it only refuses to carry on without it.
+
 25 Oct 26  THE AUDIT TRAIL IS NEVER ROTATED ONTO A FILE THAT IS ALREADY THERE.
            Carried from SD Core (the audit daemon's rotation, found by its sandbox).
 
@@ -21,10 +36,12 @@ Next release - in progress
                          unit sd-solo-lnxd.service, in the foreground, and systemd starts it again two seconds after it fails (kill -9,
                          a crash, being killed for memory). sd-solo.service now runs "sd-solo -start -nodaemon", which starts SD without
                          forking the daemon, and wants the new unit. A stop is not a failure: "sd-solo -stop" ends the daemon with a
-                         clean exit and it is not brought back. Five failed starts in a minute and systemd gives up
-                         (systemctl --user reset-failed sd-solo-lnxd, then start). Only one daemon runs at a time: a second sdlnxd that
-                         finds a live one ends with status 0. An upgrade writes the two new units over the old ones (the new
-                         "solo-service.sh daemon HOME_DIR [--print]"); "solo-service.sh remove" and the uninstaller take both away.
+                         clean exit and it is not brought back. Systemd allows five starts of the unit in a minute and refuses the
+                         sixth - a restart after a crash and your own "systemctl --user restart" count alike, so five restarts followed
+                         by a crash leave the daemon down until you run "systemctl --user reset-failed sd-solo-lnxd" and then start
+                         it. Only one daemon runs at a time: a second sdlnxd that finds a live one ends with status 0. An upgrade
+                         writes the two new units over the old ones (the new "solo-service.sh daemon HOME_DIR [--print]");
+                         "solo-service.sh remove" and the uninstaller take both away.
              Why it      Until now "sd-solo -start" forked the daemon inside the one-shot sd-solo.service, where nothing watched it. If it
              matters     died, a session that was lost kept its place in the user table and its locks until someone restarted SD.
              Does not    Restart a daemon that was started by a plain "sd-solo -start" or "sd-solo -restart" - those still fork a daemon of

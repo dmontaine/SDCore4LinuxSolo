@@ -360,6 +360,16 @@ def wait_for(path, present, tmax=45.0):
     return False
 
 
+def listed():
+    """{process id: user number} from LISTU, asked by an administrator session (not while a hold is set: every new session is refused then)"""
+    res = {}
+    for ln in session(["LISTU"], unlock=True):
+        m = re.match(r"^\*?\s*(\d+)\s+(\d+)\s", ln)
+        if m:
+            res[int(m.group(2))] = int(m.group(1))
+    return res
+
+
 def sec_inhibit():
     SYS, ACCT = og.SYS, og.ACCT
     hold = os.path.join(SYS, "login.inhibit")
@@ -398,6 +408,14 @@ def sec_inhibit():
     row("D7 the setter has gone (killed, no OFF): its record is still on the disk but nobody is locked out - a new session runs and the state is 'Logins are allowed'",
         stale and has(out, r"^IN-RAN$") and has(out, r"^Logins are allowed$"), "stale=%r output=%r" % (stale, out))
     clean(hold)
+    # THE KILLED SETTER LEFT AN ENTRY IN THE USER TABLE, and nothing in a sandbox reaps it (the harness kills the sandbox's own daemon).  A suite that runs after this one and counts
+    # sessions saw it: tool-sessions-solo S5a listed four where it expected three (found in the first full regress-solo.sh of the W.11 carry, 25 Oct 26; the same on 9dfccc2).  Its user
+    # number is read now (before the kill every new session was refused while the hold was set); LOGOUT of a session whose process is gone reaps it, so this suite leaves the table as
+    # it found it.
+    holder_user = listed().get(p.pid)
+    out = session(["LOGOUT %d" % holder_user], unlock=True) if holder_user is not None else []
+    row("D7b the killed setter's entry is cleared with LOGOUT (so that it does not outlive this suite): LISTU no longer lists its process",
+        holder_user is not None and p.pid not in listed(), "user %r, process %d, LOGOUT output=%r" % (holder_user, p.pid, out))
 
     # the setter switches it off itself, and the audit trail is not asked: the evidence is the disk and the sessions
     p = start_holder(["INHIBIT.LOGIN ON", "RUN bp zzslp"])

@@ -11,7 +11,9 @@
 # release added to your ~/.ssh/authorized_keys, the old sshd_config.d block (sudo, only if it
 # exists), Solo's own PAM service /etc/pam.d/sd-solo-ssh-<you> (sudo, only if it exists -
 # SELinux machines, LSOLO 31), and the installation directory (which holds Solo's own ssh directory: its host
-# key and key file).  Run as YOUR OWN USER, never as root.
+# key and key file).  Run as YOUR OWN USER, never as root.  If the systemd user units cannot be removed (their files are
+# still there), the script STOPS before it removes the installation or your data: a tree that is gone while its units
+# are still enabled is worse than a tree that is still there.
 #
 # YOUR DATA AND CONFIGURATION.  The account's files live in <home>/user_accounts/sduser and
 # the configuration is <home>/sd.conf.  --keep-data LEAVES BOTH WHERE THEY ARE - and, if you made one, the
@@ -63,7 +65,7 @@ while [ "$#" -gt 0 ]; do
     --delete-data) data="delete"; shift ;;
     --yes)         assume_yes=1; shift ;;
     --from-copy)   from_copy=1; shift ;;
-    -h|--help)     sed -n '2,31p' "$0"; exit 0 ;;
+    -h|--help)     sed -n '2,34p' "$0"; exit 0 ;;
     *) refuse "unknown option: $1" ;;
   esac
 done
@@ -162,18 +164,54 @@ if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
   case "$a" in y|Y|yes|YES) ;; *) refuse "cancelled by you; nothing was changed" ;; esac
 fi
 
+# BEGIN remove_units
+# 25 Oct 26 - THE UNITS ARE REMOVED OR THE TREE IS NOT.  The real-install witness (the VM, a guest-control shell with no user-manager environment) found that
+# "solo-service.sh remove" refuses when the shell does not say where the user's systemd manager is (no XDG_RUNTIME_DIR, no D-Bus address: ssh without a session, cron), that its
+# output went through "| tail -2", and that this script then went on and deleted the tree - leaving sd-solo.service (enabled and wanted by default.target), the daemon unit and the
+# AI units pointing at nothing.  Now: (1) the environment is filled in from /run/user/<uid> when the manager is there; (2) a "remove" that fails is followed by removing the unit
+# files and their links by hand (a manager that cannot be reached runs nothing from them); (3) if any is still left the script STOPS before it touches anything else.
+user_manager_env() {   # user_manager_env RUNDIR: point systemctl --user at the manager this user already has, when the shell did not say where it is
+  local run="$1"
+  if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -d "$run" ]; then export XDG_RUNTIME_DIR="$run"; fi
+  if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"; fi
+  return 0
+}
+unit_files_left() {   # unit_files_left UNITDIR: the Solo unit files and the links that enable them, one path per line (only names that begin sd-solo)
+  local d="$1" f
+  for f in "$d"/sd-solo*.service "$d"/sd-solo*.socket "$d"/*.wants/sd-solo*.service "$d"/*.wants/sd-solo*.socket; do
+    if [ -e "$f" ] || [ -L "$f" ]; then printf '%s\n' "$f"; fi
+  done
+}
+remove_unit_files() {   # remove_unit_files UNITDIR
+  local f
+  while IFS= read -r f; do rm -f "$f"; done < <(unit_files_left "$1")
+}
+remove_units_step() {   # remove_units_step TREE UNITDIR: 0 when no unit file of Solo's is left, 1 when one is
+  local tree="$1" unitdir="$2" out rc
+  if [ -f "$tree/tools/solo-service.sh" ]; then
+    out="$(bash "$tree/tools/solo-service.sh" remove 2>&1)"; rc=$?
+    printf '%s\n' "$out" | tail -2
+    if [ "$rc" -ne 0 ]; then
+      warn "solo-service.sh could not remove the systemd user units (status $rc): removing their files directly"
+      remove_unit_files "$unitdir"
+      systemctl --user daemon-reload 2>/dev/null || true
+    fi
+  else
+    # the clean-up daemon's own unit first, so that it is not restarted while SD is being taken down (it has no [Install] section: nothing to disable)
+    systemctl --user stop sd-solo-lnxd.service >/dev/null 2>&1 || true
+    systemctl --user disable --now sd-solo-ssh.socket sd-solo-ai.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
+    remove_unit_files "$unitdir"
+    systemctl --user daemon-reload 2>/dev/null || true
+  fi
+  [ -z "$(unit_files_left "$unitdir")" ]
+}
+# END remove_units
+
 # ---- 1. the service and the daemon
-if [ -f "$H/tools/solo-service.sh" ]; then
-  bash "$H/tools/solo-service.sh" remove 2>&1 | tail -2
-else
-  # 25 Oct 26 - the clean-up daemon's own unit first, so that it is not restarted while SD is being taken down (it has no [Install] section: nothing to disable)
-  systemctl --user stop sd-solo-lnxd.service >/dev/null 2>&1 || true
-  systemctl --user disable --now sd-solo-ssh.socket sd-solo-ai.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
-  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-lnxd.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service \
-        "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh@.service \
-        "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ai.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ai@.service
-  systemctl --user daemon-reload 2>/dev/null || true
-fi
+user_manager_env "/run/user/$(id -u)"
+UNITDIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+remove_units_step "$H" "$UNITDIR" \
+  || fail "the systemd user units could not be removed (still there: $(unit_files_left "$UNITDIR" | tr '\n' ' ')); THE INSTALLATION DIRECTORY AND YOUR DATA WERE NOT TOUCHED (SD itself may have been stopped). Run this from a shell that can reach your systemd user manager (a login session, or with XDG_RUNTIME_DIR set), or remove those files yourself and run this again"
 for n in sd-solo sd; do   # the new name, then an old install's
   if [ -x "$H/bin/$n" ]; then "$H/bin/$n" -stop >/dev/null 2>&1 || true; fi
 done

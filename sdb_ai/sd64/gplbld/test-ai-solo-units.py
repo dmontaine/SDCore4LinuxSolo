@@ -192,7 +192,8 @@ def checks(s, run_print=True):
     inst = strip_sh(s["installsdsolo.sh"])
     ck("U9 an UPGRADE writes the units too (an install from before this release has none), inside the branch that has a service, after the ssh block, and a refusal does not stop the upgrade",
        ordered(inst, 'solo-service.sh" ssh "$HOME_DIR" "$ssh"', 'solo-service.sh" ai "$HOME_DIR" 2>&1 | tail -2 || true', 'There was no service; starting SD directly'), "")
-    ck("U10 the remover's fallback (no solo-service.sh left) takes the two AI units as well", "sd-solo-ai.socket" in s["deletesdsolo.sh"] and "sd-solo-ai@.service" in s["deletesdsolo.sh"], "")
+    ck("U10 the remover's fallback (no solo-service.sh left) takes the two AI units as well: the socket is disabled by name, and the unit files are found by the names beginning sd-solo (test-deleteunits-solo-units.py removes both AI files)",
+       "sd-solo-ai.socket" in s["deletesdsolo.sh"] and '"$d"/sd-solo*.service' in s["deletesdsolo.sh"] and '"$d"/sd-solo*.socket' in s["deletesdsolo.sh"], "")
 
     # ------------------------------------------------------------------------------------------------ the kernel
     ck("K1 the numbers are Core's, 160 to 163, the same in keys.h and int$keys.h",

@@ -300,7 +300,7 @@ def run():
         dl = code("deletesdsolo.sh")
         j1, j2 = dl.find("systemctl --user stop sd-solo-lnxd.service"), dl.find("systemctl --user disable --now sd-solo-ssh.socket")
         row("X1 deletesdsolo.sh (no solo-service.sh to ask) stops the daemon unit before it disables the service", 0 <= j1 < j2, "positions %d %d" % (j1, j2))
-        row("X2 and removes the unit file with the others", "systemd/user/sd-solo-lnxd.service" in dl, "")
+        row("X2 and removes the unit file with the others (every file whose name begins sd-solo; test-deleteunits-solo-units.py removes the daemon's among them)", '"$d"/sd-solo*.service' in dl, "")
     finally:
         sc.drop()
     print("test-lnxdunit-solo-units: %d passed, %d failed" % (passed, failed))
@@ -354,7 +354,7 @@ MUTANTS = [   # name, file, old, new
     ("installer-no-stop-of-the-unit", "installsdsolo.sh", "    systemctl --user stop sd-solo-lnxd.service >/dev/null 2>&1 || true\n", ""),
     ("installer-call-before-the-say", "installsdsolo.sh", '    say "Starting the systemd user service again."\n', ""),
     ("deleter-no-stop", "deletesdsolo.sh", "  systemctl --user stop sd-solo-lnxd.service >/dev/null 2>&1 || true\n", ""),
-    ("deleter-keeps-the-unit-file", "deletesdsolo.sh", '/systemd/user/sd-solo-lnxd.service "${XDG_CONFIG_HOME:-$HOME/.config}"', '/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"'),
+    ("deleter-keeps-the-unit-file", "deletesdsolo.sh", 'for f in "$d"/sd-solo*.service "$d"/sd-solo*.socket', 'for f in "$d"/sd-solo.service "$d"/sd-solo*.socket'),
 ]
 
 
