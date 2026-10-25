@@ -3,8 +3,14 @@
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh install HOME_DIR [--api off|local|open] [--ssh off|local|open]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh ssh HOME_DIR off|local|open [--print]
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh daemon HOME_DIR [--print]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh remove
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh status
+#
+# "daemon" (25 Oct 2026, the daemon's restart carried from SD Core's sd-lnxd.service) writes ONLY the two daemon units, sd-solo.service and sd-solo-lnxd.service, and
+# reloads systemd; it starts, stops and enables nothing.  An upgrade runs it, because the upgrade keeps the units it finds and an install from before this release would
+# otherwise go on running "sd-solo -start", which forks a daemon that nothing watches.  --print shows the two units and touches nothing.  It refuses a pair that names
+# another tree, as "ssh" and "ai" do.
 #
 # "ssh" (LSOLO 29) writes or removes ONLY the two ssh units and leaves the daemon and the
 # API alone; "install --ssh" does the same as part of an install.  --print shows the two
@@ -18,7 +24,11 @@
 #   sd-solo.service        the daemon: Type=oneshot + RemainAfterExit, as the parent's
 #                          sd.service (its 13 Sep 26 note: "sd -start" forks a daemon
 #                          that forks again, and Type=forking makes systemd guess the
-#                          main PID and declare the service dead)
+#                          main PID and declare the service dead).  Since 25 Oct 2026 it
+#                          runs "sd-solo -start -nodaemon" and wants sd-solo-lnxd.service
+#   sd-solo-lnxd.service   sdlnxd, the clean-up of lost sessions, in the foreground under
+#                          Restart=on-failure (NOT always: "sd-solo -stop" ends it with
+#                          SIGTERM and it exits 0); no [Install], sd-solo.service wants it
 #   sd-solo-api.socket     only with --api local|open: the API's listener, port 4249;
 #                          127.0.0.1 for "local", 0.0.0.0 for "open"
 #
@@ -61,6 +71,7 @@ fail()   { echo "FAILED at: $*" >&2; exit 1; }
 
 UNITDIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 DAEMON="sd-solo.service"
+LNXD="sd-solo-lnxd.service"
 SOCKET="sd-solo-api.socket"
 TEMPLATE="sd-solo-api@.service"
 SSH_SOCKET="sd-solo-ssh.socket"
@@ -206,6 +217,65 @@ ai_apply() {
   local s; s="$(systemctl --user is-active "$AI_SOCKET" 2>&1)"
   [ "$s" = "active" ] || { systemctl --user status "$AI_SOCKET" --no-pager 2>&1 | tail -12; fail "$AI_SOCKET is '$s', not active"; }
 }
+# ---- the daemon's two units (25 Oct 2026, carried from SD Core's sd.service and sd-lnxd.service).  Until now "sd-solo -start" forked sdlnxd inside the oneshot
+# sd-solo.service, so the daemon sat in that unit's cgroup with nothing watching it: if it died, sessions that were lost were never cleared down until SD was
+# restarted.  Now sd-solo.service runs "sd-solo -start -nodaemon" (no fork of the daemon) and wants sd-solo-lnxd.service, which runs the daemon in the foreground and
+# starts it again two seconds after it fails.  Restart=on-failure and NOT always: "sd-solo -stop" ends the daemon with SIGTERM, which it answers by exiting 0, and a
+# unit that restarted it would bring it back after every stop.  A start that fails again and again stops after five tries in a minute (reset-failed, then start).
+# The daemon unit follows sd-solo.service: it starts after it (the segment sd-solo -start makes must exist) and stops with it (BindsTo=).  A second daemon is not
+# possible: sdlnxd ends if the segment names a live one.  UMask=0077 as for every Solo unit.  The unit text is in these two functions so that "daemon --print" and the
+# free test read what is written.
+daemon_text() {   # daemon_text TREE
+  cat <<UNIT
+[Unit]
+Description=SD Core for Linux Solo (daemon)
+Documentation=file://$1/sd.conf
+Wants=$LNXD
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+UMask=0077
+ExecStart=$1/bin/sd-solo -start -nodaemon
+ExecStop=$1/bin/sd-solo -stop
+
+[Install]
+WantedBy=default.target
+UNIT
+}
+lnxd_text() {   # lnxd_text TREE
+  cat <<UNIT
+[Unit]
+Description=SD Core for Linux Solo (clean-up of lost sessions, sdlnxd)
+After=$DAEMON
+BindsTo=$DAEMON
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=$1/bin/sdlnxd
+Restart=on-failure
+RestartSec=2
+UMask=0077
+UNIT
+}
+daemon_write() {   # daemon_write TREE: the two files, nothing else
+  mkdir -p "$UNITDIR" || fail "mkdir $UNITDIR"
+  daemon_text "$1" > "$UNITDIR/$DAEMON" || fail "writing $UNITDIR/$DAEMON"
+  lnxd_text "$1" > "$UNITDIR/$LNXD" || fail "writing $UNITDIR/$LNXD"
+}
+# daemon_apply TREE: the "daemon" subcommand.  One set of units per user, as for ssh and the AI helper: refuse to replace a daemon unit that names another tree
+# (an earlier release's unit names bin/sd-solo or, before the rename, bin/sd).
+daemon_apply() {
+  local tree="$1" other
+  if [ -f "$UNITDIR/$DAEMON" ] && ! grep -qF -e "=$tree/bin/sd-solo " -e "=$tree/bin/sd " "$UNITDIR/$DAEMON"; then   # the old name (bin/sd) is an earlier release's, before the rename
+    other="$(sed -n 's#^ExecStart=\(.*\)/bin/sd[-a-z]* .*#\1#p' "$UNITDIR/$DAEMON" | head -1)"   # the old and the new name, to say whose tree it is
+    refuse "the daemon unit installed for this user belongs to another Solo tree (${other:-unknown}); doing this for $tree would replace it"
+  fi
+  daemon_write "$tree"
+  systemctl --user daemon-reload || fail "daemon-reload"
+}
 ssh_check_tree() {   # ssh_check_tree TREE
   case "$1" in /*) ;; *) refuse "HOME_DIR must be an absolute path (got '$1')" ;; esac
   [ -x "$1/bin/sd-solo" ]  || refuse "$1/bin/sd-solo is not there"
@@ -238,6 +308,15 @@ if [ "${1:-}" = "ai" ] && [ "$#" -eq 3 ] && [ "$3" = "--print" ]; then
   exit 0
 fi
 
+# "daemon TREE --print": the daemon's two units on stdout, nothing written, no systemctl (what the free test reads).
+if [ "${1:-}" = "daemon" ] && [ "$#" -eq 3 ] && [ "$3" = "--print" ]; then
+  ssh_check_tree "$2"
+  echo "# $DAEMON"; daemon_text "$2"
+  echo
+  echo "# $LNXD"; lnxd_text "$2"
+  exit 0
+fi
+
 command -v systemctl >/dev/null || refuse "systemctl is not available"
 systemctl --user is-system-running >/dev/null 2>&1 || {
   st="$(systemctl --user is-system-running 2>&1)"
@@ -246,8 +325,8 @@ systemctl --user is-system-running >/dev/null 2>&1 || {
 
 cmd="${1:-}"
 case "$cmd" in
-  install|remove|status|ssh|ai) shift ;;
-  *) refuse "usage: bash $0 install HOME_DIR [--api off|local|open] [--ssh off|local|open] | ssh HOME_DIR off|local|open [--print] | ai HOME_DIR [--print] | remove | status" ;;
+  install|remove|status|ssh|ai|daemon) shift ;;
+  *) refuse "usage: bash $0 install HOME_DIR [--api off|local|open] [--ssh off|local|open] | ssh HOME_DIR off|local|open [--print] | ai HOME_DIR [--print] | daemon HOME_DIR [--print] | remove | status" ;;
 esac
 
 linger_state() { loginctl show-user "$USER" -p Linger --value 2>/dev/null || echo unknown; }
@@ -282,12 +361,21 @@ if [ "$cmd" = "ai" ]; then
   exit 0
 fi
 
+if [ "$cmd" = "daemon" ]; then
+  [ "$#" -eq 1 ] || refuse "usage: bash $0 daemon HOME_DIR [--print]"
+  ssh_check_tree "$1"
+  daemon_apply "$1"
+  echo "SOLO DAEMON UNITS WRITTEN"
+  exit 0
+fi
+
 if [ "$cmd" = "status" ]; then
   echo "unit directory : $UNITDIR"
-  for u in "$DAEMON" "$SOCKET" "$TEMPLATE" "$SSH_SOCKET" "$SSH_TEMPLATE" "$AI_SOCKET" "$AI_TEMPLATE"; do
+  for u in "$DAEMON" "$LNXD" "$SOCKET" "$TEMPLATE" "$SSH_SOCKET" "$SSH_TEMPLATE" "$AI_SOCKET" "$AI_TEMPLATE"; do
     [ -f "$UNITDIR/$u" ] && echo "  present      : $u" || echo "  absent       : $u"
   done
   echo "daemon         : $(systemctl --user is-active "$DAEMON" 2>&1)   (enabled: $(systemctl --user is-enabled "$DAEMON" 2>&1))"
+  echo "sdlnxd         : $(systemctl --user is-active "$LNXD" 2>&1)"
   echo "api socket     : $(systemctl --user is-active "$SOCKET" 2>&1)"
   echo "ssh socket     : $(systemctl --user is-active "$SSH_SOCKET" 2>&1)"
   echo "ai socket      : $(systemctl --user is-active "$AI_SOCKET" 2>&1)"
@@ -300,12 +388,15 @@ if [ "$cmd" = "remove" ]; then
   systemctl --user disable --now "$SSH_SOCKET" >/dev/null 2>&1 || true
   systemctl --user disable --now "$AI_SOCKET" >/dev/null 2>&1 || true
   systemctl --user disable --now "$SOCKET" >/dev/null 2>&1 || true
+  # the clean-up daemon's unit first, so that it is not restarted while SD is being taken down; it has no [Install] section, so there is nothing to disable
+  systemctl --user stop "$LNXD" >/dev/null 2>&1 || true
   systemctl --user disable --now "$DAEMON" >/dev/null 2>&1 || true
-  for u in "$SSH_SOCKET" "$SSH_TEMPLATE" "$AI_SOCKET" "$AI_TEMPLATE" "$SOCKET" "$TEMPLATE" "$DAEMON"; do rm -f "$UNITDIR/$u"; done
+  for u in "$SSH_SOCKET" "$SSH_TEMPLATE" "$AI_SOCKET" "$AI_TEMPLATE" "$SOCKET" "$TEMPLATE" "$LNXD" "$DAEMON"; do rm -f "$UNITDIR/$u"; done
   systemctl --user daemon-reload || fail "daemon-reload"
   for u in "$DAEMON" "$SOCKET" "$SSH_SOCKET" "$AI_SOCKET"; do
     [ -f "$UNITDIR/$u" ] && fail "$UNITDIR/$u is still there"
   done
+  [ -f "$UNITDIR/$LNXD" ] && fail "$UNITDIR/$LNXD is still there"
   echo "linger is left as it was ($(linger_state)); this script never disables it."
   echo "SOLO SERVICE REMOVED"
   exit 0
@@ -347,21 +438,7 @@ mkdir -p "$UNITDIR" || fail "mkdir $UNITDIR"
 # would make the unit's "sd -start" fail ("already up"), so stop THAT one first.
 "$H/bin/sd-solo" -stop >/dev/null 2>&1 || true
 
-cat > "$UNITDIR/$DAEMON" <<UNIT
-[Unit]
-Description=SD Core for Linux Solo (daemon)
-Documentation=file://$H/sd.conf
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-UMask=0077
-ExecStart=$H/bin/sd-solo -start
-ExecStop=$H/bin/sd-solo -stop
-
-[Install]
-WantedBy=default.target
-UNIT
+daemon_write "$H"
 
 # Re-running install to CHANGE the API (off, local, open, another port) must not leave the
 # old listener behind: stop and disable the socket unit before its file is rewritten or
@@ -400,6 +477,15 @@ systemctl --user enable --now "$DAEMON" 2>&1 | tail -2
 sleep 1
 d_state="$(systemctl --user is-active "$DAEMON" 2>&1)"
 [ "$d_state" = "active" ] || { systemctl --user status "$DAEMON" --no-pager 2>&1 | tail -12; fail "$DAEMON is '$d_state', not active"; }
+# sd-solo.service wants the clean-up daemon's unit and that unit starts after it, so give it a few seconds to be up
+l_state="$(systemctl --user is-active "$LNXD" 2>&1)"
+for _ in 1 2 3 4 5; do
+  [ "$l_state" = "active" ] && break
+  sleep 1
+  l_state="$(systemctl --user is-active "$LNXD" 2>&1)"
+done
+[ "$l_state" = "active" ] || { systemctl --user status "$LNXD" --no-pager 2>&1 | tail -12; fail "$LNXD is '$l_state', not active"; }
+echo "  sdlnxd     : $LNXD $l_state (started again if it dies)"
 
 if [ "$api" != "off" ]; then
   systemctl --user enable --now "$SOCKET" 2>&1 | tail -2

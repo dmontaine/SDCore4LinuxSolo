@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  THE CLEAN-UP DAEMON IS STARTED AGAIN IF IT DIES: SDLNXD HAS A SYSTEMD USER UNIT OF ITS OWN, SD-SOLO-LNXD.SERVICE.
+           Carried from SD Core (the audit daemon's restart; Solo has no audit writer, so it is the clean-up daemon).
+
+             What        sdlnxd, the daemon that notices a session whose process has gone and clears it down, now runs as the user
+                         unit sd-solo-lnxd.service, in the foreground, and systemd starts it again two seconds after it fails (kill -9,
+                         a crash, being killed for memory). sd-solo.service now runs "sd-solo -start -nodaemon", which starts SD without
+                         forking the daemon, and wants the new unit. A stop is not a failure: "sd-solo -stop" ends the daemon with a
+                         clean exit and it is not brought back. Five failed starts in a minute and systemd gives up
+                         (systemctl --user reset-failed sd-solo-lnxd, then start). Only one daemon runs at a time: a second sdlnxd that
+                         finds a live one ends with status 0. An upgrade writes the two new units over the old ones (the new
+                         "solo-service.sh daemon HOME_DIR [--print]"); "solo-service.sh remove" and the uninstaller take both away.
+             Why it      Until now "sd-solo -start" forked the daemon inside the one-shot sd-solo.service, where nothing watched it. If it
+             matters     died, a session that was lost kept its place in the user table and its locks until someone restarted SD.
+             Does not    Restart a daemon that was started by a plain "sd-solo -start" or "sd-solo -restart" - those still fork a daemon of
+                         their own, which nothing watches; use "systemctl --user restart sd-solo.service". Change anything for a Solo that
+                         is not run by its systemd user unit. A Solo that is already running keeps the daemon it has until it is restarted
+                         on the new build.
+
 25 Oct 26  SOLO'S SHARED MEMORY IS THE USER'S ALONE: THE SEGMENT AND THE SEMAPHORES ARE MODE 0600, AND THE DAEMON NO LONGER TAKES WHAT IT RUNS FROM THEM.
            Carried from SD Core (security-model evaluation, finding F1).
 

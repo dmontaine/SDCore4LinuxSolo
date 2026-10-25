@@ -166,8 +166,10 @@ fi
 if [ -f "$H/tools/solo-service.sh" ]; then
   bash "$H/tools/solo-service.sh" remove 2>&1 | tail -2
 else
+  # 25 Oct 26 - the clean-up daemon's own unit first, so that it is not restarted while SD is being taken down (it has no [Install] section: nothing to disable)
+  systemctl --user stop sd-solo-lnxd.service >/dev/null 2>&1 || true
   systemctl --user disable --now sd-solo-ssh.socket sd-solo-ai.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
-  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service \
+  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-lnxd.service "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-api@.service \
         "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ssh@.service \
         "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ai.socket "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/sd-solo-ai@.service
   systemctl --user daemon-reload 2>/dev/null || true

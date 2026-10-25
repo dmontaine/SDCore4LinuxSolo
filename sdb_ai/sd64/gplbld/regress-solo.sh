@@ -30,6 +30,9 @@
 # 25 Oct 2026, W.11 F1 carried: shmmode-solo (sandbox-shmmode-solo.py: the segment and semaphores are 0600 and owned by the user; the daemon sdlnxd, copied to scratch directories, refuses a directory
 #   that is not its own and runs the sd-solo beside itself).  It stops the shared sandbox, appends CLEANUP=30 to sd.conf, starts it, signs on a session and kills it so the table holds a lost process,
 #   waits up to 60 s for the daemon's scan, then stops the sandbox, puts sd.conf back byte for byte and starts it again.  It runs just before txnfail.
+# 25 Oct 2026, the daemon's restart carried: lnxd-solo (sandbox-lnxd-solo.py: "sd-solo -start -nodaemon" leaves the daemon out, a plain start still forks it, the daemon ends on SIGTERM
+#   with status 0, a second daemon ends with status 0, one started after a kill -9 takes over).  It stops the shared sandbox through the harness, runs sd-solo -start / -stop itself
+#   (after reading both binaries for the sandbox's keys and for the live Solo's), kills the daemons it started, and hands the sandbox back with start.  It runs after shmmode-solo.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -39,7 +42,7 @@ mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
 # txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
-for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx shmmode-solo txnfail; do
+for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx shmmode-solo lnxd-solo txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)

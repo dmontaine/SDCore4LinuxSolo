@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 25 Oct 26 dm  "sd-solo -start -nodaemon": start SD without forking sdlnxd, which its user unit (sd-solo-lnxd.service) starts and restarts.  start_sd() takes the choice.
  * 31 Dec 23 SD launch - prior history suppressed
  * 15 Jun 24 add bootstrap build option install option -I
  * 02 Jul 24 -i  typeo will hit bootstrap option
@@ -64,7 +65,7 @@
  *    -Cs.r         Local client connection (s = send pipe, r = receive pipe)
  *    -N            Network connection
  *    -RESTART      Restart system
- *    -START        Start system
+ *    -START        Start system (-START -NODAEMON: without the daemon sdlnxd, which sd-solo-lnxd.service starts and restarts)
  *    -STOP         Stop system
  *
  * END-DESCRIPTION
@@ -476,7 +477,7 @@ Private bool comlin(int argc, char *argv[]) {
 
           if (stricmp(argv[arg], "-RESTART") == 0) {
             check_admin();
-            if (stop_sd() && start_sd()) {
+            if (stop_sd() && start_sd(TRUE)) {
               printf("SD has been restarted\n");
               exit(0);
             }
@@ -493,8 +494,14 @@ Private bool comlin(int argc, char *argv[]) {
 
           if (stricmp(argv[arg], "-START") == 0) {
             check_admin();
-            if (start_sd()) {
-              printf("SD (%s) has been started\n", BUILD_TARGET);
+            /* 25 Oct 26 dm - "-start -nodaemon" is what sd-solo.service runs: SD starts without forking sdlnxd, which sd-solo-lnxd.service runs and restarts if it
+               dies.  The option is read only here, after -start, and only that exact word; plain "-start" forks the daemon as it always did. */
+            bool with_daemon = !((arg + 1 < argc) && !stricmp(argv[arg + 1], "-NODAEMON"));
+            if (start_sd(with_daemon)) {
+              if (with_daemon)
+                printf("SD (%s) has been started\n", BUILD_TARGET);
+              else
+                printf("SD (%s) has been started, without the daemon sdlnxd (sd-solo-lnxd.service starts it)\n", BUILD_TARGET);
               exit(0);
             }
             exit(1);
@@ -614,7 +621,7 @@ help:
   fprintf(stderr, "      --help      Show this summary\n");
   fprintf(stderr, "      --version   Report version number\n");
 
-  fprintf(stderr, "      -start      Start system\n");
+  fprintf(stderr, "      -start      Start system (-start -nodaemon: without sdlnxd, which its service unit starts)\n");
   fprintf(stderr, "      -stop       Stop system\n");
   return FALSE;
 }

@@ -769,6 +769,8 @@ if [ "$upgrade" -eq 1 ]; then
   # afterwards whether the upgrade worked or was put back.
   if systemctl --user is-active sd-solo.service >/dev/null 2>&1 || [ -f "$HOME/.config/systemd/user/sd-solo.service" ]; then
     had_service=1
+    # 25 Oct 26 - the clean-up daemon's own unit first (an install made since this release has one), so that it is not restarted while SD is being taken down
+    systemctl --user stop sd-solo-lnxd.service >/dev/null 2>&1 || true
     systemctl --user stop sd-solo-ssh.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
   fi
   if ! bash "$SRC/gplbld/solo-stage.sh" --upgrade --os-access "${os_access:-none}" --viewer "${viewer:-none}" "$HOME_DIR" > "$WORK/stage.log" 2>&1; then
@@ -988,6 +990,14 @@ if [ "$upgrade" -eq 1 ]; then
     fi
     say
     say "Starting the systemd user service again."
+    # 25 Oct 26 - the daemon's restart (carried from SD Core's sd-lnxd.service).  The units above are kept on an upgrade, so an install made before this release would
+    #   go on running "sd-solo -start", which forks a clean-up daemon that nothing watches, and would have no sd-solo-lnxd.service.  This writes this release's two
+    #   daemon units over the kept ones (idempotent; it starts nothing - the start below does).  The script refuses a pair that names another tree, and the upgrade
+    #   goes on without it.  test-lnxdunit-solo-units.py reads this block's place.
+    if ! lnxd_out="$(bash "$HOME_DIR/tools/solo-service.sh" daemon "$HOME_DIR" 2>&1)"; then
+      printf '%s\n' "$lnxd_out" | tail -3
+      warn "the daemon's service units were NOT updated, so the clean-up daemon is not restarted if it dies; retry: bash $HOME_DIR/tools/solo-service.sh daemon $HOME_DIR"
+    fi
     systemctl --user daemon-reload >/dev/null 2>&1 || true
     systemctl --user start sd-solo.service || fail "systemctl --user start sd-solo.service"
     if [ -f "$sock" ]; then systemctl --user restart sd-solo-api.socket || fail "systemctl --user restart sd-solo-api.socket"; fi
