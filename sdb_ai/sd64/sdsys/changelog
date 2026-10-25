@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  THE AUDIT TRAIL IS NEVER ROTATED ONTO A FILE THAT IS ALREADY THERE.
+           Carried from SD Core (the audit daemon's rotation, found by its sandbox).
+
+             What        When "sd-solo -start" finds the audit trail at 1 MB or more it renames it to audit.YYYYMMDD-HHMMSS and starts a
+                         new one. That name has a resolution of one second, and a rename replaces what it finds, so a second rotation in
+                         the same second would have destroyed the earlier rotated file. A rotation whose name is already a file is now
+                         refused: the trail stays whole, SD starts as usual, and the next start tries again.
+             Why it      An audit trail is the record of who did what; losing a rotated part of it without a word is the worst way
+             matters     for it to fail.
+             Does not    Change when the trail rotates (at "sd-solo -start", at 1 MB), the names it uses, or what the new file is made
+                         with (the old file's owner and mode). In Solo, where the trail is rotated only at a start and a new trail is
+                         empty, two rotations in one second are very unlikely; this closes the case rather than a frequent one.
+
 25 Oct 26  THE CLEAN-UP DAEMON IS STARTED AGAIN IF IT DIES: SDLNXD HAS A SYSTEMD USER UNIT OF ITS OWN, SD-SOLO-LNXD.SERVICE.
            Carried from SD Core (the audit daemon's restart; Solo has no audit writer, so it is the clean-up daemon).
 

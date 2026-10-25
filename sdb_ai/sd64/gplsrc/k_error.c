@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 25 Oct 26 dm  W.11 carry, step 3: audit_rotate() refuses a rotation whose new name (a second's resolution) is already a file, instead of letting rename() replace it.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file branch of log_permissions_error().
  * 17 Oct 26 dm  S.65 slice 3c: log_permissions_error() does not read the file table for a NET_FILE
  * 17 Oct 26 dm  k_error(): an error with a row in sys_exc_table is thrown as a SYS.* exception when a TRY handler can
@@ -1000,6 +1001,7 @@ void audit_rotate(void) {
   time_t timenow;
   struct tm* ltime;
   struct stat statbuf;
+  struct stat existing;
   int fd;
   int newfd;
   int flags = 0;
@@ -1024,6 +1026,10 @@ void audit_rotate(void) {
                  ltime->tm_year + 1900, ltime->tm_mon + 1, ltime->tm_mday,
                  ltime->tm_hour, ltime->tm_min, ltime->tm_sec) <
         (int)sizeof(rotated)) {
+      /* 25 Oct 26 dm - carried from SD Core's audit_rotate_file() (W.11 F4, C2).  The name has a second's resolution, and rename() replaces what is there, so a rotation
+         whose name is already taken would destroy the earlier rotated file.  A taken name refuses the rotation: the trail stays whole and the next start tries again. */
+      if ((lstat(rotated, &existing) == 0) || (errno != ENOENT))
+        goto exit_audit_rotate;
       fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
       if (fd >= 0) {
         if ((ioctl(fd, FS_IOC_GETFLAGS, &flags) == 0) && (flags & FS_APPEND_FL)) {
