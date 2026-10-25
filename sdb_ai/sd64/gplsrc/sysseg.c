@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 25 Oct 26 dm  W.11 F1 (carried): the shared segment is made 0600 (create_shared_segment()), not 0666.
  * 02 Oct 26 dm  S.50 (LSOLO 20): start_sd() applies a waiting own-account
  *               restore (apply_pending_restore) before the segment exists.
  * 13 Sep 26 dm  The startup command runs in the sdsys account, its lower-case
@@ -318,7 +319,10 @@ Private bool create_shared_segment(int32_t bytes,
                                    char* errmsg) {
   int shmid;
 
-  if ((shmid = shmget(SD_SHM_KEY, bytes, IPC_CREAT | 0666)) == -1) {
+  /* 25 Oct 26 dm - W.11 F1, carried from the full product: 0600, not 0666.  With 0666 every local user could attach and change
+     the tables every SD process trusts, and sdlnxd read the system directory out of them.  Solo has one user, so the owner is the
+     only reader the segment needs (no group to hand it to, as the full product's sdusers). */
+  if ((shmid = shmget(SD_SHM_KEY, bytes, IPC_CREAT | 0600)) == -1) {
     sprintf(errmsg, "Error %d creating shared segment.", errno);
     return FALSE;
   }

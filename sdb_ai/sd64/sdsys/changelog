@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  SOLO'S SHARED MEMORY IS THE USER'S ALONE: THE SEGMENT AND THE SEMAPHORES ARE MODE 0600, AND THE DAEMON NO LONGER TAKES WHAT IT RUNS FROM THEM.
+           Carried from SD Core (security-model evaluation, finding F1).
+
+             What        The shared memory segment and the semaphore set that every Solo process uses are created with mode 0600
+                         (they were 0666), so only the Linux user who started Solo can attach them. The daemon sdlnxd, which
+                         every few minutes looks for sessions whose process has gone and starts "sd-solo -cleanup" to clear
+                         them, used to read the directory of that program out of the segment and run it through a shell; it now
+                         finds the directory from the path it was started from (<home>/bin/sdlnxd, with sd-solo beside it as an
+                         executable file), starts the program without a shell, and writes its error log under the same directory.
+                         A daemon that is not in a directory of that shape ends with status 3 and says so.
+             Why it      With mode 0666 any other user on the machine could attach the segment, change what Solo's own tables say,
+             matters     and, through the directory the daemon ran from, make the daemon start a program of their choosing as you.
+                         Solo's folder is private to you, but the segment was not.
+             Does not    Change how you start, stop or use Solo. A Solo that is already running keeps the segment it made, which is
+                         still 0666: stop it and start it again (systemctl --user restart sd-solo.service) on the new build to get
+                         the closed one. Solo has no group to share the segment with, so unlike SD Core's it is 0600, not 0660.
+
 24 Oct 26  THERE IS A PAGE FOR THE GATES: TOOL.GATES SHOWS WHAT THIS ACCOUNT MAY DO AND WHY, AND THE ADMINISTRATOR TURNS A GATE ON OR OFF FROM IT.
            Carried from SD Core's gates pages, in Solo's shape (SOLO CARRY 20).
 

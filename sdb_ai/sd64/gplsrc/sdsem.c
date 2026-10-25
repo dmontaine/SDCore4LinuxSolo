@@ -21,6 +21,7 @@
  * rev 0.9.0 Jan 25 d-chou add IPC_NOWAIT and RelinquishTimeslice (sched_yield) to LockSemaphore
  * 14 Sep 26 dm  SEM_UNDO on lock and unlock, and release_owned_semaphores()
  *               for the fatal-signal path (W.0, owner's ruling of 14 Sep 26).
+ * 25 Oct 26 dm  W.11 F1 (carried): the semaphores are made 0600, not 0666.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -75,8 +76,10 @@ bool get_semaphores(bool create, char* errmsg) {
 
   /* Create new semaphores */
 
+  /* 25 Oct 26 dm - W.11 F1, carried: 0600, not 0666 (see create_shared_segment() in sysseg.c).  The attach calls above and below ask
+     for 0666 as ACCESS bits; that is not a creation and the owner passes it against a 0600 set. */
   if ((semid = semget(SD_SEM_KEY, NUM_SEMAPHORES,
-                      IPC_CREAT | IPC_EXCL | 0666)) != -1) {
+                      IPC_CREAT | IPC_EXCL | 0600)) != -1) {
     /* Initialise the semaphores */
 
     for (i = 0; i < NUM_SEMAPHORES; i++)
