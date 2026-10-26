@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  A SESSION THAT STARTED AT THE HOME SCREEN NO LONGER KEEPS THE NEXT ONE WAITING AT SIGN-ON, AND SED NO LONGER KEEPS A MISSING PATH LOCKED (carried from SD Core for Linux's 26 Oct 2026 fixes).
+
+             What        The home screen reads where a session starts from a file named start.default in the system directory. The delivered system has no such file. SD's OPENSEQ
+                         of a file that is not there takes its ELSE branch but leaves the name locked until the file variable is closed, and the program that reads the setting never
+                         closed it. So the first session to start at the home screen kept an update lock on start.default for as long as it lived, and the next session, from another
+                         terminal, waited at sign-on, showing the licence banner and nothing else, until the first one signed off. The home entry now closes the variable when the file is not
+                         there. The same shape was in set.start.default, the menu management page, the list of PDF viewers and OSREAD, and in SED, when it is asked to open a path that does
+                         not exist (and for the retry with the name in upper case); each now closes it. A new row in the home screen's suite starts two sessions at once and was red before
+                         the change (the second never reached its screen and LIST.READU showed the lock) and is green after it.
+             Why it      Opening a second terminal while one was at the home screen showed a blank sign-on for as long as the first stayed.
+             Does not    Change anything for a session that ends before the next begins, or the short programs that end at once.
+
+26 Oct 26  UPDATE.ACCOUNTS UPDATES THE ADMINISTRATOR'S OWN VOC FROM VOC_TEMPLATE (carried from SD Core for Linux's 26 Oct 2026 fix; no visible change in Solo today).
+
+             What        The administrator account's own VOC is built at install from the whole of VOC_TEMPLATE, and every other account's is NEWVOC, a smaller set. UPDATE.ACCOUNTS copied
+                         NEWVOC over the administrator's VOC too, so an id that the two sets hold with different content would have been replaced by the account holder's version (in SD
+                         Core for Linux that was the gates page). Solo's two sets hold the same tool.gates, so nothing changes now; the update of the administrator's own VOC reads
+                         VOC_TEMPLATE, and every other account is updated from NEWVOC as before.
+             Why it      The next id the two sets disagree about would otherwise have been quietly overwritten at every install.
+             Does not    Change any record in Solo today: the five ids the two sets share with different text differ only in a description or a trailing empty field.
+
 25 Oct 26  THE UNINSTALLER STOPS WHEN IT CANNOT REMOVE THE SYSTEMD USER UNITS, INSTEAD OF DELETING THE INSTALLATION AROUND THEM.
            Found by running the uninstaller from a shell that could not reach the systemd user manager (an ssh command, a cron job).
 

@@ -448,6 +448,25 @@ def sec_start():
     row("...it is the ORDINARY page: the group is 'My tools' (not 'Tools'), the identity row says 'sduser @ sduser' and the right end of row 0 says 'home  sduser@sduser'",
         "My tools" in T and h.line(2).strip().startswith("sduser @ sduser") and h.line(0).endswith("home  sduser@sduser"), repr((h.line(0)[-30:], h.line(2)[:30])))
     h.end()
+    # 26 Oct 26 (Solo carry 21 of SD Core's fix; found on SD Core's VM by the witness of its SDSYS second session): THE DELIVERED STATE HAS NO start.default, and !home_entry's OPENSEQ
+    # of it took ELSE with the name still locked, so a session that started at the home screen kept an update lock on start.default for its whole life and the NEXT session waited at
+    # sign-on.  The sessions above end before the next begins, which is why no row saw it: two OVERLAPPING sessions, no file - the second must reach its home screen, and LIST.READU
+    # must show no lock on start.default.
+    arrange(None)
+    h1 = H()
+    up1 = h1.home()
+    h2 = H(settle=3.0)
+    t_end = time.time() + 30
+    while time.time() < t_end and not h2.home():
+        h2.s._pump(0.5)
+    up2 = h2.home()
+    held = [ln.strip() for ln in adm("LIST.READU") if "start.default" in ln]
+    if not (up1 and up2):
+        dump(h2)
+    h2.end()
+    h1.end()
+    row("two sessions of sduser start at the home screen one after the other with NO start.default file and both stay alive: the second reaches its home screen (it is not left waiting at sign-on) and LIST.READU shows no lock on start.default",
+        up1 and up2 and not held, repr((up1, up2, held)))
     out = plain(["who.am.i"])
     row("a PIPED session (menu by default) is not given the screen: its command runs (Account : sduser) and no tile is drawn", has(out, r"Account\s*:\s*sduser") and not has(out, r"My tools|Everyone"), repr(out[:6]))
     out = plain(["home"])
@@ -993,6 +1012,11 @@ def main():
         start_sandbox()
         sec_setup()
         sec_start()
+        if "--only=start" in sys.argv:       # 26 Oct 26: the start rows alone (the two-session row's red / green runs)
+            say("\n--only=start: the other sections are not run")
+            teardown()
+            say("sandbox-home-solo: %d passed, %d failed" % (passed, failed))
+            sys.exit(0 if failed == 0 and passed > 0 else 1)
         sec_page()
         sec_tiles()
         sec_tileoff()
