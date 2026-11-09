@@ -6708,6 +6708,15 @@ A or S type dictionary item %1 is not compiled: write it as a D-type or an I-typ
 
 cited by: `cd`, `dcomp`, `mkindx`
 
+### msg:11948
+> kind=message tier=reference since=- src=sdsys/messages/11948:1#58ed5a7a
+
+```
+The debugger's private directory could not be set up (%1), so the phantom debugger cannot start
+```
+
+cited by: `pdebug`
+
 ### msg:11983
 > kind=message tier=reference since=- src=sdsys/messages/11983:1#39d32338
 

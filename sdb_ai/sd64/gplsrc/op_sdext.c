@@ -18,6 +18,9 @@
  * 
  * 
  * START-HISTORY:
+ * 09 Nov 26 dm  Solo carry 22 (area 5, SD Core's W.11 F10b): SD_USER_HOME (112) carried, as SD Core has it (S.88 d35f5e31 and the L2 review d8dbde84):
+ *               the phantom debugger's private store (!pdbg_store) needs it.  Only the key and user_home_dir(); the IDE's recovery copy that it was
+ *               made for is TUI work, held.  The 1-byte free fix of the same review is not carried: Solo's argument buffer code is older.
  * 20 Oct 26 dm  SDNet carry 9 (SD Core's S.65 slice 2b, 71eb0aa): SD_FILE_PRIVATE (111) carried, as Core has it (below).
  * 20 Oct 26 dm  Solo carry 7 (SD Core's 00a5888): SD_KEYRING (120), set / clear / list on the key ring of the XE conversion (sd_keyring.c); and
  *               the argument buffers are wiped before they are freed, for every key (they carry passphrases and SCRAM secrets).  Core's neighbour
@@ -62,6 +65,7 @@
 #include <sodium.h>
 
 #include <errno.h>
+#include <pwd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -98,6 +102,7 @@ Private void sdme_err_rsp(int errnbr);
 Private void scram_reply(char* value);
 Private long scram_arg_long(const char* text);
 Private int file_private_check(const char* path, int want_dir);
+Private int user_home_dir(const char* rel, char* out, size_t out_sz);
 
 /* ======================================================================
    op_sdext()   op code for BASIC function  SDME.EXT   
@@ -475,6 +480,22 @@ void op_sdext() {
       break;
     }
 
+    /* 28 Oct 26 dm - S.88 (carried 9 Nov 26, Solo carry 22).  SD_USER_HOME: one argument, a path RELATIVE to the home ('' for the home
+       itself).  The answer is the absolute path of that directory when user_home_dir() trusts it, and the null string on every failure (a
+       caller that tests for '' refuses).  More than one argument also sets process.status (SD_EXT_ARG_CNT), as the neighbours do. */
+    case SD_USER_HOME: {
+      char home_out[PATH_MAX + 1];
+
+      home_out[0] = '\0';
+      if (argCnt != 1)
+        process.status = SD_EXT_ARG_CNT;
+      else if (!user_home_dir(SDMEArgArray[0], home_out, sizeof(home_out)))
+        home_out[0] = '\0';
+      k_put_c_string(home_out, e_stack);
+      e_stack++;
+      break;
+    }
+
     /* 20240808 mab embedding python? */
     #ifdef EMBED_PYTHON
     case SD_PyInit:
@@ -638,4 +659,88 @@ Private int file_private_check(const char* path, int want_dir) {
   else
     *slash = '\0';
   return file_private_check(parent, 1);
+}
+
+/* 28 Oct 26 dm - S.88 (carried 9 Nov 26, Solo carry 22, as SD Core has it).  The home directory of the process's EFFECTIVE user, from the
+   password database (getpwuid_r(geteuid()); never $HOME, which the person's environment sets), followed by REL, a path relative to
+   it ('' for the home itself).  Answers 1 and the absolute path in OUT when:
+     - the effective user is not root, has a password entry, and its home is an absolute path that realpath() resolves;
+     - the resolved home is a directory owned by the effective user that neither group nor other can write (mode & 022 == 0);
+     - REL is empty, or relative words separated by single slashes with no empty word, no "." and no "..", and EVERY directory
+       from the home down to the last word, taken one at a time, is a real directory (lstat: not a link), owned by the effective
+       user, that neither group nor other can write.
+   So nobody but the person (and root) can rename, replace or add an entry anywhere on the way.  It is a check, not a lock, and it
+   makes nothing: the caller makes a missing directory (under umask 077) and asks again.  Answers 0 (OUT empty) on every failure.
+   The ANCESTORS of the resolved home are held to it too: each directory above the home, "/" included, must be a directory of root's or
+   of this user's that neither group nor other can write - unless its sticky bit is set, as with /tmp. */
+Private int user_home_dir(const char* rel, char* out, size_t out_sz) {
+  struct passwd pwbuf;
+  struct passwd* pw = NULL;
+  char pwstrings[4096];
+  char home[PATH_MAX];
+  char work[PATH_MAX];
+  struct stat st;
+  uid_t me;
+  size_t len;
+  size_t i;
+  size_t cutat;
+  char save;
+  int bad;
+  const char* p;
+  const char* e;
+
+  out[0] = '\0';
+  me = geteuid();
+  if (me == 0)
+    return 0;
+  if ((getpwuid_r(me, &pwbuf, pwstrings, sizeof(pwstrings), &pw) != 0) || (pw == NULL))
+    return 0;
+  if ((pw->pw_dir == NULL) || (pw->pw_dir[0] != '/'))
+    return 0;
+  if (realpath(pw->pw_dir, home) == NULL)
+    return 0;
+  if ((stat(home, &st) != 0) || !S_ISDIR(st.st_mode) || (st.st_uid != me) || ((st.st_mode & 022) != 0))
+    return 0;
+
+  len = strlen(home);
+  if (len + 1 >= sizeof(work))
+    return 0;
+  memcpy(work, home, len + 1);
+
+  for (i = 0; i < len; i++) {            /* the ancestors: "/" and every prefix of the resolved home that ends before a slash */
+    if (work[i] != '/')
+      continue;
+    cutat = (i == 0) ? 1 : i;
+    save = work[cutat];
+    work[cutat] = '\0';
+    bad = (lstat(work, &st) != 0) || !S_ISDIR(st.st_mode) || ((st.st_uid != 0) && (st.st_uid != me)) || (((st.st_mode & 022) != 0) && ((st.st_mode & S_ISVTX) == 0));
+    work[cutat] = save;
+    if (bad)
+      return 0;
+  }
+
+  if (rel == NULL)
+    rel = "";
+  for (p = rel; *p != '\0'; p = (*e == '/') ? e + 1 : e) {
+    e = strchr(p, '/');
+    if (e == NULL)
+      e = p + strlen(p);
+    if ((e == p) || ((e - p == 1) && (p[0] == '.')) || ((e - p == 2) && (p[0] == '.') && (p[1] == '.')))
+      return 0; /* an empty word (a leading, doubled or trailing slash), "." or ".." */
+    if (len + 1 + (size_t)(e - p) + 1 > sizeof(work))
+      return 0;
+    work[len++] = '/';
+    memcpy(work + len, p, (size_t)(e - p));
+    len += (size_t)(e - p);
+    work[len] = '\0';
+    if ((lstat(work, &st) != 0) || !S_ISDIR(st.st_mode) || (st.st_uid != me) || ((st.st_mode & 022) != 0))
+      return 0;
+    if ((*e == '/') && (e[1] == '\0'))
+      return 0; /* a trailing slash */
+  }
+
+  if (len + 1 > out_sz)
+    return 0;
+  memcpy(out, work, len + 1);
+  return 1;
 }

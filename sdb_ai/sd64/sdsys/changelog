@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+09 Nov 26  THE PHANTOM DEBUGGER'S MESSAGES ARE KEPT IN YOUR PRIVATE DIRECTORY, NOT IN $IPC (carried from SD Core for Linux's W.11 F10b,
+           31 Oct 2026).
+
+             What        PDEBUG and the phantom it debugs leave each other their messages in .local/state/sd/pdebug below your Linux home.
+                         SD finds the home in the password database (never $HOME), makes the missing directories one at a time, and uses the
+                         store only when every directory from the home down is a real directory that nobody else can write and the store is
+                         yours alone. PDEBUG says it cannot start (message 11948) when the store cannot be set up. The store outlives a
+                         restart of SD, so PDEBUG clears the records of its own user number first and a phantom ignores a start request
+                         whose PDEBUG has gone. The kernel's SD_USER_HOME test, which the store needs, came with it.
+             Why it      $ipc is a file every session can write, so a message there could be forged.
+             matters
+             Does not    Change how PDEBUG is used: started as before, by the same person.
+
 09 Nov 26  A BARE SH STARTS THE SHELL AGAIN; ENCRYPT.KEY WANTS 12 CHARACTERS; THE SYSTEM'S NAMED COMMONS ARE THE SYSTEM'S (carried from
            SD Core for Linux's fixes of 30 Oct - 8 Nov 2026).
 

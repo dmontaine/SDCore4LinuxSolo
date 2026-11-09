@@ -671,6 +671,7 @@
    Args: path, FILE or DIR.  Answers "1" or "0"; every failure is "0".  Mirrored
    in sdsys/syscom/keys.h. */
 #define SD_FILE_PRIVATE 111  /* op_sdext private-file test, 2 args: path, FILE|DIR */
+#define SD_USER_HOME    112  /* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path (9 Nov 26, Solo carry 22) */
 
 /* embedded python  */
 /* py  object types */

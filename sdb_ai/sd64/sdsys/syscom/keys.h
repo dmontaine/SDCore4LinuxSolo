@@ -436,6 +436,7 @@
       * 17 Oct 26 dm - S.65 slice 2b, mirrored from gplsrc/keys.h: is a path a file
       *   or directory only the running user can touch.  Args: path, FILE or DIR.
       $define SD_FILE_PRIVATE 111  ;* op_sdext private-file test, 2 args: path, FILE|DIR
+      $define SD_USER_HOME    112  ;* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path (9 Nov 26, Solo carry 22)
       
       * embedded python 
       
