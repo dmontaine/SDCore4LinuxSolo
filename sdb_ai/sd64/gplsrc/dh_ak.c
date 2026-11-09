@@ -17,9 +17,14 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 07 Nov 26 dm  S.159 (Kimi review): delete_ak() tests the index map with & (it was &&, under a pragma that silenced the warning) after a range
+ *               check of the number, and clears the bit rather than flipping it.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file refusals.
  * 17 Oct 26 dm  S.65 slice 3d: INDICES (both forms) of a NET_FILE is the null string, no longer a refusal: the query processor asks it of every file.
  * 17 Oct 26 dm  S.65 slice 3c: AKDELETE, AKREAD, AKWRITE, CLEAR.AK, AKENABLE, AKMAP, INDICES (both), SELECTINDEX (both), SELECTRIGHT/LEFT and SETRIGHT/LEFT refuse a NET_FILE (net_refuse) before touching access.dh
+ * 06 Nov 26 dm  S.125: create_ak() and delete_ak() built "<path>/%0" with sprintf() into a 256-byte buffer, which a data
+ *               path of 253 characters or more overran; now snprintf(), and a name that would not fit is "file not found"
+ *               with the OS error ENAMETOOLONG.
  * 15 Oct 26 dm  create_ak() and delete_ak() write DH_HEADER_SHARED_SIZE bytes of the primary header, not the whole of it, so that
  *               they cannot put an old sequential id counter (CREATING.SEQKEY) over a newer one.
  * 31 Dec 23 SD launch - prior history suppressed
@@ -1695,7 +1700,11 @@ Private int16_t create_ak(char *data_path,          /* Data file path name */
   /* Open primary subfile.  We do this outside of the file sharing mechanism
      to guarantee that we are the only user of the file.                     */
 /* rev 0.9.0 */
-  sprintf(path, "%s%c%%0", data_path, DS);
+  if (snprintf(path, sizeof(path), "%s%c%%0", data_path, DS) >= (int)sizeof(path)) {
+    dh_err = DHE_FILE_NOT_FOUND; /* 06 Nov 26 S.125: the name would not fit; it used to overrun path */
+    process.os_error = ENAMETOOLONG;
+    goto exit_create_ak;
+  }
   fu = dio_open(path, DIO_UPDATE);
   if (!ValidFileHandle(fu)) {
     dh_err = DHE_FILE_NOT_FOUND;
@@ -1894,7 +1903,11 @@ Private bool delete_ak(char *pathname, /* File path name */
   /* Open primary subfile.  We do this outside of the file sharing mechanism
      to guarantee that we are the only user of the file.                     */
 /* rev 0.9.0 */
-  sprintf(path, "%s%c%%0", pathname, DS);
+  if (snprintf(path, sizeof(path), "%s%c%%0", pathname, DS) >= (int)sizeof(path)) {
+    dh_err = DHE_FILE_NOT_FOUND; /* 06 Nov 26 S.125: the name would not fit; it used to overrun path */
+    process.os_error = ENAMETOOLONG;
+    goto exit_delete_ak;
+  }
   fu = dio_open(path, DIO_UPDATE);
   if (!ValidFileHandle(fu)) {
     dh_err = DHE_FILE_NOT_FOUND;
@@ -1909,23 +1922,19 @@ Private bool delete_ak(char *pathname, /* File path name */
   }
 
   /* Check this AK exists */
-  /* the (1 << akno) code in the if statement below is triggering a warning
-   * "warning: ‘<<’ in boolean context, did you mean ‘<’ ? [-Wint-in-bool-context]"
-   * Based on how it's used later (header.ak_map ^= (1 << akno)) in the code, it's
-   * my belief that the code is correct as written.  As such, I'm going to turn off
-   * the warning for this single instance.  -gwb 22Feb20
-   */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wint-in-bool-context"
-  if ((header.ak_map && (1 << akno)) == 0) {
-#pragma GCC diagnostic pop
+  /* 7 Nov 26 S.159 (Kimi review, finding 7): the test was written with && and
+     a pragma silenced the compiler's "<< in boolean context" warning, which was
+     right: while the file had ANY index the test passed for every number, and
+     with a stale subfile for a number whose bit was clear the ^= below SET that
+     bit.  A bitwise test, the number checked first, and the bit cleared.    */
+  if ((akno < 0) || (akno >= MAX_INDICES) || ((header.ak_map & (1u << akno)) == 0)) {
     dh_err = DHE_NO_SUCH_AK;
     goto exit_delete_ak;
   }
 
   /* Clear AK map flag */
 
-  header.ak_map ^= (1 << akno);
+  header.ak_map &= ~(1u << akno);
 
   /* Does this file use relocated indices? */
 

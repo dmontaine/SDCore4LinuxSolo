@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 07 Nov 26 dm S.125: the redeclaration of k_error() with __attribute__((noreturn)) is gone.  k_error() RETURNS for a
+ *           message beginning '!' (the three SOCKET_DEBUG connect messages of op_openskt), and at -O2 the compiler took the
+ *           attribute at its word: it left out everything after those calls, so a refused connect printed both messages
+ *           and ran off the end of op_openskt into op_setskt (Fault type 11; sandbox-qmclient.py O1).  -O0 had ignored it.
+ *           test-noreturn-units.py now refuses a '!' call in any file that makes the promise.
  * 24 Oct 26 dm  Solo carry 19: SKT$INFO.TRACE refuses a log path that runs through a VOC (edit_os_path_refusal(), SD Core's S.64 hunk with Solo's one kind): it used to truncate
  *               voc/%0 for an ordinary session with the OS switch off.
  * 21 Oct 26 dm  Solo carry 10 (SD Core b052346, S.73 item 2, THE SILENT SERVER): READ.SOCKET on a TLS socket reads without blocking and waits on the descriptor for the time that
@@ -89,11 +94,8 @@
  * START-CODE
  */
 
-/* Modified by Composer AI - 2026/06/10.
-   k_error() never returns, but the analyzer cannot see that across
-   translation units. */
-void k_error(char msg[], ...) __attribute__((noreturn));
-/* -------------------- */
+/* 07 Nov 26 (S.125): NO noreturn redeclaration of k_error() here.  This file calls it with '!' messages, which
+   return; see the history above and gplbld/test-noreturn-units.py. */
 
 #include "sd.h"
 #include "keys.h"
@@ -466,7 +468,7 @@ void op_openskt() {
   char server[80 + 1];
   char server_addr[80];
 
-  SOCKET skt;
+  SOCKET skt = -1; /* 07 Nov 26 (S.125): set before every use; -1 tells -O2's flow analysis so (closesocket below) */
   DESCRIPTOR result_descr;
   SOCKVAR* sock;
 

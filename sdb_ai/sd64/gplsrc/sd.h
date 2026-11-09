@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 06 Nov 26 dm  S.152: the prototypes of fatal, dump, k_dh_error, k_strnum_len, k_null_id, coll_json_build,
+ *               coll_fill_entry, coll_value_of and is_global are gone with the functions (nothing called them).
  * 24 Oct 26 dm  Solo carry 19 (the owner's "check, and close it if open"): EDIT_NONE and EDIT_VOC and the prototypes of edit_os_path_refusal() and edit_leaf_counts() (op_sh.c), SD Core's
  *               S.64 names for the OS-path routes to a VOC, which is all Solo classifies (ruling 14); the dictionary and program-file kinds are not here.
  * 21 Oct 26 dm  Solo carry 10 (SD Core eb9ef4a, S.72b): NETG_PEEK (net_gate's read-mode test alone, for RECORDLOCKED()).
@@ -152,8 +154,6 @@ Public char * CRLF init("\r\n");
    Internal function definitions                                          */
 
 /* SD.C */
-void fatal(void);
-void dump(u_char * addr, int32_t bytes);
 void set_console_title(void);
 
 /* ANALYSE.C */
@@ -225,7 +225,6 @@ void ReleaseLicence(USER_ENTRY * uptr);
 /* K_ERROR.C */
 void k_data_type(DESCRIPTOR * descr);
 void k_deadlock(void);
-void k_dh_error(DESCRIPTOR * descr);
 void k_div_zero_error(DESCRIPTOR * descr);
 void k_illegal_call_name(void);
 void k_index_error(DESCRIPTOR * descr);
@@ -233,9 +232,7 @@ void k_not_array_error(DESCRIPTOR * descr);
 void k_value_error(DESCRIPTOR * descr);
 void k_non_numeric_error(DESCRIPTOR * descr);
 void k_unassigned(DESCRIPTOR * descr);
-void k_strnum_len(DESCRIPTOR * descr);
 void k_not_socket(DESCRIPTOR * descr);
-void k_null_id(DESCRIPTOR * descr);
 void k_illegal_id(DESCRIPTOR * descr);
 void k_inva_task_lock_error(void);
 void k_nary_length_error(void);
@@ -292,9 +289,6 @@ DESCRIPTOR coll_str_descr(char * s, int32_t len);
 char * coll_chunks_to_buffer(STRING_CHUNK * s, int32_t * len);
 int32_t coll_number_len(unsigned char * s, int32_t len, bool * is_int);
 DESCRIPTOR coll_json_parse(char * text, int32_t len, int mode);
-DESCRIPTOR coll_json_build(COLL_HEADER * root, int mode);
-void coll_fill_entry(COLL_ENTRY * ent, DESCRIPTOR * v);
-DESCRIPTOR coll_value_of(COLL_ENTRY * e);
 int32_t url_encode_top(void);
 int32_t url_decode_top(void);
 int k_get_c_string(DESCRIPTOR * descr, char * s, int max_bytes);
@@ -382,7 +376,6 @@ void net_flush_closes(void);
 void * load_object(char * name, bool abort_on_error);
 void unload_object(void * obj_hdr);
 void unload_all(void);
-bool is_global(void * obj_hdr);
 void invalidate_object(void);
 void * find_object(int32_t id);
 STRING_CHUNK * hsm_dump(void);
@@ -466,6 +459,7 @@ bool is_dir_header(const char * name);
 /* OP_DIO2.C */
 bool delete_path(char * path);
 bool fullpath(char * path, char * name);
+bool fullpath_n(char * path, char * name, size_t size); /* 7 Nov 26 S.159 */
 bool make_path(char * tgt);
 
 /* OP_DIO3.C */

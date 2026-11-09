@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 06 Nov 26 dm  S.152: os_sd_accounts_open() is gone; nothing called it (found by linking with --gc-sections).
  * 24 Oct 26 dm Solo carry 19 (the owner: "check, and close it if open"): MEASURED, an ordinary session with the OS switch OFF could overwrite, append to and delete the VOC's
  *           own files (voc/%0) through OSCOPY, !IOSCOPY, OPENSEQ + WRITESEQ and DELETESEQ, past the VOC rule (ruling 14) which only watches record writes.  The OS-path
  *           routes now ask edit_os_path_refusal() (SD Core's S.64 name; here it knows one kind, a component named voc below the account's directory) and edit_leaf_counts().

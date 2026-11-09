@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 07 Nov 26 dm  S.159 (Kimi review): delete_path() removes a symbolic link and never follows it (lstat); fullpath() copies
+ *               only what fits the caller's buffer (fullpath_n() takes the size); make_path() checks every length.
+ * 06 Nov 26 dm  S.125: attach() no longer changes back to a saved directory after a chdir() that failed (a failed chdir()
+ *               changes nothing, and when getcwd() had also failed the "saved" buffer was uninitialised); OS_CWD returns
+ *               "" when getcwd() fails instead of whatever the buffer held.
  * 27 Oct 26 dm  S.87 batch 5: the five CASE_INSENSITIVE_FILE_SYSTEM blocks (op_ospath, op_osrename: upper-casing a path on a case-blind file system) are gone; a Linux build never compiled them.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file routes of FILEINFO and the OPEN-time status.
  * 18 Oct 26 dm  S.65 slice 3e: FILEINFO FL$READONLY of a NET_FILE answers the file variable's own read-only flag (1 for a file of a read-mode
@@ -1001,7 +1006,8 @@ void op_ospath() {
       break;
 
     case OS_CWD:
-      (void)getcwd(name, MAX_PATHNAME_LEN);
+      if (getcwd(name, MAX_PATHNAME_LEN) == NULL)
+        name[0] = '\0'; /* 06 Nov 26 S.125 */
       k_put_c_string(name, e_stack);
       e_stack++;
       goto exit_op_pathinfo;
@@ -1274,10 +1280,21 @@ bool delete_path(char* path) {
 
   /* Check path exists and get type information */
 
-  if (stat(path, &stat_buf) != 0)
+  /* 7 Nov 26 S.159 (Kimi review, finding 1): stat() followed a symbolic link,
+     so a link to a directory was walked and everything under its TARGET was
+     deleted - for DELETE.ACCOUNT, DELETE.FILE and the rest, a link a user
+     planted in their own account sent the administrator's delete anywhere
+     sdsys may write.  lstat() looks at the name itself: a link is removed as a
+     name and never followed.  S_ISDIR / S_ISREG replace the bit tests, which
+     took a block device (S_IFBLK holds S_IFDIR's bit) for a directory.      */
+
+  if (lstat(path, &stat_buf) != 0)
     goto exit_delete_path;
 
-  if (stat_buf.st_mode & S_IFDIR) /* It's a directory */
+  if (S_ISLNK(stat_buf.st_mode)) {
+    if (unlink(path) != 0)
+      goto exit_delete_path;
+  } else if (S_ISDIR(stat_buf.st_mode)) /* It's a directory */
   {
     dfu = opendir(path);
     if (dfu == NULL)
@@ -1308,7 +1325,7 @@ bool delete_path(char* path) {
 
     if (rmdir(path) != 0)
       goto exit_delete_path;             /* Delete the directory */
-  } else if (stat_buf.st_mode & S_IFREG) /* It's a file */
+  } else if (S_ISREG(stat_buf.st_mode)) /* It's a file */
   {
     if (remove(path) != 0)
       goto exit_delete_path;
@@ -1324,37 +1341,58 @@ exit_delete_path:
    attach()  -  Change working directory and, perhaps, drive.             */
 
 Private bool attach(char* path) {
-  char cwd[MAX_PATHNAME_LEN + 1];
-
-  (void)getcwd(cwd, MAX_PATHNAME_LEN); /* Hang on to current dir */
-
-  if (!chdir(path))
-    return TRUE; /* Success */
-
-  (void)chdir(cwd);
-
-  return FALSE;
+  /* 06 Nov 26 S.125: a chdir() that fails leaves the working directory as it was, so there is nothing to go back to */
+  return (chdir(path) == 0);
 }
 
 /* ======================================================================
    fullpath()  -  Map a pathname to its absolute form                     */
 
-bool fullpath(char* path, /* Out (can be same as input path buffer) */
+bool fullpath(char* path, /* Out (can be same as input path buffer), MAX_PATHNAME_LEN + 1 bytes */
               char* name) /* In */
 {
-  bool ok;
+  return fullpath_n(path, name, MAX_PATHNAME_LEN + 1);
+}
 
+/* 7 Nov 26 S.159 (Kimi review, finding 2): the resolved name was strcpy()'d
+   into the caller's buffer whatever its length, and a short name through a
+   long symbolic link resolves to more than the 256 bytes every caller but one
+   gives (a 330-byte link target wrote 331 bytes); when the resolve failed the
+   buffer was copied unset.  Now a resolved name that fits is copied; one that
+   does not fit gives "" and FALSE (open_file() and the sequential opens refuse
+   a null name); a name that cannot be resolved is kept as given (it fits:
+   every caller's name is bounded by its buffer), and FALSE.  The same rule as
+   sdidx.c's fullpath() since 18 Oct 26.                                       */
+
+bool fullpath_n(char* path,  /* Out (can be same as input path buffer) */
+                char* name,  /* In */
+                size_t size) /* Bytes at path */
+{
   char buff[PATH_MAX + 1];
+  size_t n;
 
   /* realpath() requires that the buffer is PATH_MAX bytes even for short
     pathnames. Use a temporary buffer and then copy the data back to the
     caller's buffer.                                                      */
 
-  ok = (sdrealpath(name, buff) != NULL);
+  if (sdrealpath(name, buff) == NULL) {
+    if (path != name) {
+      n = strlen(name);
+      if (n >= size)
+        n = size - 1;
+      memmove(path, name, n);
+      path[n] = '\0';
+    }
+    return FALSE;
+  }
 
-  strcpy(path, buff);
-
-  return ok;
+  n = strlen(buff);
+  if (n >= size) {
+    path[0] = '\0';
+    return FALSE;
+  }
+  memcpy(path, buff, n + 1);
+  return TRUE;
 }
 
 /* ======================================================================
@@ -1372,6 +1410,11 @@ bool make_path(char* tgt) {
   char* savep = NULL;
   /* -------------------- */
 
+  /* 7 Nov 26 S.159 (Kimi review, finding 3): a 255-byte name filled new_path
+     and the "/" appended after its last component wrote two bytes past it
+     (and a longer tgt overran path).  Both are checked now.              */
+  if (strlen(tgt) > MAX_PATHNAME_LEN)
+    return FALSE;
   strcpy(path, tgt); /* Make local copy as we will use strtok() */
 
   p = path;
@@ -1389,6 +1432,8 @@ bool make_path(char* tgt) {
   /* while ((q = strtok(p, DSS)) != NULL) { */
   while ((q = strtok_r(p, DSS, &savep)) != NULL) {
   /* -------------------- */
+    if (strlen(new_path) + strlen(q) > MAX_PATHNAME_LEN)
+      return FALSE;
     strcat(new_path, q);
 
     if (stat(new_path, &statbuf)) /* Directory does not exist */
@@ -1400,6 +1445,8 @@ bool make_path(char* tgt) {
       return FALSE;
     }
 
+    if (strlen(new_path) + 1 > MAX_PATHNAME_LEN) /* this was the last component that fits: there is no room for another */
+      return (strtok_r(NULL, DSS, &savep) == NULL);
     strcat(new_path, DSS);
     p = NULL;
   }

@@ -65,7 +65,7 @@ def shipped_in_tag(f):
     for ref in (TAG, "HEAD"):
         if subprocess.run(["git", "-C", SD64, "cat-file", "-e", "%s:%s" % (ref, path)], capture_output=True).returncode == 0:
             return True
-    r = subprocess.run(["git", "-C", SD64, "log", "-1", "--format=%h", "--diff-filter=D", "--", path], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", SD64, "log", "-1", "--format=%h", "--diff-filter=D", "--", ":(top)" + path], capture_output=True, text=True)   # the path is from the repository's top
     return r.stdout.strip() != ""
 
 

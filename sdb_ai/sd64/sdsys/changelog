@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+09 Nov 26  KERNEL FIXES: GETLOCKS() WITH A USER NUMBER, A DELETE THAT NO LONGER FOLLOWS A LINK, AND THE BUILD AT -O2 (carried from SD Core
+           for Linux's fixes of 3-7 Nov 2026).
+
+             What        GETLOCKS(file, user) checks the user number: a number outside the user table, or one nobody holds, is nobody's, where
+                         it used to read before the start of the table (65537 reported user 1's locks). Deleting a directory tree (DELETE.FILE of
+                         a directory file and the other whole-tree deletes) removes a symbolic link inside it as a link and leaves what it points
+                         at alone; it used to follow the link. A path built from a long name is bounded, and the client library's system
+                         directory is copied safely. The C is built with -O2 -fwrapv -fno-strict-aliasing, with the five faults that build
+                         showed fixed, and eighteen functions nothing could reach are gone, among them sdconv's converter of hashed files,
+                         which the tool refused to run anyway.
+             Why it      A link planted in a directory file could have turned a delete onto files elsewhere.
+             matters
+             Does not    Change sdconv's job (it converts compiled programs) or what GETLOCKS() returns for a real user.
+
 09 Nov 26  SORTED LISTS TIE ON THE RECORD ID; EXECUTE AND OS.EXECUTE TAKE SILENT (carried from SD Core for Linux's fixes of 2-3 Nov 2026).
 
              What        A SELECT or LIST with BY gives records whose sort keys are equal in record-id order, as SORT and SSELECT always did

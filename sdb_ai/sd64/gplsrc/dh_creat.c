@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 07 Nov 26 dm  S.159: acct_group_modes() calls fullpath_n() with its PATH_MAX buffer (fullpath() now stops at 256 bytes).
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * END-HISTORY
  *
