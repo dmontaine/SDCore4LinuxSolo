@@ -4853,6 +4853,13 @@ A file on server %1 cannot be changed or locked inside a transaction: %2 is refu
 The lock kind for the file on server %1 is not valid (%2)
 ```
 
+### msg:11598
+> kind=message tier=reference since=- src=sdsys/messages/11598:1#3e2ba060
+
+```
+A common block whose name starts with $ or _ belongs to the system and may be used only by a system program
+```
+
 ### msg:11600
 > kind=message tier=reference since=- src=sdsys/messages/11600:1#64ada5ed
 
@@ -6727,6 +6734,15 @@ C-type dictionary item %1 is not compiled: write it as an I-type
 ```
 
 cited by: `dcomp`
+
+### msg:11994
+> kind=message tier=reference since=- src=sdsys/messages/11994:1#f65cfb5f
+
+```
+The passphrase has fewer than %1 characters.  No key was set.
+```
+
+cited by: `encryptkey`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce

@@ -255,16 +255,16 @@ def main():
         row("%s: the kernel holds sh=%d osx=%d, loaded at sign-on from the register, and the session is not the administrator" % (label, sh_on, os_on),
             bool(m) and (m.group(1), m.group(2), m.group(3)) == ("0", str(int(sh_on)), str(int(os_on))), "output=%r" % (out[-3:],))
 
-        # B. the SH verb and "!"
-        out = session(["SH touch %s/sh.sentinel" % OUT, "! touch %s/bang.sentinel" % OUT, "SH touch own.sentinel"])
+        # B. the SH verb (9 Nov 26, Solo carry 22: "!" was removed with SD Core's S.87; it is no longer a verb)
+        out = session(["SH touch %s/sh.sentinel" % OUT, "SH touch own.sentinel"])
         refusals = sum(1 for ln in out if re.search(r"is not permitted to use the operating system shell$", ln))
         if sh_on:
-            row("%s: SH and '!' run: both sentinels are on the disk and nothing was refused" % label,
-                os.path.exists(os.path.join(OUT, "sh.sentinel")) and os.path.exists(os.path.join(OUT, "bang.sentinel")) and refusals == 0
+            row("%s: SH runs: both sentinels are on the disk and nothing was refused" % label,
+                os.path.exists(os.path.join(OUT, "sh.sentinel")) and refusals == 0
                 and os.path.exists(os.path.join(ACCT, "own.sentinel")), "output=%r" % (out,))
         else:
-            row("%s: SH and '!' are refused (10053, once each, three commands): no sentinel on the disk, in the account either" % label,
-                refusals == 3 and not os.path.exists(os.path.join(OUT, "sh.sentinel")) and not os.path.exists(os.path.join(OUT, "bang.sentinel"))
+            row("%s: SH is refused (10053, once each, two commands): no sentinel on the disk, in the account either" % label,
+                refusals == 2 and not os.path.exists(os.path.join(OUT, "sh.sentinel"))
                 and not os.path.exists(os.path.join(ACCT, "own.sentinel")), "output=%r" % (out,))
 
         # C-D. OS.EXECUTE and every route to an OS path, in one program (a T line each)

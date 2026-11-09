@@ -114,7 +114,7 @@ The VOC record types (field 1, character 1, is the type). Each type is the chunk
 | `D` | descriptor | a data descriptor, which is what dictionary records are |
 
 ### core:walls
-> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:164#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:183#ef1e8155
+> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:164#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:184#ef1e8155
 
 Solo has ONE account, `sduser`, and two per-account switches, the shell (`sh`, `!`) and OS access (`os.execute`, a path outside the account, the embedded Python, nano and micro), both OFF as delivered and turned on by the administrator with `set.os.access`; it has no other gate and no gate words. What limits a session is below, quoted from Solo's own pages (`GettingStarted/markdown/12-security.md`, `GettingStarted/markdown/06b-operating-system-access.md`).
 
@@ -169,13 +169,13 @@ what your Linux user can do.
 
 **A filter on the command, not on you**
 
-**Both verbs refuse a command that contains a shell metacharacter or a line
+**`sh` refuses a command that contains a shell metacharacter or a line
 break** — `;` `|` `&` `$` `` ` `` `<` `>`:
 
 ```
 :sh echo alpha-beta | grep alpha
 Error 2 executing operating system command
-:! echo hi; ls /somewhere
+:sh echo hi; ls /somewhere
 Error 2 executing operating system command
 ```
 
@@ -183,8 +183,9 @@ Error 2 executing operating system command
 turned into two by accident — a record id or a variable pasted into it — and it
 is applied the same way to everyone. A plain command with arguments is fine:
 `sh ls -la`, `sh grep -c error /var/log/messages`. **A bare `sh`, with nothing
-after it, is refused the same way**, so there is no interactive shell to be left
-in from TCL: to get a shell, use your own terminal.
+after it, starts an interactive shell** (the filter is for a typed command; until
+7 November 2026 it refused an empty one too); `exit` brings you back to the SD
+prompt. It needs the `sh` switch like any other `sh`.
 
 **`OS.EXECUTE` is not filtered**
 

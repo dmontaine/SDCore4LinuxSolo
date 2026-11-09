@@ -23,7 +23,6 @@
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 28 Oct 26 dm  S.87: REPLACE() is gone: the checksum test uses a copy of the record with the SYS.INFO value cleared.
-* 27 Oct 26 dm S.87: request 70 operation 1 runs analyze.file (the VOC record analyse.file is gone); the operation's name in the audit line and on the wire is unchanged.
 * 21 Oct 26 dm Solo carry 10 (SD Core's S.73 item 1, 4f38ad4): request 29 (vb.open.sdnet) asks the OS switch of the account named for a VOC pointer that leads out of the account: an
 *           F-pointer outside the account's directory is refused (error ELSE, status 3035, audit 'api refused request=29 reason=os gate off ...') unless that account holds os on.
 *           Needs K$PATH.IN (96), carried to the kernel the same day.  Solo has no SDSYS clause.

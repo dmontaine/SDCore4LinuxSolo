@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+09 Nov 26  A BARE SH STARTS THE SHELL AGAIN; ENCRYPT.KEY WANTS 12 CHARACTERS; THE SYSTEM'S NAMED COMMONS ARE THE SYSTEM'S (carried from
+           SD Core for Linux's fixes of 30 Oct - 8 Nov 2026).
+
+             What        SH typed with no command starts the interactive shell, as it did before the filter on typed commands: the filter
+                         refused an empty command, so a bare SH said "Error 2 executing operating system command" for everybody. It still needs
+                         the sh switch, and a typed command is still filtered. ENCRYPT.KEY SET refuses a passphrase of fewer than 12 characters
+                         (message 11994); SDKEY() itself takes any passphrase that is not empty. A named common block whose name begins with $
+                         or _ belongs to SD's own programs: any other program that declares or joins one stops with message 11598, so a user
+                         program cannot read or set what SD keeps there. DELETE.FILE sets @SYSTEM.RETURN.CODE when it refuses because the file
+                         is open, where it used to leave 0.
+             Why it      A bare SH is the way to a shell when the switch is on; a short passphrase makes a weak key.
+             matters
+             Does not    Lift the sh switch, or change a key made before (only SET is checked).
+
 09 Nov 26  KERNEL FIXES: GETLOCKS() WITH A USER NUMBER, A DELETE THAT NO LONGER FOLLOWS A LINK, AND THE BUILD AT -O2 (carried from SD Core
            for Linux's fixes of 3-7 Nov 2026).
 

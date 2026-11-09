@@ -3918,7 +3918,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 954
+"words": 966
 },
 "dict:chaining": {
 "kind": "dict.conv",
@@ -8827,6 +8827,13 @@
 "tier": "reference",
 "words": 15
 },
+"msg:11598": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
 "msg:11600": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -10303,6 +10310,13 @@
 "since": "-",
 "tier": "reference",
 "words": 17
+},
+"msg:11994": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
 },
 "msg:1200": {
 "kind": "message",
@@ -24195,7 +24209,7 @@
 "tcl:encrypt.key": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 39
 },
