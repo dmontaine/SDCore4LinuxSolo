@@ -86,9 +86,13 @@ ssh-public-key-file=
 # uses the machine's sshd_config.d.  A line naming it is ignored with a warning.
 
 # enable-linger
-#   yes = run "loginctl enable-linger" so SD keeps running after the user
-#   signs out.  Anything else = no.
-#enable-linger=yes
+#   yes = run "loginctl enable-linger" so SD keeps running, and reachable
+#   over the API and ssh, when nobody is signed in.  THIS IS THE DEFAULT
+#   (9 Nov 2026): left empty, it is yes.
+#   no  = SD stops when the user's last session ends.
+#   Anything else is refused.  --enable-linger / --no-linger on the command
+#   line win over this line.
+#enable-linger=no
 
 enable-linger=
 

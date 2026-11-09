@@ -78,7 +78,9 @@
 #                                 okular, zathura, atril, xreader, mupdf, qpdfview, xpdf).  Asked on a terminal when such a
 #                                 reader is installed and none is allowed yet; with no terminal, with --yes, or with none,
 #                                 nothing is allowed.  Later: ADMIN, then set.viewer add pdf NAME.  The control file's viewer.
-#   --enable-linger              run "loginctl enable-linger" so SD survives sign-out
+#   --enable-linger               run "loginctl enable-linger" so SD keeps running, and reachable, when nobody is signed in.
+#                                 THE DEFAULT (9 Nov 26): on for every install, an unattended one included; asked on a terminal.
+#   --no-linger                   do not: SD stops when your last session ends (also the control file's enable-linger=no)
 #   --skip-packages               do not install packages; check the tools instead
 #   --no-service                  do not install the systemd user service
 #   --yes                         do not ask "Continue?" (nor the shell and OS access question: with --yes and no --os-access
@@ -158,7 +160,8 @@ api="" ; api_port="4249"
 # with the routes it belonged to.  The witnesses' private port goes through the announced hook
 # SDSOLO_TEST_SSH_PORT, as the API's does.
 ssh=""; ssh_port="4251"
-ssh_key=""; enable_linger=0; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
+ssh_key=""; enable_linger=1; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
+linger_cli=""  # 9 Nov 26 (owner: "Yes, on by default"): yes|no when --enable-linger / --no-linger was given; linger_decide settles enable_linger
 os_access=""   # 20 Oct 26, the OS switch: none|sh|os|both once answered (by --os-access, the control file, or the question)
 viewer=""      # 23 Oct 26, Solo carry 14: a PDF reader to allow for the pdf verb (a name), or none; "" until answered
 while [ "$#" -gt 0 ]; do
@@ -177,12 +180,13 @@ while [ "$#" -gt 0 ]; do
     --ssh)                    [ "$#" -ge 2 ] || refuse "--ssh needs off, local or open"; ssh="$2"; shift 2 ;;
     --ssh-key)                [ "$#" -ge 2 ] || refuse "--ssh-key needs a public key file"; ssh_key="$2"; shift 2 ;;
     --ssh-match)              refuse "--ssh-match is gone: Solo's ssh has its own port (4251) now and no longer uses the machine's sshd_config. Use --ssh local or --ssh open." ;;
-    --enable-linger)          enable_linger=1; shift ;;
+    --enable-linger)          linger_cli=yes; shift ;;
+    --no-linger)              linger_cli=no; shift ;;
     --skip-packages)          skip_pkgs=1; shift ;;
     --no-service)             no_service=1; shift ;;
     --yes)                    assume_yes=1; shift ;;
     --upgrade)                upgrade=1; shift ;;
-    -h|--help)                sed -n '2,93p' "$0"; exit 0 ;;
+    -h|--help)                sed -n '2,95p' "$0"; exit 0 ;;
     *) refuse "unknown option: $1 (see --help)" ;;
   esac
 done
@@ -242,8 +246,8 @@ fi
 if [ "$upgrade" -eq 1 ]; then
   [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core for Linux Solo in $HOME_DIR to upgrade (no .sdcoresolo marker)"
   [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsdsolo.sh; upgrade it by hand or reinstall"
-  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key$reload_ans" ] && [ "$enable_linger" -eq 0 ] \
-    || refuse "--upgrade keeps the passwords (and so whether a global password is set), the account's data and sd.conf, and the API and ssh settings as installed; it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key or --enable-linger option"
+  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key$reload_ans$linger_cli" ] \
+    || refuse "--upgrade keeps the passwords (and so whether a global password is set), the account's data and sd.conf, and the API and ssh settings as installed; it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger or --no-linger option"
 elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
   # LSOLO 39: the one non-empty directory this installer will use is what deletesdsolo.sh --keep-data leaves:
   # the stamp, the account, sd.conf and, if there was one, newvoc.mods, and NOTHING else (a folder you have put other things in is never touched).
@@ -452,7 +456,6 @@ if [ -n "$control_file" ]; then
     *[!A-Za-z0-9.\$_,\ -]*) refuse "deny-verbs in the control file holds a character that cannot be in a verb name" ;;
   esac
   [ -z "$cf_ssh_key" ] || [ -n "$ssh_key" ] || ssh_key="$cf_ssh_key"
-  [ "$cf_linger" != "yes" ] || enable_linger=1
   # LSOLO 38: the file can make the API and ssh choices (a flag on the command line wins).
   case "$cf_api" in ""|off|local|open) ;; *) refuse "api in the control file must be off, local or open (got '$cf_api')" ;; esac
   case "$cf_ssh" in ""|off|local|open) ;; *) refuse "ssh in the control file must be off, local or open (got '$cf_ssh')" ;; esac
@@ -474,6 +477,33 @@ say "  into        : $HOME_DIR"
 say "  source      : $REPO_URL ($REPO_BRANCH), downloaded to $CLONE_DIR and removed afterwards"
 say "  running as  : $(id -un)"
 say
+
+# BEGIN linger
+# linger_decide: is "loginctl enable-linger" run, so that SD (and its API and ssh) keeps running and reachable when nobody is signed in?
+# 9 Nov 26 - the owner: "linux and windows solo both need to be set up so that SD is accessible remotely even if the user is not logged
+# in at the console", then "Yes, on by default" (told that linger keeps SD and its open ports running while he is signed out).  So it is
+# ON for every install, an unattended one included.  The order: --enable-linger / --no-linger (the command line wins), then the control
+# file's enable-linger yes|no, then the question on a terminal (default yes), else on.  With --no-service there is no service to keep.
+linger_decide() {
+  case "$linger_cli" in
+    yes) enable_linger=1; return 0 ;;
+    no)  enable_linger=0; return 0 ;;
+  esac
+  case "$cf_linger" in
+    yes) enable_linger=1; return 0 ;;
+    no)  enable_linger=0; return 0 ;;
+    "")  ;;
+    *)   refuse "enable-linger in the control file must be yes or no (got '$cf_linger')" ;;
+  esac
+  enable_linger=1
+  if [ "$no_service" -eq 0 ] && [ "$interactive" -eq 1 ]; then
+    say
+    say "So that SD stays reachable when nobody is signed in, 'loginctl enable-linger' keeps it running after you sign out."
+    ask_yn "Keep SD running when you are signed out?" y || enable_linger=0
+  fi
+  return 0
+}
+# END linger
 
 ask_yn() {   # ask_yn "question" default(y|n)  -> 0 yes, 1 no ; non-interactive: the default
   local q="$1" d="$2" a
@@ -650,11 +680,7 @@ fi
 if [ -n "$ssh_key" ]; then
   [ -r "$ssh_key" ] || refuse "cannot read the ssh public key $ssh_key"
 fi
-if [ "$enable_linger" -eq 0 ] && [ "$no_service" -eq 0 ] && [ "$interactive" -eq 1 ]; then
-  say
-  say "To keep SD running (and reachable) after you sign out, 'loginctl enable-linger' is needed."
-  ask_yn "Enable it now?" y && enable_linger=1
-fi
+linger_decide
 
 # ---------------------------------------------------------------- confirmation
 say
@@ -670,7 +696,7 @@ say "  global pw     : $([ "$managed" -eq 1 ] && echo "set - an SD Core server i
 say "  account pw    : $([ "$first_login" -eq 1 ] && echo "chosen at first login, at this computer's keyboard" || echo "set now")"
 say "  API           : $api$([ "$api" != off ] && echo " (port $api_port)")"
 say "  ssh into sd   : $ssh$([ "$ssh" != off ] && echo " (port $ssh_port, Linux password or key)")$([ -n "$ssh_key" ] && echo ", key $ssh_key")"
-say "  service       : $([ "$no_service" -eq 1 ] && echo "not installed" || echo "systemd user service$([ "$enable_linger" -eq 1 ] && echo ", linger on" || echo ", linger NOT enabled")")"
+say "  service       : $([ "$no_service" -eq 1 ] && echo "not installed" || echo "systemd user service$([ "$enable_linger" -eq 1 ] && echo ", linger on: SD keeps running when nobody is signed in" || echo ", linger off: SD stops when you sign out")")"
 say "  packages      : $([ "$skip_pkgs" -eq 1 ] && echo "not installed (checked)" || echo "installed with sudo")"
 if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
   ask_yn "Continue?" y || refuse "cancelled by you; nothing was changed"

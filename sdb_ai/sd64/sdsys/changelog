@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+09 Nov 26  SD STAYS REACHABLE WHEN NOBODY IS SIGNED IN: THE INSTALLER TURNS LINGER ON BY DEFAULT (the owner, 9 Nov 2026: "linux and
+           windows solo both need to be set up so that SD is accessible remotely even if the user is not logged in at the console",
+           then "Yes, on by default").
+
+             What        installsdsolo.sh runs "loginctl enable-linger" for every install unless it is told not to: an unattended install
+                         (a control file, or --yes) used to leave linger off, and then SD, its API and its ssh stopped when you signed out.
+                         On a terminal it still asks, and Enter answers yes. --no-linger (new) or enable-linger=no in the control file leaves
+                         it off; the control file's value must be yes or no. The summary line says which. An upgrade leaves linger as it
+                         was.
+             Why it      Remote access, over the API or ssh, is the reason to install Solo on a computer nobody sits at.
+             matters
+             Does not    Open a port: the API and ssh are still off, local or open as you chose. With linger on they keep running while
+                         you are signed out. A reboot with nobody signed in has not been measured.
+
 09 Nov 26  OPTION INHERIT.OWNERSHIP IS NOT IN SOLO (the owner, 9 Nov 2026: "leave solo without it").
 
              What        OPTION INHERIT.OWNERSHIP (option 60), which made CREATE.FILE give a new file the account directory's owner and
