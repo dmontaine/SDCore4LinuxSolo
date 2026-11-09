@@ -216,7 +216,7 @@ def checks(s):
             txt_ = s[prog_] if prog_ in s else open(os.path.join(GPL, prog_), encoding="latin-1").read()      # the mutated text when the self-test mutates this program
         except (OSError, TypeError):
             txt_ = ""
-        if not re.search(r"openseq[^\n]* readonly to %s then[\s\S]{0,700}?else[^\n]*\n(?:\s*\*[^\n]*\n)*\s*if not\(unassigned\(%s\)\) then closeseq %s" % (var_, var_, var_), txt_):
+        if not re.search(r"openseq[^\n]* readonly to %s then[\s\S]{0,700}?else[^\n]*\n(?:\s*\*[^\n]*\n)*\s*if not\(unassigned\(%s\)\) then close %s" % (var_, var_, var_), txt_):
             leaks.append(prog_)
     ck("H28a every program that opens a possibly absent file READONLY (!home_entry, SET.START.DEFAULT, the menu management page, !viewlist, OSREAD) closes the file variable in its ELSE branch, so that an absent start.default does not leave an update lock on it",
        not leaks, repr(leaks))
@@ -224,7 +224,7 @@ def checks(s):
 
 
 MUTANTS = [
-    ("the home entry keeps the lock of an absent start.default", "home_entry", "         if not(unassigned(df)) then closeseq df\n", "         null\n"),
+    ("the home entry keeps the lock of an absent start.default", "home_entry", "         if not(unassigned(df)) then close df\n","         null\n"),
     ("finish no longer signs out a confined account", "tool_home", "      case terminal.off and outcome # 'signout'", "      case @false"),
     ("home_entry leaves a confined account at the prompt", "home_entry", "   if index(' ' : off : ' ', ' terminal ', 1) then\n      sleep 2\n      execute 'quit'\n   end\n", ""),
     ("a header tile that is off is placed on the previous tile", "tool_home", "   gosub add.tile\n   if not(added) then return\n", "   gosub add.tile\n"),

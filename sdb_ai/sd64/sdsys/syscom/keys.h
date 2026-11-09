@@ -28,7 +28,7 @@
       $define FL$VOCNAME        1  ;* Get VOC name by which file was opened
       $define FL$PATH           2  ;* Get pathname of file
       $define FL$TYPE           3  ;* Return file type
-      $define FL$TYPE.SH        1  ;* SH file
+      * 1 was FL$TYPE.SH (a static hashed file SD never had), retired 27 Oct 26 (S.87 batch 12)
       $define FL$TYPE.DH        3  ;* DH file
       $define FL$TYPE.DIR       4  ;* Directory file
       $define FL$TYPE.SEQ       5  ;* Sequential file
@@ -253,7 +253,6 @@
       $define PU$PRINTER.NAME       1017
       $define PU$FILE.NAME          1018
       $define PU$SEQNO              1019
-      $define PU$FORM.QUEUE         1020
       $define PU$FORM.FEED          1021
       $define PU$ENCODING           1022
       $define PU$FONT               1023
@@ -501,7 +500,6 @@
       $define SYS$CLIENT_IP    42  ;*   Client IP address
       $define SYS$WIN_OS       91  ;*   Windows? (see also 1006)
       $define SYS$IS_CAPTURE  1000  ;*   CAPTURING in effect?
-      $define SYS$IS_INV_CASE 1001  ;*   Case inversion on?
       $define SYS$CALL_STACK  1002  ;*   Call stack
       $define SYS$OPEN_FILES  1003  ;*   Return list of open files
       $define SYS$PEAK_FILES  1004  ;*   Peak number of open files
@@ -571,7 +569,6 @@
       $define SYS$CHILDREN    1058  ;*   Direct child phantoms' user numbers
       $define SYS$GROUPED.CHILDREN 1073 ;* Those grouped with this process (PHANTOM GROUP): logged out when it ends
       $define SYS$TXN_CACHE   1065  ;*   The transaction cache
-      $define SYS$FORM.QUEUE  1066  ;*   The last form queue SP.ASSIGN gave to a print unit, -1 if none (15 Oct 26)
       $define SYS$PRECISION   1070  ;*   The PRECISION setting
       $define SYS$OSREAD.INFO 1071  ;*   STATUS array of the file the last OSREAD read (15 Oct 26, _system)
       $define SYS$CALL_DEPTH  1076  ;*   Current CALL depth

@@ -65,7 +65,7 @@ struct PRINT_UNIT {
 #define PRINT_TO_PRINTER  1
 #define PRINT_TO_FILE     3
 #define PRINT_TO_STDERR   4
-#define PRINT_TO_AUX_PORT 5
+/* print mode 5 (the terminal's auxiliary printer port) was removed 28 Oct 26, S.87: the number is reserved */
 #define PRINT_AND_HOLD    6
                    u_int32_t flags;
 #define PU_ACTIVE        0x00000001  /* Print unit is active */
@@ -182,24 +182,17 @@ Public bool telnet_binary_mode_out init(FALSE);  /* Server -> client */
 Public bool telnet_negotiation init(TRUE);       /* Watch for TN_IAC */
 
 
-Public int16_t lock_beep_timer;
-
 /* EXECUTE CAPTURING data */
 
 Public bool capturing init(FALSE);             /* Active? */
 Public STRING_CHUNK * capture_head init(NULL); /* Head of chain */
 Public STRING_CHUNK * capture_tail;            /* Tail of chain */
 
-Public bool case_inversion init(FALSE);
 Public bool mark_input init(FALSE);    /* PTERM MARK: typed ctrl-\ ctrl-] ctrl-^ become SM VM FM (12 Oct 26) */
 Public int16_t erase_key init(0);      /* PTERM ERASE: 0 default, 1-255 a character, 256 none (12 Oct 26) */
 Public char ctrl_filter[64];           /* PTERM CTRL.FILTER, indexed by command processor level (12 Oct 26) */
 Public char maxmin_pos[64];            /* The position MAXIMUM() or MINIMUM() found, for SYSTEM(1088) (15 Oct 26, Q-18) */
 Public bool trap_break_char; /* Treat break_char as a break request? */
-/* 15 Oct 26 dm - QM4 gaps Q-9 (SP.ASSIGN).  The form queue number each print unit was last assigned (GETPU key PU$FORM.QUEUE),
-   and the last one assigned to any unit (SYSTEM(1066)), -1 until SP.ASSIGN has been used.  Set by K_FORM_QUEUE. */
-Public int16_t form_queue_of[HIGH_PRINT_UNIT + 1];
-Public int16_t last_form_queue init(-1);
 
 /* OP_TIO.C */
 void emit_header_footer(PRINT_UNIT * pu, bool is_heading);

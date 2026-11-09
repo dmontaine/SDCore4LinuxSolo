@@ -411,8 +411,14 @@ def checks(srcs, messages_dir):
        0 < vr_top < vr_free < f_chk < f_ret and re.search(r"if not\(vr\.free\) then\s*gosub check\.f\.path\s*if not\(path\.ok\) then\s*pathname = ''\s*set\.status ER\$PERM", vr)
        and "kernel(K$PATH.OK, pathname)" in fcp and "upcase(stock.rec[1,1]) = 'F' and stock.rec<fno> = f.raw" in fcp,
        "check %s, return %s" % (f_chk, f_ret))
-    pf = vr[at(vr, "case upcase(x1) = 'PATH'"):at(vr, "case n = 2")] if "case upcase(x1) = 'PATH'" in vr else ""
-    ck("B27 the PATH: form (FILERULE) is held to the OS gate too", "if not(vr.free) and not(kernel(K$PATH.OK, pathname)) then" in pf and "set.status ER$PERM" in pf)
+    # 9 Nov 26 (Solo carry 22, SD Core's S.87 and 3 Nov 26): the PATH: form (FILERULE) is gone; the Account:File form is back, always on, as a Q-pointer
+    ck("B27 the PATH: form (FILERULE) is gone, so it cannot reach a path the OS gate would refuse",
+       "case upcase(x1) = 'PATH'" not in vr and "config('FILERULE')" not in vr)
+    afi = vr.find("if dcount(voc.id, ':') = 2")
+    afb = vr[afi:vr.find("\n      end\n", afi)] if afi >= 0 else ""
+    ck("B27b the Account:File form only builds a Q record and goes to parse.as.q.pointer, so every Q-pointer check applies: it opens nothing and sets no pathname itself",
+       "voc.rec = 'Q' : @fm : field(voc.id, ':', 1) : @fm : field(voc.id, ':', 2)" in afb and "goto parse.as.q.pointer" in afb
+       and "pathname" not in afb and "openpath" not in afb.lower(), afb[:200])
     qh = block(vr, "check.q.hop:", 900)
     ck("B25 a Q-pointer is followed only if it is the stock record (the same id, the same account name), a path the OS gate allows, or the account itself; "
        "an account Solo does not let anyone enter (SDSYS) is not followed from a restricted session",

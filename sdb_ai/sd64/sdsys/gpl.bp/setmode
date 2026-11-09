@@ -18,6 +18,8 @@
 *
 * START-HISTORY:
 * 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 18): carried from Core; the gate is Solo's OS switch (set.os.access os on), message 11314 says so.
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 15 Oct 26 dm  Written for QM4 gaps bundle Q-8 (SET.MODE).
 * END-HISTORY
 *
@@ -68,11 +70,11 @@ $include int$keys.h
 
    call @parser(PARSER$RESET, 0, @sentence, 0)
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb
-   call @parser(PARSER$MFILE, token.type, token, keyword)     ;* File name
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)     ;* File name
 
    if keyword = KW$DICT then
       portion = 'DICT'
-      call @parser(PARSER$MFILE, token.type, token, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
    end
    if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
    file.name = token
@@ -134,7 +136,7 @@ $include int$keys.h
 
       case selectinfo(0, sl$active)
          readnext id then
-            if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+            if not(no.query) then
                loop
                   display sysmsg(2050, id) :  ;* Use active select list (First item 'xx')?
                   prompt ""

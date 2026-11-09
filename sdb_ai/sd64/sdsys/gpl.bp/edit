@@ -15,6 +15,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 14: the NANO verb is gone; micro is the one external editor (editor.exe is always micro), and nano's syntax file and installer step are gone.
 * 20 Oct 26     SD Core for Linux Solo (the OS switch; owner: two words like SD Core): nano and micro need the OS switch
 *               (K$OS.EXEC), as in SD Core's S.63; the administrator passes.
 * 30 Sep 26     SD Core for Linux Solo (LSOLO 16): NANO is highlighted through an
@@ -125,7 +126,7 @@ deffun voc_guard(f) calling '!voc_guard'
    response      = ''
 
 * ---------------------------------------------------------------------------
-* The command line:  nano | micro {DICT} file record
+* The command line:  micro {DICT} file record
 * ---------------------------------------------------------------------------
    cmd = convert(' ', @fm, trim(@command, ' ', 'C'))
 
@@ -135,7 +136,8 @@ deffun voc_guard(f) calling '!voc_guard'
 * The port's owner ruling, 26 Aug 2026: two full-screen editors, "one called
 * with the verb micro and the other with the verb edit".  Both VOC entries are
 * CA $EDIT and this reads field 1 of the command line - the verb as typed.
-* On Linux (owner, 10 Sep 2026) the verbs are NANO and MICRO, each named for
+* (27 Oct 26: NANO has since been removed; MICRO is the only verb that reaches here.)
+* On Linux (owner, 10 Sep 2026) the verbs were NANO and MICRO, each named for
 * the editor it runs.  The port's "edit" was Microsoft Edit's; here EDIT is an
 * alias for ED and never reaches this program.
 *
@@ -145,14 +147,8 @@ deffun voc_guard(f) calling '!voc_guard'
 * which is the shape of MICRO's own faults.  If the two ever need to behave
 * differently, the table below is where it goes.
 * ---------------------------------------------------------------------------
-   begin case
-      case upcase(trim(cmd<1>, ' ', 'B')) = 'MICRO'
-         editor.exe  = 'micro'
-         editor.name = 'micro'
-      case 1                              ;* NANO, or any other verb aimed here
-         editor.exe  = 'nano'
-         editor.name = 'nano'
-   end case
+   editor.exe  = 'micro'                  ;* the one external editor (the NANO verb was removed 27 Oct 26, S.87)
+   editor.name = 'micro'
 
    if upcase(trim(cmd<2>, ' ', 'B')) = 'DICT' then
       in.file.name   = cmd<3>
@@ -198,11 +194,11 @@ deffun voc_guard(f) calling '!voc_guard'
    end
 
 *  ***AND A BP RECORD GETS A ".sdbasic" ON THE END, WHICH IS WHAT MAKES THE
-*  HIGHLIGHTING WORK.***  micro and nano both choose a syntax by matching a
+*  HIGHLIGHTING WORK.***  micro chooses a syntax by matching a
 *  regex against the FILE NAME, and the name they see is this working copy's,
 *  not the record's - a record called MY.REPORT tells them nothing.  The suffix
 *  is the only thing that can carry the language across; microcfg/syntax/
-*  sdbasic.yaml and nanocfg/sdbasic.nanorc detect exactly it.
+*  sdbasic.yaml detects exactly it.
 *
 *  ".editing" IS KEPT IN FRONT OF IT so a working copy left behind by a
 *  session that died is still recognisable as one, whichever kind it is.
@@ -345,7 +341,7 @@ return
 * ---------------------------------------------------------------------------
 compile.record.query:
    if compiled.dict then
-      execute 'CD ' : in.file.name : ' ' : in.record.name
+      execute 'COMPILE.DICT ' : in.file.name : ' ' : in.record.name
       return
    end
 
@@ -664,29 +660,12 @@ return
 * regenerated file reaches an existing user, and a user's own edits survive
 * until SD's genuinely moves on.  $HOME is left for the shell to expand.
 *
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 16) - NANO gets its highlighting the
-* Solo way: the multi-user installer's system-wide /usr/share/nano/sdbasic.nanorc
-* is outside the home directory, so it does not exist here.  nano reads one rc
-* file named by --rcfile and that REPLACES /etc/nanorc and ~/.nanorc, so
-* nanocfg/mkrc.sh writes <sdsys>/nanocfg/sd.nanorc that includes whichever of
-* those exist and then SD's syntax, and editor.opts carries --rcfile to the
-* launch below.  Written before every session (it is a few lines) so it heals
-* after a move.  DELIBERATELY SILENT AND IGNORED - a failure costs colour, not
+* DELIBERATELY SILENT AND IGNORED - a failure costs colour, not
 * correctness, and must never stop somebody editing a record.
+* (9 Nov 26, Solo carry 22: Solo's LSOLO 16 nano --rcfile branch went with the NANO verb.)
 * ---------------------------------------------------------------------------
 place.syntax:
    editor.opts = ''
-   if editor.exe = 'nano' then
-      nano.master = @sdsys : '/nanocfg/sdbasic.nanorc'
-      nano.rc     = @sdsys : '/nanocfg/sd.nanorc'
-      nano.mkrc   = @sdsys : '/nanocfg/mkrc.sh'
-      if not(index(nano.master : nano.rc : nano.mkrc, q, 1)) then
-         os.execute 'sh "' : nano.mkrc : '" "' : nano.master : '" "' : nano.rc : '" 2>/dev/null'
-         os.execute 'test -r "' : nano.rc : '"'
-         if not(os.error()) then editor.opts = ' --rcfile=' : q : nano.rc : q
-      end
-      return
-   end
    if editor.exe # 'micro' then return
    syntax.master = @sdsys : '/microcfg/syntax/sdbasic.yaml'
    syntax.home   = '"$HOME/.config/micro/syntax"'

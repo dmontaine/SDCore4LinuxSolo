@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone.
+ * 27 Oct 26 dm  S.87 batch 13: XF 5 to 12 (IS.ALNUM, IS.ALPHA, IS.DIGIT, IS.GRAPH, IS.MARK, IS.SPACE, LEFT, RIGHT) are gone; the numbers stay reserved.
+ * 27 Oct 26 dm  S.87 batch 3: XF_SWAPMARKS (28), which returned its argument, is gone; the number stays reserved.
  * 20 Oct 26 dm  Solo carry 7 (SD Core's 845d3b1): XF_SDSALT, XF_SDKEY, XF_SDRANDKEY, encryption layer 2, for any program (sd_encrypt_sodium.c).
  *               The first XFUN functions that take no arguments (bcomp's in.xfun skips get.args for a row that writes none).
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): DIGEST of an operating system file and the OSPATH keys ask os_path_open_ok() instead of answering
@@ -42,9 +45,6 @@
  *    XF_FLOOR       FLOOR(value)              array aware
  *    XF_ROUNDUP     ROUNDUP(value, step)      away from zero in steps of step; a step under one gives zero
  *    XF_ROUNDDOWN   ROUNDDOWN(value, step)    towards zero in steps of step
- *    XF_IS_ALNUM .. XF_IS_SPACE               first character of the argument; a null string is false
- *    XF_LEFT        LEFT(string, n)           same as string[1, n], n under 1 taken as 1
- *    XF_RIGHT       RIGHT(string, n)          same as string[n], n under 0 taken as 0
  *    XF_LAST        LAST(string, delim)       final delimited element; LASTS is this under the MVDSS wrapper
  *    XF_NV          NV(string, repeat)        value position numbers in place of the values
  *    XF_NS          NS(string)                subvalue position numbers in place of the subvalues
@@ -82,14 +82,7 @@
 #define XF_FLOOR 2
 #define XF_ROUNDUP 3
 #define XF_ROUNDDOWN 4
-#define XF_IS_ALNUM 5
-#define XF_IS_ALPHA 6
-#define XF_IS_DIGIT 7
-#define XF_IS_GRAPH 8
-#define XF_IS_MARK 9
-#define XF_IS_SPACE 10
-#define XF_LEFT 11
-#define XF_RIGHT 12
+/* 5 to 12 (IS.ALNUM .. IS.SPACE, LEFT, RIGHT) are retired; the numbers stay reserved */
 #define XF_LAST 13
 #define XF_NV 14
 #define XF_NS 15
@@ -105,7 +98,7 @@
 #define XF_SIGNAL 25  /* SIGNAL(user.no), QM4 gaps Q-5 */
 #define XF_DIGEST 26  /* DIGEST(string, is.file, mode), QM4 gaps Q-13 */
 #define XF_SELSOCKET 27 /* SELECT.SOCKET(socket matrix, timeout): the compiler loads the matrix itself (in.select.socket), QM4 gaps Q-5 */
-#define XF_SWAPMARKS 28 /* SWAPMARKS(string): the string as it is - SD has no ECS mode, where the marks would be exchanged; sheet 238 */
+/* 28 was SWAPMARKS(string), which returned its argument (SD has no ECS mode); removed on 27 Oct 26 (S.87 batch 3), the number stays reserved */
 #define XF_FCONTROL 29  /* FCONTROL(fvar, action, qualifier): the public one, openQM's numbers; pub_fcontrol() in dh_misc.c */
 #define XF_GET 30       /* GET var {, length} {SETTING count} FROM dev {UNTIL term} {RETURNING last} {WAITING timeout}: op_get_device() in op_seqio.c (QM4 Fixes item 583) */
 #define XF_OSPATH 31    /* OSPATH(path, key {, qualifier}) for any program, openQM's key numbers and behind the OS-access gate (QM4 Fixes item 233) */
@@ -168,11 +161,8 @@ void op_trimw(void);
 Private void x_ceil(void);
 Private void x_floor(void);
 Private void x_round(bool up);
-Private void x_is(int fn);
 Private void x_bool(void);
 Private void x_isnull(void);
-Private void x_left(void);
-Private void x_right(void);
 Private void x_last(void);
 Private void x_nv(bool ns);
 Private int32_t x_signal(int32_t uid);
@@ -205,20 +195,6 @@ void op_xfun() {
       break;
     case XF_ROUNDDOWN:
       x_round(FALSE);
-      break;
-    case XF_IS_ALNUM:
-    case XF_IS_ALPHA:
-    case XF_IS_DIGIT:
-    case XF_IS_GRAPH:
-    case XF_IS_MARK:
-    case XF_IS_SPACE:
-      x_is(fn);
-      break;
-    case XF_LEFT:
-      x_left();
-      break;
-    case XF_RIGHT:
-      x_right();
       break;
     case XF_LAST:
       x_last();
@@ -294,10 +270,6 @@ void op_xfun() {
       break;
     case XF_SELSOCKET:
       x_select_socket();
-      break;
-    case XF_SWAPMARKS:
-      /* openQM's SWAPMARKS exchanges the mark characters with accented letters on an ECS system and, since release 3.0-2,
-         returns the data unchanged on any other.  SD has no ECS mode, so the argument is the result */
       break;
     case XF_FCONTROL:
       pub_fcontrol();
@@ -529,10 +501,8 @@ Private void x_digest() {
 Private void x_select_socket() {
   DESCRIPTOR* mat_descr;
   DESCRIPTOR* to_descr;
-  DESCRIPTOR* com_descr;
   DESCRIPTOR* d;
   ARRAY_HEADER* a_hdr = NULL;
-  PMATRIX_HEADER* pm_hdr;
   int32_t num_elements;
   int32_t first;
   int32_t i;
@@ -562,13 +532,6 @@ Private void x_select_socket() {
       a_hdr = mat_descr->data.ahdr_addr;
       num_elements = ((a_hdr->cols == 0) ? 1 : a_hdr->cols) * a_hdr->rows;
       first = 1;
-      break;
-    case PMATRIX:
-      pm_hdr = mat_descr->data.pmatrix;
-      com_descr = pm_hdr->com_descr;
-      num_elements = (pm_hdr->cols == 0) ? pm_hdr->rows : pm_hdr->cols * pm_hdr->rows;
-      a_hdr = com_descr->data.ahdr_addr;
-      first = pm_hdr->base_offset;
       break;
     default:
       k_error(sysmsg(1236)); /* Matrix required */
@@ -775,46 +738,6 @@ Private void x_round(bool up) {
 }
 
 /* ======================================================================
-   x_is()  -  IS.ALNUM(), IS.ALPHA(), IS.DIGIT(), IS.GRAPH(), IS.MARK(), IS.SPACE(): the first character is tested, a
-   null string is false.  The classes are the kernel's own character types, and the space is only the space character. */
-
-Private void x_is(int fn) {
-  DESCRIPTOR* descr;
-  STRING_CHUNK* str;
-  bool r = FALSE;
-  char c;
-
-  descr = e_stack - 1;
-  k_get_string(descr);
-  str = descr->data.str.saddr;
-  if (str != NULL && str->bytes > 0) {
-    c = str->data[0];
-    switch (fn) {
-      case XF_IS_ALNUM:
-        r = IsAlnum(c) != 0;
-        break;
-      case XF_IS_ALPHA:
-        r = IsAlpha(c) != 0;
-        break;
-      case XF_IS_DIGIT:
-        r = IsDigit(c) != 0;
-        break;
-      case XF_IS_GRAPH:
-        r = IsGraph(c) != 0;
-        break;
-      case XF_IS_MARK:
-        r = IsMark(c) != 0;
-        break;
-      case XF_IS_SPACE:
-        r = (c == ' ');
-        break;
-    }
-  }
-  k_dismiss();
-  push_int(r ? 1 : 0);
-}
-
-/* ======================================================================
    x_bool()  -  BOOL(value): false for a zero or a null string, true for everything else, as a Boolean (the same kind of
    value JBOOLEAN makes, so JBUILD() writes true or false and JTYPE() says boolean).  "0.0" and "-0" are zero.  Unlike
    JBOOLEAN() the text false is not false: it is a string that is not null.                                         */
@@ -874,37 +797,6 @@ Private void x_isnull() {
   }
   k_dismiss();
   push_int(is_null ? 1 : 0);
-}
-
-/* ======================================================================
-   x_left()  -  LEFT(string, n): the same as string[1, n], with n under 1 taken as 1   */
-
-Private void x_left() {
-  DESCRIPTOR* n_descr;
-  int32_t n;
-
-  n_descr = e_stack - 1;
-  GetInt(n_descr);
-  n = n_descr->data.value;
-  if (n < 1)
-    n = 1;
-  InitDescr(n_descr, INTEGER);
-  n_descr->data.value = 1; /* the start */
-  push_int(n);             /* the length: SUBSTR takes string, start, length */
-  op_substr();
-}
-
-/* ======================================================================
-   x_right()  -  RIGHT(string, n): the same as string[n], with n under 0 taken as 0   */
-
-Private void x_right() {
-  DESCRIPTOR* n_descr;
-
-  n_descr = e_stack - 1;
-  GetInt(n_descr);
-  if (n_descr->data.value < 0)
-    n_descr->data.value = 0;
-  op_substre();
 }
 
 /* ======================================================================

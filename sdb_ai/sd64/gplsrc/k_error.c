@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 16: k_unassigned_zero/_null, k_div_zero_warning and k_non_numeric_warning (messages 1109 to 1112) are gone with OPTION UNASS.WARNING,
+ *               DIV.ZERO.WARNING and NON.NUMERIC.WARNING: an unassigned variable, a divide by zero and a non-numeric value are always errors.
  * 25 Oct 26 dm  W.11 carry, step 3: audit_rotate() refuses a rotation whose new name (a second's resolution) is already a file, instead of letting rename() replace it.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file branch of log_permissions_error().
  * 17 Oct 26 dm  S.65 slice 3c: log_permissions_error() does not read the file table for a NET_FILE
@@ -160,10 +162,8 @@ Private const SYS_EXC sys_exc_table[] = {
     {1132, SE_PROGRAM "INVALID_MATRIX_SIZE"},
     {1133, SE_PROGRAM "LIMIT.GOSUB_DEPTH"},
     {1134, SE_PROGRAM "NOT_FOUND"},
-    {1136, SE_PROGRAM "INVALID_MATRIX_SIZE"},
     {1137, SE_PROGRAM "INVALID_DATA_SIZE"},
     {1138, SE_DATATYPE "NOT_SOCKET"},
-    {1139, SE_PROGRAM "INVALID_MATRIX_SIZE"},
     {1140, SE_PROGRAM "LIMIT.CALL_DEPTH"},
     {1200, SE_DATATYPE "NOT_FILE"},
     {1202, SE_DATATYPE "INVALID"},
@@ -286,13 +286,9 @@ DescrError(1100, k_index_error) DescrError(1101, k_dh_error)
         DescrError(1104, k_non_numeric_error) DescrError(1105, k_unassigned)
             DescrError(1106, k_null_id) DescrError(1107, k_illegal_id)
                 DescrError(1108, k_div_zero_error)
-                    DescrError(1109, k_unassigned_zero)
-                        DescrError(1110, k_unassigned_null)
-                            DescrError(1111, k_div_zero_warning)
-                                DescrError(1112, k_non_numeric_warning)
-                                    DescrError(1113, k_data_type)
-                                        DescrError(1137, k_strnum_len)
-                                            DescrError(1138, k_not_socket)
+                    DescrError(1113, k_data_type)
+                        DescrError(1137, k_strnum_len)
+                            DescrError(1138, k_not_socket)
 
                                                 Private
     void k_descr_error(int16_t msg_no, DESCRIPTOR* descr) {

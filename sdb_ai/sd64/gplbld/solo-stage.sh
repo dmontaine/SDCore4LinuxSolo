@@ -192,12 +192,34 @@ if [ "$upgrade" -eq 1 ]; then
   # and catalogued again, or (the VOC templates) copied back into the account's VOC by
   # UPDATE.ACCOUNTS.  A file removed from sdsys/ in a release goes on this list in the same
   # commit; gplbld/test-retired-units.py checks that none is still shipped.
-  # LS1.1-3: the LOGTO verb (its two VOC records) and the helpers only it and the dead
-  # SDLocal login used.
-  for f in gpl.bp/is_grp_member gpl.bp/euid_set gpl.bp/euid_restore voc_template/logto newvoc/logto; do
-    rm -f "$H/$f"
-  done
+  # 9 Nov 26 (Solo carry 22): the list is the file gplbld/retired-sdsys.txt, one path a line (it
+  # was the words of a for loop here; SD Core's S.87 removals added 302 paths).  Read line by
+  # line, so a name holding ! & # or % is taken literally.  An empty directory left behind
+  # (sd.voclib, whose ten records all went) is removed.
+  retired_list="$sd64/gplbld/retired-sdsys.txt"
+  [ -f "$retired_list" ] || fail "the list of retired files $retired_list is missing"
+  while IFS= read -r f || [ -n "$f" ]; do
+    case "$f" in ''|'#'*) continue ;; esac
+    rm -f -- "$H/$f"
+  done < "$retired_list"
+  rmdir "$H/sd.voclib" 2>/dev/null || true
 fi
+# RETIRED-CONF (9 Nov 26, Solo carry 22; SD Core's installsdcore.sh RETIRED-CONF block, S.87 / S.89).  config.c
+# refuses a parameter it does not know and SD then does not start, so an upgrade, which keeps the user's sd.conf,
+# takes out the parameters SD no longer has.  Only a line that BEGINS with the exact name and an equals sign goes.
+# The names are the literal words of the for (a list in a variable is one word under IFS=$'\n\t', S.89).  The
+# reload of a kept sd.conf (--reload-data) does the same before it starts SD on it (the reload branch below).
+strip_retired_conf() {
+  local conf="$1" k
+  [ -f "$conf" ] || return 0
+  for k in INVCASE CODEPAGE EXCLREM RINGWAIT TXCHAR APILOGIN CREATUSR JNLDIR JNLMODE GDI FIXUSERS PORTMAP FILERULE; do
+    if grep -q "^${k}=" "$conf"; then
+      sed -i "/^${k}=/d" "$conf" || fail "removing the retired parameter $k from $conf"
+      echo "Removed the retired parameter $k from $conf."
+    fi
+  done
+}
+if [ "$upgrade" -eq 1 ]; then strip_retired_conf "$H/sd.conf"; fi
 
 mkdir -p "$H"
 cd "$sd64"
@@ -228,8 +250,7 @@ cp -R terminfo "$H/terminfo"
 cp Makefile gpl.src terminfo.src "$H/"
 # The MICRO verb copies its SD BASIC syntax file from <sdsys>/microcfg on first use.
 cp -R gplbld/microcfg "$H/microcfg"
-# LSOLO 16: the NANO verb's syntax file and the script that writes its --rcfile.
-cp -R gplbld/nanocfg "$H/nanocfg"
+# (9 Nov 26, Solo carry 22: the NANO verb and its nanocfg are gone, S.87; the rm -rf above still clears an old tree's nanocfg.)
 # The scripts a user needs AFTER the install: stop/start the service, add an ssh key,
 # uninstall.  deletesdsolo.sh is at the repository root (beside the installer), two
 # levels above this tree's sd64; it is copied when it is there (an installed tree
@@ -512,9 +533,18 @@ if [ -n "$reloaddir" ]; then
     reload_mods="reloaded"
   fi
   echo "solo-stage: newvoc.mods: $reload_mods"
+  # 9 Nov 26 (Solo carry 22; SD Core's S.87 VOC deletion list): the copies the VOC update saved of the records it removed (voc_removed.saved, which
+  # RESTORE.VOC puts back) were kept beside the account by deletesdsolo.sh, as newvoc.mods is; a real directory only, replacing the new tree's empty one.
+  if [ -d "$reloaddir/voc_removed.saved" ] && [ ! -L "$reloaddir/voc_removed.saved" ]; then
+    rm -rf "$H/voc_removed.saved" || fail "removing the new tree's voc_removed.saved before the reload"
+    cp -a "$reloaddir/voc_removed.saved" "$H/voc_removed.saved" || fail "copying the kept voc_removed.saved into $H"
+    chmod -R go-rwx "$H/voc_removed.saved"
+    echo "solo-stage: voc_removed.saved: reloaded"
+  fi
   if [ -f "$reloaddir/sd.conf" ]; then
     cp "$H/sd.conf" "$H/sd.conf.default" || fail "keeping the default sd.conf"
     cp "$reloaddir/sd.conf" "$H/sd.conf" && chmod 600 "$H/sd.conf" || fail "copying the saved sd.conf"
+    strip_retired_conf "$H/sd.conf"
     if "$SD" -start > "$H/.reload-start.log" 2>&1; then
       reload_conf="reloaded"
     else

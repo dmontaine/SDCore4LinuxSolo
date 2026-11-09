@@ -84,7 +84,6 @@ typedef struct ARRAY_CHUNK ARRAY_CHUNK;
 typedef struct ARRAY_HEADER ARRAY_HEADER;
 typedef struct SCREEN_IMAGE SCREEN_IMAGE;
 typedef struct BTREE_HEADER BTREE_HEADER;
-typedef struct PMATRIX_HEADER PMATRIX_HEADER;
 typedef struct SOCKVAR SOCKVAR;
 typedef struct OBJDATA OBJDATA;
 typedef struct COLL_HEADER COLL_HEADER;
@@ -105,7 +104,7 @@ typedef struct COLL_ENTRY COLL_ENTRY;
    Command line items                                                     */
 
 Public int16_t command_options init(0);
-#define CMD_APPLY_LICENCE    0x0001      /* -l option */
+/* 0x0001 was CMD_APPLY_LICENCE (-l, which applied a licence SD does not have); removed 27 Oct 26 (S.87 batch 5) and not reused */
 #define CMD_QUERY_ACCOUNT    0x0002      /* -a option */
 #define CMD_INSTALL          0x0004      /* -i option */
 #define CMD_QUIET            0x0008      /* -quiet option */
@@ -228,13 +227,11 @@ void k_data_type(DESCRIPTOR * descr);
 void k_deadlock(void);
 void k_dh_error(DESCRIPTOR * descr);
 void k_div_zero_error(DESCRIPTOR * descr);
-void k_div_zero_warning(DESCRIPTOR * descr);
 void k_illegal_call_name(void);
 void k_index_error(DESCRIPTOR * descr);
 void k_not_array_error(DESCRIPTOR * descr);
 void k_value_error(DESCRIPTOR * descr);
 void k_non_numeric_error(DESCRIPTOR * descr);
-void k_non_numeric_warning(DESCRIPTOR * descr);
 void k_unassigned(DESCRIPTOR * descr);
 void k_strnum_len(DESCRIPTOR * descr);
 void k_not_socket(DESCRIPTOR * descr);
@@ -244,8 +241,6 @@ void k_inva_task_lock_error(void);
 void k_nary_length_error(void);
 void k_select_range_error(void);
 void k_txn_error(void);
-void k_unassigned_zero(DESCRIPTOR * descr);
-void k_unassigned_null(DESCRIPTOR * descr);
 void k_error(char msg[], ...);
 void k_quit(void);
 void k_err_pu(void);
@@ -312,8 +307,6 @@ STRING_CHUNK * k_copy_string(STRING_CHUNK * src);
 bool k_is_num(DESCRIPTOR * p);
 bool strdbl(char * p, double * value);
 bool strnint(char * p, int16_t len, int32_t * value);
-void k_unass_zero(DESCRIPTOR * original, DESCRIPTOR * dereferenced);
-void k_unass_null(DESCRIPTOR * original, DESCRIPTOR * dereferenced);
 u_int32_t GetUnsignedInt(DESCRIPTOR * descr);
 
 #define k_pop(n) e_stack -= n
@@ -390,9 +383,6 @@ void * load_object(char * name, bool abort_on_error);
 void unload_object(void * obj_hdr);
 void unload_all(void);
 bool is_global(void * obj_hdr);
-void stale_objects(void);
-bool object_is_stale(void * obj_hdr);
-void * refresh_subr_object(void * obj_hdr);
 void invalidate_object(void);
 void * find_object(int32_t id);
 STRING_CHUNK * hsm_dump(void);
@@ -416,7 +406,6 @@ void free_array(ARRAY_HEADER * hdr_addr);
 void delete_common(ARRAY_HEADER * ahdr);
 
 /* OP_EXEC.C */
-void stdfil_shared_restore(void);
 
 /* PROFILER.C: the application event profiler (16 Oct 26, QM4 gap 66) */
 #define PROF_CALL     0x0001
@@ -441,9 +430,7 @@ void prof_dump(DESCRIPTOR* result);
 void prof_file_event(int16_t bit, FILE_VAR * fvar);
 
 /* OP_LOCK.C: OPTION COMMAND.LEVEL.LOCKS */
-Public bool explicit_close init(FALSE); /* op_close() is releasing the file variable: park_fvar() leaves it alone */
-bool park_fvar(FILE_VAR * fvar);
-void release_parked_fvars(int16_t level);
+Public bool explicit_close init(FALSE); /* op_close() is releasing the file variable (a remote file tells its server now) */
 
 /* OP_BTREE.C */
 bool bt_get_string(DESCRIPTOR * descr, char ** s);
@@ -562,7 +549,6 @@ bool keyready(void);
 int32_t type_ahead_count(void);
 bool write_socket(char * str, int bytes, bool flush);
 bool to_outbuf(char * str, int bytes);
-void lock_beep(void);
 
 /* PDUMP.C */
 void pdump(void);

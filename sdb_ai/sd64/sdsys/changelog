@@ -1,6 +1,40 @@
 Next release - in progress
 --------------------------
 
+09 Nov 26  THE FEATURES THAT ONLY IMITATED OTHER PRODUCTS ARE GONE, AS IN SD CORE FOR LINUX (carried from SD Core for Linux's removals of 27-31 Oct 2026:
+           its S.87 survey, the A and S dictionary types, and the unused _formcsv program).
+
+             What        The second names, second spellings and switches that existed only so that programs written for Pick, Reality, UniVerse and
+                         openQM would run unchanged are removed, and the one SD form of each is kept: about 90 OPTION words and $MODE names (each now
+                         behaves as it always did with the option off), the second spellings of BASIC statements and functions (CLOSESEQ is CLOSE, GO TO
+                         is GOTO, DQUOTE is QUOTE and so on), the Pick CALL "file name" form, the PMATRIX common type, the
+                         query words that only repeated another (COLOUR, WITHOUT, EQUAL, GREATER, LESS, BEFORE, AFTER, MATCHES and the like), the TCL
+                         verbs CD, MD, LIST.UNION, LIST.INTER, LIST.DIFF, MAKE.INDEX, COPYP, COPY.LISTP, SET.QUEUE, SP.ASSIGN, SP.OPEN, SP.CLOSE, NANO, the
+                         "!" shell verb and the second names of eleven verbs (CLEARSELECT for CLEAR.SELECT, ANALYSE.FILE for ANALYZE.FILE ...), the ten
+                         LIST sentences of sd.voclib, terminal case inversion, multifiles, CREATE.FILE ... NO.CASE / CASE / VERSION, print mode 5, eleven
+                         sd.conf settings and the old terminal types. The A and S dictionary item types are refused by the query processor like the C
+                         type (write them as D or I items). Three were brought back later in SD Core and are back here too: MCDX (a second name of MX,
+                         for programs moved from openQM), the ACCOUNT:FILE form of a file name (always on, resolved as a Q-pointer, so in Solo it reaches
+                         only the one account's own files), and a verb typed with hyphens (clear-select) is retried with dots. The full list is in the
+                         Changes document, section Removed.
+                         THE VOC DELETION LIST. The VOC update used to add and change records and never delete one, so a removed verb stayed in the
+                         account's VOC for ever. sdsys/voc_removed now lists every record SD stops shipping; UPDATE.ACCOUNTS (which the installer runs)
+                         removes such a record from the account's VOC only if it is still exactly what SD shipped, after saving a copy in
+                         voc_removed.saved, and audits it. A record you changed, or marked [locked], is kept. LIST.VOC.REMOVED shows what was removed and
+                         RESTORE.VOC puts a copy back. An UPDATE.ACCOUNTS that cannot write the VOC says so for that account instead of stopping.
+                         THE GLOBAL CATALOGUE IN MANAGED MODE. The * and - catalogue prefixes are gone, so SYNC.GLOBAL.CATALOG now catalogues the SD
+                         Core server's programs under their plain names (CALL name), treats a catalogue entry with no $ ! _ prefix as the server's,
+                         refuses a program in global.bp.out whose name begins with $ ! _ * or -, and sweeps away the *name entries an earlier release
+                         made. A program catalogued in the account under the same name is found first.
+                         THE INSTALLER. An upgrade deletes the files this release stopped shipping (gplbld/retired-sdsys.txt), and takes the retired
+                         sd.conf parameters (INVCASE, CODEPAGE, EXCLREM, RINGWAIT, TXCHAR, APILOGIN, CREATUSR, JNLDIR, JNLMODE, GDI, FIXUSERS, PORTMAP,
+                         FILERULE) out of a kept sd.conf, since SD refuses to start on a parameter it does not know. deletesdsolo.sh --keep-data keeps
+                         voc_removed.saved with the account, and the next install puts it back.
+             Why it      One way to write each thing makes SD smaller and its documents shorter, and is what SD Core for Linux, the template, now has.
+             matters     A program that used a removed form gets a compile error that names it, not a different behaviour.
+             Does not    Touch your data or your own VOC records. A program that used a removed word must be changed to the SD form before it compiles;
+                         the Changes document says what to write instead of each.
+
 26 Oct 26  A SESSION THAT STARTED AT THE HOME SCREEN NO LONGER KEEPS THE NEXT ONE WAITING AT SIGN-ON, AND SED NO LONGER KEEPS A MISSING PATH LOCKED (carried from SD Core for Linux's 26 Oct 2026 fixes).
 
              What        The home screen reads where a session starts from a file named start.default in the system directory. The delivered system has no such file. SD's OPENSEQ

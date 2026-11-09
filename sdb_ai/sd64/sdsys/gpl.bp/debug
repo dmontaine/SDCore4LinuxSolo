@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 24 Oct 26 dm  AI line stage 3: the command AI (or AI and a question) in the full-screen display when the AI is usable for the account; the model is told where the program has
 *               stopped, the call stack and the source round the stop; it answers in words, nothing is changed ($tk_ai).
 * 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The full-screen display is laid out for at least 140 by 42
@@ -1560,7 +1561,7 @@ display.variable:
 
    if var.dim then
       var.flags = var.info<4>
-      if var.info<1> # V$ARRAY and var.info<1> # V$PMATRIX then
+      if var.info<1> # V$ARRAY then
          message = sysmsg(6719) ;* Index not allowed with scalar variable
          gosub emit.err.msg
          return
@@ -1574,8 +1575,7 @@ display.variable:
             gosub emit.err.msg
             return
          end
-         if var.row > rows ~
-         or (var.row = 0 and (var.type = V$PMATRIX or bitand(var.flags, AH$PICK.STYLE))) then
+         if var.row > rows then
             message = sysmsg(6725) ;* Index out of range
             gosub emit.err.msg
             return
@@ -1672,12 +1672,12 @@ display.data.common:
 
       case var.type = V$ARRAY
          var.flags = var.info<4>
-         message := if bitand(var.flags, AH$PICK.STYLE) then 'Matrix: ' else 'Array: '
+         message := 'Array: '
          rows = var.info<2> + 0
          cols = var.info<3> + 0
          if cols then message := 'Dim (' : rows : ',' : cols :')'
          else message := 'Dim (' : rows :')'
-         array.offset = if bitand(var.flags, AH$PICK.STYLE) then 1 else 0
+         array.offset = 0
          array.name = var.name
 
       case var.type = V$COMMON
@@ -1697,15 +1697,6 @@ display.data.common:
             gosub show.np
             message := 'Select list (' : var.info<2> : ' bytes): "' : s : '"'
          end
-
-      case var.type = V$PMATRIX
-         message := 'Matrix: '
-         rows = var.info<2> + 0
-         cols = var.info<3> + 0
-         if cols then message := 'Dim (' : rows : ',' : cols :')'
-         else message := 'Dim (' : rows :')'
-         array.offset = 1
-         array.name = var.name
 
       case var.type = V$SOCK
          message := 'Socket: '
@@ -1759,7 +1750,7 @@ display.data.common:
          end else
             message = sysmsg(1435, status(), os.error())   ;* Write error %1 (os.error %2)
          end
-         closeseq dump.f
+         close dump.f
       end
 
       if message # '' then gosub emit.err.msg
@@ -1810,7 +1801,7 @@ watch:
    var.info = dbg.info(1, var.no)
 
    if var.dim then
-      if var.info<1> # V$ARRAY and var.info<1> # V$PMATRIX then
+      if var.info<1> # V$ARRAY then
          message = sysmsg(6719) ;* Index not allowed with scalar variable
          gosub emit.err.msg
          return
@@ -2012,7 +2003,7 @@ setvar:
    if var.dim then
       var.flags = var.info<4>
 
-      if var.type # V$ARRAY and var.type # V$PMATRIX then ;* 0530
+      if var.type # V$ARRAY then ;* 0530
          message = sysmsg(6719) ;* Index not allowed with scalar variable
          gosub emit.err.msg
          return
@@ -2026,8 +2017,7 @@ setvar:
             gosub emit.err.msg
             return
          end
-         if var.row > rows ~
-         or (var.row = 0 and (var.type = V$PMATRIX or bitand(var.flags, AH$PICK.STYLE))) then
+         if var.row > rows then
             message = sysmsg(6725)  ;* Index out of range
             gosub emit.err.msg
             return
@@ -2074,7 +2064,7 @@ check.debugable:
    ok = @false
    begin case
       case s = ''
-      case c = '*' or c = '!' or s = 'REM' or s = 'REMARK'
+      case c = '*' or c = '!' or s = 'REM'
       case s = '$'
       case s = 'PROGRAM' or s = 'SUBROUTINE' or s = 'FUNCTION'
       case s = 'EQU' or s = 'EQUATE'

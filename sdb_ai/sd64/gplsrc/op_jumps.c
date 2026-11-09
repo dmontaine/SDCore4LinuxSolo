@@ -17,11 +17,16 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: OPTION FORCE.RELOAD is gone, and refresh_link() with it: a CALL never replaces a link variable's object.
+ * 27 Oct 26 dm  S.87 batch 17: op_ongosubp and op_ongotop ($MODE PICK.JUMP.RANGE) are gone, and computed_jump() has no pick_style: an index out of range uses the nearest label.
+ * 27 Oct 26 dm  S.87 batch 13: pick_style_runfile() (the Pick style CALL "file name") is gone; a call name with a space in it is an illegal call name.
+ * 27 Oct 26 dm  S.87 batch 3: op_enter() (the Pick ENTER statement) is gone; its opcode is an op_illegal row in opcodes.h.
  * 17 Oct 26 dm CALL "file name", the Pick style call (QM4 Fixes 208; the owner's ruling: the file is a VOC name only,
  *           no operating system path): pick_style_runfile(); op_call() and op_callv() share call_name_to_load().
  * 17 Oct 26 dm TRY / CATCH: exception GROUPS (a handler named a.b catches a.b.c, openQM manual "Exception Groups"), a
  *           transaction begun inside the TRY clause is rolled back when an exception is thrown out of it, and the kernel
  *           can throw the SYS.* exceptions (exc_sys_throw(), called by k_error()) - QM4 Fixes 354.
+ * 28 Oct 26 dm S.87: * and - are no longer global prefixes (the hyphen rule of 16 Oct, QM4 Fixes 217, is gone); the prefixes are $ ! and _.
  * 16 Oct 26 dm op_chkcat(): a name beginning with a hyphen is global, like the other prefixes (QM4 Fixes 217).
  * 14 Sep 26 Windows port - call names are canonical LOWER case: the five
  *           UpperCaseString() calls became LowerCaseString(), and
@@ -43,7 +48,6 @@
  * op_call()      CALL      Call catalogued subroutine
  * op_callv()     CALLV     Call catalogued subroutine, variable arg list
  * op_chkcat()    CHKCAT    Check catalogue for named subroutine
- * op_enter()     ENTER     Pick style ENTER
  * op_gosub()     GOSUB     Local subroutine call
  * op_jmp()       JMP       Unconditional jump
  * op_jng()       JNG       Jump if negative
@@ -53,9 +57,7 @@
  * op_jpz()       JPZ       Jump if positive or zero
  * op_jze()       JZE       Jump if zero
  * op_ongosub()   ONGOSUB   Computed local subroutine call
- * op_ongosubp()  ONGOSUBP  Computed local subroutine call (Pick style)
  * op_ongoto()    ONGOTO    Computed jump
- * op_ongotop()   ONGOTOP   Computed jump (Pick style)
  * op_return()    RETURN    Return from GOSUB or CALL
  * op_returnto()  RETURNTO  Jump to label if from GOSUB, return if from CALL
  * op_run()       RUN
@@ -89,133 +91,21 @@ void k_error(char msg[], ...) __attribute__((noreturn));
 
 extern time_t clock_time;
 
-Private void computed_jump(bool save_link, bool pick_style);
-
-/* ======================================================================
-   refresh_link()  -  FORCE.RELOAD: replace a superseded object in a link
-
-   depth is the position of the call name / link variable below the top of
-   the e-stack. The load may use the e-stack, so the descriptor is found
-   again before it is changed.                                            */
-
-Private void refresh_link(int depth) {
-  DESCRIPTOR* d;
-  void* obj;
-
-  d = e_stack - depth;
-  while (d->type == ADDR)
-    d = d->data.d_addr;
-  if (d->type == SUBR && object_is_stale(d->data.subr.object)) {
-    obj = refresh_subr_object(d->data.subr.object);
-    d = e_stack - depth;
-    while (d->type == ADDR)
-      d = d->data.d_addr;
-    d->data.subr.object = obj;
-  }
-}
-
-/* ======================================================================
-   pick_style_runfile()  -  The Pick style CALL "file name" (17 Oct 26, QM4
-   Fixes 208; the owner's ruling: VOC file names only)
-
-   call_name is the lower-cased string of the CALL, "file name": the name of a
-   file as the VOC has it, a space, and the name of a compiled program in the
-   file's object directory, which is the file with .out added (.OUT if the
-   program was compiled from a file whose VOC id has capitals, as BASIC makes
-   it). The path of that directory comes from get_voc_file_reference(), the
-   lookup OPEN makes, so a file this account could not OPEN cannot be named
-   here, a Q-pointer follows the gates of S.63, and there is no operating
-   system path form. The result is the object's pathname, the kind of name
-   RUN gives k_call(); load_object() opens it. Returns FALSE when the string
-   is not of that form or names no such file.
-
-   The program name may not begin with one of the global catalogue prefixes
-   ($ ! * _): those names belong to the catalogue and its rules, not to a file.
-   STATUS() is left as it was.                                              */
-
-Private bool pick_style_runfile(char* call_name, char* runfile) {
-  char file[MAX_PROGRAM_NAME_LEN + 1];
-  char prog[MAX_PROGRAM_NAME_LEN + 1];
-  char mapped[2 * MAX_PROGRAM_NAME_LEN + 2];
-  char voc_name[MAX_PROGRAM_NAME_LEN + 8];
-  char path[MAX_PATHNAME_LEN + 1];
-  char* sp;
-  char* p;
-  int32_t saved_status;
-  size_t path_len;
-  int pass;
-  bool found = FALSE;
-
-  sp = strchr(call_name, ' ');
-  if (sp == NULL)
-    return FALSE;
-  *sp = '\0';
-  strcpy(file, call_name);
-  strcpy(prog, sp + 1);
-  *sp = ' ';
-
-  /* Exactly two names: no further spaces, no path separators, neither empty */
-
-  if ((file[0] == '\0') || (prog[0] == '\0') || (strchr(prog, ' ') != NULL))
-    return FALSE;
-  if ((strchr(file, DS) != NULL) || (strchr(prog, DS) != NULL))
-    return FALSE;
-  if (strchr("*$!_", prog[0]) != NULL)
-    return FALSE;
-  for (p = file; *p != '\0'; p++) {
-    if ((strchr("abcdefghijklmnopqrstuvwxyz0123456789.%$-_", *p) == NULL))
-      return FALSE;
-  }
-  if (!valid_call_name(prog))
-    return FALSE;
-
-  saved_status = process.status;
-
-  /* The object directory is the VOC entry file.out, or FILE.OUT when the file was named with capitals */
-
-  for (pass = 0; (pass < 2) && !found; pass++) {
-    strcpy(voc_name, file);
-    if (pass == 1)
-      UpperCaseString(voc_name);
-    strcat(voc_name, (pass == 0) ? ".out" : ".OUT");
-    path[0] = '\0';
-    found = get_voc_file_reference(voc_name, FALSE, path, NULL) && (path[0] != '\0');
-  }
-
-  process.status = saved_status;
-  if (!found)
-    return FALSE;
-
-  (void)map_t1_id(prog, (int16_t)strlen(prog), mapped);
-  path_len = strlen(path);
-  if (path_len + 1 + strlen(mapped) > MAX_PATHNAME_LEN)
-    return FALSE;
-  memcpy(runfile, path, path_len);
-  runfile[path_len] = DS;
-  strcpy(runfile + path_len + 1, mapped);
-  return TRUE;
-}
+Private void computed_jump(bool save_link);
 
 /* ======================================================================
    call_name_to_load()  -  The name op_call() and op_callv() hand to k_call()
    for a CALL whose name is the string in descr.  call_name receives the
-   name as written, in lower case, for the profiler; runfile is room for a
-   pathname. A name with a space in it is the Pick style form; any other must
-   be a call name, and one beginning with $ only internal code may call.  An
-   illegal name aborts, as it always has.                                  */
+   name as written, in lower case, for the profiler.  It must be a call name,
+   and one beginning with $ only internal code may call.  An illegal name
+   aborts, as it always has.                                               */
 
-Private char* call_name_to_load(DESCRIPTOR* descr, char* call_name, char* runfile) {
+Private char* call_name_to_load(DESCRIPTOR* descr, char* call_name) {
   if (k_get_c_string(descr, call_name, MAX_PROGRAM_NAME_LEN) <= 0) {
     k_illegal_call_name();
   }
 
   LowerCaseString(call_name); /* RELEASE_1.1 5 stage 3a: canonical case */
-
-  if (strchr(call_name, ' ') != NULL) {
-    if (!pick_style_runfile(call_name, runfile))
-      k_illegal_call_name();
-    return runfile;
-  }
 
   if (!valid_call_name(call_name))
     k_illegal_call_name();
@@ -236,13 +126,9 @@ void op_call() {
   DESCRIPTOR* descr;
   int16_t num_args;
   char call_name[MAX_PROGRAM_NAME_LEN + 1];
-  char runfile[MAX_PATHNAME_LEN + 1];
   char* load_name;
 
   num_args = *(pc++);
-
-  if (Option(OptForceReload))
-    refresh_link(num_args + 1);
 
   descr = e_stack - (num_args + 1);
   while (descr->type == ADDR)
@@ -250,7 +136,7 @@ void op_call() {
 
   switch (descr->type) {
     case STRING:
-      load_name = call_name_to_load(descr, call_name, runfile);
+      load_name = call_name_to_load(descr, call_name);
       ProfEvent(PROF_CALL, call_name, (int)strlen(call_name)); /* the application event profiler (16 Oct 26) */
       k_call(load_name, num_args, NULL, 1);
 
@@ -310,13 +196,9 @@ void op_callv() {
   DESCRIPTOR* descr;
   int16_t num_args;
   char call_name[MAX_PROGRAM_NAME_LEN + 1];
-  char runfile[MAX_PATHNAME_LEN + 1];
   char* load_name;
   ARRAY_HEADER* ahdr;
   int16_t i;
-
-  if (Option(OptForceReload))
-    refresh_link(3);
 
   /* Get array header address for argument matrix */
 
@@ -362,7 +244,7 @@ void op_callv() {
 
   switch (subr_descr->type) {
     case STRING:
-      load_name = call_name_to_load(subr_descr, call_name, runfile);
+      load_name = call_name_to_load(subr_descr, call_name);
       ProfEvent(PROF_CALL, call_name, (int)strlen(call_name)); /* the application event profiler (16 Oct 26) */
       k_call(load_name, num_args, NULL, 0);
 
@@ -423,7 +305,7 @@ void op_chkcat() {
     LowerCaseString(call_name); /* RELEASE_1.1 5 stage 3a: canonical case */
     (void)map_t1_id(call_name, strlen(call_name), mapped_name);
 
-    if (strchr("*$_!-", call_name[0]) == NULL) { /* No prefix (16 Oct 26: the hyphen is one, QM4 Fixes 217) */
+    if (strchr("$_!", call_name[0]) == NULL) { /* No prefix (28 Oct 26, S.87: * and - are no longer prefixes) */
       /* Try local catalogue (mode 1) */
 
       /* Push arguments onto e-stack */
@@ -476,77 +358,6 @@ void op_chkcat() {
 
   InitDescr(e_stack, INTEGER);
   (e_stack++)->data.value = mode;
-}
-
-/* ======================================================================
-   op_enter()  -  Pick style ENTER                                        */
-
-void op_enter() {
-  /* Stack:
-
-     |================================|=============================|
-     |            BEFORE              |           AFTER             |
-     |================================|=============================|
- top |  Program name or SUBR link     |                             |
-     |================================|=============================|
- */
-
-  DESCRIPTOR* descr;
-  char call_name[MAX_PROGRAM_NAME_LEN + 1];
-
-  descr = e_stack - 1;
-  k_get_value(descr);
-
-  switch (descr->type) {
-    case SUBR:
-      /* Convert SUBR reference back to a STRING */
-      InitDescr(descr, STRING);
-      --(((OBJECT_HEADER*)(descr->data.subr.object))->ext_hdr.prog.refs);
-      descr->data.str.saddr = descr->data.subr.saddr;
-
-      /* **** FALL THROUGH **** */
-      /* Modified by Composer AI - 2026/06/10.
-         Fall-through is intentional (see comment above); make it
-         explicit for the compiler. */
-      __attribute__((fallthrough));
-      /* -------------------- */
-
-    case STRING:
-      if (k_get_c_string(descr, call_name, MAX_PROGRAM_NAME_LEN) <= 0) {
-        k_illegal_call_name();
-      }
-      break;
-
-    default:
-      k_error(sysmsg(1129));
-  }
-
-  LowerCaseString(call_name); /* RELEASE_1.1 5 stage 3a: canonical case */
-
-  if (!valid_call_name(call_name))
-    k_illegal_call_name();
-  if (call_name[0] == '$') /* Only callable by internal mode code */
-  {
-    if (!(process.program.flags & HDR_INTERNAL))
-      k_illegal_call_name();
-  }
-
-  k_dismiss(); /* Dismiss call name */
-
-  if (my_uptr->lockwait_index)
-    clear_lockwait();
-
-  /* Cast off all programs down to but not including one with
-    the HDR_IS_CPROC flag set.                               */
-
-  while (!(process.program.flags & HDR_IS_CPROC)) {
-    k_return();
-  }
-
-  class_main_ok = TRUE; /* a class module is run through its MAIN subroutine (Fixes item 484) */
-  k_call(call_name, 0, NULL, 0);
-
-  return;
 }
 
 /* ======================================================================
@@ -880,28 +691,14 @@ void op_loadobj() {
    op_ongosub()  -  Computed gosub                                        */
 
 void op_ongosub() {
-  computed_jump(TRUE, FALSE);
-}
-
-/* ======================================================================
-   op_ongosubp()  -  Computed gosub (Pick style)                          */
-
-void op_ongosubp() {
-  computed_jump(TRUE, TRUE);
+  computed_jump(TRUE);
 }
 
 /* ======================================================================
    op_ongoto()  -  Computed goto                                          */
 
 void op_ongoto() {
-  computed_jump(FALSE, FALSE);
-}
-
-/* ======================================================================
-   op_ongotop()  -  Computed goto (Pick style)                            */
-
-void op_ongotop() {
-  computed_jump(FALSE, TRUE);
+  computed_jump(FALSE);
 }
 
 /* ======================================================================
@@ -1032,10 +829,7 @@ void op_run() {
 /* ======================================================================
    computed_jump()  -  Common path for op_ongoto() and op_ongosub()       */
 
-Private void computed_jump(
-    bool save_link,
-    bool pick_style) /* Affects action of out of range index value */
-{
+Private void computed_jump(bool save_link) {
   DESCRIPTOR* descr;
   int16_t num_labels;
   int32_t n;
@@ -1051,17 +845,10 @@ Private void computed_jump(
   n = descr->data.value;
   k_dismiss();
 
-  if (pick_style) {
-    if ((n < 1) || (n > num_labels)) {
-      pc += num_labels * 3;
-      return;
-    }
-  } else {
-    if (n < 1)
-      n = 1;
-    else if (n > num_labels)
-      n = num_labels;
-  }
+  if (n < 1)
+    n = 1;
+  else if (n > num_labels)
+    n = num_labels;
 
   if (save_link) {
     if (process.program.gosub_depth == MAX_GOSUB_DEPTH)
@@ -1088,7 +875,7 @@ bool valid_call_name(char* p) {
      and NTFS would otherwise hide it by opening gcat case-blind.  Refusing it
      makes such a site fail loudly as an illegal call name.                   */
   char valid_chars[] = "abcdefghijklmnopqrstuvwxyz0123456789.%$-_";
-  char leading_chars[] = "*$!_";
+  char leading_chars[] = "$!_"; /* 28 Oct 26 dm S.87: no * prefix */
 
   /* !!CALLNAME!! */
 

@@ -18,6 +18,21 @@
 * 
 *  
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone: such an item is 'unexpected type' (7275) like a C one, and an index made from one is never used, so a query on its field scans.
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
+* 28 Oct 26 dm  S.87: REPLACE() is gone: the checksum test uses a copy of the record with the SYS.INFO value cleared.
+* 27 Oct 26 dm S.87 batch 16: OPTION QUERY.SORT.NO.CASE is gone; a sort key is compared as it is (SP.VIEW sorts case-blind by itself).
+* 27 Oct 26 dm S.87 batch 15: BREAK.ON "LU" - L is no longer ignored when U is also given (the two controls are independent); the query words avg, enum, vert, percent, pct, %, header, footer, first, # and & are gone (their VOC records; the long forms were always the ones this program reads).
+* 27 Oct 26 dm S.87 batch 13: the dead block under #ifdef NEVER (column heading control codes) is deleted, as # no longer starts a directive.
+* 27 Oct 26 dm  S.87 batch 7: OPTION QUERY.STRING.COMP, QUERY.STR.COMP.ALL, DEFAULT.MV and ASSOC.ALL are gone; EQ / NE compare as BASIC does, a blank S/M flag is single valued and the dictionary's associations are used, as with the options off.
+* 27 Oct 26 dm  S.87 batch 4: ID.ONLY / ONLY before the file name, and the field numbers 9998 (@NI) and 9999 (record length) of a dictionary item are gone; the item types 5 and 6 and
+*               the labels that served them with them.  A removed VOC record (only, the mirrored => =< ><) no longer reaches here.  THAN (the filler word) was NOT removed: see the survey.
+* 27 Oct 26 dm  The options that imitated Pick are gone (the owner's emulation survey, A-001 to A-017): pick.wildcard, qualified.display, pick.breakpoint, pick.breakpoint.u,
+*               with.implies.or, assoc.unassoc.mv, pick.grand.total, pick.explode, pick.implied.eq, query.no.case and query.priority.and.  Every place that read one now does
+*               what it did with the option off; the qualified display clause, the Pick wildcard conversion, the OP.PEQ / OP.PNE pseudo operators and the Pick breakpoint
+*               layout are removed with them.
 * 20 Oct 26 dm  The Solo OS switch: the delimited report's TO pathname asks the OS-access gate (K$PATH.OK) before the file is opened.
 * 18 Oct 26 dm  Solo carry A (owner's ruling B): this program is $internal, so the C test lets its writes through, and it
 *               asks !voc_guard itself before it changes a file the user named: REFORMAT and SREFORMAT ask for the TO file (the
@@ -89,7 +104,7 @@ $include qdisp.h
 deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
 
 $define VLIST.NAME.FMT "12.L"
-equ NUL to char(0)
+equate NUL to char(0)
 
 *=============================================================================
 
@@ -111,20 +126,17 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
 
    dim item.name(max.items)          ;* Token
    dim item.type(max.items)
-      equ ID.ITEM      to 1          ;* Values are significant to ON GOTOs
-      equ FIELD.ITEM   to 2
-      equ ITYPE.ITEM   to 3
-      equ LITERAL.ITEM to 4
-      equ NI.ITEM      to 5          ;* Field 9998 => @NI
-      equ BYTES.ITEM   to 6          ;* Field 9999 => bytes in record
+      equate ID.ITEM      to 1          ;* Values are significant to ON GOTOs
+      equate FIELD.ITEM   to 2
+      equate ITYPE.ITEM   to 3
+      equate LITERAL.ITEM to 4
+      * 27 Oct 26 dm - S.87 batch 4: types 5 and 6 (field 9998 = @NI, field 9999 = bytes in the record) are gone; those are ordinary field numbers now
 
    dim item.detail(max.items)        ;* Item details
                                       * ID.ITEM      : Zero
                                       * FIELD.ITEM   : Field number
                                       * ITYPE.ITEM   : Object code
                                       * LITERAL.ITEM : Literal value
-                                      * NI.ITEM      : 9998 (unused)
-                                      * BYTES.ITEM   : 9999 (unused)
 
    dim item.expression(max.items)    ;* Expression for I-type item
    dim item.fmt(max.items)           ;* Item format code...
@@ -149,35 +161,35 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
    * Display tables. One entry for each item to be displayed. Includes items
    * for BREAK.SUP action.
 
-   equ ITEM.NO          to  1        ;* Corresponding entry in item.xxx tables
-   equ ITEM.HEADING     to  2        ;* Heading (for horizontal listing)
-   equ ITEM.WIDTH       to  3        ;* Width
-   equ ITEM.ACCUM.VALUE to  4        ;* Total value etc for accumulation
-   equ ITEM.LOCAL.VALUE to  5        ;* Total value etc since breakpoint for accumulation
-   equ ITEM.COUNT       to  6        ;* Total count of items, including multi-values
-   equ ITEM.LOCAL.COUNT to  7        ;* Total count of items since breakpoint (mv)
-   equ ITEM.MODE        to  8        ;* Reporting mode (see below)
+   equate ITEM.NO          to  1        ;* Corresponding entry in item.xxx tables
+   equate ITEM.HEADING     to  2        ;* Heading (for horizontal listing)
+   equate ITEM.WIDTH       to  3        ;* Width
+   equate ITEM.ACCUM.VALUE to  4        ;* Total value etc for accumulation
+   equate ITEM.LOCAL.VALUE to  5        ;* Total value etc since breakpoint for accumulation
+   equate ITEM.COUNT       to  6        ;* Total count of items, including multi-values
+   equate ITEM.LOCAL.COUNT to  7        ;* Total count of items since breakpoint (mv)
+   equate ITEM.MODE        to  8        ;* Reporting mode (see below)
       * Reporting modes (order known to ON GOSUB statements):
-      equ REPORT.ITEMS      to  0    ;* Normal item display only (Must be zero)
-      equ REPORT.TOTAL      to  1    ;* Accumulate total
-      equ REPORT.MAX        to  2    ;* Maximum value
-      equ REPORT.MIN        to  3    ;* Minimum value
-      equ REPORT.AVERAGE    to  4    ;* Average value
-      equ REPORT.NUMBER     to  5    ;* Enumerate values (includes multi-values)
-      equ REPORT.PERCENT    to  6    ;* Percentages
-      equ REPORT.CALC       to  7    ;* CALC keyword
-      equ REPORT.BREAK.SUP  to  8    ;* BREAK.SUP keyword
-      equ REPORT.CUMULATIVE to  9    ;* CUMULATIVE keyword
-      equ REPORT.MEDIAN     to 10    ;* MEDIAN keyword (15 Oct 26 dm, QM4 gaps Q-20)
-      equ REPORT.MODE       to 11    ;* MODE keyword (16 Oct 26 dm, sheet 231)
-      equ REPORT.RANGE      to 12    ;* RANGE keyword (16 Oct 26 dm, sheet 231)
+      equate REPORT.ITEMS      to  0    ;* Normal item display only (Must be zero)
+      equate REPORT.TOTAL      to  1    ;* Accumulate total
+      equate REPORT.MAX        to  2    ;* Maximum value
+      equate REPORT.MIN        to  3    ;* Minimum value
+      equate REPORT.AVERAGE    to  4    ;* Average value
+      equate REPORT.NUMBER     to  5    ;* Enumerate values (includes multi-values)
+      equate REPORT.PERCENT    to  6    ;* Percentages
+      equate REPORT.CALC       to  7    ;* CALC keyword
+      equate REPORT.BREAK.SUP  to  8    ;* BREAK.SUP keyword
+      equate REPORT.CUMULATIVE to  9    ;* CUMULATIVE keyword
+      equate REPORT.MEDIAN     to 10    ;* MEDIAN keyword (15 Oct 26 dm, QM4 gaps Q-20)
+      equate REPORT.MODE       to 11    ;* MODE keyword (16 Oct 26 dm, sheet 231)
+      equate REPORT.RANGE      to 12    ;* RANGE keyword (16 Oct 26 dm, sheet 231)
 
-      equ REPORT.MODE.MASK  to 15
-      equ REPORT.NO.NULLS   to 16    ;* Additive for NO.NULLS option
-   equ ITEM.TOTAL       to 9         ;* Total of all items (for PERCENT)
-   equ ITEM.INCLUDED    to 10        ;* Used to suppress with O breakpoint
-   equ ITEM.WORK        to 11
-   equ NO.OF.LIST.ITEM.ELEMENTS to 11
+      equate REPORT.MODE.MASK  to 15
+      equate REPORT.NO.NULLS   to 16    ;* Additive for NO.NULLS option
+   equate ITEM.TOTAL       to 9         ;* Total of all items (for PERCENT)
+   equate ITEM.INCLUDED    to 10        ;* Used to suppress with O breakpoint
+   equate ITEM.WORK        to 11
+   equate NO.OF.LIST.ITEM.ELEMENTS to 11
    no.of.list.items = 0              ;* Number of items in report
    max.list.items = 10               ;* Initial size of list tables
    dim list.item(max.list.items, NO.OF.LIST.ITEM.ELEMENTS)
@@ -219,7 +231,6 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
    search.ids = @false           ;* SEARCH ... ALL: search the record id too
    search.display = @false       ;* SEARCH ... DISPLAY: show the lines that hold a string
    absent.ignore = @false        ;* ABSENT.IGNORE
-   col.hdr.space = @false        ;* COL.HDR.SPACE
    sorted.sample = @false        ;* SORTED.SAMPLE n: after the sort...
    sorted.sample.count = 0       ;* ...this many records...
    sorted.sample.done = 0        ;* ...and this many so far
@@ -253,11 +264,11 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
    selection.field = 0           ;* Tracks last referenced field
 
    max.selection = 20            ;* Each test and logical operator counts
-   equ SEL.OP        to  1       ;* Opcode
-   equ SEL.ARG1      to  2       ;* First item index. Jump point for AND/OR
-   equ SEL.ARG2      to  3       ;* Second item index. () level, -1 if fixed up
-   equ SEL.ARG3      to  4       ;* Third item index for BETWEEN
-   equ SEL.COLS      to  4       ;* Columns in table
+   equate SEL.OP        to  1       ;* Opcode
+   equate SEL.ARG1      to  2       ;* First item index. Jump point for AND/OR
+   equate SEL.ARG2      to  3       ;* Second item index. () level, -1 if fixed up
+   equate SEL.ARG3      to  4       ;* Third item index for BETWEEN
+   equate SEL.COLS      to  4       ;* Columns in table
    dim selection(max.selection, SEL.COLS) ; mat selection = 0
    hi.sel = 0                    ;* Last used entry
    non.ak.selection.index = 1    ;* Start here for selection elements that
@@ -266,59 +277,55 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
    * The EQ/NE, LIKE/UNLIKE, IN/NOT.IN and PEQ/PNE operator pairs must always be
    * adjacent number ranges as the translation between these relies on this.
    * OP.FIRST.MV must be a multiple of 4.
-   equ OP.WITH        to  1     ;* Clause is WITH (default for first clause)
-   equ OP.WHEN        to  2     ;* Next clause is WHEN
-   equ OP.NO          to  3     ;* NO - inverts test
-   equ OP.FIRST.MV    to  4
-   equ OP.FIRST.RELOP to  4
-   equ OP.EQ          to  4     ;* EQ        } EQ and NE must be adjacent
-   equ OP.NE          to  8     ;* NE        }
-   equ OP.LT          to 12     ;* LT        } Add one to opcode
-   equ OP.LE          to 16     ;* LE        } to apply test to
-   equ OP.GE          to 20     ;* GE        } every value in
-   equ OP.GT          to 24     ;* GT        } multi-valued
-   equ OP.LIKE        to 28     ;* LIKE      } field.
-   equ OP.UNLIKE      to 32     ;* UNLIKE    } (EVERY keyword)
-   equ OP.SAID        to 36     ;* SAID      }
-   equ OP.IN          to 40     ;* IN        } (16 Oct 26 dm, QM4 gap 94)
-   equ OP.NOT.IN      to 44     ;* NOT.IN    }
-   equ OP.LAST.RELOP  to 47
-   equ OP.NOT.NULL    to 48     ;* not null  }
-   equ OP.BETWEEN     to 52     ;* BETWEEN   }
-   equ OP.LAST.MV     to 55
-   equ OP.OR          to 56     ;* OR
-   equ OP.AND         to 57     ;* AND
-   equ OP.GELE        to 58     ;* } Special operators for AKs only. The
-   equ OP.GELT        to 59     ;* } actual value does not matter as these are
-   equ OP.GTLE        to 60     ;* } not used in ON GOTO statements.
-   equ OP.GTLT        to 61     ;* }
+   equate OP.WITH        to  1     ;* Clause is WITH (default for first clause)
+   equate OP.WHEN        to  2     ;* Next clause is WHEN
+   equate OP.NO          to  3     ;* NO - inverts test
+   equate OP.FIRST.MV    to  4
+   equate OP.FIRST.RELOP to  4
+   equate OP.EQ          to  4     ;* EQ        } EQ and NE must be adjacent
+   equate OP.NE          to  8     ;* NE        }
+   equate OP.LT          to 12     ;* LT        } Add one to opcode
+   equate OP.LE          to 16     ;* LE        } to apply test to
+   equate OP.GE          to 20     ;* GE        } every value in
+   equate OP.GT          to 24     ;* GT        } multi-valued
+   equate OP.LIKE        to 28     ;* LIKE      } field.
+   equate OP.UNLIKE      to 32     ;* UNLIKE    } (EVERY keyword)
+   equate OP.SAID        to 36     ;* SAID      }
+   equate OP.IN          to 40     ;* IN        } (16 Oct 26 dm, QM4 gap 94)
+   equate OP.NOT.IN      to 44     ;* NOT.IN    }
+   equate OP.LAST.RELOP  to 47
+   equate OP.NOT.NULL    to 48     ;* not null  }
+   equate OP.BETWEEN     to 52     ;* BETWEEN   }
+   equate OP.LAST.MV     to 55
+   equate OP.OR          to 56     ;* OR
+   equate OP.AND         to 57     ;* AND
+   equate OP.GELE        to 58     ;* } Special operators for AKs only. The
+   equate OP.GELT        to 59     ;* } actual value does not matter as these are
+   equate OP.GTLE        to 60     ;* } not used in ON GOTO statements.
+   equate OP.GTLT        to 61     ;* }
 
-* Pseudo operators for Pick style wildcards, substituted during parsing.
-* These use the same EVERY and NO.CASE additives as the main operator set.
-   equ OP.PEQ         to 62     ;* 
-   equ OP.PNE         to 66     ;* 
+* 27 Oct 26: operators 62 to 69 were the pseudo operators of the Pick style wildcards (OP.PEQ, OP.PNE); they are gone and the numbers are not reused.
 
-   equ opcode.names to 'WITH,WHEN,NO,EQ,E.EQ,EQNC,E.EQNE,NE,E.NE,NENC,E.NENC,LT,E.LT,LTNC,E.LTNC,LE,E.LE,LENC,E.LENC,GE,E.GE,GENC,E.GENC,GT,E.GT,GTNC,E.GTNC,LIKE,E.LIKE,LIKENC,E.LIKENC,UNLIKE,E.UNLIKE,UNLIKENC,E.UNLIKENC,SAID,E.SAID,SAIDNC,E.SAIDNC,IN,E.IN,INNC,E.INNC,NOT.IN,E.NOT.IN,NOT.INNC,E.NOT.INNC,NNULL,E.NNULL,NNULLNC,E.NNULLNC,BETWEEN,E.BETWEEN,BETWEENNC,E.BETWEENNC,OR,AND,GELE,GELT,GTLE,GTLT,PEQ,E.PEQ,PEQNC,E.PEQNC,PNE,E.PNE,PNENC,E.PNE.NC'
+   equate opcode.names to 'WITH,WHEN,NO,EQ,E.EQ,EQNC,E.EQNE,NE,E.NE,NENC,E.NENC,LT,E.LT,LTNC,E.LTNC,LE,E.LE,LENC,E.LENC,GE,E.GE,GENC,E.GENC,GT,E.GT,GTNC,E.GTNC,LIKE,E.LIKE,LIKENC,E.LIKENC,UNLIKE,E.UNLIKE,UNLIKENC,E.UNLIKENC,SAID,E.SAID,SAIDNC,E.SAIDNC,IN,E.IN,INNC,E.INNC,NOT.IN,E.NOT.IN,NOT.INNC,E.NOT.INNC,NNULL,E.NNULL,NNULLNC,E.NNULLNC,BETWEEN,E.BETWEEN,BETWEENNC,E.BETWEENNC,OR,AND,GELE,GELT,GTLE,GTLT,PEQ,E.PEQ,PEQNC,E.PEQNC,PNE,E.PNE,PNENC,E.PNE.NC'
 
    * Sort control
 
    no.of.sort.items = 0          ;* Number of sort fields...
    sort.item.list = ""           ;* ...list of item indicies...
    sort.mode = ""                ;* ...sort modes = BY
-      equ SORT.BY          to 1
-      equ SORT.BY.DSND     to 2
-      equ SORT.BY.EXP      to 3
-      equ SORT.BY.EXP.DSND to 4
+      equate SORT.BY          to 1
+      equate SORT.BY.DSND     to 2
+      equate SORT.BY.EXP      to 3
+      equate SORT.BY.EXP.DSND to 4
    exploded.sort = 0             ;* Sort table index for BY.EXP or BY.EXP.DSND
    exp.sort.list = ''            ;* Sort table index of every BY.EXP / BY.EXP.DSND
    explode = @false              ;* Read record is not to strip values
    exploded.assoc = 0            ;* Exploded association name index
-   explosion.associated.in.dictionary = @true
    exploded.item.count = 0       ;* Number of records exploded
 
    * Breakpoint control
 
-   equ MAX.BREAKPOINTS to 10
+   equate MAX.BREAKPOINTS to 10
    dim breakpoint.items(MAX.BREAKPOINTS)   ;* Item index for breakpoints
    dim breakpoint.list.index(MAX.BREAKPOINTS)   ;* list.item index for breakpoints
    dim breakpoint.string(MAX.BREAKPOINTS)  ;* Text with control codes removed
@@ -530,26 +537,17 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
 
    * Open the file
 
+   * 27 Oct 26 dm - S.87 batch 4: ID.ONLY / ONLY written before the file name is gone (write ID.ONLY after the file name).
    dict.flag = ''
    loop    ;* 0198
-      call @parser(PARSER$MFILE, token.type, qproc.file.name, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, qproc.file.name, keyword)
    while keyword = KW$FILLER
    repeat
-
-   * Allow for ONLY keyword before the file name for Pick compatibility
-
-   if keyword = KW$ID.ONLY and (list.command or show.command) then
-      id.only = @true
-      loop
-         call @parser(PARSER$MFILE, token.type, qproc.file.name, keyword)
-      while keyword = KW$FILLER
-      repeat
-   end
 
    if keyword = KW$DICT then      ;* DICT keyword
       dict.flag = "DICT"
       loop    ;* 0198
-         call @parser(PARSER$MFILE, token.type, qproc.file.name, keyword)
+         call @parser(PARSER$GET.TOKEN, token.type, qproc.file.name, keyword)
       while keyword = KW$FILLER
       repeat
    end
@@ -1199,36 +1197,6 @@ template.found:
       * ========================================
       * Set up column headings
       * ========================================
-#ifdef NEVER
-      * Look for special control codes in column headings
-
-      for i = 1 to no.of.list.items
-         item.to.list = list.item(i, ITEM.NO)
-
-         s = item.display.name(item.to.list)
-         c = s[1,1]
-         if c = '"' or c = "'" then
-            if count(s, c) >= 2 then
-               x = field(s, c, 2)
-               if len(x) and convert('RX', '', x) = '' then
-                  * Looks hopeful. We have a leading non-null quoted string
-                  * that contains no characters other than our recognised
-                  * control codes.
-
-                  item.display.name(item.to.list) = field(s, c, 3, 99999)
-
-                  if index(s, 'R', 1) then  ;* Right aligned column heading
-                     item.flags(item.to.list) = bitor(item.flags(item.to.list), IFLG.RIGHT.COL.HDG)
-                  end
-
-                  if index(s, 'X', 1) then  ;* Suppress ... fillers
-                     item.flags(item.to.list) = bitor(item.flags(item.to.list), IFLG.DOTLESS.COL.HDG)
-                  end
-               end
-            end
-         end
-      next i
-#endif
       if not(vertical) and not(col.sup) then
          column.headings = ''
 
@@ -1295,8 +1263,6 @@ template.found:
 
                print on lptr column.headings
             case 1
-               * COL.HDR.SPACE: one more, empty, line under the headings
-               if col.hdr.space then column.headings := "'L' "
                void qdisp(QD$CHDR, column.headings)
          end case
       end
@@ -1508,7 +1474,6 @@ template.found:
          exploded.fno = if item.type(i) = ITYPE.ITEM then -1 else item.detail(i)
 
          if not(item.assoc(i)) then
-            explosion.associated.in.dictionary = @false
             num.associations += 1
             dim when.op(num.associations)
             dim when.mask(num.associations)
@@ -1890,9 +1855,7 @@ no.records:
                on item.type(pct.item) goto pct.id,
                                            pct.field,
                                            pct.itype,
-                                           pct.literal,
-                                           pct.ni,
-                                           pct.bytes
+                                           pct.literal
 
 pct.id:
 * 0079 Removed   if new.record then gosub read.record
@@ -1917,16 +1880,6 @@ pct.literal:
                s = item.detail(pct.item)  ;* Stupid but you never know!
                goto pct.sum
          
-pct.ni:
-               s = qproc.ni
-               goto pct.sum
-
-pct.bytes:
-               if new.record then gosub read.record
-               if not(record.found) then goto skip.record
-               s = len(qproc.view)
-               goto pct.sum
-
 pct.sum:
                if num(s) then list.item(pct.list.item, ITEM.TOTAL) += s
             next i
@@ -1942,9 +1895,7 @@ pct.sum:
                on item.type(sort.item) goto by.id,
                                             by.field,
                                             by.itype, 
-                                            by.literal,
-                                            by.ni,
-                                            by.bytes
+                                            by.literal
 
 by.id:
 * 0079 Removed   if new.record then gosub read.record
@@ -1969,24 +1920,7 @@ by.literal:
                by.item(i) = item.detail(sort.item)  ;* Stupid!
                continue
 
-by.ni:
-               by.item(i) = qproc.ni
-               continue
-
-by.bytes:
-               if new.record then gosub read.record
-               if not(record.found) then goto skip.record
-               by.item(i) = len(qproc.view)
             next i
-
-            * If the QUERY.NO.CASE option is set, translate all sort keys
-            * to uppercase
-
-            if option(OPT.QUERY.NO.CASE) or option(OPT.QUERY.SORT.NO.CASE) then
-               for i = 1 to no.of.sort.items
-                  by.item(i) = upcase(by.item(i))
-               next i
-            end
 
             * If there is a SAVING clause, extract the data to be saved
 
@@ -2268,7 +2202,6 @@ skip.record:
                               if exploded.assoc = 0 then ;* Item is not associated
                                  * Create a new association with just this
                                  * one item
-                                 explosion.associated.in.dictionary = @false
                                  num.associations += 1
                                  dim when.op(num.associations)
                                  dim when.mask(num.associations)
@@ -2313,7 +2246,7 @@ skip.record:
                for breakpoint.index = no.of.breakpoints to 1 step -1  ;* 0212
                   bp.ctrl = breakpoint.control(breakpoint.index)
                   list.index = breakpoint.list.index(breakpoint.index)
-                  if (index(bp.ctrl, 'D', 1) = 0 or detail.lines > breakpoint.detail.count(breakpoint.index) + 1) and (index(bp.ctrl, 'L', 1) = 0 or index(bp.ctrl, 'U', 1)) then ;* 10 Oct 26 dm  L is ignored with U (openQM ref 40)
+                  if (index(bp.ctrl, 'D', 1) = 0 or detail.lines > breakpoint.detail.count(breakpoint.index) + 1) and index(bp.ctrl, 'L', 1) = 0 then ;* 27 Oct 26 dm  L and U are independent again (S.87; the openQM ref 40 rule is gone)
 !!                     last.breakpoint = (breakpoint.index = breakpoint.scan.index)
                      last.breakpoint = (breakpoint.index = 1)
                      gosub show.breakpoint
@@ -2452,7 +2385,7 @@ exit.qproc:
 
 qdisp.error:
    if csv.opened then      ;* 20 Oct 26 dm - TO / AS: close the file now, which also gives back the record lock AS took
-      closeseq csv.f
+      close csv.f
       csv.opened = @false
    end
 
@@ -2646,10 +2579,6 @@ parse.command.options:
          case keyword = KW$ABSENT.IGNORE
             absent.ignore = @true
 
-* --- COL.HDR.SPACE (10 Oct 26 dm, openQM ref 467)
-         case keyword = KW$COL.HDR.SPACE and report.command
-            col.hdr.space = @true
-
 * --- SORTED.SAMPLE (10 Oct 26 dm, openQM ref 438): as SAMPLE, but the
 * records counted are those that are left after the sort.
          case keyword = KW$SORTED.SAMPLE
@@ -2677,7 +2606,7 @@ parse.command.options:
             no.of.breakpoints += 1
 
             gosub get.token
-            if not(option(OPT.PICK.BREAKPOINT)) then gosub get.break.qualifier
+            gosub get.break.qualifier
 
             item.report.mode = if break.on then 0 else REPORT.BREAK.SUP
             gosub add.display.item
@@ -2685,8 +2614,6 @@ parse.command.options:
             breakpoint.list.index(no.of.breakpoints) = no.of.list.items
             breakpoint.items(no.of.breakpoints) = no.items
             item.breakpoint(no.items) = no.of.breakpoints
-
-            if option(OPT.PICK.BREAKPOINT) then gosub get.break.qualifier
 
             i = index(breakpoint.control(no.of.breakpoints), 'B', 1)
             if i then
@@ -3453,10 +3380,10 @@ label.template.found:
 
 * --- USING
          case keyword = KW$USING
-            call @parser(PARSER$MFILE, token.type, token, keyword) ;* 0462
+            call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* 0462
             if keyword = KW$DICT then
                using.dict = 'DICT'
-               call @parser(PARSER$MFILE, token.type, token, keyword) ;* 0462
+               call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* 0462
             end else
                using.dict = ''
             end
@@ -3572,9 +3499,7 @@ get.break.qualifier:
       breakpoint.control(no.of.breakpoints) = s
 
       * The D option suppress the ** default marker (1.4-11)
-      if not(option(OPT.PICK.BREAKPOINT)) then
-         if index(s, 'D', 1) then breakpoint.string(no.of.breakpoints) = ''
-      end
+      if index(s, 'D', 1) then breakpoint.string(no.of.breakpoints) = ''
 
       * Anything that is left replaces the default ** marker
       if token # '' then breakpoint.string(no.of.breakpoints) = token
@@ -3732,7 +3657,6 @@ parse.delimiter:
 *    when.clause = Doing WHEN (rather than WITH)
 
 implicit.selection.clause:
-   is.qualified.display.clause = @false
    * This is a query such as
    *   LIST VOC LIKE "A..."
    * where there is no WITH keyword before the conditional element.
@@ -3744,7 +3668,6 @@ implicit.selection.clause:
    gosub add.field.by.name
    keyword = implicit.keyword
 
-qualified.display.clause:       ;* Enter here for Pick style qualified display
    when.clause = @false
    gosub start.selection.clause
 
@@ -3756,7 +3679,6 @@ qualified.display.clause:       ;* Enter here for Pick style qualified display
    goto process.operator   
 
 process.selection.clause:
-   is.qualified.display.clause = @false
    gosub start.selection.clause
 
    gosub get.token
@@ -3850,20 +3772,6 @@ get.first.field:
       gosub get.token
       selection(hi.sel,SEL.ARG1) = item.index
 
-      * Check for implied EQ in Pick style WITH FLD "value"
-
-      if token.type = PARSER$STRING and quote.char = '"' then
-         if option(OPT.PICK.IMPLIED.EQ) then
-            op = OP.EQ
-            if every then op += 1
-            if option(OPT.QUERY.NO.CASE) then op += 2
-            selection(hi.sel,SEL.OP) = op
-            last.op = op
-            between = 0
-            goto implied.equals
-         end
-      end
-
 !!      if emitting.when.clause then
 !!         if when.assoc = '__UNSET__' then
 !!            when.assoc = item.assoc(item.index)
@@ -3894,7 +3802,6 @@ process.operator:
       end case
 
       if every then op += 1
-      if option(OPT.QUERY.NO.CASE) then op += 2
       selection(hi.sel,SEL.OP) = op
       last.op = op
 
@@ -3914,7 +3821,6 @@ process.operator:
             gosub get.token
          end
 
-implied.equals:
 between.op2:
 using.last.op:
          if op >= OP.IN and op <= OP.NOT.IN + 3 then
@@ -3988,48 +3894,6 @@ using.last.op:
                      null
 
                   case 1
-                     if option(OPT.PICK.WILDCARD) then
-                        * 0106 Allow for Pick wildcard in implicit OR. The
-                        * operator will have been changed to OP.PEQ or OP.PNE.
-                        * These need to be preserved into the later conditions
-                        * synonyms for OP.LIKE and OP.UNLIKE
-
-                        if (op >= OP.EQ and op <= op.NE + 3) or (op >= OP.PEQ and op <= OP.PNE + 3) then 
-                           s = item.detail(item.index)
-                           if s[1,1] = '[' or index(s, '^', 1) or s[1] = ']' then
-                              * It's a Pick wildcard. Convert to a LIKE/UNLIKE.
-                              begin case
-                                 case index(s, '"', 1) = 0 ; c = '"'
-                                 case index(s, "'", 1) = 0 ; c = "'"
-                                 case 1
-                                    display 'Pick wildcard cannot be converted to LIKE/UNLIKE'
-                                    goto exit.qproc
-                              end case
-
-                              if s[1,1] = '[' then
-                                 x = '...' : c
-                                 s = s[2,9999]
-                              end else
-                                 x = c
-                              end
-
-                              if s[1] = ']' then
-                                 x := s[1,len(s)-1] : c : '...'
-                              end else
-                                 x := s : c
-                              end
-
-                              item.detail(item.index) = change(x, '^', c:'1X':c)
-
-                              if op < OP.PEQ then   ;* Must be EQ or NE variants
-                                 op += OP.PEQ - OP.EQ
-                              end
-                              selection(hi.sel,SEL.OP) = op
-                              last.op = op
-                           end
-                        end
-                     end
-
                      * A conversion code on the selection field requires that we
                      * convert the literal value to the internal form of the data.
 
@@ -4071,20 +3935,14 @@ check.and.or:
       repeat
 
       begin case
-         case is.qualified.display.clause
-            exit
-
          case keyword = KW$OR
             gosub fix.up.jumps
-            if option(OPT.QUERY.PRIORITY.AND) then parenthesis.level -= 1
 
             hi.sel += 1 ; if hi.sel > max.selection then gosub extend.selection.table
             selection(hi.sel,SEL.OP) = OP.OR
             selection(hi.sel,SEL.ARG2) = parenthesis.level
             gosub get.token
             if keyword = KW$WITH then gosub get.token
-
-            if option(OPT.QUERY.PRIORITY.AND) then parenthesis.level += 1
 
             if token.type = PARSER$LBR then
                parenthesis.level += 1
@@ -4143,15 +4001,6 @@ check.and.or:
 
    gosub fix.up.jumps
 
-   * 0106 Change any condition using OP.PEQ/OP.PNE to OP.LIKE/OP.UNLIKE
-
-   for i = 1 to hi.sel
-      op = selection(i,SEL.OP)
-      if op >= OP.PEQ and op <= OP.PNE + 3 then
-         selection(i,SEL.OP) -= OP.PEQ - OP.LIKE
-      end
-   next i
-
    return
 
 * --------------------------------------------------
@@ -4159,8 +4008,7 @@ check.and.or:
 start.selection.clause:
    if not(first.selection) then
       hi.sel += 1 ; if hi.sel > max.selection then gosub extend.selection.table
-      if option(OPT.WITH.IMPLIES.OR) then selection(hi.sel,SEL.OP) = OP.OR
-      else selection(hi.sel,SEL.OP) = OP.AND
+      selection(hi.sel,SEL.OP) = OP.AND
       selection(hi.sel,SEL.ARG2) = 0
    end
    if when.clause # emitting.when.clause then
@@ -4252,32 +4100,6 @@ add.display.item:
 
    gosub get.token
 
-   if option(OPT.QUAL.DISPLAY) then
-      * Check for qualified display clause
-      begin case
-         case keyword < 0         ; goto not.qualified
-         case keyword = KW$EQ
-         case keyword = KW$NE
-         case keyword = KW$LT
-         case keyword = KW$LE
-         case keyword = KW$GT
-         case keyword = KW$GE
-         case keyword = KW$LIKE
-         case keyword = KW$UNLIKE
-         case keyword = KW$SAID
-         case keyword = KW$IN
-         case keyword = KW$NOT.IN
-         case 1                   ; goto not.qualified
-      end case
-
-      * Looks like a qualified display clause
-
-      qual.item.index = item.index
-      is.qualified.display.clause = @true
-      gosub qualified.display.clause
-      item.index = qual.item.index
-   end
-not.qualified:
 
    return
 
@@ -4389,19 +4211,9 @@ check.field.modifiers:
                         item.conv(item.index) = dict.rec<dict.conv>
                         s = dict.rec<dict.assoc> ; gosub add.item.association
                         item.multivalued(item.index) = dict.rec<dict.s.m>[1,1] = "M"
-                        * DEFAULT.MV: a blank S/M flag means multivalued (10 Oct 26 dm, ref 205)
-                        if dict.rec<dict.s.m>[1,1] = '' and option(OPT.DEFAULT.MV) then
-                           item.multivalued(item.index) = @true
-                        end
                         item.totals(item.index) = 0
                         item.breakpoint(item.index) = 0
                         item.flags(item.index) = 0
-
-                        if option(OPT.ASSOC.UNASSOC.MV) then
-                           if item.multivalued(item.index) and item.assoc(item.index) = 0 then
-                              s = '__QPROC.ASSOC__' ; gosub add.item.association
-                           end
-                        end
 
                      case dict.rec # ''
                         display sysmsg(7264, token) ;* xx is not a D or I-type dictionary item
@@ -4461,8 +4273,6 @@ check.field.modifiers:
 * item.index = item table reference
 
 add.item.association:
-   * 15 Oct 26 (openQM ASSOC.ALL): the associations in the dictionary are ignored; every item is in the one association
-   if option(OPT.ASSOC.ALL) then s = '__SD.ALL__'
    if s = '' then
       item.assoc(item.index) = 0
    end else
@@ -4801,7 +4611,6 @@ check.selection:
       item1.conv = item.conv(item.index)
       item1.type = item.type(item.index)
       item1.mv = item.multivalued(item.index)
-      item1.right = (item.justification(item.index) = 'R')
       gosub get.item
       item1 = item
 
@@ -4822,24 +4631,6 @@ check.selection:
                item1 = upcase(item1)
                item2 = upcase(item2)
             end
-         end
-      end
-
-      * QUERY.STRING.COMP makes EQ and NE string comparisons; QUERY.STR.COMP.ALL
-      * does the same for every relation on right aligned data (10 Oct 26 dm,
-      * openQM refs 140 and 299).  BASIC compares two numeric strings as
-      * numbers, so both sides are given a letter in front, which leaves the
-      * order and the equality of the strings as they were and removes the
-      * numeric reading.  Several values are separated by value marks, and each
-      * one gets the letter.
-
-      if op >= OP.EQ and op <= OP.GT + 3 then
-         str.comp = @false
-         if op <= OP.NE + 3 then str.comp = option(OPT.QUERY.STRING.COMP)
-         if not(str.comp) and item1.right then str.comp = option(OPT.QUERY.STR.COMP.ALL)
-         if str.comp then
-            item1 = 'S' : change(item1, @vm, @vm : 'S')
-            item2 = 'S' : item2
          end
       end
 
@@ -5428,7 +5219,7 @@ case op = OP.WHEN ; null
             if item.multivalued(ak.field) # (index.data<6> = 'M') then continue  ;* Wrong S/M
             if ak.justification # index.data<5> then continue  ;* Wrong justification
 
-         case ak.type = 'I' or ak.type = 'C'
+         case ak.type = 'I'
             if coll.file and item.type(ak.field) = FIELD.ITEM then
                * 13 Oct 26 dm - an E-type item of a data collection file.  Its index is an I-type index whose
                * expression is the name of the item (mkindx), so it is the item of that name that this serves.
@@ -5440,15 +5231,8 @@ case op = OP.WHEN ; null
             if item.multivalued(ak.field) # (index.data<6> = 'M') then continue  ;* Wrong S/M
             if ak.justification # index.data<5> then continue  ;* Wrong justification
 
-         case (ak.type = 'A' or ak.type = 'S') and index.data<DICT.A.CORRELATIVE> # ''
-            if item.type(ak.field) # ITYPE.ITEM then continue
-            if item.expression(ak.field) # index.data<dict.a.correlative> then continue  ;* Wrong expression
-            if ak.justification # index.data<DICT.A.JUSTIFY> then continue  ;* Wrong justification
-
-         case 1   ;* Non-correlative A/S type
-            if item.type(ak.field) # ID.ITEM and item.type(ak.field) # FIELD.ITEM then continue
-            if item.detail(ak.field) # index.data<2> then continue  ;* Wrong field
-            if ak.justification # index.data<DICT.A.JUSTIFY> then continue  ;* Wrong justification
+         case 1   ;* 31 Oct 26: a type this version does not know (an index made from an A or S item) is never used
+            continue
       end case
 
 
@@ -5659,12 +5443,10 @@ case op = OP.WHEN ; null
    begin case  ;* 0399 Reworked
       case index.type = 'D'
          if item.detail(k) # index.data<2> then return  ;* Wrong field
-      case index.type = 'C' or index.type = 'I'
+      case index.type = 'I'
          if item.expression(k) # index.data<dict.itype.source> then return  ;* Wrong expression
-      case (index.type = 'A' or index.type = 'S') and index.data<dict.a.correlative> = ''
-         if item.detail(k) # index.data<2> then return  ;* Wrong field
-      case index.type = 'A' or index.type = 'S'
-         if item.expression(k) # index.data<dict.a.correlative> then return  ;* Wrong expression
+      case 1   ;* 31 Oct 26: a type this version does not know (an index made from an A or S item) is never merged
+         return
    end case
 
    if item.multivalued(k) # (index.data<6> = 'M') then return  ;* Wrong S/M
@@ -5841,11 +5623,6 @@ add.field:
       item.totals(item.index) = 0
       item.breakpoint(item.index) = 0
       item.flags(item.index) = 0
-      if option(OPT.ASSOC.UNASSOC.MV) then
-         if item.multivalued(item.index) then
-            s = '__QPROC.ASSOC__' ; gosub add.item.association
-         end
-      end
       item.type(item.index) = FIELD.ITEM
       item.ok = @true
       return
@@ -5886,7 +5663,6 @@ add.field:
       if s # '' then gosub add.item.association
          
       item.multivalued(item.index) = (sm.flag[1,1] = "M")
-      if sm.flag[1,1] = '' and option(OPT.DEFAULT.MV) then item.multivalued(item.index) = @true
       gosub get.width.and.justification
 
       item.totals(item.index) = seq(item.detail(item.index)[HDR.TOTALS,1])
@@ -5899,12 +5675,6 @@ add.field:
 
          item.detail(item.index) = itype(item.detail(item.index))
          item.type(item.index) = LITERAL.ITEM
-      end else
-         if option(OPT.ASSOC.UNASSOC.MV) then
-            if item.multivalued(item.index) and item.assoc(item.index) = 0 then
-               s = '__QPROC.ASSOC__' ; gosub add.item.association
-            end
-         end
       end
 
       item.ok = @true
@@ -5915,57 +5685,6 @@ add.field:
 
    if dict.rec # '' then
       begin case
-         case (type = "A" or type = "S") and dict.rec<DICT.A.CORRELATIVE> = ''
-            if not(dict.rec<dict.a.loc> matches '1N0N') then
-               display sysmsg(7269, token) ;* Dictionary entry for xx has non-numeric field location
-               goto exit.qproc
-            end
-
-            no.items += 1
-            item.index = no.items
-            item.name(item.index) = token
-
-            s = dict.rec<dict.a.display.name> ; gosub set.col.hdg
-            item.detail(item.index) = dict.rec<dict.a.loc> + 0
-            item.fmt(item.index) = dict.rec<dict.a.width>:dict.rec<dict.a.justify>
-            item.display.width(item.index) = dict.rec<dict.a.width>
-            item.justification(item.index) = dict.rec<dict.a.justify>
-            item.left.justified(item.index) = (dict.rec<dict.a.justify> # 'R')
-            item.conv(item.index) = dict.rec<dict.a.conv>
-
-            * Invent a pseudo association name for associated fields
-            s = dict.rec<dict.a.assoc>
-            begin case
-               case s matches '"D;"1N0X'
-                  s = '__' : matchfield(s, '"D;"0N0X', 2)
-               case s matches '"C;"1N0X'
-                  s = '__' : dict.rec<dict.a.loc>
-            end case
-            gosub add.item.association
-
-            item.multivalued(item.index) = @true
-            item.totals(item.index) = 0
-            item.breakpoint(item.index) = 0
-            item.flags(item.index) = 0
-            if option(OPT.ASSOC.UNASSOC.MV) then
-               if item.multivalued(item.index) and not(item.assoc(item.index)) then
- explosion.associated.in.dictionary = @false
-                  s = '__QPROC.ASSOC__' ; gosub add.item.association
-               end
-            end
-
-            i = item.detail(item.index)
-            begin case
-               case i = 0
-                  item.type(item.index) = ID.ITEM   ;* Field location 0 is @id
-               case i = 9998
-                  item.type(item.index) = NI.ITEM
-               case i = 9999
-                  item.type(item.index) = BYTES.ITEM
-               case 1
-                  item.type(item.index) = FIELD.ITEM
-            end case
-
          case type = "E"
             * 13 Oct 26 dm - an element of a data collection.  Field 2 is the path (up to two asterisks give a
             * multivalued list).  It becomes a field of the view make.coll.view builds.
@@ -5996,11 +5715,6 @@ add.field:
             item.totals(item.index) = 0
             item.breakpoint(item.index) = 0
             item.flags(item.index) = 0
-            if option(OPT.ASSOC.UNASSOC.MV) then
-               if item.multivalued(item.index) and not(item.assoc(item.index)) then
-                  s = '__QPROC.ASSOC__' ; gosub add.item.association
-               end
-            end
             item.type(item.index) = FIELD.ITEM
 
          case type = "D"
@@ -6008,7 +5722,7 @@ add.field:
                display sysmsg(7269, token) ;* Dictionary entry for xx has non-numeric field location
                goto exit.qproc
             end
-            if coll.file and dict.rec<dict.loc> + 0 > 0 and dict.rec<dict.loc> + 0 < 9998 then
+            if coll.file and dict.rec<dict.loc> + 0 > 0 then
                display sysmsg(11128, token) ;* xx refers to a field number, which a data collection file does not have
                goto exit.qproc
             end
@@ -6024,79 +5738,37 @@ add.field:
             item.conv(item.index) = dict.rec<dict.conv>
             s = dict.rec<dict.assoc> ; gosub add.item.association
             item.multivalued(item.index) = dict.rec<dict.s.m>[1,1] = "M"
-            if dict.rec<dict.s.m>[1,1] = '' and option(OPT.DEFAULT.MV) then   ;* ref 205
-               item.multivalued(item.index) = @true
-            end
             item.totals(item.index) = 0
             item.breakpoint(item.index) = 0
             item.flags(item.index) = 0
-            if option(OPT.ASSOC.UNASSOC.MV) then
-               if item.multivalued(item.index) and not(item.assoc(item.index)) then
-                  s = '__QPROC.ASSOC__' ; gosub add.item.association
-               end
-            end
 
             i = item.detail(item.index)
             begin case
                case i = 0
                   item.type(item.index) = ID.ITEM   ;* Field location 0 is @id
-               case i = 9998
-                  item.type(item.index) = NI.ITEM
-               case i = 9999
-                  item.type(item.index) = BYTES.ITEM
                case 1
                   item.type(item.index) = FIELD.ITEM
             end case
 
-         case type = 'I' or type = 'C' or type = 'A' or type = 'S'
+         case type = 'I'
             no.items += 1
             item.index = no.items
             item.name(item.index) = token
 
             item.type(item.index) = ITYPE.ITEM
-            if type = 'I' or type = 'C' then
-               item.expression(item.index) = trim(dict.rec<dict.itype.source>,' ', 'B')
-               s = dict.rec<dict.display.name> ; gosub set.col.hdg
-               item.fmt(item.index) = dict.rec<dict.format>
-               gosub get.width.and.justification
-               item.conv(item.index) = dict.rec<dict.conv>
-               s = dict.rec<dict.assoc> ; gosub add.item.association
-               item.multivalued(item.index) = dict.rec<dict.s.m>[1,1] = "M"
-               if dict.rec<dict.s.m>[1,1] = '' and option(OPT.DEFAULT.MV) then   ;* ref 205
-                  item.multivalued(item.index) = @true
-               end
-            end else    ;* A/S type
-               item.expression(item.index) = dict.rec<dict.a.correlative>
-               s = dict.rec<dict.a.display.name> ; gosub set.col.hdg
-               item.fmt(item.index) = dict.rec<dict.a.width>:dict.rec<dict.a.justify>
-               item.display.width(item.index) = dict.rec<dict.a.width>
-               item.justification(item.index) = dict.rec<dict.a.justify>
-               item.left.justified(item.index) = (dict.rec<dict.a.justify> # 'R')
-               item.conv(item.index) = dict.rec<dict.a.conv>
-
-               * Invent a pseudo association name for associated fields
-               s = dict.rec<dict.a.assoc>
-               begin case
-                  case s matches '"D;"1N0X'
-                     s = '__' : matchfield(s, '"D;"0N0X', 2)
-                  case s matches '"C;"1N0X'
-                     s = '__' : dict.rec<dict.a.loc>
-               end case
-               gosub add.item.association
-
-               item.multivalued(item.index) = @true
-            end
-
-            if option(OPT.ASSOC.UNASSOC.MV) then
-               if item.multivalued(item.index) and not(item.assoc(item.index)) then
-                  s = '__QPROC.ASSOC__' ; gosub add.item.association
-               end
-            end
+            item.expression(item.index) = trim(dict.rec<dict.itype.source>,' ', 'B')
+            s = dict.rec<dict.display.name> ; gosub set.col.hdg
+            item.fmt(item.index) = dict.rec<dict.format>
+            gosub get.width.and.justification
+            item.conv(item.index) = dict.rec<dict.conv>
+            s = dict.rec<dict.assoc> ; gosub add.item.association
+            item.multivalued(item.index) = dict.rec<dict.s.m>[1,1] = "M"
 
             * Check if item needs compiling
 
+            sys.chk.rec = dict.rec ; sys.chk.rec<DICT.SYS.INFO,1> = ''   ;* 28 Oct 26 S.87: REPLACE() is gone
             if len(dict.rec<dict.itype.object>) = 0 ~
-            or checksum(replace(dict.rec, DICT.SYS.INFO, 1;'')) # dict.rec<DICT.SYS.INFO,1> then
+            or checksum(sys.chk.rec) # dict.rec<DICT.SYS.INFO,1> then
                comp.f = if from.voc then @voc else dict.file   ;* 0316
                call $dcomp(comp.f,       ;* Dictionary file
                            token,        ;* Dictionary item id
@@ -6176,12 +5848,6 @@ add.field:
             item.totals(item.index) = seq(item.detail(item.index)[HDR.TOTALS,1])
             item.breakpoint(item.index) = 0
             item.flags(item.index) = 0
-
-            if option(OPT.ASSOC.UNASSOC.MV) then
-               if item.multivalued(item.index) and not(item.assoc(item.index)) then
-                  s = '__QPROC.ASSOC__' ; gosub add.item.association
-               end
-            end
 
             item.ok = @true
 
@@ -6317,9 +5983,7 @@ get.item:
    on item.type(item.index) goto get.id,
                                  get.field,
                                  get.itype,
-                                 get.literal,
-                                 get.ni,
-                                 get.bytes
+                                 get.literal
 
 get.id:
 * 0079 Removed   if new.record then gosub read.record
@@ -6342,15 +6006,6 @@ get.literal:
    item = item.detail(item.index)
    return
 
-get.ni:
-   item = qproc.ni
-   return
-
-get.bytes:
-   if new.record then gosub read.record
-   item = len(qproc.view)
-   return
-
 * =============================================================================
 * SHOW.RECORD  -  Show a record for the LIST command
 
@@ -6368,9 +6023,7 @@ show.record:
       on item.type(item.to.list) goto list.id,
                                       list.field,
                                       list.itype,
-                                      list.literal,
-                                      list.ni,
-                                      list.bytes
+                                      list.literal
 
 list.id:
 * 0079 Removed   if new.record then gosub read.record
@@ -6386,15 +6039,8 @@ list.field:
       s = qproc.view<item.detail(item.to.list)>
       if explode then
          if (item.assoc(item.to.list) = exploded.assoc and exploded.assoc) ~
-         or (not(exploded.assoc) ~
-             and (item.assoc(item.to.list) or option(OPT.PICK.EXPLODE))) then
-            if option(OPT.PICK.EXPLODE) then
-               if ismv(s) or explosion.associated.in.dictionary then
-                  s = s<1, exp.v, exp.sv>
-               end
-            end else
-               s = s<1, exp.v, exp.sv>
-            end
+         or (not(exploded.assoc) and item.assoc(item.to.list)) then
+            s = s<1, exp.v, exp.sv>
          end
       end
       data.rec<list.index> = s
@@ -6406,15 +6052,8 @@ list.itype:
       s = itype(item.detail(item.to.list), item.tbase(item.to.list))
       if explode then
          if (item.assoc(item.to.list) = exploded.assoc and exploded.assoc) ~
-         or (not(exploded.assoc) ~
-             and (item.assoc(item.to.list) or option(OPT.PICK.EXPLODE))) then
-            if option(OPT.PICK.EXPLODE) then
-               if ismv(s) or explosion.associated.in.dictionary then
-                  s = s<1, exp.v, exp.sv>
-               end
-            end else
-               s = s<1, exp.v, exp.sv>
-            end
+         or (not(exploded.assoc) and item.assoc(item.to.list)) then
+            s = s<1, exp.v, exp.sv>
          end
       end
       data.rec<list.index> = s
@@ -6425,16 +6064,6 @@ list.literal:
       record.found = @true
       continue
 
-list.ni:
-      data.rec<list.index> = qproc.ni
-      record.found = @true
-      continue
-
-list.bytes:
-      if new.record then gosub read.record
-      if not(record.found) then goto record.to.list.not.found
-      data.rec<list.index> = len(qproc.view)
-      record.found = @true
    next list.index
 
 
@@ -6504,7 +6133,7 @@ list.bytes:
                for breakpoint.index = no.of.breakpoints to breakpoint.scan.index step -1
                   list.index = breakpoint.list.index(breakpoint.index)
                   bp.ctrl = breakpoint.control(breakpoint.index)
-                  if (index(bp.ctrl, 'D', 1) = 0 or detail.lines > breakpoint.detail.count(breakpoint.index) + 1) and (index(bp.ctrl, 'L', 1) = 0 or index(bp.ctrl, 'U', 1)) then ;* 10 Oct 26 dm  L is ignored with U (openQM ref 40)
+                  if (index(bp.ctrl, 'D', 1) = 0 or detail.lines > breakpoint.detail.count(breakpoint.index) + 1) and index(bp.ctrl, 'L', 1) = 0 then ;* 27 Oct 26 dm  L and U are independent again (S.87; the openQM ref 40 rule is gone)
                      last.breakpoint = (breakpoint.index = breakpoint.scan.index)
                      gosub show.breakpoint
                   end else
@@ -7747,18 +7376,11 @@ show.continue.no.conversion:
                disp.rec<list.index> = str("=", item.display.width(item.to.list)) : @tm : s
             end
          end else
-            if option(OPT.PICK.GRAND.TOTAL) and list.index = 1 then
-               disp.rec<list.index> = @tm : grand.total.text
-            end else
-               disp.rec<list.index> = ""
-            end
+            disp.rec<list.index> = ""
          end
       next list.index
 
-      if not(option(OPT.PICK.GRAND.TOTAL)) then is.grand.total = @true
-      else if index(grand.total.control, 'P', 1) then
-          if qdisp(QD$PAGE) then goto qdisp.error
-      end
+      is.grand.total = @true
       gosub report.record
    end
 
@@ -7770,8 +7392,8 @@ show.continue.no.conversion:
 * On entry:
 *   breakpoint.index = index to current breakpoint item
 *
-* This routine prints the breakpoint line and the subtotal line (subject to
-* the setting of the PICK.BREAKPOINT.U option).
+* This routine prints the breakpoint line and the subtotal line (a U in the
+* breakpoint's control codes leaves out the line of hyphens above the subtotal).
 
 show.breakpoint:
    class = if det.sup then 'D' else 'S'
@@ -7780,8 +7402,7 @@ show.breakpoint:
    saved.disp.rec = disp.rec
 
    bp.ctrl = breakpoint.control(breakpoint.index) ;* Breakpoint codes
-   suppress.subtotal.underline = (index(bp.ctrl, 'U', 1) = 0) = option(OPT.PICK.BREAKPOINT.U)
-   subtotal.blankline = suppress.subtotal.underline and not(vertical) and not(det.sup) and option(OPT.PICK.BREAKPOINT) and index(bp.ctrl, 'L', 1)
+   suppress.subtotal.underline = (index(bp.ctrl, 'U', 1) # 0)
 
    qproc.break.level = no.of.breakpoints - breakpoint.index + 1
 
@@ -7874,9 +7495,7 @@ break.continue.no.conversion:
             disp.rec<list.index> = s
          end else
             s = fmt(s, item.fmt(item.to.list))
-            if subtotal.blankline then
-               disp.rec<list.index> = @tm : s
-            end else if vertical or det.sup or suppress.subtotal.underline then
+            if vertical or det.sup or suppress.subtotal.underline then
                disp.rec<list.index> = s
             end else
                disp.rec<list.index> = str("-", item.display.width(item.to.list)) : @tm : s
@@ -7885,7 +7504,7 @@ break.continue.no.conversion:
       end else if bpi then
          * This field has a breakpoint
 
-         if bpi = breakpoint.index or (bpi < breakpoint.index and not(option(OPT.PICK.BREAKPOINT))) then
+         if bpi <= breakpoint.index then
             * Include breakpoint value in report column
 
             bp.data = bp.rec<list.index>   ;* Data for field
@@ -7905,9 +7524,7 @@ break.continue.no.conversion:
                end
             end
 
-            if subtotal.blankline then
-               disp.rec<list.index> = @tm : bp.data
-            end else if det.sup or suppress.subtotal.underline then
+            if det.sup or suppress.subtotal.underline then
                disp.rec<list.index> = bp.data
             end else
                disp.rec<list.index> = @tm : bp.data
@@ -7931,25 +7548,10 @@ break.continue.no.conversion:
                   * Suppressing detail lines. Print the subtotal only
                   disp.rec<list.index> = bp.data
 
-               case option(OPT.PICK.BREAKPOINT)
-                  if index(bp.ctrl, 'D', 1) and detail.lines <= breakpoint.detail.count(breakpoint.index) + 1 then
-                     goto omit.breakpoint.line
-                  end
-                  if index(bp.ctrl, 'V', 1) then
-                     bp.text = change(bp.text, @im, trimf(bp.data.conv))[1, item.display.width(item.to.list)]
-                  end
-                  if item.justification(item.to.list) # "U" and item.display.width(item.to.list) then
-                     bp.text = fmt(bp.text, item.fmt(item.to.list))
-                  end
-                  if subtotal.blankline or (accumulating and not(suppress.subtotal.underline)) then
-                     bp.text = @tm : bp.text
-                  end
-                  disp.rec<list.index> = bp.text
-
                case index(bp.ctrl, 'D', 1)
                   if detail.lines <= breakpoint.detail.count(breakpoint.index) + 1 then goto omit.breakpoint.line
 
-               case index(bp.ctrl, 'L', 1) and not(index(bp.ctrl, 'U', 1))   ;* 10 Oct 26 dm  ref 40
+               case index(bp.ctrl, 'L', 1)   ;* 27 Oct 26 dm  L and U are independent (S.87)
                   goto omit.breakpoint.line
 
                case index(bp.ctrl, 'V', 1)
@@ -8042,8 +7644,6 @@ diagnostic:
          case item.type(i) = FIELD.ITEM   ; crt item.detail(i)[1,20]
          case item.type(i) = ITYPE.ITEM   ; crt
          case item.type(i) = LITERAL.ITEM ; crt item.detail(i)[1,20]
-         case item.type(i) = NI.ITEM      ; crt 9998
-         case item.type(i) = BYTES.ITEM   ; crt 9999
       end case
    next i
    crt
@@ -8380,12 +7980,6 @@ show.page:
 
             case type = LITERAL.ITEM
                data = item.detail(item.to.list)
-
-            case type = NI.ITEM
-               data = qproc.ni
-
-            case type = BYTES.ITEM
-               data = len(rec)
          end case
 
          conv = item.conv(item.to.list)
@@ -8693,10 +8287,6 @@ debug.selection.item:
          crt 'I-type ' :
       case item.type(j) = LITERAL.ITEM
          crt 'Literal "' : item.detail(j) : '"' :
-      case item.type(j) = NI.ITEM
-         crt 'F9998 ' :
-      case item.type(j) = BYTES.ITEM
-         crt 'F9999 ' :
    end case
    return
 
@@ -8750,9 +8340,7 @@ apply.when.filter:
          item1 = item
 
          if explode then
-            if not(option(OPT.PICK.EXPLODE)) or ismv(item1) then
-               item1 = item1<1, exp.v, exp.sv>
-            end
+            item1 = item1<1, exp.v, exp.sv>
          end
 
          op  = selection(sel.idx,SEL.OP)

@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: net_pre_change_lock() can no longer ask a caller to wait (that was AUTOLOCK's): NETL_WAIT, its two arms and the retry_pc of op_write and op_delete are gone.
+ * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone.
+ * 27 Oct 26 dm  S.87 batch 17: $MODE PICK.READ (op_pickread, P_PICKREAD), AUTOLOCK (P_AUTOLOCK, also in net_pre_change_lock) and WRITE.DELETE.THEN.ELSE (P_THEN_ELSE) are gone:
+ *               a read always releases its target first, a write or delete without the lock fails with ER_NOLOCK under MUSTLOCK or a transaction, and a trigger
+ *               failure is an ordinary error.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text for CREATING.SEQKEY, $MODE AUTOLOCK, data collection files,
  *               directory file line terminator modes, record ids with bytes 128 to 247 (the owner's exception of 12 Oct 26, which covers Solo),
  *               triggers on directory files and the profiler.  Not carried: the S.64 edit gates and the S.65 remote file writes and locks.
@@ -170,33 +175,17 @@ Private bool refuse_net_file(FILE_VAR *fvar, u_int16_t op_flags, const char *wha
 
 /* ======================================================================
    net_pre_change_lock()  -  The lock rules of a WRITE or DELETE of a NET_FILE (slice 3e), which the local code applies with check_lock() and
-   lock_record() and a remote file has neither of.  $MODE AUTOLOCK: take the update lock now (waiting, by running the opcode again).  MUSTLOCK:
+   lock_record() and a remote file has neither of.  MUSTLOCK:
    the session must hold it already, as for a local file; without this a program under MUSTLOCK would write a record it had not locked,
    which the same program cannot do locally.  A plain WRITE or DELETE lets the server release the lock when it is done.
-   NETL_GO: carry on.  NETL_WAIT: the opcode is set up to run again; the caller RETURNS AT ONCE.  NETL_FAIL: process.status is the
+   NETL_GO: carry on.  NETL_FAIL: process.status is the
    negative status (already raised unless ON ERROR); the caller goes to its exit.                                                     */
 
 #define NETL_GO 0
-#define NETL_WAIT 1
 #define NETL_FAIL 2
 
-Private int net_pre_change_lock(FILE_VAR *fvar, char *id, int16_t id_len, u_int16_t op_flags, u_char *retry_pc) {
+Private int net_pre_change_lock(FILE_VAR *fvar, char *id, int16_t id_len, u_int16_t op_flags) {
   int st;
-
-  if (op_flags & P_AUTOLOCK) {
-    st = net_lock_step(fvar, id, id_len, TRUE, op_flags & ~P_LOCKED, retry_pc);
-    switch (st) {
-      case NET_LOCK_HELD:
-        return NETL_GO;
-      case NET_LOCK_WAIT:
-        return NETL_WAIT;
-      case NET_LOCK_LOCKED: /* (not reached: P_LOCKED is taken off) */
-        process.status = -ER_NOLOCK;
-        return NETL_FAIL;
-      default:
-        return NETL_FAIL; /* an error: process.status is set */
-    }
-  }
 
   if (pcfg.must_lock) {
     process.op_flags = op_flags & P_ON_ERROR;
@@ -600,7 +589,6 @@ void op_delete() {
   bool keep_lock;
   u_int32_t txn_id;
   struct stat statbuf;
-  u_char *retry_pc = op_pc; /* 18 Oct 26 slice 3e: where a remote lock that is busy runs this opcode again from, taken before any handler call */
 
   op_flags = process.op_flags;
   process.op_flags = 0;
@@ -642,12 +630,8 @@ void op_delete() {
       process.status = -ER_IID;
       goto exit_op_delete;
     }
-    switch (net_pre_change_lock(fvar, id, id_len, op_flags, retry_pc)) {
-      case NETL_WAIT:
-        return;
-      case NETL_FAIL:
-        goto exit_op_delete;
-    }
+    if (net_pre_change_lock(fvar, id, id_len, op_flags) == NETL_FAIL)
+      goto exit_op_delete;
     process.op_flags = op_flags & P_ON_ERROR;
     net_st = net_delete(fvar, id, id_len, keep_lock); /* the handler runs BASIC: the stack is found by e_stack from here on */
     process.op_flags = 0;
@@ -671,13 +655,10 @@ void op_delete() {
     goto exit_op_delete;
   }
 
-  if (pcfg.must_lock || txn_id || (op_flags & P_AUTOLOCK)) {
+  if (pcfg.must_lock || txn_id) {
     if (!check_lock(fvar, id, id_len)) {
-      /* $MODE AUTOLOCK: take the lock, waiting for it; it is let go below as a plain DELETE lets go of its own */
-      if (!(op_flags & P_AUTOLOCK) || (lock_record(fvar, id, id_len, TRUE, txn_id, FALSE) != 0)) {
-        process.status = -ER_NOLOCK;
-        goto exit_op_delete;
-      }
+      process.status = -ER_NOLOCK;
+      goto exit_op_delete;
     }
   }
 
@@ -691,7 +672,7 @@ void op_delete() {
       /* Call pre-delete trigger function if required */
 
       if (dh_file->trigger_modes & TRG_PRE_DELETE) {
-        if (!call_trigger(fvar_descr, TRG_PRE_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_PRE_DELETE, rid_descr, NULL, (op_flags & P_ON_ERROR) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_delete;
         }
@@ -708,7 +689,7 @@ void op_delete() {
       /* Call post-delete trigger function if required */
 
       if (dh_file->trigger_modes & TRG_POST_DELETE) {
-        if (!call_trigger(fvar_descr, TRG_POST_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_POST_DELETE, rid_descr, NULL, (op_flags & P_ON_ERROR) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_delete;
         }
@@ -726,7 +707,7 @@ void op_delete() {
       /* Call pre-delete trigger function if required (QM4 Fixes item 177) */
 
       if (DirTrgModes(fvar) & TRG_PRE_DELETE) {
-        if (!call_trigger(fvar_descr, TRG_PRE_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_PRE_DELETE, rid_descr, NULL, (op_flags & P_ON_ERROR) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_delete;
         }
@@ -774,7 +755,7 @@ void op_delete() {
       /* Call post-delete trigger function if required */
 
       if (DirTrgModes(fvar) & TRG_POST_DELETE) {
-        if (!call_trigger(fvar_descr, TRG_POST_DELETE, rid_descr, NULL, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_POST_DELETE, rid_descr, NULL, (op_flags & P_ON_ERROR) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_delete;
         }
@@ -789,20 +770,14 @@ exit_op_delete:
   /* Set status code on stack */
 
   InitDescr(e_stack, INTEGER);
-  /* $MODE WRITE.DELETE.THEN.ELSE: a trigger failure under a THEN / ELSE
-     clause goes to ELSE, so it is returned as a positive status, which the
-     ON ERROR test passes by.  Anything else follows the old rules. */
-  if ((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE))
-    (e_stack++)->data.value = ER_TRIGGER;
-  else
-    (e_stack++)->data.value = process.status;
+  (e_stack++)->data.value = process.status;
 
   if (process.status >= 0) {
     /* Release record lock if non-transactional DELETE */
     if (!keep_lock && (txn_id == 0) && (id_len != 0)) {
       unlock_record(fvar, id, id_len);
     }
-  } else if (!(op_flags & P_ON_ERROR) && !((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE)))
+  } else if (!(op_flags & P_ON_ERROR))
     k_error(sysmsg(1405), process.status);
 }
 
@@ -903,11 +878,9 @@ void op_readv() {
         net_tgt = net_tgt->data.d_addr;
       } while (net_tgt->type == ADDR);
 
-      if (!(op_flags & P_PICKREAD)) {
-        k_release(net_tgt);
-        InitDescr(net_tgt, STRING);
-        net_tgt->data.str.saddr = NULL;
-      }
+      k_release(net_tgt);
+      InitDescr(net_tgt, STRING);
+      net_tgt->data.str.saddr = NULL;
 
       if (id_len <= 0) {
         status = process.status = ER_IID;
@@ -987,11 +960,9 @@ void op_readv() {
       descr = descr->data.d_addr;
     } while (descr->type == ADDR);
 
-    if (!(op_flags & P_PICKREAD)) {
-      k_release(descr);
-      InitDescr(descr, STRING);
-      descr->data.str.saddr = NULL;
-    }
+    k_release(descr);
+    InitDescr(descr, STRING);
+    descr->data.str.saddr = NULL;
 
     if (id_len <= 0) {
       status = process.status = ER_IID;
@@ -1038,7 +1009,6 @@ void op_readv() {
                 process_events();
               process.op_flags = op_flags;
               pc = op_pc;
-              lock_beep();
               Sleep(250);
               return;
           }
@@ -1192,7 +1162,6 @@ void op_write() {
   u_int32_t txn_id;
   bool coll_file;                 /* A data collection file */
   COLL_HEADER *coll_keep = NULL;  /* The collection being written, while src_descr holds its text */
-  u_char *retry_pc = op_pc;       /* 18 Oct 26 slice 3e: where a remote lock that is busy runs this opcode again from, taken before any handler call */
 
   op_flags = process.op_flags;
   process.op_flags = 0;
@@ -1237,12 +1206,8 @@ void op_write() {
     }
     memcpy(lock_id, id, id_len);
 
-    switch (net_pre_change_lock(fvar, id, id_len, op_flags, retry_pc)) {
-      case NETL_WAIT:
-        return;
-      case NETL_FAIL:
-        goto exit_op_write;
-    }
+    if (net_pre_change_lock(fvar, id, id_len, op_flags) == NETL_FAIL)
+      goto exit_op_write;
 
     process.op_flags = op_flags & P_ON_ERROR;
     net_st = net_write(fvar, id, id_len, src_descr->data.str.saddr, keep_lock); /* the handler runs BASIC: the stack is found by e_stack from here on */
@@ -1351,13 +1316,10 @@ void op_write() {
 
   memcpy(lock_id, id, id_len);
 
-  if (pcfg.must_lock || (txn_id != 0) || (op_flags & P_AUTOLOCK)) {
+  if (pcfg.must_lock || (txn_id != 0)) {
     if (!check_lock(fvar, lock_id, id_len)) {
-      /* $MODE AUTOLOCK: take the lock, waiting for it; it is let go below as a plain WRITE lets go of its own */
-      if (!(op_flags & P_AUTOLOCK) || (lock_record(fvar, lock_id, id_len, TRUE, txn_id, FALSE) != 0)) {
-        process.status = -ER_NOLOCK;
-        goto exit_op_write;
-      }
+      process.status = -ER_NOLOCK;
+      goto exit_op_write;
     }
   }
 
@@ -1384,7 +1346,7 @@ void op_write() {
       /* Call pre-write trigger function if required */
 
       if (dh_file->trigger_modes & TRG_PRE_WRITE) {
-        if (!call_trigger(fvar_descr, TRG_PRE_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, TRUE)) {
+        if (!call_trigger(fvar_descr, TRG_PRE_WRITE, rid_descr, src_descr, (op_flags & P_ON_ERROR) != 0, TRUE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_write;
         }
@@ -1431,7 +1393,7 @@ void op_write() {
       /* Call post-write trigger function if required */
 
       if (dh_file->trigger_modes & TRG_POST_WRITE) {
-        if (!call_trigger(fvar_descr, TRG_POST_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_POST_WRITE, rid_descr, src_descr, (op_flags & P_ON_ERROR) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_write;
         }
@@ -1449,7 +1411,7 @@ void op_write() {
       /* Call pre-write trigger function if required (QM4 Fixes item 177).  The data is taken AFTER it: the trigger may change it. */
 
       if (DirTrgModes(fvar) & TRG_PRE_WRITE) {
-        if (!call_trigger(fvar_descr, TRG_PRE_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, TRUE)) {
+        if (!call_trigger(fvar_descr, TRG_PRE_WRITE, rid_descr, src_descr, (op_flags & P_ON_ERROR) != 0, TRUE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_write;
         }
@@ -1468,7 +1430,7 @@ void op_write() {
       /* Call post-write trigger function if required */
 
       if (DirTrgModes(fvar) & TRG_POST_WRITE) {
-        if (!call_trigger(fvar_descr, TRG_POST_WRITE, rid_descr, src_descr, (op_flags & (P_ON_ERROR | P_THEN_ELSE)) != 0, FALSE)) {
+        if (!call_trigger(fvar_descr, TRG_POST_WRITE, rid_descr, src_descr, (op_flags & P_ON_ERROR) != 0, FALSE)) {
           process.status = -ER_TRIGGER;
           goto exit_op_write;
         }
@@ -1489,12 +1451,7 @@ exit_op_write:
   /* Set status code on stack */
 
   InitDescr(e_stack, INTEGER);
-  /* $MODE WRITE.DELETE.THEN.ELSE: as for DELETE, a trigger failure under a
-     THEN / ELSE clause is a positive status and takes ELSE. */
-  if ((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE))
-    (e_stack++)->data.value = ER_TRIGGER;
-  else
-    (e_stack++)->data.value = process.status;
+  (e_stack++)->data.value = process.status;
 
   if (process.status >= 0) {
     /* Release record lock if non-transactional WRITE */
@@ -1502,7 +1459,7 @@ exit_op_write:
     if (!keep_lock && (txn_id == 0)) {
       unlock_record(fvar, lock_id, id_len);
     }
-  } else if (!(op_flags & P_ON_ERROR) && !((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE))) {
+  } else if (!(op_flags & P_ON_ERROR)) {
     /* 10 Sep 26 dm - Parity audit: A MISSING LOCK IS SAID AS ONE (the Windows
        port's fix; UPSTREAM_FIXES 20).  1407 reads "Error %d writing record -
        disk may be full or file may be corrupt", which sent a user looking at
@@ -1691,7 +1648,7 @@ Private void read_record(bool matread) {
     str_descr = &temp_descr;
 
     /* Check target is a matrix */
-    if ((tgt_descr->type != ARRAY) && (tgt_descr->type != PMATRIX)) /* 0369 */
+    if (tgt_descr->type != ARRAY) /* 0369 */
     {
       k_error(sysmsg(1232));
     }
@@ -1713,11 +1670,9 @@ Private void read_record(bool matread) {
 
   /* 1.4-3  Moved to before all possible exit paths */
 
-  if (!(op_flags & P_PICKREAD)) {
-    k_release(str_descr);
-    InitDescr(str_descr, STRING);
-    str_descr->data.str.saddr = NULL;
-  }
+  k_release(str_descr);
+  InitDescr(str_descr, STRING);
+  str_descr->data.str.saddr = NULL;
 
   if (id_len <= 0) {
     process.status = ER_IID;
@@ -1781,7 +1736,6 @@ Private void read_record(bool matread) {
           process.op_flags = op_flags;
           if (my_uptr->events)
             process_events();
-          lock_beep();
           Sleep(250);
           return;
       }
@@ -1798,10 +1752,6 @@ Private void read_record(bool matread) {
           /* For a directory file, the cached record is in internal format
              so we do not need to apply mark mapping.                      */
 
-          if ((op_flags & P_PICKREAD)) {
-            k_release(str_descr);
-            InitDescr(str_descr, STRING);
-          }
 
           str_descr->data.str.saddr = str;
           if (str != NULL)
@@ -1832,10 +1782,6 @@ Private void read_record(bool matread) {
       str = dh_read(dh_file, id, id_len, actual_id);
       switch (dh_err) {
         case 0:
-          if ((op_flags & P_PICKREAD)) {
-            k_release(str_descr);
-            InitDescr(str_descr, STRING);
-          }
           str_descr->data.str.saddr = str;
 
           /* A data collection file gives the record as a collection (13 Oct 26),
@@ -1913,10 +1859,6 @@ Private void read_record(bool matread) {
 /* now safe to cast to 32 bits */      
       remaining_bytes = (int32_t)remaining_bytes64;
 
-      if ((op_flags & P_PICKREAD)) {
-        k_release(str_descr);
-        InitDescr(str_descr, STRING);
-      }
       str_descr->data.str.saddr = NULL;
       ts_init(&(str_descr->data.str.saddr), remaining_bytes);
 
@@ -1973,10 +1915,6 @@ Private void read_record(bool matread) {
         str_descr = tgt_descr;
 
       if (net_st == 0) {
-        if ((op_flags & P_PICKREAD)) {
-          k_release(str_descr);
-          InitDescr(str_descr, STRING);
-        }
         str_descr->data.str.saddr = net_rec;
       } else {
         status = (int16_t)(process.status = net_st);
@@ -2901,13 +2839,6 @@ bool call_trigger(DESCRIPTOR *fvar_descr, int16_t mode, DESCRIPTOR *id_descr, DE
   }
 
   return !error;
-}
-
-/* ======================================================================
-   op_pickread()  -  PICKREAD  Set Pick style read behaviour              */
-
-void op_pickread() {
-  process.op_flags |= P_PICKREAD;
 }
 
 /* ======================================================================

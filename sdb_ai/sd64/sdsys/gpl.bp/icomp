@@ -18,6 +18,17 @@
 * 
 * 
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone: a field or a TRANS() item of one is 'not defined' / 'not of valid type', as a C item is.  Nothing adds to
+*               embedded.objects any more, so the prelude that loads them (after the final return) can no longer run; it is left in place.
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
+* 28 Oct 26 dm  S.87: the PROC leftovers PROCREAD, PROCWRITE, @PIB, @SIB, @POB and @SOB are gone (opcode 0xCF9A reserved).
+* 28 Oct 26 dm  S.87: REPLACE() is gone: the checksum test uses a copy of the record with the SYS.INFO value cleared.
+* 28 Oct 26 dm  S.87: $MODE TIME.MS is gone; an I-type can use only NOCASE.STRINGS.
+* 27 Oct 26 dm  S.87 batch 15: a name that is F and a number is no longer the field of that number when no dictionary item has it (openQM ref 547); a field is named by a D-type item.
+* 27 Oct 26 dm S.87 batch 13: the @ variables @AM, @SVM, @USER, @USER.NO and @FILENAME are gone (@FM, @SM, @LOGNAME, @USERNO and @FILE.NAME stay).
+* 27 Oct 26 dm  S.87 batch 10: three loose forms of a dictionary expression are gone: a hyphenated item name (CUST-NO, join.hyphen.name; A-B is always a subtraction), IF with no THEN or no ELSE
+*               (refused again, messages 2950 and 2951) and a format string straight after a value (write the FMT operator or the format).
+* 27 Oct 26 dm  S.87 batch 4: emit.field.load no longer reads field 9998 as @NI and 9999 as the record length; only field 0 (the id) is special.
 * 17 Oct 26 dm  QM4 Fixes 7: an L-type record can be used in an I-type, as link%item (link.reference; $linkref;
 *               the file expression of a link in in.trans; a link to a link in the dictionary of the file a
 *               TRANS() names).  Also: an undefined name that did not look like Fn stopped the compile with
@@ -153,8 +164,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    * have special code to produce the values.
 
 * !!ATVAR!!
-   at.constants = "FM":@fm:"VM":@fm:"SM":@fm:"TM":@fm:"IM":@fm:"AM":@fm:"SVM"
-   at.constants := @fm:"FALSE":@fm:"TRUE":@fm:"USERNO":@fm:"USER.NO"
+   at.constants = "FM":@fm:"VM":@fm:"SM":@fm:"TM":@fm:"IM"
+   at.constants := @fm:"FALSE":@fm:"TRUE":@fm:"USERNO"
    at.constants := @fm:"DAY":@fm:"MONTH":@fm:"YEAR":@fm:"YEAR4"
    at.constants := @fm:"TERM.TYPE":@fm:"TRANSACTION.ID":@fm:"TRANSACTION.LEVEL"
    at.constants := @fm:"IP.ADDR":@fm:"HOSTNAME":@fm:"GID":@fm:"UID"
@@ -178,7 +189,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    at.vars<-1> = "DATE"                ; at.offsets<-1> = -SYSCOM.CPROC.DATE
    at.vars<-1> = "DS"                  ; at.offsets<-1> = SYSCOM.DS
    at.vars<-1> = "FILE.NAME"           ; at.offsets<-1> = -SYSCOM.QPROC.FILE.NAME
-   at.vars<-1> = "FILENAME"            ; at.offsets<-1> = -SYSCOM.QPROC.FILE.NAME
    at.vars<-1> = "ID"                  ; at.offsets<-1> = SYSCOM.QPROC.ID
    at.vars<-1> = "ITYPE.MODE"          ; at.offsets<-1> = SYSCOM.ITYPE.MODE
    at.vars<-1> = "LOGNAME"             ; at.offsets<-1> = SYSCOM.LOGNAME
@@ -191,19 +201,13 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    at.vars<-1> = "SENTENCE"            ; at.offsets<-1> = SYSCOM.SENTENCE
    at.vars<-1> = "PARASENTENCE"        ; at.offsets<-1> = SYSCOM.PARASENTENCE
    at.vars<-1> = "PATH"                ; at.offsets<-1> = SYSCOM.ACCOUNT.PATH
-   at.vars<-1> = "PIB"                 ; at.offsets<-1> = SYSCOM.PROC.IBUF:'.0'
-   at.vars<-1> = "POB"                 ; at.offsets<-1> = SYSCOM.PROC.OBUF:'.0'
    at.vars<-1> = "RECORD"              ; at.offsets<-1> = SYSCOM.QPROC.RECORD
    at.vars<-1> = "SELECTED"            ; at.offsets<-1> = SYSCOM.SELECTED
-   at.vars<-1> = "SIB"                 ; at.offsets<-1> = SYSCOM.PROC.IBUF:'.1'
-   at.vars<-1> = "SOB"                 ; at.offsets<-1> = SYSCOM.PROC.OBUF:'.1'
    at.vars<-1> = "SYSTEM.RETURN.CODE"  ; at.offsets<-1> = SYSCOM.SYSTEM.RETURN.CODE
-   at.vars<-1> = "SYSTEM.SET"          ; at.offsets<-1> = SYSCOM.SYSTEM.RETURN.CODE
    at.vars<-1> = "SYS.BELL"            ; at.offsets<-1> = SYSCOM.BELL
    at.vars<-1> = "TIME"                ; at.offsets<-1> = -SYSCOM.CPROC.TIME
    at.vars<-1> = "TRIGGER.RETURN.CODE" ; at.offsets<-1> = SYSCOM.TRIGGER.RETURN.CODE
    at.vars<-1> = "TTY"                 ; at.offsets<-1> = SYSCOM.TTY
-   at.vars<-1> = "USER"                ; at.offsets<-1> = SYSCOM.LOGNAME
    at.vars<-1> = "USER0"               ; at.offsets<-1> = SYSCOM.USER0
    at.vars<-1> = "USER1"               ; at.offsets<-1> = SYSCOM.USER1
    at.vars<-1> = "USER2"               ; at.offsets<-1> = SYSCOM.USER2
@@ -362,9 +366,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
 
    header.flags = HDR.ITYPE         ;* Option flags
    greatest.call.arg.count = 0
-   mode2 = 0                        ;* 16 Oct 26 (Fixes item 489): the string overlap modes in force, as bcomp's mode2 bits 0 to 2
-   str.ovl.used = @false            ;* ...and whether any of them has been named: then CHANGE, COUNT, INDEX and the like are preceded by OP.STROVL
-   time.ms = @false                 ;* $MODE TIME.MS: TIME() to the millisecond
 
    * Expression processing
 
@@ -434,25 +435,12 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
          begin case
             case mnm = ''
                null
-            case mnm = 'CHANGE.NO.OVERLAP'
-               mode2 = if mneg then bitand(mode2, 6) else bitor(mode2, 1)
-               str.ovl.used = @true
-            case mnm = 'COUNT.OVERLAP'
-               mode2 = if mneg then bitand(mode2, 5) else bitor(mode2, 2)
-               str.ovl.used = @true
-            case mnm = 'INDEX.OVERLAP'
-               mode2 = if mneg then bitand(mode2, 3) else bitor(mode2, 4)
-               str.ovl.used = @true
             case mnm = 'NOCASE.STRINGS'
                if mneg then
                   if bitand(header.flags, HDR.NOCASE) then header.flags -= HDR.NOCASE
                end else
                   header.flags = bitor(header.flags, HDR.NOCASE)
                end
-            case mnm = 'TIME.MS'
-               time.ms = not(mneg)
-            case mnm = 'COMPATIBLE.APPEND'
-               null                 ;* About appending to a dynamic array in an assignment: an I-type has none
             case 1
                err.msg = sysmsg(11395, mnm) ;* %1 is not a mode an I-type can use
                goto error
@@ -671,42 +659,6 @@ get.token:
    return
 
 * ======================================================================
-* JOIN.HYPHEN.NAME  -  A name, then - and another name or a number, that
-* together are the id of a dictionary item is one name (10 Oct 26 dm, openQM
-* ref 423).  TOKEN.STRING holds the name on entry; on exit it holds the joined
-* name and the tokens that made it up have been consumed.  If no item has the
-* joined id the expression is left alone, so A-B is still a subtraction.
-
-join.hyphen.name:
-   loop
-      jh.found = @false
-      if look.ahead.token = tkn.minus then
-         jh.next = tokens(token.index + 1)
-         if jh.next = tkn.name or jh.next = tkn.num then
-            jh.cand = token.string : '-' : token.strings(token.index + 1)
-            read jh.rec from dict.file, jh.cand then jh.found = @true
-            else
-               read jh.rec from dict.file, downcase(jh.cand) then
-                  jh.found = @true
-                  jh.cand = downcase(jh.cand)
-               end else
-                  read jh.rec from dict.file, upcase(jh.cand) then
-                     jh.found = @true
-                     jh.cand = upcase(jh.cand)
-                  end
-               end
-            end
-         end
-      end
-   while jh.found
-      gosub get.token         ;* The minus
-      gosub get.token         ;* The name or number
-      token.string = jh.cand
-      u.token.string = upcase(jh.cand)
-   repeat
-   return
-
-* ======================================================================
 * EMIT.FIELD.LOAD  -  Load a field from the current record
 * fno = field number
 
@@ -714,13 +666,6 @@ emit.field.load:
    begin case
       case fno = 0
          n = SYSCOM.QPROC.ID      ; gosub emit.ldsys
-
-      case fno = 9998
-         n = SYSCOM.QPROC.NI      ; gosub emit.ldsys
-
-      case fno = 9999
-         n = SYSCOM.QPROC.RECORD  ; gosub emit.ldsys
-         opcode.byte = OP.LEN     ; gosub emit.simple
 
       case 1
          n = SYSCOM.QPROC.RECORD  ; gosub emit.ldsys
@@ -769,10 +714,9 @@ emit.at.var.load:
    gosub get.token
 
    locate u.token.string in at.constants<1> setting i then
-      on i goto at.mark,at.mark,at.mark,at.mark,at.mark,at.mark,at.mark,
+      on i goto at.mark,at.mark,at.mark,at.mark,at.mark,
            at.false,
            at.true,
-           at.userno,
            at.userno,
            at.day,
            at.month,
@@ -786,7 +730,7 @@ emit.at.var.load:
            at.gid,
            at.uid
                
-at.mark:                                    ;* FM, VM, SM, TM, IM, AM, SVM
+at.mark:                                    ;* FM, VM, SM, TM, IM
       opcode.string = mark.chars[i,1] ; gosub emit.string.load
       return
 
@@ -1210,25 +1154,6 @@ expr:
    loop
       gosub get.expr.item
 
-      * A format string directly after a value, with no operator between them,
-      * is a format operation as it is in BASIC (10 Oct 26 dm, openQM ref 564).
-      * Insert the FMT operator that is not in the source.
-
-      if look.ahead.token = tkn.string then
-         priority = op.priority(tkn.fmt)
-         loop
-         while priority >= priority.stack(op.stack.depth)
-            opcode.byte = operator.stack(op.stack.depth)
-            gosub emit.simple
-            op.stack.depth -= 1
-         repeat
-         op.stack.depth += 1
-         operator.stack(op.stack.depth) = op(tkn.fmt)
-         priority.stack(op.stack.depth) = priority
-         gosub get.token              ;* The format string becomes the operand
-         continue
-      end
-
       * Check for operator using look ahead
 
    until look.ahead.token < tkn.low.operator
@@ -1287,23 +1212,16 @@ get.expr.item.again:
             opcode.byte = op.jfalse    ;* 0253
             gosub emit.jump
 
-            * Emit THEN clause.  10 Oct 26 dm (openQM ref 36): a THEN or an
-            * ELSE that is not there gives a null string, as in other
-            * multivalue systems, instead of a compile error.  (IF c ELSE x
-            * has no THEN part; IF c THEN x has no ELSE part.)
+            * Emit THEN clause
 
-            begin case
-               case u.look.ahead.token.string = "THEN"
-                  gosub get.token
-                  gosub expr          ;* Process THEN clause
+            if u.look.ahead.token.string # "THEN" then
+               err.msg = sysmsg(2950) ;* THEN not found where expected in conditional expression
+               goto error
+            end
 
-               case u.look.ahead.token.string = "ELSE"
-                  opcode.byte = op.ldnull ; gosub emit.simple
+            gosub get.token
 
-               case 1
-                  err.msg = sysmsg(2950) ;* THEN not found where expected in conditional expression
-                  goto error
-            end case
+            gosub expr          ;* Process THEN clause
 
             * Emit jump to exit label
 
@@ -1316,15 +1234,13 @@ get.expr.item.again:
             label.name = "_":jump.stack<1>:"E"
             gosub set.label
 
-            if u.look.ahead.token.string = "ELSE" then
-               gosub get.token
-
-               gosub expr          ;* Process ELSE clause
-            end else
-               * No ELSE part: the value is the null string.  (A construct with
-               * neither THEN nor ELSE was refused above, with 2950.)
-               opcode.byte = op.ldnull ; gosub emit.simple
+            if u.look.ahead.token.string # "ELSE" then
+               err.msg = sysmsg(2951) ;* ELSE not found where expected in conditional expression
+               goto error
             end
+            gosub get.token
+
+            gosub expr          ;* Process ELSE clause
 
             * Emit exit label
             label.name = "_":jump.stack<1>:"X"
@@ -1341,7 +1257,6 @@ if.then.else.expr.abort:
 *           then upper; token.string becomes the id that matched, because it is
 *           written back and recorded as an embedded object name below.  The
 *           VOC fallback after it is unchanged.
-            gosub join.hyphen.name   ;* 10 Oct 26 dm, openQM ref 423
             read field.rec from dict.file, token.string else
                read field.rec from dict.file, downcase(token.string) then
                   token.string = downcase(token.string)
@@ -1357,25 +1272,8 @@ if.then.else.expr.abort:
                            * L-type record in this dictionary points to.
                            if index(token.string, '%', 1) then goto link.reference
 
-                           * 10 Oct 26 dm, openQM ref 547: a name that is F and
-                           * a number, and that no dictionary item has, is the
-                           * field of that number.  17 Oct 26: the tests are
-                           * nested, because BASIC does not stop at the first
-                           * false one, and any other undefined name (F is only
-                           * the start of this one) stopped the compile with
-                           * "Non-numeric where numeric required" instead of
-                           * the message below.
-                           if len(u.token.string) > 1 and u.token.string[1,1] = 'F' then
-                              fn = u.token.string[2,99]
-                              if num(fn) then
-                                 if not(index(fn, '.', 1)) and fn + 0 > 0 then
-                                    field.rec = ''
-                                    field.rec<1> = 'D'
-                                    field.rec<dict.loc> = fn + 0
-                                    goto have.field.rec
-                                 end
-                              end
-                           end
+                           * (27 Oct 26: the rule that a name which is F and a number, and which no dictionary
+                           * item has, means that field was removed; a field is named by a D-type item.)
                            err.msg = sysmsg(2982, token.string) ;* Field 'xx' is not defined
                            goto error
                         end
@@ -1387,7 +1285,7 @@ if.then.else.expr.abort:
 have.field.rec:
             type = upcase(field.rec[1,1])
             begin case
-               case type = 'D' or ((type = 'A' or type = 'S') and field.rec<dict.a.correlative> = '')
+               case type = 'D'
                   fno = field.rec<dict.loc>
                   if not(num(fno)) then
                      err.msg = sysmsg(2983, token.string) ;* Field 'xx' has a non-numeric location
@@ -1404,54 +1302,6 @@ have.field.rec:
                   n = 1 ; gosub emit.numeric.load       ;* One path component
                   n = 3 ; gosub emit.numeric.load       ;* Function: get
                   opcode.byte = OP.COLL ; gosub emit.simple
-
-               case type = 'A' or type = 'S' or type = 'C'
-                  * A/S-type item with correlative or C-type
-                  * Unlike nested I-types, A/S-types that reference other
-                  * compiled items do this as a run time subroutine call
-                  * using ITYPE() to execute embedded object code.
-
-                  if len(field.rec<DICT.ITYPE.OBJECT>) = 0 ~
-                  or checksum(replace(field.rec, DICT.SYS.INFO, 1;'')) # field.rec<DICT.SYS.INFO,1> then
-                     * Need to compile nested item
-
-                     if depth > 10 then
-                        err.msg = sysmsg(2998) ;* Compiled dictionary items nested too deeply
-                        goto error
-                     end
-
-                     call $dcomp(dict.file,       ;* File var to source file
-                                 token.string,    ;* Record name
-                                 field.rec,       ;* Record to compile
-                                 z,               ;* I-type format
-                                 z,               ;* I-type conversion
-                                 z,               ;* I-type S/M flag
-                                 z,               ;* I-type association
-                                 z,               ;* I-type is constant
-                                 depth + 1)       ;* Recursive compilation depth
-
-                     if field.rec<DICT.ITYPE.OBJECT> = '' then
-                        err.msg = sysmsg(2612, token.string) ;* Compilation error in %1
-                        goto error
-                     end
-
-                     write field.rec to dict.file, token.string
-                  end
-
-                  * Check to see if we have already loaded this object code.
-
-                  locate token.string in embedded.objects<1> setting i then
-                     n = embedded.object.vars<i> ;* Variable number
-                  end else
-                     embedded.objects<-1> = token.string
-                     embedded.object.vars<-1> = no.vars
-                     n = no.vars
-                     no.vars += 1
-                  end
-
-                  gosub emit.var.load
-                  opcode.byte = OP.ITYPE
-                  gosub emit.simple
 
                case type = "I"  ;* Nested I-type
                   nested.source = field.rec<2>
@@ -2124,33 +1974,6 @@ parse.as.dictionary.name:
                      opcode.string = '{' : trans.dict.rec<2>
                      gosub emit.string.load
 
-                  case (trans.type = 'A' or trans.type = 'S') and trans.dict.rec<dict.a.correlative> = ''
-                     * 10 Oct 26 dm, openQM ref 182: an A or S item with no
-                     * correlative is a field position, as a D-type is.
-                     n = trans.dict.rec<dict.loc>
-                     gosub emit.numeric.load
-
-                  case trans.type = 'A' or trans.type = 'S' or trans.type = 'C'
-                     * 10 Oct 26 dm, openQM ref 182: an A, S or C item with an
-                     * expression is compiled as the same object code an I-type
-                     * gives, and evaluated against the record read by TRANS().
-                     call $dcomp(trans.file.dict,   ;* File var of dictionary
-                                 token.string,      ;* Record name
-                                 trans.dict.rec,    ;* Record to compile
-                                 z,                 ;* I-type format
-                                 z,                 ;* I-type conversion
-                                 z,                 ;* I-type S/M flag
-                                 z,                 ;* I-type association
-                                 z,                 ;* I-type is constant
-                                 depth + 1)         ;* Recursive compilation depth
-                     if trans.dict.rec<DICT.ITYPE.OBJECT> = '' then
-                        err.msg = sysmsg(2612, token.string) ;* Compilation error in %1
-                        goto error
-                     end
-
-                     opcode.string = trans.dict.rec<DICT.ITYPE.OBJECT>
-                     gosub emit.string.load
-
                   case trans.dict.rec[1,1] = 'I'
                      call @icomp(trans.file.dict,    ;* File var of dictionary
                                  trans.dict.rec<2>,  ;* Source code
@@ -2223,23 +2046,7 @@ in.trim:
 
 in.none:
 intrinsic.common:
-         * 16 Oct 26 dm - Fixes item 489.  As in a program (bcomp, intrinsic.common): once an overlap mode has been named in this
-         * I-type, each call of the functions it touches is preceded by the modes then in force, a mask for OP.STROVL; and with
-         * $MODE TIME.MS, TIME() is SYSTEM(1020) / 1000.
-         if str.ovl.used then
-            i = intrinsic.stack<1>
-            if i = op.change or i = op.count or i = op.counts or i = op.index or i = op.indexs then
-               n = bitand(mode2, 7) ; gosub emit.numeric.load
-               opcode.byte = op.strovl ; gosub emit.simple
-            end
-         end
-         if time.ms and intrinsic.stack<1> = op.time then
-            n = 1020 ; gosub emit.numeric.load
-            opcode.byte = op.system ; gosub emit.simple
-            n = 1000 ; gosub emit.numeric.load
-            opcode.byte = op.div ; gosub emit.simple
-            goto intrinsic.end
-         end
+         * 28 Oct 26 dm - S.87: $MODE TIME.MS is gone, so TIME() is always the plain opcode.
          opcode.byte = intrinsic.stack<1> ;gosub emit.simple
 
 intrinsic.end:

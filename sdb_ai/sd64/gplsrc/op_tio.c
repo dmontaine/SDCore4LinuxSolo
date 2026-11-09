@@ -21,6 +21,8 @@
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): the "before login" argument of
  *               api_packet_length_ok() is `is_sdApiSrvr && !api_logged_in` (kernel.h, set by K_SET_USERNAME), not `is_sdApiSrvr && geteuid() == 0`: a Solo server is
  *               never root, so Core's test is never true here and no limit applied before the login.
+ * 27 Oct 26 dm  S.87 batch 14: case inversion is removed (PTERM key 2, getkey()'s invert argument); KEYINC and KEYINCT now do what KEYIN and KEYINT do.
+ * 27 Oct 26 dm  S.87 batch 7: OPTION RUN.NO.PAGE and PAGINATE.ON.HEADING are gone; hf_paginate() keeps the RUN ... NO.PAGE test only.
  * 20 Oct 26 dm  S.71: op_readpkt() and process_client_input() refuse a declared packet length they cannot accept (apipkt.h) and stop
  *               when read_socket() says the connection has gone, instead of reading 1.6 GB of nothing
  * 16 Oct 26 dm  end_attribute(): @(-6), @(-12), @(-14) and @(-59) use eblink, edim, erev and ebold when the terminfo entry has them
@@ -161,7 +163,7 @@ Private PRINT_UNIT *tio_find_printer(DESCRIPTOR *descr, bool pr_on);
 Private void tio_display_new_page(void);
 Private void tio_new_line(void);
 Private bool tio_print_string(PRINT_UNIT *pu, char *q, int16_t bytes, bool transparent_newline);
-Private void getkey(bool invert, int timeout);
+Private void getkey(int timeout);
 Private void printer_off(void);
 Private void printer_on(void);
 void csr(int16_t x, int16_t y);
@@ -670,16 +672,13 @@ void op_expandhf() {
    op_footing()  -  FOOTING opcode                                        */
 
 /* hf_paginate()  -  set or clear pagination after a heading / footing change.
-   On the display unit, with RUN.NO.PAGE and without PAGINATE.ON.HEADING, a
-   heading or footing does not turn pagination on; and RUN ... NO.PAGE
-   (PU_HF_NO_PAGE) stops it whatever the options.                        */
+   On the display unit RUN ... NO.PAGE (PU_HF_NO_PAGE) stops a heading or footing
+   from turning pagination on.                                           */
 
 Private void hf_paginate(PRINT_UNIT *pu) {
   if ((pu->heading != NULL) || (pu->footing != NULL)) {
     if (pu == &tio.dsp) {
       if (pu->flags & PU_HF_NO_PAGE)
-        return;
-      if (Option(OptRunNoPage) && !Option(OptPaginateOnHeading))
         return;
     }
     pu->flags |= PU_PAGINATE;
@@ -799,7 +798,6 @@ Private void heading(bool eject) {
 
         case PRINT_TO_PRINTER:
         case PRINT_TO_FILE:
-        case PRINT_TO_AUX_PORT:
         case PRINT_AND_HOLD:
           tio_print_string(pu, "\f", 1, FALSE);
           break;
@@ -1090,11 +1088,11 @@ Private void keyedit_trap_exit(int mode) {
    op_keyin()  -  opcode for the KEYIN() function                         */
 
 void op_keyin() {
-  getkey(FALSE, -1);
+  getkey(-1);
 }
 
 void op_keyinc() {
-  getkey(TRUE, -1);
+  getkey(-1); /* KEYINC differed from KEYIN only by case inversion, removed 27 Oct 26 (S.87) */
 }
 
 void op_keyint() {
@@ -1110,7 +1108,7 @@ void op_keyint() {
 
   if (timeout < 0)
     timeout = 0; /* 0145 */
-  getkey(FALSE, timeout);
+  getkey(timeout);
 }
 
 void op_keyinct() {
@@ -1126,10 +1124,10 @@ void op_keyinct() {
 
   if (timeout < 0)
     timeout = 0; /* 0145 */
-  getkey(TRUE, timeout);
+  getkey(timeout);
 }
 
-Private void getkey(bool invert, int timeout) /* -ve = none */
+Private void getkey(int timeout) /* -ve = none */
 {
   STRING_CHUNK *str;
   int16_t n;
@@ -1160,8 +1158,6 @@ Private void getkey(bool invert, int timeout) /* -ve = none */
     e_stack->data.str.saddr = NULL;
   } else {
     c = (char)k;
-    if (invert && case_inversion && IsAlpha(c))
-      c ^= 0x20;
 
     str = e_stack->data.str.saddr = s_alloc(1L, &n);
     str->ref_ct = 1;
@@ -1217,7 +1213,6 @@ void op_page() {
 
     case PRINT_TO_PRINTER:
     case PRINT_TO_FILE:
-    case PRINT_TO_AUX_PORT:
     case PRINT_AND_HOLD:
       tio_print_string(pu, "\f", 1, FALSE);
       break;
@@ -1443,7 +1438,6 @@ void op_setpu() {
         case PRINT_TO_PRINTER:
         case PRINT_TO_FILE:
         case PRINT_TO_STDERR:
-        case PRINT_TO_AUX_PORT:
         case PRINT_AND_HOLD:
           //0134          if (cproc_level > pu->level) pu->level = cproc_level;
           set_print_mode(pu, n);
@@ -1818,10 +1812,6 @@ void op_getpu() {
         break;
 
       /* 12 Oct 26: keys 1020 to 1025 of the openQM 4 manual */
-      case PU_FORM_QUEUE: /* The queue the last SP.ASSIGN for this unit named; 0 if there has been none */
-        result.data.value = ((pu->unit >= 0) && (pu->unit <= HIGH_PRINT_UNIT)) ? form_queue_of[pu->unit] : 0;
-        break;
-
       case PU_FONT_SIZE: /* GDI mode only */
         result.data.value = 0;
         break;
@@ -1966,9 +1956,6 @@ void op_prclose() {
             end_file(pu);
             break;
 
-          case PRINT_TO_AUX_PORT:
-            end_file(pu);
-            break;
         }
 
         if ((pu->flags & PU_KEEP_OPEN)) {
@@ -2198,7 +2185,6 @@ void op_prnl() {
 
       case PRINT_TO_PRINTER:
       case PRINT_TO_FILE:
-      case PRINT_TO_AUX_PORT:
       case PRINT_AND_HOLD:
         tio_print_string(pu, pu->newline, strlen(pu->newline), FALSE);
         break;
@@ -2335,14 +2321,6 @@ void op_pterm() {
       if (new_value >= 0)
         set_term((new_value != 0));
       result.data.value = trap_break_char;
-      break;
-
-    case PT_INVERT: /* Case inversion */
-      GetInt(descr);
-      new_value = descr->data.value;
-      if (new_value >= 0)
-        case_inversion = (new_value != 0);
-      result.data.value = case_inversion;
       break;
 
     case PT_BRKCH: /* Set break character */
@@ -2854,7 +2832,6 @@ Private void set_print_mode(PRINT_UNIT *pu, int16_t mode) {
           break;
 
         case PRINT_TO_FILE:
-        case PRINT_TO_AUX_PORT:
         case PRINT_AND_HOLD:
           end_file(pu);
       }
@@ -3429,7 +3406,6 @@ Private bool tio_print_string(PRINT_UNIT *pu, char *q, int16_t bytes, bool trans
       break;
 
     case PRINT_TO_FILE:
-    case PRINT_TO_AUX_PORT:
     case PRINT_AND_HOLD:
       to_file(pu, q, bytes);
       break;
@@ -3491,8 +3467,7 @@ PRINT_UNIT *tio_set_printer(int16_t unit, int16_t mode, int16_t lines_per_page, 
     /* !!PU!! */
     p->mode = mode;
     p->flags = 0;
-    if (!(pcfg.gdi))
-      p->flags |= PU_RAW;
+    p->flags |= PU_RAW;
     p->width = width;
     p->lines_per_page = lines_per_page;
     p->top_margin = top_margin;
@@ -4087,25 +4062,6 @@ Private void printer_on() {
     prg->flags |= PF_PRINTER_ON; /* 0500 */
     if (prg->flags & HDR_IS_CPROC)
       break;
-  }
-}
-
-/* ======================================================================
-   lock_beep()  -  Beep on lock wait                                      */
-
-void lock_beep() {
-  bool saved_suppress_como;
-
-/* 20240219 mab rebrand VBSRVR to APISRVR */
-  if (!is_phantom && !is_sdApiSrvr) {
-    if (Option(OptLockBeep)) {
-      if ((++lock_beep_timer % 4) == 0) {
-        saved_suppress_como = tio.suppress_como;
-        tio.suppress_como = TRUE;
-        squeek();
-        tio.suppress_como = saved_suppress_como;
-      }
-    }
   }
 }
 

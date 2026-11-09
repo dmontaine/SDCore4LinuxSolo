@@ -17,14 +17,16 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
  * 19 Oct 26 dm  NETWAIT and NETREPLY are held in 32 bit fields (config.h): 65541 in sd.conf wrapped to 5 in the 16 bit field BEFORE rangecheck, so SD started with a 5 second wait instead of
  *               refusing the value.  (PWDELAY and DHCACHE are 16 bit fields read the same way and wrap the same way; they are not changed here.)
  * 19 Oct 26 dm  NETWAIT (5) and NETREPLY (30): the two SDNet timeouts, seconds, 1 to 3600, per process (K8d, S.65).  Zero is refused (openQM's NETWAIT 0 means no limit).
  * 14 Sep 26 Windows port - the global catalogue check names gcat/$cproc
  *           (RELEASE_1.1 5 stage 3a)
  * 31 Dec 23 SD launch - prior history suppressed
- * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user
- * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
+ * 27 Oct 26 dm  S.87: the parameters CODEPAGE, CREATUSR, EXCLREM, GDI, RINGWAIT, TXCHAR, APILOGIN, FIXUSERS, JNLDIR, JNLMODE, PORTMAP and INVCASE are no longer read; a line naming one stops SD, so the installer removes them from a restored sd.conf.
+ * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user (removed 27 Oct 26)
+ * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored (removed 27 Oct 26).
  * 29 Sep 26 SD Core for Linux Solo - USRDIR, GRPDIR and SDSYS default to
  *               folders in the installation's own folder (inipath.c).
  * 16 Oct 26 dm  NUMLOCKS is range checked, 1 to 32767 (QM4 Fixes 532): the lock table's cells and counts are int16, so a bigger value wrapped.
@@ -43,11 +45,9 @@
  *  DEBUG=n       Debug features enabled? (bit flags)
  *  FDS=n         Set FDS limit (default is no limit)
  *  FLTDIFF=f     Wide zero value
- *  GDI=n         Select default API calls for printing
  *  GRPSIZE=n     Default group size when creating a dynamic file
  *  MAXIDLEN=63   Maximum record id len
  *  MUSTLOCK=1    Must hold update or file lock to write or delete record
- *  INVCASE=1     Terminal input case inversion on at login (default = 0)
  *  NETFILES=0    Allow remote files?
  *                  0x0001   Allow outgoing NFS
  *                  0x0002   Allow incoming Q_M_Net
@@ -66,7 +66,6 @@
  *  STARTUP=cmd   Run command on starting Q_M
  *  TEMPDIR=path  Pathname of temporary directory
  *  TERMINFO=path Pathname of terminfo directory
- *  TXCHAR=1      Enable ansi/oem character translation (default = 1)
  *  YEARBASE=n    Two digit year base (default = 1930)
  *
  *
@@ -86,7 +85,6 @@ Private bool rangecheck(char* param,
                         int min_val,
                         int max_val,
                         char* errmsg);
-Private bool ranges_overlap(int lo1, int count1, int lo2, int count2);
 
 /* ====================================================================== */
 
@@ -102,7 +100,6 @@ struct CONFIG* read_config(char* errmsg) {
   int numlocks_asked = 100; /* NUMLOCKS as written: cfg->numlocks is int16 and would wrap before it was checked */
   bool status = FALSE;
   int n2;
-  int n3;
   int hi_user;
   struct stat statbuf;
   char home[MAX_PATHNAME_LEN + 1];
@@ -119,15 +116,10 @@ struct CONFIG* read_config(char* errmsg) {
   /* Set defaults for private configuration parameters */
   /* !!CONFIG!! */
 
-  pcfg.codepage = 0;      /* CODEPAGE: Console code page */
-  pcfg.create_user = 1;   /* allow create.account to create os user */
   pcfg.dhcache = 10;      /* DHCACHE:  Closed dynamic files kept open: the fixed 10 until 1.2-0 (openQM item 90) */
   pcfg.dumpdir[0] = '\0'; /* DUMPDIR:  Directory for process dump files */
-  pcfg.exclrem = 0;       /* EXCLREM:  Exclude remote files in ACCOUNT.SAVE? */
-  pcfg.filerule = 0;      /* FILERULE: File name rules (special forms) */
   pcfg.fltdiff = 0.0000000000291; /* FLTDIFF: Wide zero for float eq test */
   pcfg.fsync = 0;                 /* FSYNC:    Controls when to do fsync() */
-  pcfg.gdi = 0;                   /* GDI:      Default GDI spool API? */
  /* 20240219 mab create-account based on type (user / group / other) */   
  /* 29 Sep 26 SD Core for Linux Solo (LSOLO 3) - accounts live in the
     installation's own folder, found at run time (inipath.c GetHomePath), so
@@ -141,7 +133,6 @@ struct CONFIG* read_config(char* errmsg) {
     pcfg.grpdir[0] = '\0';
   pcfg.grpsize = 1;               /* GRPSIZE:  Default group size */
   pcfg.intprec = 11;              /* INTPREC:  Precision for INT() etc. 13 until 1.2-0 (openQM 2.6-9, item 6) */
-  pcfg.invcase = FALSE;           /* INVCASE:  Initial state of terminal input case inversion (item 399) */
   pcfg.lptrhigh = 66;             /* LPTRHIGH: Default printer lines */
   pcfg.lptrwide = 80;             /* LPTRWIDE: Default printer width */
   pcfg.maxcall = 10000;           /* MAXCALL:  Maximum call depth */
@@ -154,7 +145,6 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.pwdelay = 3;               /* PWDELAY:  Seconds after a failed network login.  SD's own 3 (openQM's is 5) */
   pcfg.sdclient_mode = 0;         /* SDCLIENT: Client capabilities */
   pcfg.reccache = 0;              /* RECCACHE: Record cache size */
-  pcfg.ringwait = TRUE;           /* RINGWAIT: Wait if ring buffer full */
   pcfg.safedir = FALSE;       /* SAFE_DIR: User careful update to dir files */
   pcfg.sh[0] = '\0';          /* SH:       Command to run interactive shell */
   pcfg.sh1[0] = '\0';         /* SH1:      Command to run single shell */
@@ -166,7 +156,6 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.spooler[0] = '\0';     /* SPOOLER:  Default spooler name */
   pcfg.terminfodir[0] = '\0'; /* TERMINFO: Use default location */
   pcfg.timezone[0] = '\0';    /* TIMEZONE: the epoch functions use the process's own TZ (15 Oct 26, QM4 gaps Q-3) */
-  pcfg.txchar = TRUE;         /* TXCHAR:   Enable ansi/oem translation */
 /* 20240219 mab create-account based on type (user / group / other) */   
   if (!home_ok ||
       (snprintf(pcfg.usrdir, MAX_PATHNAME_LEN + 1, "%s/user_accounts", home)  /* USRDIR: user accounts parent dir */
@@ -229,10 +218,6 @@ struct CONFIG* read_config(char* errmsg) {
       /* !!CONFIG!! */
       else if (sscanf(rec, "CMDSTACK=%d", &n) == 1)
         cfg->cmdstack = n;
-      else if (sscanf(rec, "CODEPAGE=%d", &n) == 1)
-        pcfg.codepage = n;
-      else if (sscanf(rec, "CREATUSR=%d", &n) == 1)
-        pcfg.create_user = (n != 0);
       else if (sscanf(rec, "DEADLOCK=%d", &n) == 1)
         cfg->deadlock = n; /* 0, 1 or 2: rangecheck below (openQM item 500) */
       else if (sscanf(rec, "DEBUG=%d", &n) == 1)
@@ -243,21 +228,12 @@ struct CONFIG* read_config(char* errmsg) {
         strcpy(pcfg.dumpdir, rec + 8);
       else if (sscanf(rec, "ERRLOG=%d", &n) == 1)
         cfg->errlog = n * 1024;
-      else if (sscanf(rec, "EXCLREM=%d", &n) == 1)
-        pcfg.exclrem = (n != 0);
       else if (sscanf(rec, "FDS=%d", &n) == 1)
         cfg->fds_limit = n;
-      else if (sscanf(rec, "FILERULE=%d", &n) == 1)
-        pcfg.filerule |= n;
-      else if (sscanf(rec, "FIXUSERS=%d,%d", &n, &n2) == 2) {
-        cfg->fixusers_base = n;
-        cfg->fixusers_range = n2;
-      } else if (sscanf(rec, "FLTDIFF=%lf", &flt) == 1)
+      else if (sscanf(rec, "FLTDIFF=%lf", &flt) == 1)
         pcfg.fltdiff = flt;
       else if (sscanf(rec, "FSYNC=%d", &n) == 1)
         pcfg.fsync |= n;
-      else if (sscanf(rec, "GDI=%d", &n) == 1)
-        pcfg.gdi = (n != 0);
       else if (sscanf(rec, "GRPSIZE=%d", &n) == 1)
         pcfg.grpsize = n;
 /* 20240219 mab create-account based on type (user / group / other) */          
@@ -265,12 +241,6 @@ struct CONFIG* read_config(char* errmsg) {
         strncpy(pcfg.grpdir, rec + 7,MAX_PATHNAME_LEN+1); 
       else if (sscanf(rec, "INTPREC=%d", &n) == 1)
         pcfg.intprec = n;
-      else if (sscanf(rec, "INVCASE=%d", &n) == 1)
-        pcfg.invcase = (n != 0);
-      else if (strncmp(rec, "JNLDIR=", 7) == 0)
-        strcpy(cfg->jnldir, rec + 7);
-      else if (sscanf(rec, "JNLMODE=%d", &n) == 1)
-        cfg->jnlmode = n;
       else if (sscanf(rec, "LGNWAIT=%d", &n) == 1)
         cfg->lgnwait = n;
       else if (sscanf(rec, "LPTRHIGH=%d", &n) == 1)
@@ -303,28 +273,13 @@ struct CONFIG* read_config(char* errmsg) {
         pcfg.objmem = n * 1024L;
       else if (sscanf(rec, "PDUMP=%d", &n) == 1)
         cfg->pdump |= n;
-      else if (sscanf(rec, "PORTMAP=%d,%d,%d", &n, &n2, &n3) == 3) {
-        cfg->portmap_base_port = n;
-        cfg->portmap_base_user = n2;
-        cfg->portmap_range = n3;
-      } 
       else if (sscanf(rec, "PWDELAY=%d", &n) == 1)
         pcfg.pwdelay = n;
       else if (sscanf(rec, "SDCLIENT=%d", &n) == 1)
         pcfg.sdclient_mode |= n;
-/* 14 Sep 26 dm - S.18.  APILOGIN is RETIRED: it chose between login_user()'s
-   two paths, and login_user() is removed (the API logs in by SCRAM only).
-   The line is still ACCEPTED and ignored because an unrecognised parameter
-   is fatal just below, and a keep-configuration install restores an sd.conf
-   written while APILOGIN shipped.  Nothing reads it; CONFIG() no longer
-   reports it. */
-      else if (sscanf(rec, "APILOGIN=%d", &n) == 1) {
-        /* ignored */
-      }
-/* 02 Oct 26 dm - S.53 (LSOLO 25).  BACKUPDIR=<path> is the backup directory that
+/* 02 Oct 26 dm - S.53.  BACKUPDIR=<path> is the backup directory that
    SET.BACKUP.DIRECTORY saves (owner's ruling, 1 Oct 2026; the key and the verb are
-   shared with the other three SD Core products).  It is ACCEPTED and ignored here, for
-   the same reason as APILOGIN: an unrecognised parameter is fatal just below, so a
+   shared with the other three SD Core products).  It is ACCEPTED and ignored here: an unrecognised parameter is fatal just below, so a
    build that did not know the key would refuse to start on a file that carries it.
    Nothing in the C code reads it: the BASIC helper !acc_os_bakdir reads sd.conf at each
    use, so a change needs no restart. */
@@ -337,8 +292,6 @@ struct CONFIG* read_config(char* errmsg) {
       }
        else if (sscanf(rec, "RECCACHE=%d", &n) == 1)
         pcfg.reccache = n;
-      else if (sscanf(rec, "RINGWAIT=%d", &n) == 1)
-        pcfg.ringwait = (n != 0);
       else if (sscanf(rec, "SAFEDIR=%d", &n) == 1)
         pcfg.safedir = (n != 0);
       else if (strncmp(rec, "SH=", 3) == 0)
@@ -363,8 +316,6 @@ struct CONFIG* read_config(char* errmsg) {
         strcpy(pcfg.tempdir, rec + 8);
       else if (strncmp(rec, "TERMINFO=", 9) == 0)
         strcpy(pcfg.terminfodir, rec + 9);
-      else if (sscanf(rec, "TXCHAR=%d", &n) == 1)
-        pcfg.txchar = (n != 0);
       else if (sscanf(rec, "USERPOOL=%d", &n) == 1)
         cfg->userpool = n;
       else if (sscanf(rec, "USPLIT=%d", &n) == 1)
@@ -372,7 +323,7 @@ struct CONFIG* read_config(char* errmsg) {
       else if (sscanf(rec, "CLEANUP=%d", &n) == 1)
         cfg->cleanup = n;               /* 30 to 3600: rangecheck below (16 Oct 26) */
       else if (sscanf(rec, "PHANTOMS=%d,%d", &n, &n2) == 2) {
-        cfg->phantoms_base = n;         /* checked against the highest user number and FIXUSERS / PORTMAP below */
+        cfg->phantoms_base = n;         /* checked against the highest user number below */
         cfg->phantoms_range = n2;
       }
  /* 20240219 mab create-account based on type (user / group / other) */
@@ -434,48 +385,12 @@ struct CONFIG* read_config(char* errmsg) {
 
   hi_user = max(cfg->max_users, cfg->userpool);
 
-  if ((cfg->portmap_range) &&
-      (cfg->portmap_base_user + cfg->portmap_range - 1 > hi_user)) {
-    sprintf(errmsg, "PORTMAP user numbers extend beyond %d.", hi_user);
-    goto exit_read_config;
-  }
-
-  if (cfg->fixusers_base) {
-    if (cfg->fixusers_base + cfg->fixusers_range - 1 > hi_user) {
-      sprintf(errmsg, "FIXUSERS user numbers extend beyond %d.", hi_user);
-      goto exit_read_config;
-    }
-
-    if (cfg->portmap_range) /* Both PORTMAP and FIXUSERS - Check overlap */
-    {
-      if (((cfg->portmap_base_user >= cfg->fixusers_base) &&
-           (cfg->portmap_base_user <
-            cfg->fixusers_base + cfg->fixusers_range)) ||
-          ((cfg->fixusers_base >= cfg->portmap_base_user) &&
-           (cfg->fixusers_base <
-            cfg->portmap_base_user + cfg->portmap_range))) {
-        sprintf(errmsg, "PORTMAP and FIXUSERS user numbers overlap.");
-        goto exit_read_config;
-      }
-    }
-  }
-
-  /* PHANTOMS (16 Oct 26): the user numbers PHANTOM ... USER n may take must exist and must not be numbers FIXUSERS or PORTMAP reserve */
+  /* PHANTOMS (16 Oct 26): the user numbers PHANTOM ... USER n may take must exist */
 
   if (cfg->phantoms_base || cfg->phantoms_range) {
     if ((cfg->phantoms_base < 1) || (cfg->phantoms_range < 1) ||
         (cfg->phantoms_base + cfg->phantoms_range - 1 > hi_user)) {
       sprintf(errmsg, "PHANTOMS user numbers must lie between 1 and %d.", hi_user);
-      goto exit_read_config;
-    }
-    if (cfg->fixusers_base &&
-        ranges_overlap(cfg->phantoms_base, cfg->phantoms_range, cfg->fixusers_base, cfg->fixusers_range)) {
-      sprintf(errmsg, "PHANTOMS and FIXUSERS user numbers overlap.");
-      goto exit_read_config;
-    }
-    if (cfg->portmap_range &&
-        ranges_overlap(cfg->phantoms_base, cfg->phantoms_range, cfg->portmap_base_user, cfg->portmap_range)) {
-      sprintf(errmsg, "PHANTOMS and PORTMAP user numbers overlap.");
       goto exit_read_config;
     }
   }
@@ -548,13 +463,6 @@ Private bool rangecheck(char* param,
   }
 
   return TRUE;
-}
-
-/* ======================================================================
-   ranges_overlap()  -  Do two runs of user numbers (first number, how many) share a number?  (16 Oct 26, PHANTOMS) */
-
-Private bool ranges_overlap(int lo1, int count1, int lo2, int count2) {
-  return (lo1 < lo2 + count2) && (lo2 < lo1 + count1);
 }
 
 /* END-CODE */

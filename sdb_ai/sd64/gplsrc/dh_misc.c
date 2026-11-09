@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of op_fcontrol() (upper-casing an alternate key path) is gone.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file refusals.
  * 17 Oct 26 dm  S.65 slice 3c: op_fcontrol() and pub_fcontrol() refuse a NET_FILE (net_refuse)
  * 15 Oct 26 dm  pub_fcontrol(): the public FCONTROL() with openQM's action numbers (op_fcontrol is FCONTROL.INT).
@@ -198,9 +199,6 @@ void op_fcontrol() {
       }
 
       k_get_c_string(descr, header.akpath, MAX_PATHNAME_LEN);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-      UpperCaseString(header.akpath);
-#endif
 
       if (header.akpath[0] == '\0')
         dh_file->akpath = NULL;

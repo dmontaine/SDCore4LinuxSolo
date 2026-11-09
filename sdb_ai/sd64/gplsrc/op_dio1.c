@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 9: $MODE OPEN.FAIL.ZERO.FVAR is gone; the file variable of a failed open stays as the open left it (unassigned).
+ * 27 Oct 26 dm  S.87 batch 5: the comment about a name containing ';' no longer being a network file reference is gone with the code it described (_voc_ref no longer builds such a name).
  * 17 Oct 26 dm  S.65 slice 3c: op_configfl() refuses a NET_FILE (net_refuse)
  * 17 Oct 26 dm  S.65 slice 3c: open_file() opens a file on another SD server when the VOC (N pointer, _voc_ref) gives it the encoded path
  *           char(1) 'N' char(1) server char(1) file: net_open() (netfiles.c) BEFORE fullpath() and any file table lookup, and only for OPEN
@@ -760,10 +762,6 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
       goto exit_op_open;
     }
 
-    /* SDNet removed (plan G4): a name containing ';' is no longer a network
-       file reference. It falls through to fullpath() and fails like any other
-       bad pathname. */
-
     /* 17 Oct 26 S.65 slice 3c: an N pointer in the VOC (_voc_ref) is a file on another SD server.  It comes back as the encoded path
        char(1) 'N' char(1) server char(1) file, which no real path holds.  Only an OPEN by name looks for it (map_name): OPENPATH and
        OPENTEMP name a path directly, and a char(1) typed into one is just a path that does not exist.  net_open() asks the NET gate
@@ -1039,14 +1037,6 @@ exit_op_open:
   {
     if (fvar != NULL)
       dio_close(fvar);
-
-    /* 14 Oct 26 dm - $MODE OPEN.FAIL.ZERO.FVAR (openQM item 514): the file variable of a failed open is the
-       integer 0 rather than unassigned */
-    if (op_flags & P_OPEN_ZERO) {
-      k_release(fvar_descr);
-      InitDescr(fvar_descr, INTEGER);
-      fvar_descr->data.value = 0;
-    }
   }
 
   /* Set status code on stack */

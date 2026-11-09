@@ -61,8 +61,8 @@ BP="$H/user_accounts/sduser/bp"; OUT="$H/user_accounts/sduser/bp.out"
 [ -d "$H/solo.policy" ] || refuse "$H/solo.policy is not a directory - the tree predates LSOLO 12"
 [ -d "$BP" ] || refuse "$BP is not there"
 
-# The on-disk name of the catalogue entry '*ZZGSUB' is SD's own encoding of the
-# '*', so it is found by name, not spelled.
+# The catalogue entry is the plain name zzgsub since 9 Nov 26 (Solo carry 22: the * prefix is gone,
+# SD Core's S.87); it is found by name, so an old *zzgsub entry would be counted too.
 incat() { ls -A "$GCAT" | grep -i -c -- "$SUB" || true; }
 
 cleanup() {
@@ -126,7 +126,7 @@ BASIC
 cat > "$BP/$CALL" <<'BASIC'
 * ZZGCALL - written by gplbld/verify-solo-global.sh, leg 4.  Safe to delete.
       X = ''
-      CALL *zzgsub(X)
+      CALL zzgsub(X)
       CRT 'GCALL=':X
    END
 BASIC

@@ -115,7 +115,7 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
   d="$T/k8"; mk_kept "$d"; mkdir "$d/user_accounts/other"
   out="$(kept "$d")"; row "I8 a second account folder is not allowed" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
   row "I9 the allowance asks the owner as well as the type (somebody else's directory named newvoc.mods is a stranger's)" \
-    "$(awk '/^# BEGIN is_kept_tree$/,/^# END is_kept_tree$/' "$inst" | grep -qF 'newvoc.mods) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;' && echo 0 || echo 1)"
+    "$(awk '/^# BEGIN is_kept_tree$/,/^# END is_kept_tree$/' "$inst" | grep -qF 'newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;' && echo 0 || echo 1)"
 
   # ---- T. where they are used (text) ---------------------------------------------------------------------------------
   local keep_call stamp_mv

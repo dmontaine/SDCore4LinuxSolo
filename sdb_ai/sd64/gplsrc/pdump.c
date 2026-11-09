@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: a process dump no longer names the C-type header flag (HDR_CTYPE is gone).
+ * 28 Oct 26 dm  S.87: the PMATRIX descriptor type and AH_PICK_STYLE are gone.
+ * 28 Oct 26 dm  S.87: the PMATRIX descriptor type and AH_PICK_STYLE are gone.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file branch of dump_variable().
  * 17 Oct 26 dm  S.65 slice 3c: dump_variable() names a NET_FILE as a remote file instead of reading FPtr(-1)
  * 31 Dec 23 SD launch - prior history suppressed
@@ -295,7 +298,7 @@ void pdump() {
       if (pgm->flags & HDR_RECURSIVE)
         fprintf(fu, "    Recursive\n");
       if (pgm->flags & HDR_ITYPE)
-        fprintf(fu, "    I or C-type\n");
+        fprintf(fu, "    I-type or correlative\n");
       if (pgm->flags & HDR_ALLOW_BREAK)
         fprintf(fu, "    Allow break in recursive\n");
       if (pgm->flags & HDR_IS_TRUSTED)
@@ -306,8 +309,6 @@ void pdump() {
         fprintf(fu, "    Case sensitive names\n");
       if (pgm->flags & HDR_SDCALL_ALLOWED)
         fprintf(fu, "    SDCall allowed\n");
-      if (pgm->flags & HDR_CTYPE)
-        fprintf(fu, "    C-type\n");
       if (pgm->flags & HDR_IS_CLASS)
         fprintf(fu, "    Class module\n");
       fprintf(fu, "\n");
@@ -554,8 +555,7 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
       for (chnk = 0, base = 0; chnk < ahdr->num_chunks;
            base += achnk->num_descr, chnk++) {
         achnk = ahdr->chunk[chnk];
-        for (el = (ahdr->flags & AH_PICK_STYLE) ? 1 : 0; el < achnk->num_descr;
-             el++) {
+        for (el = 0; el < achnk->num_descr; el++) {
           if (el == 0) {
             strcpy(element, (two_d) ? "(0,0)" : "(0)");
           } else if (two_d) {
@@ -641,9 +641,6 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
     case SELLIST:
       fprintf(fu, "%s: SelList: \"", s);
       print_string(descr->data.str.saddr);
-      break;
-
-    case PMATRIX:
       break;
 
     case SOCK:

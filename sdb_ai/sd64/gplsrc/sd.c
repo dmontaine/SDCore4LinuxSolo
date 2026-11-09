@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the -l option (apply a new licence: it set a flag nothing read) is gone; "sd -l" is an unrecognised option like any other.
  * 25 Oct 26 dm  "sd-solo -start -nodaemon": start SD without forking sdlnxd, which its user unit (sd-solo-lnxd.service) starts and restarts.  start_sd() takes the choice.
  * 31 Dec 23 SD launch - prior history suppressed
  * 15 Jun 24 add bootstrap build option install option -I
@@ -41,7 +42,6 @@
  *         -I            Bootstrap Install
  *         -K n          Kill user n
  *         -K ALL        Kill all users
- *         -L            Apply new licence
  *         -M            Dump shared memory
  *         -N            Network connection (SDClient or direct telnet)
  *         -Pn           Execute phantom command (command in $IPC)
@@ -328,12 +328,7 @@ Private bool comlin(int argc, char *argv[]) {
   int TxPipe;
 
   for (arg = 1; (arg < argc) && (argv[arg][0] == '-'); arg++) {
-    if (IsDigit(*(argv[arg] + 1))) {
-      /* Modified by Composer AI - 2026/06/10. atoi -> strtol (no overflow UB). */
-      /* forced_user_no = atoi(argv[arg] + 1); */
-      forced_user_no = (int)strtol(argv[arg] + 1, NULL, 10);
-      /* -------------------- */
-    } else if (!stricmp(argv[arg], "-CLEANUP")) {
+    if (!stricmp(argv[arg], "-CLEANUP")) {
       cleanup();
       exit(0);
     } else if (!stricmp(argv[arg], "-INTERNAL")) {
@@ -427,10 +422,6 @@ Private bool comlin(int argc, char *argv[]) {
           }
           fprintf(stderr, "User number, login name or ALL required\n");
           exit(1);
-
-        case 'L': /* Apply new licence */
-          command_options |= CMD_APPLY_LICENCE;
-          break;
 
         case 'M': /* Dump memory */
           dump_sysseg(FALSE);
@@ -614,7 +605,6 @@ help:
           "elsewhere\n");
   fprintf(stderr, "      -k n        Kill (logout) user n\n");
   fprintf(stderr, "      -k all      Kill (logout) all users n\n");
-  fprintf(stderr, "      -l          Apply new licence\n");
   fprintf(stderr, "      -u          List current users\n");
   fprintf(stderr, "      -status     Show version, start time and process counts\n");
   fprintf(stderr, "      -quiet      Suppress all displays on entry\n");

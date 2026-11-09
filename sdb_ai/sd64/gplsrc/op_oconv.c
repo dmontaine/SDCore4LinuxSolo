@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 03 Nov 26 dm  MCDX is back, as a second name of MX (owner: "Restore MCDX only", for programs moved from openQM); MCD, MCX and MCXD stay invalid.
+ * 27 Oct 26 dm  S.87 batch 7: OPTION PICK.ML.CONV.MASK is gone; ML and MR read a left bracket as the round bracket negative style, as they did with it off.
+ * 27 Oct 26 dm  S.87 batch 3: the conversions MCD, MCDX, MCX and MCXD (second spellings of MX) and conv_dtx() / conv_xtd() are gone.
  * 18 Oct 26 dm  The XE{;name} conversion: decrypt with a key in the process's key ring (xe_oconv(), sd_keyring.c).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
@@ -43,10 +46,8 @@
  *
  *    L[n[,m]]  String length checks
  *
- *    MCD[X]    Convert decimal to hexadecimal
  *    MCL       Convert to lower case
  *    MCU       Convert to upper case
- *    MCX[D]    Convert hexadecimal to decimal
  *
  *    MD        Masked decimal conversion
  *    ML        Masked decimal conversion, left justified
@@ -126,7 +127,6 @@ int32_t tens[] = {1,      10,      100,      1000,      10000,
 void op_extract(void);
 void op_substr(void);
 void op_substre(void);
-void op_xtd(void);
 
 void k_trace(void);
 STRING_CHUNK* b64encode(STRING_CHUNK* str);
@@ -134,8 +134,6 @@ int32_t xe_oconv(char* p); /* sd_keyring.c */
 
 /* Public local functions */
 int32_t concatenation_conversion(char* src_ptr);
-int32_t conv_dtx(char* p);
-int32_t conv_xtd(char* p);
 int32_t group_conversion(char* p);
 int32_t mc_conversion(char* p);
 int32_t pattern_match_conversion(char* src_ptr);
@@ -365,17 +363,6 @@ end_conversion:
 
       if ((dp >= 0) || null_zero || commas) /* Numeric type option present */
       {
-        if ((src_descr->data.str.saddr == NULL) && Option(OptPickNull)) {
-          /* Null string with PICK.NULL option set. Process as a string */
-          dp = -1;
-          null_zero = FALSE;
-          commas = FALSE;
-          if ((s_len = k_get_c_string(src_descr, s, MAX_DATA_STRING_LEN)) < 0) {
-            goto exit_op_fmt;
-          }
-          break;
-        }
-
         /* Try to convert the string to a number */
 
         if (!k_str_to_num(src_descr)) /* Failed - Process as a string */
@@ -482,22 +469,13 @@ end_conversion:
         case '\0':
           break;
         case 'B':
-          if (Option(OptCRDBUpcase))
-            strcat(s, (is_negative) ? "DB" : "  ");
-          else
-            strcat(s, (is_negative) ? "db" : "  ");
+          strcat(s, (is_negative) ? "db" : "  ");
           break;
         case 'C':
-          if (Option(OptCRDBUpcase))
-            strcat(s, (is_negative) ? "CR" : "  ");
-          else
-            strcat(s, (is_negative) ? "cr" : "  ");
+          strcat(s, (is_negative) ? "cr" : "  ");
           break;
         case 'D':
-          if (Option(OptCRDBUpcase))
-            strcat(s, (is_negative) ? "  " : "DB");
-          else
-            strcat(s, (is_negative) ? "  " : "db");
+          strcat(s, (is_negative) ? "  " : "db");
           break;
         case 'E':
           strcat(s, (is_negative) ? ">" : " ");
@@ -709,27 +687,19 @@ void op_oconv() {
           case 'C': /* Case conversion (plus oddments) */
             c = *(++p);
             switch (UpperCase(c)) {
-              case 'D': /* Decimal to hex */
-                c = UpperCase(*(++p));
-                if ((c != '\0') && (c != 'X'))
-                  goto bad_conv_string;
-                if (c == 'X')
-                  p++;
-                process.status = conv_dtx(p);
-                break;
+              case 'D': /* MCDX is MX, for programs moved from openQM (3 Nov 26); MCD, MCX and MCXD were removed on 27 Oct 26 */
+                if (UpperCase(*(p + 1)) == 'X') {
+                  process.status = radix_conversion(p + 2, 16);
+                  break;
+                }
+                goto bad_conv_string;
+              case 'X':
+                goto bad_conv_string;
               case 'L':
                 set_case(FALSE);
                 break;
               case 'U':
                 set_case(TRUE);
-                break;
-              case 'X': /* Hex to decimal */
-                c = UpperCase(*(++p));
-                if ((c != '\0') && (c != 'D'))
-                  goto bad_conv_string;
-                if (c == 'D')
-                  p++;
-                process.status = conv_xtd(p);
                 break;
               default:
                 mc_conversion(p);
@@ -1551,7 +1521,6 @@ Private int32_t masked_decimal_conversion(char* p) {
   char* r;
   char delim;
   char* mask = NULL;
-  char paren_mask[64]; /* The fx element of a parenthesised mask (OPTION PICK.ML.CONV.MASK) */
 
   /* Modified by Composer AI - 2026/06/10. Fully zero z before any path uses it. */
   memset(z, 0, sizeof(z));
@@ -1568,7 +1537,7 @@ Private int32_t masked_decimal_conversion(char* p) {
   /* 0227 Return null string for null data */
 
   if ((src_descr->type == STRING) && (src_descr->data.str.saddr == NULL)) {
-    if ((mode == 'D') || Option(OptPickNull))
+    if (mode == 'D')
       return 0;
   }
 
@@ -1749,12 +1718,6 @@ rescan:
         case '(':
         case 'C':
         case 'D':
-          /* 14 Oct 26 dm - OPTION PICK.ML.CONV.MASK (openQM item 49): a left bracket starts a parenthesised
-             format mask, so it is not the round bracket negative style */
-          if ((*p == '(') && Option(OptPickMLConvMask)) {
-            more = FALSE;
-            break;
-          }
           if (neg_seen) {
             more = FALSE;
             break;
@@ -1803,18 +1766,6 @@ rescan:
           break;
       }
     }
-  }
-
-  /* 14 Oct 26 dm - OPTION PICK.ML.CONV.MASK (openQM item 49): the fx element may be enclosed in round brackets.
-     The text between them is copied without the closing bracket and read as if it had stood there. */
-
-  if ((*p == '(') && Option(OptPickMLConvMask)) {
-    strncpy(paren_mask, p + 1, sizeof(paren_mask) - 1);
-    paren_mask[sizeof(paren_mask) - 1] = '\0';
-    q = strrchr(paren_mask, ')');
-    if (q != NULL)
-      *q = '\0';
-    p = paren_mask;
   }
 
   /* Field width */
@@ -1957,10 +1908,7 @@ rescan:
         q += strlen(prefix);
       }
       strcpy(q, s);
-      if (Option(OptCRDBUpcase))
-        strcat(q, (is_negative) ? "CR" : "  ");
-      else
-        strcat(q, (is_negative) ? "cr" : "  ");
+      strcat(q, (is_negative) ? "cr" : "  ");
       break;
 
     case TRAILING_DB:
@@ -1969,10 +1917,7 @@ rescan:
         q += strlen(prefix);
       }
       strcpy(q, s);
-      if (Option(OptCRDBUpcase))
-        strcat(q, (is_negative) ? "DB" : "  ");
-      else
-        strcat(q, (is_negative) ? "db" : "  ");
+      strcat(q, (is_negative) ? "db" : "  ");
       break;
   }
 
@@ -2151,30 +2096,18 @@ int32_t mc_conversion(char* p) {
         break;
 
       case 5: /* Capital intial */
-        if (Option(OptSpaceMCT)) {
-          while (bytes--) {
-            c = *(p++);
+        while (bytes--) {
+          c = *(p++);
+          if (IsAlpha(c)) {
             if (upcase_next)
               c = UpperCase(c);
             else
               c = LowerCase(c);
-            upcase_next = (c == ' ');
-            ts_copy_byte(c);
+            upcase_next = FALSE;
+          } else {
+            upcase_next = TRUE;
           }
-        } else {
-          while (bytes--) {
-            c = *(p++);
-            if (IsAlpha(c)) {
-              if (upcase_next)
-                c = UpperCase(c);
-              else
-                c = LowerCase(c);
-              upcase_next = FALSE;
-            } else {
-              upcase_next = TRUE;
-            }
-            ts_copy_byte(c);
-          }
+          ts_copy_byte(c);
         }
         break;
 
@@ -2644,10 +2577,7 @@ Private int32_t time_conversion(char* p) {
   sprintf(s, (include_seconds) ? "%02d%c%02d%c%02d" : "%02d%c%02d", (int)hours,
           separator, (int)mins, separator, (int)secs);
   if (am_pm) {
-    if (Option(OptAMPMUpcase))
-      strcat(s, (am) ? "AM" : "PM");
-    else
-      strcat(s, (am) ? "am" : "pm");
+    strcat(s, (am) ? "am" : "pm");
   }
 
 exit_time_conversion_ok:
@@ -2850,41 +2780,6 @@ void op_setnls() {
 
   k_dismiss();
   k_pop(1);
-}
-
-/* ======================================================================
-   conv_dtx()  -  Convert decimal to hexadecimal                          */
-
-int32_t conv_dtx(char* p) {
-  DESCRIPTOR* descr;
-  char s[32 + 1];
-
-  if (*p != '\0')
-    return 2;
-
-  descr = e_stack - 1;
-
-  /* 0227  Return null for null input string */
-
-  if ((descr->type == STRING) && (descr->data.str.saddr == NULL)) {
-    return 0;
-  }
-
-  sprintf(s, "%u", GetUnsignedInt(descr)); /* 0291 */
-  k_put_c_string(s, descr);
-
-  return 0;
-}
-
-/* ======================================================================
-   conv_xtd()  -  Convert hexadecimal to decimal                          */
-
-int32_t conv_xtd(char* p) {
-  if (*p != '\0')
-    return 2;
-
-  op_xtd();
-  return 0;
 }
 
 /* ======================================================================

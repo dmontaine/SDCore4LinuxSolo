@@ -223,7 +223,8 @@ is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves
       user_accounts|sd.conf|.sdcore-kept) ;;
       # 24 Oct 26 (PAL-36): the administrator's site-local VOC additions are read into the VOC as the administrator, so only a REAL directory owned by this user is
       # accepted: a link, a file of that name, or somebody else's directory makes the folder "not ours" and the install refuses it, as it refuses any other stranger.
-      newvoc.mods) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      # 9 Nov 26 (Solo carry 22): the saved copies of VOC records the update removed (voc_removed.saved) are kept on the same terms.
+      newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       *) return 1 ;;
     esac
   done
@@ -349,14 +350,14 @@ ask_os_access() {   # settles os_access when --os-access and the control file ga
   fi
   say
   say "The shell and OS access: OFF unless you turn them on."
-  say "  The shell is the SH verb and \"!\", which run Linux commands.  OS access is OS.EXECUTE in a program, the embedded Python,"
-  say "  nano and micro, and files and directories outside the account by pathname.  Either lets whoever signs in do what your"
+  say "  The shell is the SH verb, which runs Linux commands.  OS access is OS.EXECUTE in a program, the embedded Python,"
+  say "  micro, and files and directories outside the account by pathname.  Either lets whoever signs in do what your"
   say "  Linux user can do.  You can change this later: type ADMIN, then set.os.access."
   if [ "$upgrade" -eq 1 ]; then
     say "  Until this release the shell and OS access were always on; now they are off unless you say yes."
   fi
-  if os_yn "Turn on the shell (sh and !) for your SD account?"; then sh_yes=1; fi
-  if os_yn "Turn on OS access (os.execute, outside files, Python, nano, micro) for your SD account?"; then os_yes=1; fi
+  if os_yn "Turn on the shell (SH) for your SD account?"; then sh_yes=1; fi
+  if os_yn "Turn on OS access (os.execute, outside files, Python, micro) for your SD account?"; then os_yes=1; fi
   os_access="$(os_access_word "$sh_yes" "$os_yes")"
 }
 # END os_access

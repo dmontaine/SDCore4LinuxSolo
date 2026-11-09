@@ -140,13 +140,7 @@ def main():
             % (len(records), exempt))
     run.note("S1 no quoted $SAVEDLISTS / $HOLD VOC-id literal left in installed"
              " GPL.BP code", [], hits)
-    for d in ("newvoc", "voc_template"):
-        # edit.list since the command rename; a missing file fails S2, so
-        # reading the old spelling would report the rename as a regression.
-        p = os.path.join(V.SDSYS, d, "edit.list")
-        txt = open(p, errors="replace").read() if os.path.exists(p) else ""
-        run.note("S2 %s/EDIT.LIST edits $savedlists" % d, True,
-                 "ED $savedlists" in txt)
+    # (S2, the EDIT.LIST record, went with the verb on 27 Oct 26: S.87 batch 10)
     tdir = os.listdir(os.path.join(V.SDSYS, "voc_template"))
     run.note("S2b voc_template ships $hold and not $HOLD", (True, False),
              ("$hold" in tdir, "$HOLD" in tdir))
@@ -154,13 +148,13 @@ def main():
     # THE COMMAND IDS (the port's 1a88360).  Which ids keep upper case, and why:
     # F/Q file pointers (file names, a later category), T tier lists (data),
     # X, and $ % @ records.  Everything else in NEWVOC / VOC_TEMPLATE /
-    # SD.VOCLIB must be lower case.
+    # (SD.VOCLIB was a third directory here until it was retired, 28 Oct 26.)
     def vtype(p):
         l1 = open(p, errors="replace").readline()
         t = l1[:1].upper()
         return l1[:2].upper() if t == "P" else t
     upper_cmds, counted = [], 0
-    for d in ("newvoc", "voc_template", "sd.voclib"):
+    for d in ("newvoc", "voc_template"):
         dp = os.path.join(V.SDSYS, d)
         for n in sorted(os.listdir(dp)):
             p = os.path.join(dp, n)
@@ -172,7 +166,7 @@ def main():
                     upper_cmds.append("%s/%s" % (d, n))
     run.say("  command-type records examined: %d" % counted)
     run.note("S6 command records were found (not the null case)", True, counted > 700)
-    run.note("S7 no command id in NEWVOC/VOC_TEMPLATE/SD.VOCLIB has an upper-case"
+    run.note("S7 no command id in NEWVOC/VOC_TEMPLATE has an upper-case"
              " letter", [], upper_cmds[:10])
     # 18 Sep 26 - S8'S SUBJECT IS GONE WITH S.25 (the owner's teardown):
     # sdsys/tier.policy and its two lists (omit.standard, add.administrator)
@@ -196,10 +190,10 @@ def main():
 
     # THE F/Q FILE-POINTER IDS (the port's 0394af4).  Ids only: fields 2 and 3
     # are paths on disk and are NOT renamed by this category.
-    PTRS = {"newvoc": ["voc", "newvoc", "syscom", "dict.dict", "md",
-                       "sd.accounts", "sd.voclib"],
-            "voc_template": ["voc", "newvoc", "syscom", "dict.dict", "md",
-                             "sd.accounts", "sd.voclib", "accounts",
+    PTRS = {"newvoc": ["voc", "newvoc", "syscom", "dict.dict",
+                       "sd.accounts"],
+            "voc_template": ["voc", "newvoc", "syscom", "dict.dict",
+                             "sd.accounts", "accounts",
                              "messages", "qfile"]}
     wrong = []
     for d, ids in PTRS.items():
@@ -210,9 +204,9 @@ def main():
     run.note("S10 the F/Q pointer ids are shipped lower case, and not upper", [], wrong)
     qt = []
     for d in PTRS:
-        for i, tgt in (("md", "voc"), ("sd.accounts", "accounts")):
+        for i, tgt in (("sd.accounts", "accounts"),):
             # A MISSING RECORD IS A FAILED ROW, NOT A TRACEBACK - watched
-            # crashing here on the pre-rename install, where md is MD.
+            # crashing here on the pre-rename install, where the record was upper case.
             p = os.path.join(V.SDSYS, d, i)
             if not os.path.exists(p):
                 qt.append("%s/%s absent" % (d, i))
@@ -223,7 +217,7 @@ def main():
     run.note("S11 the Q pointers name their targets lower case", [], qt)
     tc = readtxt(os.path.join(V.SDSYS, "voc_template", "third.compile"))
     run.note("S12 third.compile's CD targets are lower case", True,
-             all(("CD %s" % t) in tc for t in ("accounts", "dict.dict", "voc")))
+             all(("compile.dict %s" % t) in tc for t in ("accounts", "dict.dict", "voc")))
     # ***THE TWO THAT MUST STAY UPPER.*** A future sweep lowering either is a
     # defect: DELETEF's guard upcases only its left side, and SETFILE's default
     # covers accounts from before the rename through exact-then-downcase.
@@ -240,7 +234,7 @@ def main():
     # ext4 both spellings could exist side by side, so "lower present" alone is
     # not the rename: the upper spelling must be ABSENT too.  $HOLD, $HOLD.DIC
     # and VOC are the SDSYS account's own (D3); GPL.BP and friends are D2.
-    D1 = ["newvoc", "voc_template", "messages", "syscom", "sd.voclib",
+    D1 = ["newvoc", "voc_template", "messages", "syscom",
           "accounts", "$ipc", "$map", "$map.dic", "voc.dic", "accounts.dic",
           "dict.dic", "dir_dict"]
     top = set(os.listdir(V.SDSYS))
@@ -405,16 +399,11 @@ def main():
     run.note("U4 and not in upper case", False,
              V.says(s.text, r"^\s*\d+\s+%s\s*$" % re.escape(user.upper())))
 
-    # ***CASE INVERSION IS OFF WITHOUT THE LOGIN PARAGRAPH (13 Sep 2026).***  C
-    # started every session inverted and LOGIN set it again; only the VOC login
-    # paragraph's PTERM CASE NOINVERT turned it off - measured on 80bd15c: with
-    # the paragraph set aside, "Case inversion: On".  THE RESTORE IS THE RISK:
-    # measured the same day, a restore session with inversion on had its
-    # record ids flipped and copied nothing.  So every session here STARTS with
-    # PTERM CASE NOINVERT, which arrives intact either way (verbs and keywords
-    # fold), and the restore is checked against the paragraph's own text.
+    # THE LOGIN PARAGRAPH IS SET ASIDE AND PUT BACK (13 Sep 2026; 27 Oct 2026: case inversion, which this once also
+    # measured, is gone, so the sessions no longer start with PTERM CASE NOINVERT and row I2 went).  THE RESTORE IS THE
+    # RISK: the restore is checked against the paragraph's own text.
     save = "zzlcnlogin"
-    pre = sd("the login paragraph before", ["PTERM CASE NOINVERT", "CT VOC login %s" % save])
+    pre = sd("the login paragraph before", ["CT VOC login %s" % save])
     body_before = re.findall(r"^\s*\d+: .*$", pre.text.split("VOC login", 1)[-1].split("Record", 1)[0],
                              re.MULTILINE)
     run.note("I0 the account has a login paragraph and no %s" % save, (True, True),
@@ -422,18 +411,15 @@ def main():
     if len(body_before) > 0 and V.says(pre.text, r"^Record '%s' not found$" % save):
         try:
             s = sd("set the login paragraph aside",
-                   ["PTERM CASE NOINVERT", "COPY FROM VOC login,%s" % save, "DELETE VOC login"])
+                   ["COPY FROM VOC login,%s" % save, "DELETE VOC login"])
             run.note("I1 the paragraph was set aside (copied, then deleted)", True,
                      V.says(s.text, r"^1 record\(s\) copied\.") and
                      V.says(s.text, r"^1 record\(s\) deleted"))
-            s = sd("a session with no login paragraph", ["PTERM DISPLAY"])
-            run.note("I2 THE ROW: with no login paragraph, case inversion is Off", True,
-                     V.says(s.text, r"^\s*Case inversion: Off\s*$"))
         finally:
             s = sd("restore the login paragraph",
-                   ["PTERM CASE NOINVERT", "COPY FROM VOC %s,login" % save,
+                   ["COPY FROM VOC %s,login" % save,
                     "DELETE VOC %s" % save])
-            post = sd("the login paragraph after", ["PTERM CASE NOINVERT", "CT VOC login %s" % save])
+            post = sd("the login paragraph after", ["CT VOC login %s" % save])
             body_after = re.findall(r"^\s*\d+: .*$",
                                     post.text.split("VOC login", 1)[-1].split("Record", 1)[0],
                                     re.MULTILINE)
@@ -448,7 +434,7 @@ def main():
         if first:
             s = sd("save a list", ["SELECT VOC SAMPLE 2", "SAVE.LIST %s" % LIST])
             run.note(prefix + "a SAVE.LIST saved 2", True, V.says(s.text, SAVED))
-        s = sd("get the list", ["GET.LIST %s" % LIST, "CLEARSELECT"])
+        s = sd("get the list", ["GET.LIST %s" % LIST, "CLEAR.SELECT"])
         run.note(prefix + "b GET.LIST got 2", True, V.says(s.text, GOT))
         run.note(prefix + "c no runtime fault", False, V.says(s.text, FAULT))
 

@@ -18,9 +18,13 @@
 * 
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
+* 28 Oct 26 dm  S.87: the call of $BCOMP no longer passes the is.ctype argument (the C dictionary item type is gone).
+* 27 Oct 26 dm  S.87 batch 13: the command it builds says CATALOG (the verb CATALOGUE is gone).
+* 27 Oct 26 dm  S.87 batch 7: OPTION KEEP.OLD.OBJECT is gone; a failed compilation leaves no object code, as it did with the option off.
 * 18 Oct 26 dm  Solo carry A (owner's ruling B): the object file asks !voc_guard before any object or listing record is deleted or written.
 * 10 Oct 26 dm  1.2-0 bundle A-1: the NO.QUERY option (openQM ref 27), passed to
-*               CATALOGUE; BCOMP also hands it back from $CATALOGUE and
+*               CATALOG; BCOMP also hands it back from $CATALOG and
 *               $BASIC.OPTIONS in the catalogue mode (ref 191).
 * 13 Sep 26 dm  The object file is named from the VOC id that answered the open
 *               and its suffix follows that id's case, so BASIC bp X makes
@@ -77,7 +81,7 @@ $define max.levels   10
    compile.only.changed.records = @false
 
    loop
-      call @parser(PARSER$MFILE, token.type, token, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
    until token.type = PARSER$END
       begin case
          case keyword = KW$CHANGED
@@ -334,19 +338,14 @@ compile:
 
    * Remove any existing object and listing records
 
-   * 15 Oct 26 (openQM KEEP.OLD.OBJECT): with the option on, the object code that is there is kept in hand and put back if this
-   * compilation fails
-
    recordlocku out.f, record.name
-   old.object = ''
-   if option(OPT.KEEP.OLD.OBJECT) then read old.object from out.f, record.name else old.object = ''
    delete out.f, record.name
 
    listing.record.name = record.name : LISTING.SUFFIX
    recordlocku out.f, listing.record.name
    delete out.f, listing.record.name
 
-   call $bcomp(source.file.name, src.f, record.name, @false, prog.source, 
+   call $bcomp(source.file.name, src.f, record.name, prog.source,
                output.file.name, listing.record.name,
                compiler.flags, 1,
                catalogue.name, catalogue.mode,
@@ -359,16 +358,11 @@ compile:
       write object.code to out.f, record.name
 
       if catalogue.name # '' then
-         cat.cmd = 'CATALOGUE ' : source.file.name : ' ' : catalogue.name : ' ' : record.name : ' ' : catalogue.mode
-         * NO.QUERY on the BASIC command, or on the $CATALOGUE directive or
+         cat.cmd = 'CATALOG ' : source.file.name : ' ' : catalogue.name : ' ' : record.name : ' ' : catalogue.mode
+         * NO.QUERY on the BASIC command, or on the $CATALOG directive or
          * the CATALOGUE entry of $BASIC.OPTIONS (it is then in catalogue.mode)
          if no.query and not(index(upcase(catalogue.mode), 'NO.QUERY', 1)) then cat.cmd := ' NO.QUERY'
          execute cat.cmd
-      end
-   end else
-      if old.object # '' then
-         recordlocku out.f, record.name
-         write old.object to out.f, record.name
       end
    end
 

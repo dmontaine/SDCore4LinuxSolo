@@ -34,10 +34,17 @@ def say(ok, name, saw):
         fails += 1
 
 
+LIST = os.path.join(HERE, "retired-sdsys.txt")
+
+
 def read_list(path):
-    text = open(path, encoding="utf-8").read()
-    m = re.search(r"for f in ([^;]+); do\s*\n\s*rm -f \"\$H/\$f\"\s*\n\s*done", text)
-    return m.group(1).split() if m else []
+    # 9 Nov 26 (Solo carry 22): the list moved from solo-stage.sh's for loop to gplbld/retired-sdsys.txt, one path a line.  solo-stage.sh must
+    # still read that file in its upgrade branch, or the list would be ignored: an empty answer (check 1) when it does not.
+    stage = open(STAGE, encoding="utf-8").read()
+    if not re.search(r'retired_list="\$sd64/gplbld/retired-sdsys\.txt"[\s\S]{0,400}?rm -f -- "\$H/\$f"[\s\S]{0,40}?done < "\$retired_list"', stage):
+        return []
+    lines = open(path, encoding="utf-8").read().splitlines()
+    return [ln for ln in lines if ln.strip() and not ln.startswith("#")]
 
 
 def judge(files, shipped_in_tag):
@@ -52,21 +59,26 @@ def judge(files, shipped_in_tag):
 
 
 def shipped_in_tag(f):
-    r = subprocess.run(["git", "-C", SD64, "cat-file", "-e", "%s:sdb_ai/sd64/sdsys/%s" % (TAG, f)],
-                       capture_output=True)
-    return r.returncode == 0
+    # Shipped in the release tag, or (9 Nov 26) shipped by a later Dev commit and deleted since: the file is in HEAD (removed in the
+    # work tree, not yet committed) or git records its deletion.  A typo is none of these.
+    path = "sdb_ai/sd64/sdsys/%s" % f
+    for ref in (TAG, "HEAD"):
+        if subprocess.run(["git", "-C", SD64, "cat-file", "-e", "%s:%s" % (ref, path)], capture_output=True).returncode == 0:
+            return True
+    r = subprocess.run(["git", "-C", SD64, "log", "-1", "--format=%h", "--diff-filter=D", "--", path], capture_output=True, text=True)
+    return r.stdout.strip() != ""
 
 
 def main():
     print("test-retired-units inputs:")
-    print("  list read from : %s" % STAGE)
+    print("  list read from : %s (read by %s)" % (LIST, STAGE))
     if subprocess.run(["git", "-C", SD64, "rev-parse", "--verify", "-q", TAG + "^{commit}"],
                       capture_output=True).returncode != 0:
         print("REFUSED: the release tag %s is not in this repository, so (3) cannot be judged" % TAG)
         return 2
     tag_commit = subprocess.run(["git", "-C", SD64, "rev-parse", "--short", TAG + "^{commit}"],
                                 capture_output=True, text=True).stdout.strip()
-    files = read_list(STAGE)
+    files = read_list(LIST)
     print("  names          : %s" % (" ".join(files) or "(none found)"))
     print("  release tag    : %s = %s" % (TAG, tag_commit))
     if "--selftest" in sys.argv:

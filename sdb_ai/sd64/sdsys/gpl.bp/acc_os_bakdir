@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 02 Oct 26 dm Written for S.53 / LSOLO 25 (per-OS helper; signature agreed with SD
 *              Core for Windows by mail, 2026-10-02T2000 and T2030).  LINUX SOLO ONLY:
 *              the full product has its own file of this name (it needs a root step
@@ -74,11 +75,11 @@ $include int$keys.h
          if len(d) > 1 and d[len(d),1] = '/' then d = d[1, len(d) - 1]
          gosub check.path
          if why # '' then
-            err = 11914:@vm:d:@vm:why
+            err = 14988:@vm:d:@vm:why
             return
          end
          if index(conf, "'", 1) then
-            err = 11913:@vm:conf:' has a single quote in its name'
+            err = 14987:@vm:conf:' has a single quote in its name'
             return
          end
 
@@ -87,7 +88,7 @@ $include int$keys.h
             out = ''
             os.execute "mkdir -p -m 0700 '":d:"' 2>&1" capturing out
             if not(ospath(d, OS$EXISTS)) then
-               err = 11911:@vm:d:@vm:convert(@fm, ' ', out)
+               err = 14985:@vm:d:@vm:convert(@fm, ' ', out)
                return
             end
          end
@@ -97,12 +98,12 @@ $include int$keys.h
          openseq probe overwrite to pf else
 *           ELSE is taken for a file that did not exist (and is then created); only a status is a failure.
             if status() then
-               err = 11912:@vm:d:@vm:'status ':status()
+               err = 14986:@vm:d:@vm:'status ':status()
                return
             end
          end
          writeseq 'probe' to pf else null
-         closeseq pf
+         close pf
          out = ''
          os.execute "rm -f '":probe:"' 2>&1" capturing out
 
@@ -128,17 +129,17 @@ $include int$keys.h
                   last = trim(t[11,999])
                end
             repeat
-            closeseq f
+            close f
          end
          if stat # 0 or n # 1 or last # d then
-            err = 11913:@vm:convert(@fm, ' ', out):' (the file holds ':n:' BACKUPDIR line(s))'
+            err = 14987:@vm:convert(@fm, ' ', out):' (the file holds ':n:' BACKUPDIR line(s))'
             return
          end
          dir = d
          return
 
       case 1
-         err = 11913:@vm:'unknown mode ':mode
+         err = 14987:@vm:'unknown mode ':mode
          return
    end case
 
@@ -153,9 +154,9 @@ read.conf:
          t = trim(line)
          if t[1,10] = 'BACKUPDIR=' then saved = trim(t[11,999])   ;* the last one wins
       repeat
-      closeseq f
+      close f
    end else
-      err = 11913:@vm:conf:' cannot be read (status ':status():')'
+      err = 14987:@vm:conf:' cannot be read (status ':status():')'
    end
    return
 

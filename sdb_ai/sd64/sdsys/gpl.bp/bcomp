@@ -18,6 +18,26 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone from the compiler: the is.ctype argument of $BCOMP (callers: basic, bbproc, gplbld/COMP_PCODE), HDR.CTYPE, err.ctype and message 2994.
+* 28 Oct 26 dm  S.87: the PROC leftovers PROCREAD, PROCWRITE, @PIB, @SIB, @POB and @SOB are gone (opcode 0xCF9A reserved).
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statement names (write CLOSE and EQUATE); every SD program, test and guide example was rewritten.
+* 28 Oct 26 dm  S.87: the function forms EXTRACT(), REPLACE(), INSERT(), DELETE() and SUBR() are gone (use <f,v>, INS, DEL, CALL / DEFFUN); the opcodes stay.
+* 28 Oct 26 dm  S.87: $MODE TIME.MS and $MODE DEFAULT.UNASS.ARGS are gone (bits reserved, blank in mode.names); a default argument value needs VAR.ARGS (message 11274 says so).
+* 27 Oct 26 dm S.87 batch 16: the statement KEEP.SELECT (name and handler row st.keepselect, and the program keepsel) is gone with OPTION CLEAR.SELECT, which was all it served.
+* 27 Oct 26 dm S.87 batch 13: the statements ROOT, KEY( and BSCAN (with the programs rootidx, keyop, bscan) and the Pick style CALL "file name" are gone.
+* 27 Oct 26 dm S.87 batch 13: the functions ADDS, SUBS, MULS, DIVS, IS.ALNUM .. IS.SPACE, LEFT, RIGHT and MD5 are gone (their name and handler rows, and XFUN rows 5 to 12).
+* 27 Oct 26 dm S.87 batch 13: the statement GO / GO TO is gone (write GOTO; ON ... GOTO is the only form of ON), and # no longer starts a compiler directive (write $IFDEF, $DEFINE).
+* 27 Oct 26 dm S.87 batch 13: the @ variables @AM, @SVM, @USER, @USER.NO and @FILENAME are gone (@FM, @SM, @LOGNAME, @USERNO and @FILE.NAME stay).
+* 27 Oct 26 dm  S.87 batch 12: the statement INPUTCLEAR is gone (write CLEARINPUT; both compiled to the same code).
+* 27 Oct 26 dm  S.87 batch 11: the second names DQUOTE, DQUOTES, SWAP and XLATE are gone (write QUOTE, QUOTES, CHANGE and TRANS); each was a row in the intrinsics and handler lists, no opcode.
+* 27 Oct 26 dm  S.87 batch 9: the modes OPEN.FAIL.ZERO.FVAR, PICK.READNEXT and EXECUTE.CLEARLIST are gone (bits 26, 27 and 28 reserved); OPEN, READNEXT and EXECUTE compile as they did without them.
+* 27 Oct 26 dm  S.87 batch 5: emit.errmsg.args (Pick style STOP / ABORT arguments, called by nothing since the ERRMSG family went in 2024) and the label st.stopm are gone.
+* 27 Oct 26 dm  S.87 batch 3, second spellings and forms gone (the owner's emulation survey): the statements $INSERT, INCLUDE (without the $), COM, DIMENSION, REDIMENSION,
+*               ENTER (with $MODE PICK.ENTER, bit 14 now reserved), PERFORM, PRINTERR, REMARK, RQM, SUB, TCLREAD; EXECUTE ... SETTING and PASSLIST with no variable; INPUT ... FOR and
+*               TIMEOUT (WAITING stays); OPENTEMP ... ECS; the bracketed Pick form of LOCATE; the functions EREPLACE, SENTENCE(), SWAPMARKS and TERMINFO.EX; and @SYSTEM.SET.
+*               The conversions MCD, MCDX, MCX and MCXD went from the kernel on the same day.  INPUTERR is the one name of the screen message statement (st.inputerr).
+* 27 Oct 26 dm  Seven $MODE names are gone (the owner's emulation survey, S.87 batch 2): PRCLOSE.DEFAULT.0, UNASSIGNED.COMMON, NO.CASE.INVERT, OPTIONAL.THEN.ELSE, IMPLIED.STOP,
+*               EXCEPTION.SAVE.STACK and CONDITIONAL.STATEMENTS.  A name the compiler no longer knows is refused (2842).  Their bit positions stay reserved with a blank name.
 * 24 Oct 26 dm  SOLO CARRY 18: the functions ACCOUNT.PATH(name) and VOCPATH(file {, dict}) (QM4 gaps bundle Q-4) in the builtin function table, as Core has them; their programs are
 *               !accountpath and !vocpathfn (both ask K$PATH.OK, Solo's OS switch).
 * 22 Oct 26 dm  SOLO CARRY 13: the SCREEN.NAMES / SCREEN.DEFS table is Core's (the slider, selector, container, viewport, in, move, delete and scroll
@@ -104,7 +124,7 @@
 * *VARS       Pseudo-common for persistent variable array in object.
 *
 * Other special name formats:
-* sss:xxx     Local variable xxx for LOCAL SUB sss
+* sss:xxx     Local variable xxx for LOCAL SUBROUTINE sss
 *
 * Internally generated label names:
 * *n          Get/Set/method routine n
@@ -114,13 +134,12 @@
 * START-CODE
 
 $internal
-subroutine $bcomp(source.file.name,     ;* File name, null for C-type dict item
+subroutine $bcomp(source.file.name,     ;* File name
                   src.f,                ;* File var to source file
                   record.name,          ;* Record
-                  is.ctype,             ;* Is this a C-type?
                   prog.source,          ;* Source text to compile
                   output.file.name,     ;* Target file name
-                  listing.record.name,  ;* Listing record (null for C-type)
+                  listing.record.name,  ;* Listing record
                   compiler.flags,
                   compiler.depth,       ;* Recursive compilation depth
                   catalogue.name,       ;* Out: Catalogue under this name...
@@ -144,56 +163,32 @@ $define max.levels   10
 
 
 * Values of mode (Bit positions)
+* 27 Oct 26 dm - S.87 batch 17: the modes of the other products are retired (their positions stay RESERVED, blank in mode.names): bits 2, 3, 4, 6, 7, 8, 9, 10, 11,
+*   12, 13, 16, 18, 30 and 31 of mode (STRING.LOCATE, COMPOSITE.READNEXT, SELECTV, FOR.STORE.BEFORE.TEST, CASE.SENSITIVE, PICK.MATRIX, PICK.JUMP.RANGE, PICK.READ,
+*   OPTIONAL.FINAL.END, PICK.SUBSTR, COMPATIBLE.APPEND, PICK.SUBSTR.ASSIGN, HEADING.NO.EJECT, WRITE.DELETE.THEN.ELSE, STDFIL) and bits 0, 1, 2, 3, 6, 10 and 12 of mode2
+*   (CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP, PICK.CONVERT, PICK.SELECT, STDFIL.SHARED, AUTOLOCK).
 $define M.UV.LOCATE             0
 $define M.PICK.ERRMSG           1
-$define M.STRING.LOCATE         2
-$define M.COMPOSITE.READNEXT    3
-$define M.SELECTV               4
-$define M.PRCLOSE.DEFAULT.0     5
-$define M.FOR.STORE.BEFORE.TEST 6
-$define M.CASE.SENSITIVE        7
-$define M.PMATRIX               8
-$define M.PICK.JUMP.RANGE       9
-$define M.PICK.READ            10
-$define M.OPTIONAL.FINAL.END   11
-$define M.PICK.SUBSTR          12
-$define M.COMPAT.APPEND        13
-$define M.PICK.ENTER           14
+* 27 Oct 26 dm - the modes marked REMOVE in the owner's emulation survey are retired: bits 5, 17, 20, 21, 22 and 25 of mode and bit 4 of mode2 (PRCLOSE.DEFAULT.0,
+*   UNASSIGNED.COMMON, NO.CASE.INVERT, OPTIONAL.THEN.ELSE, IMPLIED.STOP, EXCEPTION.SAVE.STACK, CONDITIONAL.STATEMENTS).  The positions stay RESERVED (a blank name in
+*   mode.names), so no other mode changes its bit; an object already compiled with one of them keeps what it was compiled with.
+* 27 Oct 26 dm - bit 14 (PICK.ENTER) is retired with the ENTER statement (S.87 batch 3): the position stays RESERVED, blank in mode.names
 $define M.TRAP.UNUSED          15
-$define M.PICK.SUBSTR.ASSIGN   16
-$define M.UNASSIGNED.COMMON    17
 ** Begin New Modes **
-$define M.HEADING.NO.EJECT     18
 $define M.NO.ECHO.DATA         19
-$define M.NO.CASE.INVERT       20
-$define M.OPTIONAL.THEN.ELSE   21; *rdm
-$define M.IMPLIED.STOP         22  ;* 10 Oct 26 dm
 $define M.STRICT.EQUATE        23  ;* 10 Oct 26 dm
-$define M.TIME.MS              24  ;* 12 Oct 26 dm - openQM 581: TIME() returns seconds to the millisecond (a float)
-$define M.EXCEPTION.SAVE.STACK 25  ;* 12 Oct 26 dm - openQM 355: every CATCH behaves as if SAVING.STACK were given
-$define M.OPEN.FAIL.ZERO.FVAR  26  ;* 14 Oct 26 dm - openQM 514: a failed OPEN sets the file variable to 0, not unassigned
-$define M.PICK.READNEXT        27  ;* 14 Oct 26 dm - openQM 418: READNEXT leaves the id variable alone when it takes ELSE
-$define M.EXECUTE.CLEARLIST    28  ;* 14 Oct 26 dm - openQM 521: EXECUTE clears list 0 first, unless PASSLIST is given
+* 28 Oct 26 dm - bit 24 (TIME.MS) is retired (S.87): the position stays RESERVED, blank in mode.names
+* 27 Oct 26 dm - bits 26, 27 and 28 (OPEN.FAIL.ZERO.FVAR, PICK.READNEXT, EXECUTE.CLEARLIST) are retired (S.87 batch 9): the positions stay RESERVED, blank in mode.names
 $define M.PARTIAL.EXPRESSIONS  29  ;* 14 Oct 26 dm - openQM 417: AND and OR stop evaluating when the result is known
-$define M.WRITE.DELETE.THEN.ELSE 30  ;* openQM 368 / 496: WRITE, WRITEU, MATWRITE, MATWRITEU and DELETE take THEN / ELSE; ELSE is a trigger failure
-$define M.STDFIL               31  ;* 14 Oct 26 dm - openQM 17: the default file variable (per program; see stdfil.var.load)
 ** End New Modes
 
 * The mode word is full (bit 31 is STDFIL), so modes added after it are bits of a second word, mode2.  A name's
 * position in mode.names says which word: positions 1 to 32 are bits 0 to 31 of mode, 33 and up are bits 0 up of mode2.
 * 15 Oct 26 dm - QM4 gaps bundle Q-16
-$define M2.CHANGE.NO.OVERLAP    0  ;* CHANGE, EREPLACE and SWAP do not overlap occurrences (OP.STROVL, op_chnge.c)
-$define M2.COUNT.OVERLAP        1  ;* COUNT and COUNTS find overlapping occurrences
-$define M2.INDEX.OVERLAP        2  ;* INDEX and INDEXS find overlapping occurrences
-$define M2.PICK.CONVERT         3  ;* CONVERT(source, from, to): the Pick order of arguments (OP.ROLL3 puts them where the function wants them)
-$define M2.CONDITIONAL.STATEMENTS 4 ;* accepted and does nothing: SD always allows the statements of cond.statements as WHILE / UNTIL conditions
 $define M2.TRAP.UNUSED.MAIN     5  ;* TRAP.UNUSED, for variables assigned in the program itself and not in an include record
-$define M2.PICK.SELECT          6  ;* SELECTV moves an active default list to its target (P_PICK_SEL, op_selectv)
 $define M2.EXPLICIT             7  ;* a scalar must be named in a DIM statement before it is used (explicit.check, dim.declare.scalar)
-$define M2.DEFAULT.UNASS.ARGS   8  ;* an argument with a default value takes it when the caller passed it unassigned (arg.defaults.emit)
+* 28 Oct 26 dm - mode2 bit 8 (DEFAULT.UNASS.ARGS) is retired (S.87): the position stays RESERVED, blank in mode.names
 $define M2.NON.DURABLE.TXN      9  ;* 15 Oct 26 dm - COMMIT of a nested transaction hands its updates to the parent (emit.txn.commit)
-$define M2.STDFIL.SHARED       10  ;* 16 Oct 26 dm - QM4 gap 225: the default file variable is one per command level (see stdfil.shared.make)
-$define M2.AUTOLOCK            12  ;* 16 Oct 26 dm - QM4 gap 213: WRITE, MATWRITE and DELETE lock a record they do not hold a lock on (P_AUTOLOCK, op_dio3.c)
 $define M2.DEBUG.EQUATES       11 ;* 16 Oct 26 dm - QM4 gap 218: a debug object also holds the equate and $DEFINE tokens (emit.equate.table)
 
 * Corresponding names, value delimited, first name is bit 0 of mode flags
@@ -202,59 +197,55 @@ mode.names = "UV.LOCATE"
 * 20240728 mab mode.names := @VM:"PICK.ERRMSG"
 * rev 1.0-1 hot fix add empty VM  for PICK.ERRMSG
 mode.names := @VM
-mode.names := @VM:"STRING.LOCATE"
-mode.names := @VM:"COMPOSITE.READNEXT"
-mode.names := @VM:"SELECTV"
-mode.names := @VM:"PRCLOSE.DEFAULT.0"
-mode.names := @VM:"FOR.STORE.BEFORE.TEST"
-mode.names := @VM:"CASE.SENSITIVE"
-mode.names := @VM:"PICK.MATRIX"
-mode.names := @VM:"PICK.JUMP.RANGE"
-mode.names := @VM:"PICK.READ"
-mode.names := @VM:"OPTIONAL.FINAL.END"
-mode.names := @VM:"PICK.SUBSTR"
-mode.names := @VM:"COMPATIBLE.APPEND"
-mode.names := @VM:"PICK.ENTER"
+mode.names := @VM                    ;* retired 27 Oct 26 (was STRING.LOCATE)
+mode.names := @VM                    ;* retired 27 Oct 26 (was COMPOSITE.READNEXT)
+mode.names := @VM                    ;* retired 27 Oct 26 (was SELECTV)
+mode.names := @VM                    ;* 5, retired 27 Oct 26 (was PRCLOSE.DEFAULT.0)
+mode.names := @VM                    ;* retired 27 Oct 26 (was FOR.STORE.BEFORE.TEST)
+mode.names := @VM                    ;* retired 27 Oct 26 (was CASE.SENSITIVE)
+mode.names := @VM                    ;* retired 27 Oct 26 (was PICK.MATRIX)
+mode.names := @VM                    ;* retired 27 Oct 26 (was PICK.JUMP.RANGE)
+mode.names := @VM                    ;* retired 27 Oct 26 (was PICK.READ)
+mode.names := @VM                    ;* retired 27 Oct 26 (was OPTIONAL.FINAL.END)
+mode.names := @VM                    ;* retired 27 Oct 26 (was PICK.SUBSTR)
+mode.names := @VM                    ;* 13, retired 27 Oct 26 (was COMPATIBLE.APPEND)
+mode.names := @VM                    ;* 14, retired 27 Oct 26 (was PICK.ENTER)
 mode.names := @VM:"TRAP.UNUSED"
-mode.names := @VM:"PICK.SUBSTR.ASSIGN"
-mode.names := @VM:"UNASSIGNED.COMMON"
-mode.names := @VM:"HEADING.NO.EJECT"
+mode.names := @VM                    ;* retired 27 Oct 26 (was PICK.SUBSTR.ASSIGN)
+mode.names := @VM                    ;* 17, retired 27 Oct 26 (was UNASSIGNED.COMMON)
+mode.names := @VM                    ;* retired 27 Oct 26 (was HEADING.NO.EJECT)
 mode.names := @VM:"NO.ECHO.DATA"
-mode.names := @VM:"NO.CASE.INVERT"
-mode.names := @VM:"OPTIONAL.THEN.ELSE"
-mode.names := @VM:"IMPLIED.STOP"
+mode.names := @VM                    ;* 20, retired 27 Oct 26 (was NO.CASE.INVERT)
+mode.names := @VM                    ;* 21, retired 27 Oct 26 (was OPTIONAL.THEN.ELSE)
+mode.names := @VM                    ;* 22, retired 27 Oct 26 (was IMPLIED.STOP)
 mode.names := @VM:"STRICT.EQUATE"
-mode.names := @VM:"TIME.MS"
-mode.names := @VM:"EXCEPTION.SAVE.STACK"
-mode.names := @VM:"OPEN.FAIL.ZERO.FVAR"
-mode.names := @VM:"PICK.READNEXT"
-mode.names := @VM:"EXECUTE.CLEARLIST"
+mode.names := @VM                    ;* 24, retired 28 Oct 26 (was TIME.MS)
+mode.names := @VM                    ;* 25, retired 27 Oct 26 (was EXCEPTION.SAVE.STACK)
+mode.names := @VM                    ;* 26, retired 27 Oct 26 (was OPEN.FAIL.ZERO.FVAR)
+mode.names := @VM                    ;* 27, retired 27 Oct 26 (was PICK.READNEXT)
+mode.names := @VM                    ;* 28, retired 27 Oct 26 (was EXECUTE.CLEARLIST)
 mode.names := @VM:"PARTIAL.EXPRESSIONS"
-mode.names := @VM:"WRITE.DELETE.THEN.ELSE"
+mode.names := @VM                    ;* retired 27 Oct 26 (was WRITE.DELETE.THEN.ELSE)
 * STDFIL is bit 31 and is set by index: any name for bits 22 to 30 must be
 * appended ABOVE this line, never after it.
-mode.names<1,32> = "STDFIL"
+mode.names<1,32> = ""                   ;* retired 27 Oct 26 (was STDFIL)
 * Names for the bits of mode2, in the order of the M2. constants above (position 33 is bit 0)
-mode.names<1,33> = "CHANGE.NO.OVERLAP"
-mode.names<1,34> = "COUNT.OVERLAP"
-mode.names<1,35> = "INDEX.OVERLAP"
-mode.names<1,36> = "PICK.CONVERT"
-mode.names<1,37> = "CONDITIONAL.STATEMENTS"
+mode.names<1,33> = ""                   ;* retired 27 Oct 26 (was CHANGE.NO.OVERLAP)
+mode.names<1,34> = ""                   ;* retired 27 Oct 26 (was COUNT.OVERLAP)
+mode.names<1,35> = ""                   ;* retired 27 Oct 26 (was INDEX.OVERLAP)
+mode.names<1,36> = ""                   ;* retired 27 Oct 26 (was PICK.CONVERT)
+mode.names<1,37> = ""                   ;* mode2 bit 4, retired 27 Oct 26 (was CONDITIONAL.STATEMENTS)
 mode.names<1,38> = "TRAP.UNUSED.MAIN"
-mode.names<1,39> = "PICK.SELECT"
+mode.names<1,39> = ""                   ;* retired 27 Oct 26 (was PICK.SELECT)
 mode.names<1,40> = "EXPLICIT"
-mode.names<1,41> = "DEFAULT.UNASS.ARGS"
+mode.names<1,41> = ""                   ;* mode2 bit 8, retired 28 Oct 26 (was DEFAULT.UNASS.ARGS)
 mode.names<1,42> = "NON.DURABLE.TXN"
-mode.names<1,43> = "STDFIL.SHARED"
+mode.names<1,43> = ""                   ;* retired 27 Oct 26 (was STDFIL.SHARED)
 mode.names<1,44> = "DEBUG.EQUATES"
-mode.names<1,45> = "AUTOLOCK"
+mode.names<1,45> = ""                   ;* retired 27 Oct 26 (was AUTOLOCK)
 *****************************************************************************
 
-   * If this is a C-type, the {name} construct refers to the dictionary
-   * holding the source. Otherwise, the {name} construct is not available
-   * until the $DICT directive is used.
-
-   if is.ctype then dict.f = src.f
+   * The {name} construct is not available until the $DICT directive is used.
 
    object.code = ''
 
@@ -318,8 +309,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    cond.mode = @false         ;* 12 Oct 26 dm - openQM 206: a THEN/ELSE statement is being compiled as a WHILE / UNTIL condition
    cond.statements = "READ":@fm:"READU":@fm:"READL":@fm:"READV":@fm:"READVU":@fm:"READVL":@fm:"READNEXT"
    cond.statements := @fm:"READSEQ":@fm:"READBLK":@fm:"READLIST":@fm:"OPEN":@fm:"OPENPATH":@fm:"OPENSEQ"
-   * 15 Oct 26 dm - QM4 gaps Q-16: the rest of the openQM list for $MODE CONDITIONAL.STATEMENTS (the mode name is accepted and
-   * changes nothing: these are allowed whether or not it is given).  OSREAD is not a statement in SD.
+   * 15 Oct 26 dm - QM4 gaps Q-16: the rest of the openQM list for the statements that may be a WHILE or UNTIL condition (27 Oct 26: the
+   * $MODE CONDITIONAL.STATEMENTS name that was accepted and changed nothing is gone; these are always allowed).  OSREAD is not a statement in SD.
    cond.statements := @fm:"MATREAD":@fm:"MATREADL":@fm:"MATREADU":@fm:"READCSV":@fm:"WRITEBLK":@fm:"WRITECSV":@fm:"WRITESEQ"
    cond.statements := @fm:"SEEK":@fm:"FILELOCK":@fm:"FILEUNLOCK":@fm:"FLUSH":@fm:"GETLIST":@fm:"LOCATE":@fm:"FIND":@fm:"FINDSTR":@fm:"SEND":@fm:"OSREAD"
    cond.statements := @fm:"READJSON":@fm:"WRITEJSON"      ;* 20 Oct 26 dm - JSON Lines
@@ -329,8 +320,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    * have special code to produce the values.
 
 * !!ATVAR!!
-   at.constants = "FM":@fm:"VM":@fm:"SM":@fm:"TM":@fm:"IM":@fm:"AM":@fm:"SVM"
-   at.constants := @fm:"FALSE":@fm:"TRUE":@fm:"SDSYS":@fm:"USERNO":@fm:"USER.NO"
+   at.constants = "FM":@fm:"VM":@fm:"SM":@fm:"TM":@fm:"IM"
+   at.constants := @fm:"FALSE":@fm:"TRUE":@fm:"SDSYS":@fm:"USERNO"
    at.constants := @fm:"DAY":@fm:"MONTH":@fm:"YEAR":@fm:"YEAR4"
    at.constants := @fm:"LPTRHIGH":@fm:"LPTRWIDE":@fm:"CRTHIGH":@fm:"CRTWIDE"
    at.constants := @fm:"LEVEL":@fm:"TERM.TYPE":@fm:"TRANSACTION.ID"
@@ -358,7 +349,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    at.syscom.vars<-1> = "DATE"               ; at.syscom.offsets<-1> = SYSCOM.CPROC.DATE
    at.syscom.vars<-1> = "DS"                 ; at.syscom.offsets<-1> = SYSCOM.DS
    at.syscom.vars<-1> = "FILE.NAME"          ; at.syscom.offsets<-1> = SYSCOM.QPROC.FILE.NAME
-   at.syscom.vars<-1> = "FILENAME"           ; at.syscom.offsets<-1> = SYSCOM.QPROC.FILE.NAME
    at.syscom.vars<-1> = "ID"                 ; at.syscom.offsets<-1> = SYSCOM.QPROC.ID
    at.syscom.vars<-1> = "ITYPE.MODE"         ; at.syscom.offsets<-1> = SYSCOM.ITYPE.MODE
    at.syscom.vars<-1> = "LOGNAME"            ; at.syscom.offsets<-1> = SYSCOM.LOGNAME
@@ -371,22 +361,16 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    at.syscom.vars<-1> = "PARASENTENCE"       ; at.syscom.offsets<-1> = SYSCOM.PARASENTENCE
    at.syscom.vars<-1> = "PATH"               ; at.syscom.offsets<-1> = SYSCOM.ACCOUNT.PATH
    at.syscom.vars<-1> = "PSTAT"              ; at.syscom.offsets<-1> = SYSCOM.AT.PSTAT     ;* 15 Oct 26 dm - sheet 492
-   at.syscom.vars<-1> = "PIB"                ; at.syscom.offsets<-1> = SYSCOM.PROC.IBUF:'.0'
-   at.syscom.vars<-1> = "POB"                ; at.syscom.offsets<-1> = SYSCOM.PROC.OBUF:'.0'
    at.syscom.vars<-1> = "RECORD"             ; at.syscom.offsets<-1> = SYSCOM.QPROC.RECORD
    at.syscom.vars<-1> = "SELECTED"           ; at.syscom.offsets<-1> = SYSCOM.SELECTED
    at.syscom.vars<-1> = "SENTENCE"           ; at.syscom.offsets<-1> = SYSCOM.SENTENCE
-   at.syscom.vars<-1> = "SIB"                ; at.syscom.offsets<-1> = SYSCOM.PROC.IBUF:'.1'
-   at.syscom.vars<-1> = "SOB"                ; at.syscom.offsets<-1> = SYSCOM.PROC.OBUF:'.1'
    at.syscom.vars<-1> = "SYS.BELL"           ; at.syscom.offsets<-1> = SYSCOM.BELL
    at.syscom.vars<-1> = "SYS0"               ; at.syscom.offsets<-1> = SYSCOM.SYS0
    at.syscom.vars<-1> = "SYSTEM.RETURN.CODE" ; at.syscom.offsets<-1> = SYSCOM.SYSTEM.RETURN.CODE
-   at.syscom.vars<-1> = "SYSTEM.SET"         ; at.syscom.offsets<-1> = SYSCOM.SYSTEM.RETURN.CODE
    at.syscom.vars<-1> = "TIME"               ; at.syscom.offsets<-1> = SYSCOM.CPROC.TIME
    at.syscom.vars<-1> = "TTY"                ; at.syscom.offsets<-1> = SYSCOM.TTY
    at.syscom.vars<-1> = "TRIGGER.RETURN.CODE"; at.syscom.offsets<-1> = SYSCOM.TRIGGER.RETURN.CODE
    at.syscom.vars<-1> = "USER.RETURN.CODE"   ; at.syscom.offsets<-1> = SYSCOM.USER.RETURN.CODE
-   at.syscom.vars<-1> = "USER"               ; at.syscom.offsets<-1> = SYSCOM.LOGNAME
    at.syscom.vars<-1> = "USER0"              ; at.syscom.offsets<-1> = SYSCOM.USER0
    at.syscom.vars<-1> = "USER1"              ; at.syscom.offsets<-1> = SYSCOM.USER1
    at.syscom.vars<-1> = "USER2"              ; at.syscom.offsets<-1> = SYSCOM.USER2
@@ -402,7 +386,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    at.syscom.lvars = "USER.RETURN.CODE":@fm:"DATE":@fm:"TIME":@fm:"ID":@fm:"FILE.NAME"
    at.syscom.lvars := @fm:"RECORD":@fm:"SELECTED":@fm:"TRIGGER.RETURN.CODE"
    at.syscom.lvars := @fm:"USER0":@fm:"USER1":@fm:"USER2":@fm:"USER3":@fm:"USER4"
-   at.syscom.lvars := @fm:"ANS":@fm:"PIB":@fm:"SIB":@fm:"POB":@fm:"SOB"
+   at.syscom.lvars := @fm:"ANS"
    at.syscom.lvars := @fm:"PSTAT"                   ;* 15 Oct 26 dm - sheet 492: a program sets it for PSTAT to show
 
 * 20240728 mab remove ABORTE/M, ERRMSG, STOPE, STOPM, TTYSET
@@ -413,22 +397,22 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    statements := @fm:"CALL":@fm:"CASE":@fm:"CASING":@fm:"CATCH":@fm:"CHAIN"   ;* CASING: 15 Oct 26 dm - QM4 gaps Q-1
    statements := @fm:"CLEAR":@fm:"CLEARCOMMON"
    statements := @fm:"CLEARDATA":@fm:"CLEARFILE":@fm:"CLEARINPUT"
-   statements := @fm:"CLEARSELECT":@fm:"CLOSE":@fm:"CLOSESEQ":@fm:"CLOSE.SOCKET"
+   statements := @fm:"CLEARSELECT":@fm:"CLOSE":@fm:"CLOSE.SOCKET"
    statements := @fm:"COMMIT":@fm:"CONTINUE":@fm:"CONVERT":@fm:"CREATE"
    statements := @fm:"CREATE.FILE":@fm:"CRT":@fm:"CSV.MODE"       ;* CSV.MODE: 14 Oct 26 dm - openQM 173, 200
    statements := @fm:"DATA":@fm:"DEBUG":@fm:"DEL":@fm:"DELETE"
    statements := @fm:"DELETELIST":@fm:"DELETESEQ":@fm:"DELETEU"
-   statements := @fm:"DIM":@fm:"DIMENSION":@fm:"DISINHERIT"
+   statements := @fm:"DIM":@fm:"DISINHERIT"
    statements := @fm:"DISPLAY":@fm:"DO":@fm:"DPARSE":@fm:"DPARSE.CSV"
-   statements := @fm:"ECHO":@fm:"ELSE":@fm:"END":@fm:"ENTER"      ;* :@fm:"ERRMSG"
+   statements := @fm:"ECHO":@fm:"ELSE":@fm:"END"      ;* :@fm:"ERRMSG"
    statements := @fm:"EXECUTE":@fm:"EXIT"
    statements := @fm:"FILE":@fm:"FILELOCK":@fm:"FILEUNLOCK":@fm:"FIND"
    statements := @fm:"FINDSTR":@fm:"FLUSH":@fm:"FLUSH.DH.CACHE":@fm:"FOOTING":@fm:"FOR"   ;* FLUSH.DH.CACHE: 14 Oct 26 dm - openQM 83, 123
    statements := @fm:"FORMLIST":@fm:"FORMLISTV"     ;* FORMLISTV: 15 Oct 26 dm - QM4 gaps Q-2
-   statements := @fm:"GETLIST":@fm:"GETLISTV":@fm:"GO":@fm:"GOSUB":@fm:"GOTO"   ;* GETLISTV: 15 Oct 26 dm - QM4 gaps Q-2
+   statements := @fm:"GETLIST":@fm:"GETLISTV":@fm:"GOSUB":@fm:"GOTO"   ;* GETLISTV: 15 Oct 26 dm - QM4 gaps Q-2
    statements := @fm:"HEADING":@fm:"HUSH"
-   statements := @fm:"IF":@fm:"IN":@fm:"INCLUDE":@fm:"INHERIT"
-   statements := @fm:"INPUT":@fm:"INPUTCLEAR"
+   statements := @fm:"IF":@fm:"IN":@fm:"INHERIT"
+   statements := @fm:"INPUT"
    statements := @fm:"INPUTCSV"
    statements := @fm:"INPUTERR":@fm:"INPUTFIELD":@fm:"INPUTIF":@fm:"INPUTNULL":@fm:"INPUTTRAP":@fm:"INS"   ;* INPUTIF: 14 Oct 26 dm - openQM 584; INPUTNULL, INPUTTRAP: openQM 408
    statements := @fm:"KEYEDIT":@fm:"KEYEXIT":@fm:"KEYTRAP"
@@ -440,17 +424,17 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    statements := @fm:"ON":@fm:"OPEN":@fm:"OPENPATH":@fm:"OPENSEQ":@fm:"OPENTEMP"   ;* OPENTEMP: 14 Oct 26 dm - openQM 431, 440
    statements := @fm:"OS.EXECUTE"
    statements := @fm:"PAGE":@fm:"PAUSE":@fm:"PDUMP"
-   statements := @fm:"PERFORM":@fm:"PHANTOM":@fm:"PRECISION":@fm:"PRINT"
-   statements := @fm:"PRINTER":@fm:"PRINTCSV":@fm:"PRINTERR"
+   statements := @fm:"PHANTOM":@fm:"PRECISION":@fm:"PRINT"
+   statements := @fm:"PRINTER":@fm:"PRINTCSV"
    * rev 1.0-1
-   statements := @fm:"PROCREAD":@fm:"PROCWRITE":@fm:"PROMPT"
+   statements := @fm:"PROMPT"
    statements := @fm:"RANDOMIZE":@fm:"READ":@fm:"READBLK":@fm:"READCSV"
    statements := @fm:"READL":@fm:"READLIST":@fm:"READNEXT":@fm:"READSEQ"
    statements := @fm:"READU":@fm:"READV":@fm:"READVL":@fm:"READVU"
-   statements := @fm:"RECORDLOCKL":@fm:"RECORDLOCKU":@fm:"REDIM":@fm:"REDIMENSION":@fm:"RELEASE":@fm:"REM"
-   statements := @fm:"REMARK":@fm:"REMOVE":@fm:"REMOVE.BREAK.HANDLER"
+   statements := @fm:"RECORDLOCKL":@fm:"RECORDLOCKU":@fm:"REDIM":@fm:"RELEASE":@fm:"REM"
+   statements := @fm:"REMOVE":@fm:"REMOVE.BREAK.HANDLER"
    statements := @fm:"REPEAT":@fm:"RESTORE.SCREEN"
-   statements := @fm:"RETURN":@fm:"ROLLBACK":@fm:"RQM"
+   statements := @fm:"RETURN":@fm:"ROLLBACK"
    statements := @fm:"SAVELIST":@fm:"SCREEN":@fm:"SEEK":@fm:"SELECT":@fm:"SELECTE"
    statements := @fm:"SELECTINDEX":@fm:"SELECTLEFT":@fm:"SELECTN"
    statements := @fm:"SELECTRIGHT":@fm:"SELECTV":@fm:"SENDMAIL":@fm:"SET.ARG"
@@ -459,7 +443,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    statements := @fm:"SETNLS":@fm:"SETPU":@fm:"SETRIGHT":@fm:"SETREM"
    statements := @fm:"SLEEP":@fm:"SSELECT":@fm:"SSELECTN":@fm:"SSELECTV":@fm:"STATUS"
    statements := @fm:"STOP"
-   statements := @fm:"TCLREAD":@fm:"THROW":@fm:"TIMEOUT":@fm:"TRANSACTION":@fm:"TRY"
+   statements := @fm:"THROW":@fm:"TIMEOUT":@fm:"TRANSACTION":@fm:"TRY"
    statements := @fm:"UNLOCK":@fm:"UNTIL":@fm:"VOID"
    statements := @fm:"WAKE"
    statements := @fm:"WEOFSEQ":@fm:"WHILE":@fm:"WRITE":@fm:"WRITEBLK"
@@ -469,19 +453,18 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    statements := @fm:"WRITELIST":@fm:"MOVELIST":@fm:"MOVELISTV"   ;* 15 Oct 26 dm - QM4 gaps Q-2 (at the end, so that no other entry moves)
    statements := @fm:"REVREMOVE":@fm:"GROUPSTORE":@fm:"TTYSET":@fm:"SEND"    ;* 15 Oct 26 dm - QM4 gaps Q-1, Q-5, Q-7 (same)
    statements := @fm:"OSREAD":@fm:"OSWRITE":@fm:"OSDELETE"                    ;* 15 Oct 26 dm - QM4 gaps Q-4 (same)
-   statements := @fm:"SET.TIMEZONE":@fm:"KEEP.SELECT":@fm:"MATWRITECSV"       ;* 15 Oct 26 dm - QM4 gaps Q-3, Q-16, Q-4 (same)
+   statements := @fm:"SET.TIMEZONE":@fm:"MATWRITECSV"                         ;* 15 Oct 26 dm - QM4 gaps Q-3, Q-4 (same; KEEP.SELECT, Q-16, went on 27 Oct 26)
    statements := @fm:"SELECTINDEXV"                                           ;* 15 Oct 26 dm - QM4 gaps Q-2 (same)
-   statements := @fm:"BSCAN":@fm:"KEY":@fm:"ROOT"                             ;* 15 Oct 26 dm - QM4 gaps Q-2 (same)
    statements := @fm:"SELECTLEFTV":@fm:"SELECTRIGHTV"                         ;* 15 Oct 26 dm - QM4 gaps Q-2, sheet 291 (same)
    statements := @fm:"SORTADD":@fm:"SORTCLEAR"                                ;* 16 Oct 26 dm - QM4 Fixes item 371
    statements := @fm:"READJSON":@fm:"WRITEJSON"                               ;* 20 Oct 26 dm - CSV / JSON / XML task: JSON Lines (same: at the end)
 
    * Statements which do not generate DEBUG calls when debugging
 
-   non.debug.statements = "CLASS":@fm:"COM":@fm:"COMMON":@fm:"DEFFUN"
-   non.debug.statements := @fm:"EQU":@fm:"EQUATE"
+   non.debug.statements = "CLASS":@fm:"COMMON":@fm:"DEFFUN"
+   non.debug.statements := @fm:"EQUATE"
    non.debug.statements := @fm:"FUNCTION":@fm:"GET":@fm:"PRIVATE":@fm:"PROGRAM"
-   non.debug.statements := @fm:"PUBLIC":@fm:"RESTRICTED":@fm:"SET":@fm:"SUB":@fm:"SUBROUTINE"   ;* RESTRICTED 16 Oct 26 dm - QM4 gaps
+   non.debug.statements := @fm:"PUBLIC":@fm:"RESTRICTED":@fm:"SET":@fm:"SUBROUTINE"   ;* RESTRICTED 16 Oct 26 dm - QM4 gaps
 
    * Internal (restricted) statements
 * 20240728 mab remove TRACE 
@@ -581,7 +564,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    reserved.names<1,-1> = "DO"
    reserved.names<1,-1> = "ELSE"
    reserved.names<1,-1> = "FROM"
-   reserved.names<1,-1> = "GO"
    reserved.names<1,-1> = "IN"
    reserved.names<1,-1> = "LOCKED"
    reserved.names<1,-1> = "NEXT"
@@ -601,7 +583,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "ABSS"            ; intrinsic.opcodes<-1> = OP.ABSS
    intrinsics<-1> = "ACCEPT.SOCKET.CONNECTION" ; intrinsic.opcodes<-1> = OP.ACCPTSKT
    intrinsics<-1> = "ACOS"            ; intrinsic.opcodes<-1> = OP.ACOS
-   intrinsics<-1> = "ADDS"            ; intrinsic.opcodes<-1> = OP.ADDS   ;* 11 Oct 26 dm - openQM 207
    intrinsics<-1> = "ALPHA"           ; intrinsic.opcodes<-1> = OP.ALPHA
    intrinsics<-1> = "ANDS"            ; intrinsic.opcodes<-1> = OP.ANDS
    intrinsics<-1> = "ARG"             ; intrinsic.opcodes<-1> = OP.ARG
@@ -646,14 +627,10 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "CSVPARSE"        ; intrinsic.opcodes<-1> = OP.XFUN     ;* 20 Oct 26 dm - CSV text as a data collection or a dynamic array
    intrinsics<-1> = "DATE"            ; intrinsic.opcodes<-1> = OP.DATE
    intrinsics<-1> = "DCOUNT"          ; intrinsic.opcodes<-1> = OP.DCOUNT
-   intrinsics<-1> = "DELETE"          ; intrinsic.opcodes<-1> = OP.DEL
    intrinsics<-1> = "DIGEST"          ; intrinsic.opcodes<-1> = OP.XFUN   ;* 15 Oct 26 dm - QM4 gaps Q-13
    intrinsics<-1> = "DIR"             ; intrinsic.opcodes<-1> = OP.DIR
    intrinsics<-1> = "DIV"             ; intrinsic.opcodes<-1> = OP.QUOTIENT
-   intrinsics<-1> = "DIVS"            ; intrinsic.opcodes<-1> = OP.DIVS   ;* 11 Oct 26 dm - openQM 207
    intrinsics<-1> = "DOWNCASE"        ; intrinsic.opcodes<-1> = OP.DNCASE
-   intrinsics<-1> = "DQUOTE"          ; intrinsic.opcodes<-1> = OP.QUOTE
-   intrinsics<-1> = "DQUOTES"         ; intrinsic.opcodes<-1> = OP.QUOTES   ;* 11 Oct 26 dm - openQM 11
    intrinsics<-1> = "DTX"             ; intrinsic.opcodes<-1> = OP.DTX
    intrinsics<-1> = "EBCDIC"          ; intrinsic.opcodes<-1> = OP.EBCDIC
    intrinsics<-1> = "ELEMENT.EXISTS"  ; intrinsic.opcodes<-1> = OP.COLL   ;* 13 Oct 26 dm - data collections
@@ -661,10 +638,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "ENV"             ; intrinsic.opcodes<-1> = OP.ENV
    intrinsics<-1> = "EPOCH"           ; intrinsic.opcodes<-1> = OP.SYSTEM   ;* 14 Oct 26 dm - SYSTEM(1035)
    intrinsics<-1> = "EQS"             ; intrinsic.opcodes<-1> = OP.EQS
-   intrinsics<-1> = "EREPLACE"        ; intrinsic.opcodes<-1> = OP.EREPLACE   ;* 12 Oct 26 dm - openQM 472
    intrinsics<-1> = "EXP"             ; intrinsic.opcodes<-1> = OP.EXP
    intrinsics<-1> = "EXPAND"          ; intrinsic.opcodes<-1> = OP.COLL   ;* 13 Oct 26 dm - linked data collections
-   intrinsics<-1> = "EXTRACT"         ; intrinsic.opcodes<-1> = OP.EXTRACT
    intrinsics<-1> = "FCONTROL"        ; intrinsic.opcodes<-1> = OP.XFUN   ;* 15 Oct 26 dm - the public FCONTROL(fvar, action {, qualifier}), openQM numbers
    intrinsics<-1> = "FIELD"           ; intrinsic.opcodes<-1> = OP.FIELD
    intrinsics<-1> = "FIELDS"          ; intrinsic.opcodes<-1> = OP.FIELDS
@@ -692,15 +667,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "INDICES"         ; intrinsic.opcodes<-1> = OP.INDICES1
    intrinsics<-1> = "INMAT"           ; intrinsic.opcodes<-1> = OP.INMAT
    intrinsics<-1> = "INPUTBLK"        ; intrinsic.opcodes<-1> = OP.INPUTBLK
-   intrinsics<-1> = "INSERT"          ; intrinsic.opcodes<-1> = OP.INSERT
    intrinsics<-1> = "INT"             ; intrinsic.opcodes<-1> = OP.INT
-   intrinsics<-1> = "IS.ALNUM"        ; intrinsic.opcodes<-1> = OP.XFUN
-   intrinsics<-1> = "IS.ALPHA"        ; intrinsic.opcodes<-1> = OP.XFUN
-   intrinsics<-1> = "IS.DIGIT"        ; intrinsic.opcodes<-1> = OP.XFUN
-   intrinsics<-1> = "IS.GRAPH"        ; intrinsic.opcodes<-1> = OP.XFUN
-   intrinsics<-1> = "IS.MARK"         ; intrinsic.opcodes<-1> = OP.XFUN
    intrinsics<-1> = "IS.NULL"         ; intrinsic.opcodes<-1> = OP.XFUN
-   intrinsics<-1> = "IS.SPACE"        ; intrinsic.opcodes<-1> = OP.XFUN
    intrinsics<-1> = "ITYPE"           ; intrinsic.opcodes<-1> = OP.ITYPE
    intrinsics<-1> = "JBOOLEAN"        ; intrinsic.opcodes<-1> = OP.COLL   ;* 13 Oct 26 dm - JSON
    intrinsics<-1> = "JBUILD"          ; intrinsic.opcodes<-1> = OP.COLL
@@ -718,7 +686,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "KEYREADY"        ; intrinsic.opcodes<-1> = OP.KEYRDY
    intrinsics<-1> = "LAST"            ; intrinsic.opcodes<-1> = OP.XFUN
    intrinsics<-1> = "LASTS"           ; intrinsic.opcodes<-1> = OP.XFUN
-   intrinsics<-1> = "LEFT"            ; intrinsic.opcodes<-1> = OP.XFUN
    intrinsics<-1> = "LEN"             ; intrinsic.opcodes<-1> = OP.LEN
    intrinsics<-1> = "LENS"            ; intrinsic.opcodes<-1> = OP.LENS
    intrinsics<-1> = "LES"             ; intrinsic.opcodes<-1> = OP.LES
@@ -734,12 +701,10 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "MATSTR"          ; intrinsic.opcodes<-1> = OP.MATSTR   ;* 12 Oct 26 dm - openQM 509
    intrinsics<-1> = "MAX"             ; intrinsic.opcodes<-1> = OP.MAX
    intrinsics<-1> = "MAXIMUM"         ; intrinsic.opcodes<-1> = OP.MAXIMUM
-   intrinsics<-1> = "MD5"             ; intrinsic.opcodes<-1> = OP.MD5   ;* 12 Oct 26 dm - openQM 63
    intrinsics<-1> = "MIN"             ; intrinsic.opcodes<-1> = OP.MIN
    intrinsics<-1> = "MINIMUM"         ; intrinsic.opcodes<-1> = OP.MINIMUM
    intrinsics<-1> = "MOD"             ; intrinsic.opcodes<-1> = OP.MOD
    intrinsics<-1> = "MODS"            ; intrinsic.opcodes<-1> = OP.MODS
-   intrinsics<-1> = "MULS"            ; intrinsic.opcodes<-1> = OP.MULS   ;* 11 Oct 26 dm - openQM 207
    intrinsics<-1> = "MVDATE"          ; intrinsic.opcodes<-1> = OP.EPOCHCV   ;* 14 Oct 26 dm - openQM 124 and the epoch family
    intrinsics<-1> = "MVDATE.TIME"     ; intrinsic.opcodes<-1> = OP.EPOCHCV
    intrinsics<-1> = "MVEPOCH"         ; intrinsic.opcodes<-1> = OP.EPOCHCV
@@ -773,10 +738,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "REGEX"           ; intrinsic.opcodes<-1> = OP.REGEX   ;* 12 Oct 26 dm - openQM 510
    intrinsics<-1> = "REM"             ; intrinsic.opcodes<-1> = OP.REM
    intrinsics<-1> = "REMOVE"          ; intrinsic.opcodes<-1> = OP.REMOVE
-   intrinsics<-1> = "REPLACE"         ; intrinsic.opcodes<-1> = OP.REPLACE
    intrinsics<-1> = "REUSE"           ; intrinsic.opcodes<-1> = OP.REUSE
    intrinsics<-1> = "REUSING"         ; intrinsic.opcodes<-1> = OP.XFUN
-   intrinsics<-1> = "RIGHT"           ; intrinsic.opcodes<-1> = OP.XFUN
    intrinsics<-1> = "RMVD"            ; intrinsic.opcodes<-1> = OP.RMVD    ;* 15 Oct 26 dm - QM4 gaps Q-1
    intrinsics<-1> = "RND"             ; intrinsic.opcodes<-1> = OP.RND
    intrinsics<-1> = "ROUNDDOWN"       ; intrinsic.opcodes<-1> = OP.XFUN
@@ -793,7 +756,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "SDSALT"          ; intrinsic.opcodes<-1> = OP.XFUN
    intrinsics<-1> = "SELECT.SOCKET"   ; intrinsic.opcodes<-1> = OP.XFUN      ;* 15 Oct 26 dm - QM4 gaps Q-5
    intrinsics<-1> = "SELECTINFO"      ; intrinsic.opcodes<-1> = OP.SLCTINFO
-   intrinsics<-1> = "SENTENCE"        ; intrinsic.opcodes<-1> = OP.NULL
    intrinsics<-1> = "SEQ"             ; intrinsic.opcodes<-1> = OP.SEQ
    intrinsics<-1> = "SERVER.ADDR"     ; intrinsic.opcodes<-1> = OP.SRVRADDR
    intrinsics<-1> = "SET.PORT.PARAMS" ; intrinsic.opcodes<-1> = OP.SETPORT
@@ -817,20 +779,15 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "STATUS"          ; intrinsic.opcodes<-1> = OP.STATUS
    intrinsics<-1> = "STR"             ; intrinsic.opcodes<-1> = OP.STR
    intrinsics<-1> = "STRS"            ; intrinsic.opcodes<-1> = OP.STRS
-   intrinsics<-1> = "SUBR"            ; intrinsic.opcodes<-1> = ''
-   intrinsics<-1> = "SUBS"            ; intrinsic.opcodes<-1> = OP.SUBS   ;* 11 Oct 26 dm - openQM 207
    intrinsics<-1> = "SUBSTITUTE"      ; intrinsic.opcodes<-1> = OP.SUBST
    intrinsics<-1> = "SUBSTRINGS"      ; intrinsic.opcodes<-1> = OP.SUBSTRNG
    intrinsics<-1> = "SUM"             ; intrinsic.opcodes<-1> = OP.SUM
    intrinsics<-1> = "SUMMATION"       ; intrinsic.opcodes<-1> = OP.SUMMATION
-   intrinsics<-1> = "SWAP"            ; intrinsic.opcodes<-1> = OP.CHANGE
    intrinsics<-1> = "SWAPCASE"        ; intrinsic.opcodes<-1> = OP.SWAPCASE
-   intrinsics<-1> = "SWAPMARKS"       ; intrinsic.opcodes<-1> = OP.XFUN   ;* 15 Oct 26 dm - QM4 gaps Q-1, sheet 238 (see in.xfun)
    intrinsics<-1> = "SYSMSG"          ; intrinsic.opcodes<-1> = OP.SYSMSG
    intrinsics<-1> = "SYSTEM"          ; intrinsic.opcodes<-1> = OP.SYSTEM
    intrinsics<-1> = "TAN"             ; intrinsic.opcodes<-1> = OP.TAN
    intrinsics<-1> = "TERMINFO"        ; intrinsic.opcodes<-1> = OP.TERMINFO
-   intrinsics<-1> = "TERMINFO.EX"     ; intrinsic.opcodes<-1> = OP.TERMINFO   ;* 15 Oct 26 dm - QM4 gaps Q-7: SD holds one string per capability
    intrinsics<-1> = "TIME"            ; intrinsic.opcodes<-1> = OP.TIME
    intrinsics<-1> = "TIMEDATE"        ; intrinsic.opcodes<-1> = OP.TIMEDATE
    intrinsics<-1> = "TRANS"           ; intrinsic.opcodes<-1> = OP.TRANS
@@ -849,7 +806,6 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    intrinsics<-1> = "VSLICE"          ; intrinsic.opcodes<-1> = OP.VSLICE
    intrinsics<-1> = "WRITE.SOCKET"    ; intrinsic.opcodes<-1> = OP.WRITESKT
    intrinsics<-1> = "XBUILD"          ; intrinsic.opcodes<-1> = OP.XFUN     ;* 20 Oct 26 dm - CSV / JSON / XML task: an XML element (a data collection) as text
-   intrinsics<-1> = "XLATE"           ; intrinsic.opcodes<-1> = OP.TRANS
    intrinsics<-1> = "XPARSE"          ; intrinsic.opcodes<-1> = OP.XFUN     ;* 20 Oct 26 dm - XML text as a data collection
    intrinsics<-1> = "XPATH"           ; intrinsic.opcodes<-1> = OP.XFUN     ;* 20 Oct 26 dm - XPath over such a collection
    intrinsics<-1> = "XTD"             ; intrinsic.opcodes<-1> = OP.XTD
@@ -919,15 +875,12 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    catalogue.mode = ''
    mode = 0
    mode2 = 0                         ;* The modes of position 33 up, see the M2. constants
-   stdfil.user = @false              ;* STDFIL itself was asked for ($MODE STDFIL): the default file variable is the program's own
-   stdfil.shared = @false            ;* only STDFIL.SHARED was asked for: it is the command level's (set.kernel.modes)
    arg.defaults = ''                 ;* name, position, value of each "name = value" in the SUBROUTINE or FUNCTION statement
    inject.lines = ''                 ;* lines the compiler writes itself, read by GET.LINE ahead of the source
    formlistv.stmt = @false           ;* a FORMLISTV statement is being compiled as SELECTV (st.formlistv)
    xfun.names = ''                   ;* the table of the OP.XFUN functions, filled when the first is met (xfun.table.load)
    xfun.sel = '' ; xfun.argc = '' ; xfun.opt = '' ; xfun.mv = '' ; xfun.stack = ''
    xfun.kst = '' ; xfun.hst = ''     ;* 20 Oct 26: the place in a row's several optional arguments, and whether they are still being given
-   str.ovl.used = @false             ;* Set when one of the three overlap modes has been on in this program
    warnings.as.errors = @false
 
    * Release 2.1-10 introduced the STORSYS opcode so that CLEAR did not
@@ -974,7 +927,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
       while len(voc.rec)
          s = upcase(field(voc.rec<1>, ' ', 1))
          begin case
-            case s = "CATALOGUE" or s = "CATALOG"
+            case s = "CATALOG"
                catalogue.name = '~'
                * LOCAL or GLOBAL, and NO.QUERY (ref 191), in either order
                for mk = 2 to 3
@@ -986,7 +939,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
 
             case s = 'DEFINE'
                define.token = field(voc.rec<1>, ' ', 2)
-               if not(bittest(mode, M.CASE.SENSITIVE)) then define.token = upcase(define.token)
+               define.token = upcase(define.token)
 
                s = field(voc.rec<1>, ' ', 3, 99)  ;* 0200
                c = s[1,1]
@@ -1036,12 +989,11 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
                   if mnm # '' then
                      locate mnm in mode.names<1,1> setting i then
                         mode.off = mneg ; gosub set.mode.bit
-                        gosub set.kernel.modes
                      end
                   end
                next mk
 
-            case s = "NO.CATALOGUE" or s = "NO.CATALOG"
+            case s = "NO.CATALOG"
                catalogue.name = ''
 
             case s = "NOCASE.STRINGS"
@@ -1071,8 +1023,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
 
    last.debug.line = -1
    errors = 0
-   if is.ctype then header.flags = bitor(header.flags, HDR.CTYPE + HDR.ITYPE)
-   gosub set.kernel.modes
+   j = kernel(K$CASE.SENSITIVE, 0)     ;* (bbcmp.py has no VOID statement) names are not case sensitive (the mode that made them so, CASE.SENSITIVE, is gone)
 
    eof = @false
    line.no(1) = -auto.include.lines
@@ -1218,7 +1169,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    direct.calls = ""               ;* Subroutine names and...
    direct.call.vars = ""           ;* ...local variable number
 
-   * Embedded object code for C-types
+   * Embedded object code for the dictionary items named by {name}
 
    embedded.objects = ''           ;* Names of dictionary items and...
    embedded.object.vars = ''       ;* ...corresponding local variable number
@@ -1256,9 +1207,6 @@ $define J.TRY                  8  ;* TRY / CATCH (12 Oct 26 dm, openQM 355)
    onerror.stack = ""
    testlock.stack = ""
    thenelse.stack = ""
-   flagpatch.stack = ""      ;* Address of the SETFLAGS value to patch when a WRITE / DELETE has THEN / ELSE
-   autolock.stmt = @false    ;* Set by a WRITE, MATWRITE or DELETE under $MODE AUTOLOCK
-   then.else.trig = @false   ;* Set by a statement whose THEN / ELSE is a trigger-failure clause
    arg.count.stack = ""
    collection.count.stack = ""      ;* 13 Oct 26 dm - data collections
    json.stack = ""
@@ -1290,18 +1238,16 @@ $define J.TRY                  8  ;* TRY / CATCH (12 Oct 26 dm, openQM 355)
    * If we are in a local subroutine, we do a stop as this really is a bug.
    * In other cases, SD has always emitted a return.
 
-   * The IMPLIED.STOP mode makes it a STOP in every case (ref 81).
+   * (27 Oct 26: the IMPLIED.STOP mode, which made it a STOP in every case, is gone.)
 
-   opcode.byte = if lsub.var.no >= 0 or bittest(mode, M.IMPLIED.STOP) then OP.STOP else OP.RETURN
+   opcode.byte = if lsub.var.no >= 0 then OP.STOP else OP.RETURN
    gosub emit.simple
 
    * Check that final END was found
 
-   if not(final.end.seen) and not(is.ctype) then
-      if not(bittest(mode, M.OPTIONAL.FINAL.END)) then
-         err.msg = sysmsg(2816)  ;* Final END statement is missing
-         gosub warning
-      end
+   if not(final.end.seen) then
+      err.msg = sysmsg(2816)  ;* Final END statement is missing
+      gosub warning
    end
 
    * If this class has an inheritance list on the CLASS statement and
@@ -1433,8 +1379,7 @@ $define J.TRY                  8  ;* TRY / CATCH (12 Oct 26 dm, openQM 355)
       gosub emit.multibyte.value
 
       opcode.byte = len(common.name) ;* Block name length
-      * Do we need to set "uninitialised common" flag?
-      if commons<9,common.index> then opcode.byte = bitor(opcode.byte, 0x80)
+      * (27 Oct 26: the "uninitialised common" flag, 0x80, is no longer set; op_common still honours it in an object compiled before)
       gosub emit
 
       n = len(common.name)
@@ -1453,10 +1398,6 @@ $define J.TRY                  8  ;* TRY / CATCH (12 Oct 26 dm, openQM 355)
       num.com.var = dcount(commons<4, common.index>, @sm)
       for common.var.idx = 1 to num.com.var
          if commons<5, common.index, common.var.idx> > 0 then
-            * Is it a Pick style matrix? If so, omit DIMCOM
-
-            if commons<7, common.index, common.var.idx> then continue
-
             symbol.name = commons<4, common.index, common.var.idx>
             symbol.mode = SYM.CHK
             gosub find.var
@@ -1476,43 +1417,6 @@ $define J.TRY                  8  ;* TRY / CATCH (12 Oct 26 dm, openQM 355)
 
       label.name = '_COM':common.index
       gosub set.label
-
-      * Emit PMATRIX for Pick style matrices
-
-      for common.var.idx = 1 to num.com.var
-         if commons<5, common.index, common.var.idx> = 0 then continue
-
-         * Is it a Pick style matrix?
-
-         if not(commons<7, common.index, common.var.idx>) then continue
-
-         opcode.byte = OP.PMATRIX ; gosub emit.simple
-
-         * Local var number of PMATRIX item
-         code.value = commons<7, common.index, common.var.idx>
-         code.bytes = 2
-         gosub emit.multibyte.value
-
-         * Local var number of common block
-         code.value = commons<2, common.index>
-         code.bytes = 2
-         gosub emit.multibyte.value
-
-         * Offset into common of first matrix element
-         code.value = common.var.idx
-         code.bytes = 2
-         gosub emit.multibyte.value
-
-         * Row count
-         code.value = commons<5, common.index, common.var.idx>
-         code.bytes = 2
-         gosub emit.multibyte.value
-
-         * Column count (zero if single dimensional)
-         code.value = commons<6, common.index, common.var.idx>
-         code.bytes = 2
-         gosub emit.multibyte.value
-      next common.var.idx
    next common.index
 
 
@@ -1847,7 +1751,7 @@ $define J.TRY                  8  ;* TRY / CATCH (12 Oct 26 dm, openQM 355)
       end
    end
 
-   if not(is.ctype) then display sysmsg(2995, errors)    ;* %1 error(s)
+   display sysmsg(2995, errors)    ;* %1 error(s)
 
    if not(errors) then
       * Emit the cross-reference (line) table
@@ -1970,7 +1874,7 @@ $define J.TRY                  8  ;* TRY / CATCH (12 Oct 26 dm, openQM 355)
       i = events(-1, EVT$UNLOAD)
    end
 
-   if listing.used and not(is.ctype) then closeseq list.f
+   if listing.used then close list.f
 
    return
 
@@ -2035,17 +1939,15 @@ get.line:
             if continues.on.next.line then src = src[1,len(src)-1]
 
             if not(rem(line.no(level), 10)) then
-               if not(is.ctype) then
-                  display "*":
-                  star.printed = @true
-               end
+               display "*":
+               star.printed = @true
             end
 
             * Check for preprocessor directives ($IFDEF, $IFNDEF, $ELSE, $ENDIF)
 
             ss = field(trim(src), ' ', 1)
             c = ss[1,1]
-            if c = '$' or c = '#' then
+            if c = '$' then
                ss = upcase(ss[2,99999])
                begin case
                   case ss ='IFDEF'
@@ -2180,7 +2082,7 @@ get.line:
                   begin case
                      case token.strings(n) = '*'
                      case token.strings(n) = '!'
-                     case tokens(n) = TKN.NAME and listindex('REM,REMARK', ',', upcase(token.strings(n)))
+                     case tokens(n) = TKN.NAME and upcase(token.strings(n)) = 'REM'
                      case 1
                         continues.on.next.line = @true
                   end case
@@ -2341,7 +2243,6 @@ is.statement:
                  st.clearinput,
                  st.clearselect,
                  st.close,
-                 st.close,                     ;* CLOSESEQ
                  st.close.socket,
                  st.commit,
                  st.continue,
@@ -2358,7 +2259,6 @@ is.statement:
                  st.deleteseq,
                  st.deleteu,
                  st.dim,
-                 st.dim,                       ;* DIMENSION
                  st.disinherit,
                  st.display,
                  st.do,
@@ -2367,7 +2267,6 @@ is.statement:
                  st.echo,
                  st.misplaced,                 ;* ELSE
                  st.end,
-                 st.enter,
                  st.execute,
                  st.exit,
                  st.file,
@@ -2383,19 +2282,16 @@ is.statement:
                  st.formlistv,                 ;* FORMLISTV: 15 Oct 26 dm - QM4 gaps Q-2
                  st.getlist,
                  st.getlistv,                  ;* 15 Oct 26 dm - QM4 gaps Q-2
-                 st.go,
                  st.gosub,
                  st.goto,
                  st.heading,
                  st.hush,
                  st.if,
                  st.in,
-                 st.include,
                  st.inherit,
                  st.input,
-                 st.clearinput,                ;* INPUTCLEAR
                  st.inputcsv,
-                 st.printerr,                  ;* INPUTERR
+                 st.inputerr,                  ;* INPUTERR
                  st.inputfield,
                  st.inputif,
                  st.inputnull,
@@ -2432,16 +2328,12 @@ is.statement:
                  st.page,
                  st.pause,
                  st.pdump,                     ;* 12 Oct 26 dm - openQM 439
-                 st.execute,                   ;* PERFORM
                  st.phantom,                   ;* 12 Oct 26 dm - openQM 390
                  st.precision,
                  st.print,
                  st.printer,
                  st.printcsv,
-                 st.printerr,
 * rev 1.0-1
-                 st.procread,
-                 st.procwrite,				 
                  st.prompt,
                  st.randomize,
                  st.read,
@@ -2458,17 +2350,14 @@ is.statement:
                  st.recordlockl,
                  st.recordlocku,
                  st.redim,                     ;* REDIM          12 Oct 26 dm - openQM 215
-                 st.redim,                     ;* REDIMENSION
                  st.release,
                  st.remark,                    ;* REM
-                 st.remark,
                  st.remove,
                  st.remove.break.handler,
                  st.repeat,
                  st.restore.screen,
                  st.return,
                  st.rollback,
-                 st.sleep,                     ;* RQM
                  st.savelist,
                  st.screen,                    ;* 12 Oct 26 dm - the screen library
                  st.seek,
@@ -2494,7 +2383,6 @@ is.statement:
                  st.sselectv,                  ;* SSELECTV: 14 Oct 26 dm - openQM 209
                  st.status,
                  st.stop,
-                 st.tclread,
                  st.throw,                     ;* 12 Oct 26 dm - openQM 355
                  st.timeout,
                  st.transaction,
@@ -2524,12 +2412,8 @@ is.statement:
                  st.oswrite,
                  st.osdelete,
                  st.settimezone,               ;* 15 Oct 26 dm - QM4 gaps Q-3
-                 st.keepselect,                ;* 15 Oct 26 dm - QM4 gaps Q-16
                  st.matwritecsv,               ;* 15 Oct 26 dm - QM4 gaps Q-4
                  st.selectindexv,              ;* 15 Oct 26 dm - QM4 gaps Q-2
-                 st.bscan,                     ;* 15 Oct 26 dm - QM4 gaps Q-2
-                 st.key,                       ;* 15 Oct 26 dm - QM4 gaps Q-2
-                 st.root,                      ;* 15 Oct 26 dm - QM4 gaps Q-2
                  st.selectleftv,               ;* 15 Oct 26 dm - QM4 gaps Q-2, sheet 291
                  st.selectrightv,              ;* 15 Oct 26 dm - QM4 gaps Q-2, sheet 291
                  st.sortadd,                   ;* 16 Oct 26 dm - QM4 Fixes item 371
@@ -2539,10 +2423,8 @@ is.statement:
          end else
             locate u.token.string in non.debug.statements<1> setting i then
                on i gosub st.class,      ;* CLASS
-                          st.common,     ;* COM
                           st.common,     ;* COMMON
                           st.deffun,
-                          st.equate,     ;* EQU
                           st.equate,
                           st.function,
                           st.get,
@@ -2551,7 +2433,6 @@ is.statement:
                           st.public,
                           st.restricted, ;* 16 Oct 26 dm - QM4 gaps
                           st.set,
-                          st.subroutine, ;* SUB
                           st.subroutine
             end else
                if internal then
@@ -2609,13 +2490,7 @@ is.statement:
       if u.token.string = 'RETURN' then goto is.statement
       if u.token.string = 'LOCATE' then goto is.statement
       if u.token.string = 'RANDOMIZE' then goto is.statement
-      if u.token.string = 'SUB' then goto is.statement
       if u.token.string = 'SUBROUTINE' then goto is.statement   ;* 0243
-      if u.token.string = 'KEY' then                            ;* 15 Oct 26 dm - QM4 gaps Q-2: KEY(op, scan, key, id) is the
-         symbol.name = token.string                             ;* index scan statement unless the program has a matrix called KEY
-         gosub find.var
-         if symbol.var.no < 0 or symbol.dim = 0 then goto is.statement
-      end
       goto is.assignment
 
    case token = TKN.AT.NAME
@@ -2633,7 +2508,7 @@ is.statement:
       goto proc.statement            ;* Start again for leading semicolon
 
    case 1
-      if (token.string = '$' or token.string = '#') and (token.index = 2) then
+      if token.string = '$' and token.index = 2 then
          gosub proc.directive
          return
       end
@@ -2905,14 +2780,7 @@ process.operator:
 
          * Store the result
 
-         begin case
-            case bittest(mode, M.PICK.SUBSTR.ASSIGN)
-               opcode.byte = OP.PSUBSTRB
-            case bittest(mode, M.PICK.SUBSTR)
-               opcode.byte = OP.PSUBSTRA
-            case 1
-               opcode.byte = OP.SUBSTRA
-         end case
+         opcode.byte = OP.SUBSTRA
          gosub emit.simple
       end else                           ;* Delimited substring assignment
          gosub check.comma
@@ -2982,7 +2850,7 @@ process.operator:
          case look.ahead.token = TKN.EQ
             gosub get.token
             gosub exprf  ;* Process the rvalue expression
-            opcode.byte = if bittest(mode, M.COMPAT.APPEND) then OP.COMPREP else OP.REP
+            opcode.byte = OP.REP
             gosub emit.simple
 
          case look.ahead.token = TKN.ADDEQ  ;* += Assignment
@@ -3063,7 +2931,7 @@ proc.directive:
       begin case
       ************************ CATALOGUE ************************
 
-      case (u.token.string = "CATALOGUE" or u.token.string = "CATALOG") and not(is.ctype)
+      case u.token.string = "CATALOG"
          begin case
 !            case catalogue.name # ''
 !               err.msg = sysmsg(3413, u.token.string) ;* Multiple use of $%1
@@ -3109,7 +2977,7 @@ proc.directive:
 
          if catalogue.name # '~' then
 !!CALLNAME!!
-            if len(catalogue.name) > 1 and index("*!_$-", catalogue.name[1,1], 1) then n = 2       ;* 16 Oct 26: the hyphen too (QM4 Fixes 217)
+            if len(catalogue.name) > 1 and index("!_$", catalogue.name[1,1], 1) then n = 2       ;* 28 Oct 26: S.87, * and - are no longer prefixes
             else n = 1
 
             * 12 Oct 26 dm  openQM item 241: the lower of 128 and MAXIDLEN (63 unless raised), as in catalog and op_jumps.c
@@ -3127,7 +2995,7 @@ proc.directive:
 
       ************************** DEBUG **************************
 
-      case u.token.string = "DEBUG" and not(is.ctype)
+      case u.token.string = "DEBUG"
          if pc # start.pc then
             err.msg = sysmsg(2837, u.token.string) ;* $%1 must appear before any executable statements
             goto error
@@ -3212,7 +3080,7 @@ proc.directive:
 
       ************************** DICT **************************
 
-      case u.token.string = "DICT" and not(is.ctype)
+      case u.token.string = "DICT"
          if assigned(dict.f) then
             err.msg = sysmsg(3405) ;* $DICT can only appear once in a program
             gosub error
@@ -3271,9 +3139,9 @@ proc.directive:
             end case
          repeat
 
-      ******************** INCLUDE / INSERT *********************
+      ************************ INCLUDE **************************
 
-      case u.token.string = "INCLUDE" or u.token.string = "INSERT"
+      case u.token.string = "INCLUDE"
          gosub process.include
 
       ************************ INTERNAL *************************
@@ -3285,22 +3153,20 @@ proc.directive:
       ************************** LIST ***************************
 
       case u.token.string = "LIST"
-         if not(is.ctype) then
-            begin case
-               case upcase(look.ahead.token.string) = "OFF"
-                  gosub get.token
-                  listing(level) = @false
+         begin case
+            case upcase(look.ahead.token.string) = "OFF"
+               gosub get.token
+               listing(level) = @false
 
-               case (upcase(look.ahead.token.string) = "ON") or (look.ahead.token = TKN.END)
-                  if look.ahead.token # TKN.END then gosub get.token
-                  listing(level) = listing(level - 1)
-                  if listing(level) then gosub start.listing
+            case (upcase(look.ahead.token.string) = "ON") or (look.ahead.token = TKN.END)
+               if look.ahead.token # TKN.END then gosub get.token
+               listing(level) = listing(level - 1)
+               if listing(level) then gosub start.listing
 
-               case 1
-                  err.msg = sysmsg(2840)  ;* Unexpected text after $LIST
-                  gosub error
-            end case
-         end
+            case 1
+               err.msg = sysmsg(2840)  ;* Unexpected text after $LIST
+               gosub error
+         end case
 
       ************************** MODE ***************************
 
@@ -3308,7 +3174,6 @@ proc.directive:
          if upcase(look.ahead.token.string) = "DEFAULT" then
             mode = 0
             mode2 = 0
-            stdfil.user = @false
          end else
             if look.ahead.token = TKN.MINUS then
                reset.mode = @true
@@ -3348,8 +3213,6 @@ proc.directive:
             end
          end
 
-         gosub set.kernel.modes
-
       ********************** NOCASE.STRINGS *********************
 
       case u.token.string = "NOCASE.STRINGS"
@@ -3377,7 +3240,7 @@ proc.directive:
 
       ************************** SDCALL **************************
 
-      case u.token.string = "SDCALL" and not(is.ctype)
+      case u.token.string = "SDCALL"
          header.flags = bitor(header.flags, HDR.SDCALL.ALLOWED)
 
       ************************ RECURSIVE *************************
@@ -3421,8 +3284,8 @@ process.include:
          goto error
 
       case n = 2
-         * The files named by SEARCH in $BASIC.OPTIONS, in order; @ is the file the source is in (not for a C-type, which has
-         * none).  The default list is @, then SYSCOM.  All but the last that can be tried are allowed not to hold the record.
+         * The files named by SEARCH in $BASIC.OPTIONS, in order; @ is the file the source is in.
+         * The default list is @, then SYSCOM.  All but the last that can be tried are allowed not to hold the record.
          include.record.name = field(src, ' ', 2)
          search.list = if include.search = '' then '@,syscom' else include.search
          search.n = dcount(search.list, ',')
@@ -3431,7 +3294,6 @@ process.include:
          for si = 1 to search.n
             search.name = field(search.list, ',', si)
             if search.name = '@' then
-               if is.ctype then continue
                include.file.name = source.file.name
             end else
                include.file.name = search.name
@@ -3557,7 +3419,7 @@ get.call.name:
 get.call.name.upper:
    s = ""
 
-   if look.ahead.token.string = '!' or look.ahead.token.string = '*' then
+   if look.ahead.token.string = '!' then
       s = look.ahead.token.string
       gosub get.token
       goto get.name.common.path
@@ -4067,7 +3929,7 @@ emit.var.reference.common:
          token.strings(token.index) = symbol.name
          tokens(token.index) = TKN.NAME
 
-         go to simple.var.reference.common
+         goto simple.var.reference.common
                 
 *gdw001  End of new logic for dynamic array field reference
     end case
@@ -4230,11 +4092,7 @@ end
             * Try as an intrinsic function.  If we don't recognise it
             * we will jump to not.an.intrinsic.
 
-            * If we are in case sensitive mode, map the symbol to uppercase
-            * as intrinsics have uppercase names.
-
-            if bittest(mode, M.CASE.SENSITIVE) then x.symbol.name = upcase(symbol.name)
-            else x.symbol.name = symbol.name
+            x.symbol.name = symbol.name
 
             * 16 Oct 26 dm - QM4 Fixes item 233.  OSPATH(path, key {, qualifier}) in a program that is not internal is the openQM
             * function: its own key numbers, and every key that touches the file system asks the OS-access gate (XF_OSPATH,
@@ -4314,7 +4172,6 @@ end
                       in.one,         ;* ABSS
                       in.two,         ;* ACCEPT.SOCKET.CONNECTION
                       in.one,         ;* ACOS
-                      in.two,         ;* ADDS
                       in.one,         ;* ALPHA
                       in.two,         ;* ANDS
                       in.one,         ;* ARG
@@ -4359,14 +4216,10 @@ end
                       in.xfun,        ;* CSVPARSE
                       in.none,        ;* DATE
                       in.two,         ;* DCOUNT
-                      in.delete,      ;* DELETE
                       in.xfun,        ;* DIGEST
                       in.one,         ;* DIR
                       in.two,         ;* DIV
-                      in.two,         ;* DIVS
                       in.one,         ;* DOWNCASE
-                      in.one,         ;* DQUOTE
-                      in.one,         ;* DQUOTES
                       in.dtx,         ;* DTX
                       in.one,         ;* EBCDIC
                       in.element.exists, ;* ELEMENT.EXISTS
@@ -4374,10 +4227,8 @@ end
                       in.one,         ;* ENV
                       in.epoch,       ;* EPOCH
                       in.two,         ;* EQS
-                      in.change,      ;* EREPLACE
                       in.one,         ;* EXP
                       in.expand,      ;* EXPAND
-                      in.extract,     ;* EXTRACT
                       in.xfun,        ;* FCONTROL
                       in.field,       ;* FIELD
                       in.field,       ;* FIELDS
@@ -4405,15 +4256,8 @@ end
                       in.indices,     ;* INDICES
                       in.inmat,       ;* INMAT      (Special case for matrix name)
                       in.one,         ;* INPUTBLK
-                      in.insert,      ;* INSERT
                       in.one,         ;* INT
-                      in.xfun,        ;* IS.ALNUM
-                      in.xfun,        ;* IS.ALPHA
-                      in.xfun,        ;* IS.DIGIT
-                      in.xfun,        ;* IS.GRAPH
-                      in.xfun,        ;* IS.MARK
                       in.xfun,        ;* IS.NULL
-                      in.xfun,        ;* IS.SPACE
                       in.itype,       ;* ITYPE
                       in.jboolean,    ;* JBOOLEAN
                       in.jbuild,      ;* JBUILD
@@ -4431,7 +4275,6 @@ end
                       in.none,        ;* KEYREADY
                       in.xfun,        ;* LAST
                       in.xfun,        ;* LASTS
-                      in.xfun,        ;* LEFT
                       in.one,         ;* LEN
                       in.one,         ;* LENS
                       in.two,         ;* LES
@@ -4447,12 +4290,10 @@ end
                       in.matstr,      ;* MATSTR
                       in.two,         ;* MAX
                       in.one,         ;* MAXIMUM
-                      in.one,         ;* MD5
                       in.two,         ;* MIN
                       in.one,         ;* MINIMUM
                       in.two,         ;* MOD
                       in.two,         ;* MODS
-                      in.two,         ;* MULS
                       in.mvdate,      ;* MVDATE
                       in.mvdatetime,  ;* MVDATE.TIME
                       in.mvepoch,     ;* MVEPOCH
@@ -4486,10 +4327,8 @@ end
                       in.two,         ;* REGEX
                       in.two,         ;* REM
                       in.remove,      ;* REMOVE
-                      in.replace,     ;* REPLACE
                       in.one,         ;* REUSE
                       in.reusing,     ;* REUSING
-                      in.xfun,        ;* RIGHT
                       in.remove,      ;* RMVD
                       in.one,         ;* RND
                       in.xfun,        ;* ROUNDDOWN
@@ -4506,7 +4345,6 @@ end
                       in.xfun,        ;* SDSALT
                       in.select.socket, ;* SELECT.SOCKET
                       in.two,         ;* SELECTINFO
-                      in.sentence,    ;* SENTENCE
                       in.one,         ;* SEQ
                       in.one,         ;* SERVER.ADDR
                       in.two,         ;* SET.PORT.PARAMS
@@ -4530,20 +4368,15 @@ end
                       in.none,        ;* STATUS
                       in.two,         ;* STR
                       in.two,         ;* STRS
-                      in.subr,        ;* SUBR
-                      in.two,         ;* SUBS
                       in.subst,       ;* SUBSTITUTE
                       in.three,       ;* SUBSTRINGS
                       in.one,         ;* SUM
                       in.one,         ;* SUMMATION
-                      in.change,      ;* SWAP
                       in.one,         ;* SWAPCASE
-                      in.xfun,        ;* SWAPMARKS
                       in.sysmsg,      ;* SYSMSG
                       in.one,         ;* SYSTEM
                       in.one,         ;* TAN
                       in.terminfo,    ;* TERMINFO
-                      in.terminfo,    ;* TERMINFO.EX
                       in.time,        ;* TIME
                       in.none,        ;* TIMEDATE
                       in.trans,       ;* TRANS
@@ -4562,7 +4395,6 @@ end
                       in.vslice,      ;* VSLICE
                       in.four,        ;* WRITE.SOCKET
                       in.xfun,        ;* XBUILD
-                      in.trans,       ;* XLATE
                       in.xfun,        ;* XPARSE
                       in.xfun,        ;* XPATH
                       in.one          ;* XTD
@@ -4579,7 +4411,7 @@ in.three:
             arg.count = 3 ; gosub get.args
             goto intrinsic.common
 
-*** The OP.XFUN functions (CEIL FLOOR ROUNDUP ROUNDDOWN IS.ALNUM IS.ALPHA IS.DIGIT IS.GRAPH IS.MARK IS.SPACE LEFT RIGHT LAST
+*** The OP.XFUN functions (CEIL FLOOR ROUNDUP ROUNDDOWN LAST
 *** LASTS NV NS TRIMWS MATCHESS MATCHFIELDS): one opcode, OP.XFUN, with the function number loaded after the arguments
 *** (op_xfun.c).  XFUN.ROWS gives for each name: its function number, the number of arguments the program must write, the
 *** value of one optional last argument that may be left out (blank for none), and whether it is a multivalued function, in
@@ -4649,13 +4481,12 @@ xfun.optional.args:
 xfun.table.load:
             * name, function number, arguments written, optional last argument's default, multivalued (1) or not (0)
             xfun.rows = "CEIL,1,1,,0":@fm:"FLOOR,2,1,,0":@fm:"ROUNDUP,3,2,,0":@fm:"ROUNDDOWN,4,2,,0"
-            xfun.rows := @fm:"IS.ALNUM,5,1,,0":@fm:"IS.ALPHA,6,1,,0":@fm:"IS.DIGIT,7,1,,0":@fm:"IS.GRAPH,8,1,,0"
-            xfun.rows := @fm:"IS.MARK,9,1,,0":@fm:"IS.SPACE,10,1,,0":@fm:"LEFT,11,2,,0":@fm:"RIGHT,12,2,,0"
+            * function numbers 5 to 12 (IS.ALNUM .. IS.SPACE, LEFT, RIGHT) are retired
             xfun.rows := @fm:"LAST,13,2,,0":@fm:"LASTS,13,2,,1":@fm:"NV,14,1,0,0":@fm:"NS,15,1,,0"
             xfun.rows := @fm:"TRIMWS,16,1,,1":@fm:"MATCHESS,17,2,,1":@fm:"MATCHFIELDS,18,3,,1"
             xfun.rows := @fm:"BOOL,21,1,,0":@fm:"IS.NULL,22,1,,0":@fm:"NUMERIC,23,1,,0":@fm:"SIGNAL,25,1,,0"
             xfun.rows := @fm:"DIGEST,26,3,,0"   ;* 15 Oct 26 dm - QM4 gaps Q-13
-            xfun.rows := @fm:"SWAPMARKS,28,1,,0" ;* 15 Oct 26 dm - QM4 gaps Q-1, sheet 238 (27 is SELECT.SOCKET, which has its own handler)
+            * 27 Oct 26 dm - function 28 (SWAPMARKS) is retired and stays reserved (27 is SELECT.SOCKET, which has its own handler)
             xfun.rows := @fm:"FCONTROL,29,2,0,0"  ;* 15 Oct 26 dm - FCONTROL(fvar, action {, qualifier}); the qualifier is 0 when left out
             xfun.rows := @fm:"SDSALT,37,0,,0":@fm:"SDKEY,38,2,,0":@fm:"SDRANDKEY,39,0,,0"   ;* 18 Oct 26 dm - encryption layer 2
             xfun.rows := @fm:"CSVPARSE,43,1,0|,0":@fm:"CSVBUILD,44,1,0|,0":@fm:"CSVOPEN,45,1,||,0":@fm:"JMERGE,46,2,,0":@fm:"JPATCH,47,2,,0":@fm:"JPATH,48,2,,0":@fm:"JVALIDATE,49,2,,0":@fm:"XPARSE,50,1,0,0":@fm:"XBUILD,51,1,0|,0":@fm:"XPATH,52,2,,0"   ;* 20 Oct 26 dm - CSV / JSON / XML task (40 to 42 are FORMCSV, CSVDQ and CSV.MODE's operands, emitted by their own handlers)
@@ -4725,14 +4556,9 @@ in.reusing:
             intrinsic.stack<1> = OP.XFUN
             goto intrinsic.common
 
-*** CONVERT(from, to, string).  With $MODE PICK.CONVERT the arguments are written as CONVERT(string, from, to), the order
-*** the Pick products use; they are evaluated as written and the string is rolled to the top where the opcode takes it
-*** (15 Oct 26 dm, QM4 gaps Q-16).
+*** CONVERT(from, to, string)  (27 Oct 26: $MODE PICK.CONVERT, which took the Pick order string, from, to, is gone)
 in.convert:
             arg.count = 3 ; gosub get.args
-            if bittest(mode2, M2.PICK.CONVERT) then
-               opcode.byte = OP.ROLL3 ; gosub emit.simple
-            end
             goto intrinsic.common
 
 in.four:
@@ -4993,28 +4819,6 @@ in.csvdq:
             end
             goto intrinsic.common
 
-*** DELETE()   2, 3 or 4 arguments. Absent args default to zero
-*** EXTRACT()   2, 3 or 4 arguments. Absent args default to zero
-in.delete:
-in.extract:
-            arg.count = 2 ; gosub get.args
-
-            if look.ahead.token = TKN.COMMA then
-               gosub get.token
-               gosub exprf
-            end else
-               n = 0 ; gosub emit.numeric.load
-            end
-
-            if look.ahead.token = TKN.COMMA then
-               gosub get.token
-               gosub exprf
-            end else
-               n = 0 ; gosub emit.numeric.load
-            end
-
-            goto intrinsic.common
-
 *** DTX()  1 or 2 arguments. Second defaults to 0 if omitted.
 in.dtx:
             gosub expr        ;* Value to convert
@@ -5204,41 +5008,6 @@ in.removef:
             end
             goto intrinsic.common
 
-*** INSERT()  3, 4 or 5 args, args 2 and 4 default to zero
-*** REPLACE()  3, 4 or 5 args, args 2 and 4 default to zero
-***          final arg may have semicolon delimiter.
-in.insert:
-            if bittest(mode, M.COMPAT.APPEND) then intrinsic.stack<1> = OP.COMPINSRT
-            goto in.ins.rep
-in.replace:
-            if bittest(mode, M.COMPAT.APPEND) then intrinsic.stack<1> = OP.COMPREPLC
-in.ins.rep:
-            arg.count = 2       ;* Source string and field number
-            gosub get.args
-
-            if look.ahead.token = TKN.COMMA then    ;* Value number present
-               gosub get.token
-               gosub exprf
-            end else
-               n = 0 ; gosub emit.numeric.load
-            end
-
-            if look.ahead.token = TKN.COMMA then    ;* Subvalue number present
-               gosub get.token
-               gosub exprf
-            end else
-               n = 0 ; gosub emit.numeric.load
-            end
-
-            if (look.ahead.token # TKN.COMMA) and (look.ahead.token # TKN.SEMICOLON) then
-               err.msg = sysmsg(2861) ;* Expected comma or semicolon
-               goto error
-            end
-
-            gosub get.token
-            gosub exprf                ;* New string value
-            goto intrinsic.common
-
 *** LOCATE()  3, 4 or 5 args. Final arg may have semicolon delimiter.
 in.locate:
             arg.count = 3       ;* Search string, dynamic array, field pos
@@ -5287,11 +5056,6 @@ in.scan:
             end
             gosub emit.var.load
             opcode.byte = OP.BTSCANA ; gosub emit.simple
-            goto intrinsic.end
-
-*** SENTENCE()
-in.sentence:
-            n = syscom.sentence ; gosub emit.ldsysv
             goto intrinsic.end
 
 *** SORT(key.count, {MAT} flags)   16 Oct 26 dm - QM4 Fixes item 371
@@ -5411,39 +5175,6 @@ in.sortnext:
             intrinsic.stack<1> = OP.XFUN
             goto intrinsic.common
 
-*** SUBR(name [, arg1 [,arg2...]])
-in.subr:
-            gosub expr   ;* Subroutine name expression
-
-            gosub emit.function.return.argument  ;* Emit return argument
-
-            ins "1" before func.stack<1>  ;* Track arg count
-            loop
-            while look.ahead.token = TKN.COMMA
-               func.stack<1> = func.stack<1> + 1
-               gosub get.token  ;* Skip comma
-               gosub exprf
-               if err then
-                 del func.stack<1>
-                 return
-               end
-            repeat
-
-            * Emit call
-
-            func.arg.count = func.stack<1> + 0
-            del func.stack<1>
-
-            if print.code then
-               s = "CALL     (" : func.arg.count : " arguments)"
-               gosub show.code
-            end
-
-            opcode.byte = OP.CALL ; gosub emit
-            opcode.byte = func.arg.count ; gosub emit
-            gosub emit.function.result.load  ;* Load result
-            goto intrinsic.end
-
 *** SUBSTITUTE()   3 or 4 arguments, absent arg defaults to @vm
 in.subst:
             arg.count = 3 ; gosub get.args
@@ -5559,16 +5290,8 @@ in.trim:
             goto intrinsic.common
 
 in.time:
-            * 12 Oct 26 dm - openQM 581.  With $MODE TIME.MS, TIME() is SYSTEM(1020) / 1000: seconds since midnight
-            * to the millisecond, as a floating point number.  Otherwise it is the plain TIME() opcode.
-            if bittest(mode, M.TIME.MS) then
-               n = 1020 ; gosub emit.numeric.load
-               opcode.byte = OP.SYSTEM ; gosub emit.simple
-               n = 1000 ; gosub emit.numeric.load
-               opcode.byte = OP.DIV ; gosub emit.simple
-               goto intrinsic.end
-            end
-            goto intrinsic.common               ;* The plain TIME() opcode
+            * 28 Oct 26 dm - S.87: $MODE TIME.MS is gone (write SYSTEM(1020) / 1000 for milliseconds); TIME() is the plain opcode.
+            goto intrinsic.common
 
 in.epoch:                       ;* EPOCH()  -  SYSTEM(1035), seconds since 1 Jan 1970 UTC
             n = 1035 ; gosub emit.numeric.load
@@ -5604,17 +5327,6 @@ in.mvepoch:                     ;* MVEPOCH(date_time) or MVEPOCH(date, time)
 
 in.none:
 intrinsic.common:
-            * 15 Oct 26 dm - QM4 gaps Q-16.  Once $MODE CHANGE.NO.OVERLAP, COUNT.OVERLAP or INDEX.OVERLAP has been on in this
-            * program, every call of the seven functions they touch is preceded by the modes then in force, as a mask for
-            * OP.STROVL (op_strovl), so that $MODE -name and $MODE DEFAULT work from the line they appear on.  A program that
-            * never uses them gets the same object code as before.
-            if str.ovl.used then
-               i = intrinsic.stack<1>
-               if i = OP.CHANGE or i = OP.EREPLACE or i = OP.COUNT or i = OP.COUNTS or i = OP.INDEX or i = OP.INDEXS then
-                  n = bitand(mode2, 7) ; gosub emit.numeric.load
-                  opcode.byte = OP.STROVL ; gosub emit.simple
-               end
-            end
             opcode.byte = intrinsic.stack<1>
             gosub emit.simple
 
@@ -5806,7 +5518,7 @@ gnc.again:
 * GET.CLASS.INIT.CONSTANT  -  Read an initialisation value for a class  (16 Oct 26 dm, QM4 Fixes items 356 and 565)
 *
 * PUBLIC x = 5, PRIVATE s = "text", CLASS c INHERITS other("RATE", 25): the value is a numeric constant (signed), a string,
-* CHAR() of a numeric constant, or one of the constant @-variables (@FM @VM @SM @TM @IM @AM @SVM @TRUE @FALSE).  It is NOT an
+* CHAR() of a numeric constant, or one of the constant @-variables (@FM @VM @SM @TM @IM @TRUE @FALSE).  It is NOT an
 * expression: it is applied when the object is created, before anything else of the object has run.
 *
 * Sets init.kind ('N' number, 'S' string, 'A' @-variable) and init.value; a string is kept as its hex image, so that a mark
@@ -5854,7 +5566,7 @@ get.class.init.constant:
          gosub get.token                         ;* The @
          gosub get.token                         ;* The name
          locate u.token.string in at.constants<1> setting i then
-            if i <= 9 then                       ;* The first nine are constants: the seven marks, FALSE and TRUE
+            if i <= 7 then                       ;* The first seven are constants: the five marks, FALSE and TRUE (nine until @AM and @SVM went, 27 Oct 26)
                init.kind = 'A'
                init.value = u.token.string
             end
@@ -5919,27 +5631,22 @@ emit.class.inits:
 
 emit.var.load:
    if symbol.common.offset >= 0 then   ;* Common variable
-      if commons<7,symbol.common.index,symbol.common.offset> then
-         symbol.var.no = commons<7,symbol.common.index,symbol.common.offset>
-         symbol.name = commons<4,symbol.common.index,symbol.common.offset>
-      end else
-         if print.code then
-            s = "LDCOM    " : symbol.var.no : ", " : symbol.name
-            gosub show.code
-         end
-
-         opcode.byte = OP.LDCOM
-         gosub emit
-
-         code.value = symbol.var.no
-         code.bytes = 2
-         gosub emit.multibyte.value
-
-         code.value = symbol.common.offset
-         code.bytes = 2
-         gosub emit.multibyte.value
-         return
+      if print.code then
+         s = "LDCOM    " : symbol.var.no : ", " : symbol.name
+         gosub show.code
       end
+
+      opcode.byte = OP.LDCOM
+      gosub emit
+
+      code.value = symbol.var.no
+      code.bytes = 2
+      gosub emit.multibyte.value
+
+      code.value = symbol.common.offset
+      code.bytes = 2
+      gosub emit.multibyte.value
+      return
    end
 
    * Local variable
@@ -5973,14 +5680,11 @@ emit.var.load:
 * EMIT.AT.VAR.LOAD  -  Emit code to load an @variable
 
 emit.at.var.load:
-   if u.token.string = "STDFIL" and bittest(mode, M.STDFIL) then goto stdfil.var.load  ;* @STDFIL
-
    locate u.token.string in at.constants<1> setting i then
-      on i goto at.mark,at.mark,at.mark,at.mark,at.mark,at.mark,at.mark,
+      on i goto at.mark,at.mark,at.mark,at.mark,at.mark,
            at.false,
            at.true,
            at.sdsys,
-           at.userno,
            at.userno,
            at.day,
            at.month,
@@ -6479,8 +6183,8 @@ no.arg.common:
 * ST.LOGMSG          -  LOGMSG
 * ST.NAP             -  NAP
 * ST.PRECISION       -  PRECISION statement
-* ST.PRINTERR        -  PRINTERR statement
-* ST.PROMPT          -  PROMPT statement
+* ST.INPUTERR       -  INPUTERR statement (27 Oct 26 dm: was ST.PRINTERR, when the second spelling PRINTERR still existed; the opcode keeps its name)
+* ST.PROMPT         -  PROMPT statement
 * ST.RESET.MODES     -  RESET.MODES statement (restricted)
 * ST.RUN             -  RUN statement (restricted)
 * ST.SET.MODES       -  SET.MODES statement (restricted)
@@ -6571,7 +6275,7 @@ st.precision:
    end
    opcode = OP.PRECISION ; goto common.path
 
-st.printerr:
+st.inputerr:
    opcode = OP.PRINTERR ; goto common.path
 
 st.prompt:
@@ -7152,20 +6856,6 @@ st.call:
          gosub emit.var.load
       end
    end
-   else if look.ahead.token = TKN.STRING then
-      * 17 Oct 26 dm, QM4 Fixes 208: the Pick style CALL "file name".  The string is the name of a file as the VOC has it, a
-      * space, and the name of a compiled program in the file's object directory (op_jumps.c pick_style_runfile()).  It is
-      * called like any direct call, through a variable that starts out holding the string; a string with no space in it is
-      * not this form and is refused as it always was.
-
-      gosub get.token
-      s = downcase(token.string)
-      if index(s, ' ', 1) = 0 then
-         err.msg = sysmsg(2883) ;* Expected direct or indirect subroutine reference
-         goto error
-      end
-      gosub emit.direct.call.reference
-   end
    else if (look.ahead.token = TKN.NAME) or (look.ahead.token = TKN.NAME.LBR) or (look.ahead.token.string = '!')  or (look.ahead.token.string = '*') or (look.ahead.token = TKN.DOLLAR) then
       * Direct call
 
@@ -7334,7 +7024,6 @@ st.chain:
 * ST.CLASS  -  CLASS statement
 
 st.class:
-   if is.ctype then goto err.ctype
    if name.set then goto err.name.set
 
    if pc # start.pc then
@@ -7518,13 +7207,8 @@ st.cleardata:
 * ST.CLEARFILE  -  CLEARFILE statement
 
 st.clearfile:
-   gosub stdfil.no.operand
-   if stdfil.use then
-      gosub stdfil.var.load        ;* $MODE STDFIL: the default file variable
-   end else
-      gosub convert.pick.file.reference
-      gosub simple.var.reference   ;* Emit file variable
-   end
+   gosub convert.pick.file.reference
+   gosub simple.var.reference   ;* Emit file variable
 
    opcode = OP.CLRFILE
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
@@ -7562,19 +7246,13 @@ st.clearselect:
 
 *****************************************************************************
 * ST.CLOSE      -  CLOSE statement
-* ST.CLOSESEQ   -  CLOSESEQ statement
 *
 
 st.close:
-   gosub stdfil.no.operand
-   if stdfil.use then
-      gosub stdfil.var.load             ;* $MODE STDFIL: the default file variable
-   end else
-      if look.ahead.token # TKN.NAME and look.ahead.token # TKN.NAME.LBR then goto err.var
-      gosub convert.pick.file.reference
-      gosub get.token
-      gosub emit.var.reference          ;* Emit file variable
-   end
+   if look.ahead.token # TKN.NAME and look.ahead.token # TKN.NAME.LBR then goto err.var
+   gosub convert.pick.file.reference
+   gosub get.token
+   gosub emit.var.reference          ;* Emit file variable
 
    opcode = OP.CLOSE
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
@@ -7698,7 +7376,6 @@ st.common.common:
          commons<1,common.index> = s
          commons<2,common.index> = symbol.var.no
          commons<3,common.index> = '1'
-         if bittest(mode, M.UNASSIGNED.COMMON) then commons<9,common.index> = @true
          if varset.arg.no >= 0 then commons<8,common.index> = @true
       end
 
@@ -7770,16 +7447,6 @@ st.common.common:
       commons<4,common.index,symbol.common.offset> = symbol.name
       commons<5,common.index,symbol.common.offset> = rows
       commons<6,common.index,symbol.common.offset> = cols
-
-      if bittest(mode, M.PMATRIX) and symbol.dim # 0 then
-         * This is a Pick style matrix. Leave space for the elements.
-
-         commons<7,common.index,symbol.common.offset> = var.count
-         var.count += 1
-         symbol.table<-1> = symbol.name
-         n = if cols then rows * cols else rows
-         commons<3,common.index> += n - 1
-      end
 
    while look.ahead.token = TKN.COMMA
 
@@ -7973,8 +7640,6 @@ st.data:
 * ST.DEBUG.ON  -  DEBUG.ON statement (restricted)
 
 st.debug:
-   if is.ctype then goto err.ctype
-
    if not(debug) then
       err.msg = sysmsg(2893) ;* DEBUG statement ignored - not compiling in debug mode
       gosub warning
@@ -8194,27 +7859,16 @@ st.delete:
 
    * Emit file var
 
-   gosub stdfil.fvar.test
-   if stdfil.fvar then
-      gosub convert.pick.file.reference
-      gosub exprf
-      gosub check.comma
-   end else
-      gosub stdfil.var.load             ;* $MODE STDFIL: DELETE id
-   end
+   gosub convert.pick.file.reference
+   gosub exprf
+   gosub check.comma
    gosub exprf           ;* Emit record id expresssion
 
    * Perform common back-end processing
 
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
    ins '0' before testlock.stack<1>     ;* No LOCKED clause
-   if bittest(mode, M.WRITE.DELETE.THEN.ELSE) then
-      ins '2' before thenelse.stack<1>  ;* Optional THEN / ELSE (trigger failure)
-      then.else.trig = @true
-   end else
-      ins '0' before thenelse.stack<1>  ;* No THEN or ELSE clause
-   end
-   if bittest(mode2, M2.AUTOLOCK) then autolock.stmt = @true
+   ins '0' before thenelse.stack<1>  ;* No THEN or ELSE clause
    goto back.end
 
 *****************************************************************************
@@ -8295,11 +7949,7 @@ st.dim.body:
       symbol.mode = SYM.DIM
       gosub find.var
       if symbol.var.no >= 0 then  ;* Exists
-         * Is it a Pick style matrix?
-         if symbol.common.offset >= 0 and commons<7,symbol.common.index,symbol.common.offset> then
-            err.msg = sysmsg(2973) ;* Cannot redimension a Pick style common matrix
-            goto error
-         end
+         null
       end else                    ;* Make new variable
          symbol.dim = -1          ;* Indicate not yet known
          symbol.common.offset = -1
@@ -8356,9 +8006,9 @@ st.dim.body:
          gosub emit.simple
          gosub emit.simple
       end else
-         * Emit DIMLCL or DIMLCLP opcode
+         * Emit DIMLCL opcode
 
-         opcode.byte = if bittest(mode, M.PMATRIX) then OP.DIMLCLP else OP.DIMLCL
+         opcode.byte = OP.DIMLCL
          gosub emit.simple
       end
 
@@ -8444,9 +8094,8 @@ get.arg.default:
 
 * ARG.DEFAULTS.EMIT  -  At the end of a SUBROUTINE or FUNCTION statement: each default value read by GET.ARG.DEFAULT becomes
 * a line of source, IF ARG.COUNT() < n THEN name = value, queued in INJECT.LINES for GET.LINE to read ahead of the next line
-* of the program, so that the compiler reads it as if it had been written there.  With $MODE DEFAULT.UNASS.ARGS an argument
-* the caller passed unassigned gets its default as well.  A default needs one of the two: VAR.ARGS lets the caller leave the
-* argument out, the mode lets it pass nothing.  (The record of source lines cannot be added to: REMOVEF leaves the text alone
+* of the program, so that the compiler reads it as if it had been written there.  A default needs VAR.ARGS, which lets the
+* caller leave the argument out.  (The record of source lines cannot be added to: REMOVEF leaves the text alone
 * and moves a pointer, so assigning to it starts the reading again from the top.)
 arg.defaults.emit:
    if arg.defaults # '' then
@@ -8457,11 +8106,8 @@ arg.defaults.emit:
          dflt.text = arg.defaults<dflt.i,3>
          if bitand(header.flags, HDR.VAR.ARGS) # 0 then
             dflt.cond = 'ARG.COUNT() < ' : dflt.pos
-            if bittest(mode2, M2.DEFAULT.UNASS.ARGS) then dflt.cond := ' OR UNASSIGNED(' : dflt.name : ')'
-         end else if bittest(mode2, M2.DEFAULT.UNASS.ARGS) then
-            dflt.cond = 'UNASSIGNED(' : dflt.name : ')'
          end else
-            err.msg = sysmsg(11274)  ;* Default argument values need the VAR.ARGS option or $MODE DEFAULT.UNASS.ARGS
+            err.msg = sysmsg(11274)  ;* Default argument values need the VAR.ARGS option
             gosub error
             exit
          end
@@ -8714,33 +8360,6 @@ st.end:
    return
 
 *****************************************************************************
-* ST.ENTER  -  ENTER statement
-
-st.enter:
-   if not(bittest(mode, M.PICK.ENTER)) then goto st.call
-
-   begin case
-      case look.ahead.token = TKN.AT.NAME      ;* Indirect call
-         gosub get.token    ;* Skip @ token
-         gosub simple.var.reference
-         if err then return
-
-      case (look.ahead.token = TKN.NAME) or (look.ahead.token.string = '!')  or (look.ahead.token.string = '*') or (look.ahead.token = TKN.DOLLAR)
-         * Direct call
-
-         gosub get.call.name                 ;* Read name token
-         gosub emit.direct.call.reference
-
-      case 1
-         err.msg = sysmsg(2883) ;* Expected direct or indirect subroutine reference
-         goto error
-   end case
-
-   opcode.byte = OP.ENTER ; gosub emit.simple
-
-   return
-
-*****************************************************************************
 * ST.EQUATE  -  EQUATE statement
 
 st.equate:
@@ -8887,7 +8506,7 @@ st.equate:
 *             {CAPTURING var}
 *             {PASSLIST var}
 *             {RTNLIST var}
-*             {SETTING | RETURNING var}
+*             {RETURNING var}
 *             {CURRENT.LEVEL}            (restricted)
 
 * ST.PHANTOM  -  PHANTOM statement (12 Oct 26 dm, openQM 390): starts a phantom with the PHANTOM command, without
@@ -8963,29 +8582,22 @@ st.execute.options:
             end
 
          case u.look.ahead.token.string = "PASSLIST"
+            * 27 Oct 26 dm - S.87 batch 3: PASSLIST names a variable, always.  It used to be accepted with no name and then ignored
+            * (a form that other products write); simple.var.reference now refuses the missing name.
             gosub get.token
             passlist.any = @true
 
-            * 2.2-13 For compatibility with other systems, the PASSLIST option
-            * can be used without a qualifying name. This implies that list 0
-            * is to be passed in to the executed command. Given that this is
-            * the default behaviour of SD anyway, we simply ignore the PASSLIST
-            * if there is no qualifier.
-
-            if look.ahead.token # TKN.END and look.ahead.token # TKN.SEMICOLON then
-               find u.look.ahead.token.string in reserved.names setting i else
-                  if bitand(execute.flags, 8) then
-                     err.msg = sysmsg(2912) ;* Multiple instances of PASSLIST clause
-                     goto error
-                  end
-
-                  gosub simple.var.reference   ;* Emit LDLCL etc for source
-                  opcode.byte = OP.PASSLIST ; gosub emit.simple
-                  execute.flags = bitor(execute.flags, 8)
-               end
+            if bitand(execute.flags, 8) then
+               err.msg = sysmsg(2912) ;* Multiple instances of PASSLIST clause
+               goto error
             end
 
-         case u.look.ahead.token.string = "SETTING" or u.look.ahead.token.string = "RETURNING"
+            gosub simple.var.reference   ;* Emit LDLCL etc for source
+            if err then return
+            opcode.byte = OP.PASSLIST ; gosub emit.simple
+            execute.flags = bitor(execute.flags, 8)
+
+         case u.look.ahead.token.string = "RETURNING"     ;* SETTING, the second spelling, was removed on 27 Oct 26 (S.87 batch 3)
             if bitand(execute.flags, 16) then
                err.msg = sysmsg(3409) ;* Multiple instances of SETTING/RETURNING clause
                goto error
@@ -9032,18 +8644,6 @@ st.execute.options:
       s = "EXECUTE  " : execute.flags
       gosub show.code
     end
-
-   * 14 Oct 26 dm - openQM 521: $MODE EXECUTE.CLEARLIST clears the default select list before the command runs,
-   * unless a PASSLIST clause was given (the stack is as it was after the two instructions).  With STACKLIST the
-   * kernel clears it after keeping its copy (flag 0x80), or the copy would be of an empty list.
-   if bittest(mode, M.EXECUTE.CLEARLIST) and not(passlist.any) then
-      if bitand(execute.flags, 0x40) then
-         execute.flags = bitor(execute.flags, 0x80)
-      end else
-         n = 0 ; gosub emit.numeric.load
-         opcode.byte = OP.CLEARSEL ; gosub emit.simple
-      end
-   end
 
    opcode.byte = OP.EXECUTE ; gosub emit
    opcode.byte = execute.flags ; gosub emit
@@ -9284,14 +8884,9 @@ st.fileunlock:
    opcode = OP.FLUNLOCK
 
 st.filelock.common:
-   gosub stdfil.no.operand
-   if stdfil.use then
-      gosub stdfil.var.load     ;* $MODE STDFIL: the default file variable
-   end else
-      gosub convert.pick.file.reference
-      gosub simple.var.reference   ;* Emit file variable
-      if err then return
-   end
+   gosub convert.pick.file.reference
+   gosub simple.var.reference   ;* Emit file variable
+   if err then return
 
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
    ins '1' before testlock.stack<1>     ;* Optional LOCKED clause
@@ -9399,10 +8994,6 @@ st.heading:
 
    if u.look.ahead.token.string = 'NO.EJECT'  then
       gosub get.token
-      opcode = OP.HEADINGN
-   end
- 
-   if bittest(mode, M.HEADING.NO.EJECT) and u.look.ahead.token.string # 'NO.EJECT' then
       opcode = OP.HEADINGN
    end
 
@@ -9533,12 +9124,10 @@ st.for:
    if u.look.ahead.token.string = "STEP" then
       gosub get.token         ;* Skip STEP
       gosub expr
-      if bittest(mode, M.FOR.STORE.BEFORE.TEST) then opcode.byte = OP.FORLOOPS
-      else opcode.byte = OP.FORLOOP
+      opcode.byte = OP.FORLOOP
       gosub emit.simple
    end else
-      if bittest(mode, M.FOR.STORE.BEFORE.TEST) then opcode.byte = OP.FOR1S
-      else opcode.byte = OP.FOR1
+      opcode.byte = OP.FOR1
       gosub emit.simple
    end
 
@@ -9632,8 +9221,7 @@ st.for.each:
    end else
       n = 999999999 ; gosub emit.numeric.load
    end
-   if bittest(mode, M.FOR.STORE.BEFORE.TEST) then opcode.byte = OP.FOR1S
-   else opcode.byte = OP.FOR1
+   opcode.byte = OP.FOR1
    gosub emit.simple
    label.name = "_":fe.n:"X" ; gosub emit.addr
 
@@ -9678,8 +9266,7 @@ st.for.list:
    label.name = "_":fl.n:"R" ; gosub set.label
    symbol.name = "_FORLIST":fl.n:"I" ; gosub hidden.var.load
    n = 999999999 ; gosub emit.numeric.load
-   if bittest(mode, M.FOR.STORE.BEFORE.TEST) then opcode.byte = OP.FOR1S
-   else opcode.byte = OP.FOR1
+   opcode.byte = OP.FOR1
    gosub emit.simple
    label.name = "_":fl.n:"X" ; gosub emit.addr
 
@@ -9820,7 +9407,6 @@ st.formlistv:
 * ST.FUNCTION  -  FUNCTION statement
 
 st.function:
-   if is.ctype then goto err.ctype
    if name.set then goto err.name.set
 
    if pc # start.pc then
@@ -9971,11 +9557,6 @@ st.gosub:
 
 *****************************************************************************
 * ST.GOTO  -  GOTO statement
-
-st.go:
-   if u.look.ahead.token.string = "TO" then
-      gosub get.token
-   end
 
 st.goto:
    gosub get.label.name
@@ -10151,19 +9732,6 @@ st.settimezone:
    gosub emit.direct.call.reference
    gosub expr                           ;* The zone name
    sys.call.n = 1
-   gosub emit.sys.call.end
-   return
-
-*****************************************************************************
-* ST.KEEPSELECT  -  KEEP.SELECT     (15 Oct 26 dm, QM4 gaps Q-16)
-*
-* A call of the catalogued subroutine !keepselect, which tells the command processor that the list this program leaves in
-* list 0 is meant to be left: with OPTION CLEAR.SELECT the processor then does not clear it when the command ends.
-
-st.keepselect:
-   s = '!keepselect'
-   gosub emit.direct.call.reference
-   sys.call.n = 0
    gosub emit.sys.call.end
    return
 
@@ -10348,7 +9916,7 @@ st.if:
 
 st.if.back.end:
 
-   * 15 Oct 26 dm - QM4 gaps Q-16 ($MODE CONDITIONAL.STATEMENTS): as a WHILE or UNTIL condition, FIND, FINDSTR, GETLIST and
+   * 15 Oct 26 dm - QM4 gaps Q-16: as a WHILE or UNTIL condition, FIND, FINDSTR, GETLIST and
    * LOCATE have already left their truth value on the stack, which is all the jump after them needs (st.while.until.common)
    if cond.mode then
       cond.mode = @false
@@ -10514,27 +10082,6 @@ st.in:
    return
 
 *****************************************************************************
-* ST.INCLUDE  -  INCLUDE statement (not $INCLUDE directive)
-
-st.include:
-   * The INCLUDE statement has to be processed directly from the source
-   * rather than via the token parser as the format of operating system
-   * file names may clash with our token definitions. To allow for labels,
-   * strip off everything before the "INCLUDE".
-
-   s = upcase(src)
-   i = index(s, 'INCLUDE', 1)
-   src = src[i,99999]
-
-   gosub process.include
-
-   * Now, kill off the rest of this line
-
-   loop while token do gosub get.token repeat
-
-   return
-
-*****************************************************************************
 * ST.INPUT  -  INPUT statement
 * ST.INPUTFIELD  -  INPUT.FIELD statement
 * ST.KEYBOARD.INPUT  -  KEYBOARD.INPUT statement (restricted)
@@ -10557,10 +10104,6 @@ st.keyboard.input:
 st.input.common:
    if bittest(mode, M.NO.ECHO.DATA) THEN
       input.flags += IN$NO.ECHO.DATA
-   end
-
-   if bittest(mode, M.NO.CASE.INVERT) THEN
-      input.flags += IN$NO.CASE.INVERT
    end
 
    if look.ahead.token = TKN.AT then         ;* INPUT @
@@ -10628,7 +10171,7 @@ st.input.common:
       end
 
 * NJS use @VM
-      reserved.names<2> = "APPEND":@VM:"EDIT":@VM:"FOR":@VM:"HIDDEN":@VM:"NO.ECHO":@VM:"OVERLAY":@VM:"PANNING":@VM:"TIMEOUT":@VM:"UPCASE":@VM:"WAITING":@VM:"NOCASEINVERT"
+      reserved.names<2> = "APPEND":@VM:"EDIT":@VM:"HIDDEN":@VM:"NO.ECHO":@VM:"OVERLAY":@VM:"PANNING":@VM:"UPCASE":@VM:"WAITING"   ;* 27 Oct 26 dm - FOR and TIMEOUT (second spellings of WAITING) and NOCASEINVERT removed
 
       * Check for mask
 
@@ -10651,7 +10194,7 @@ st.input.common:
                gosub get.token
                input.flags = bitor(input.flags, IN$EDIT)
 
-            case listindex('FOR,TIMEOUT,WAITING', ',', u.look.ahead.token.string)
+            case u.look.ahead.token.string = 'WAITING'
                gosub get.token
                input.flags = bitor(input.flags, IN$TIMEOUT)
                gosub expr
@@ -10675,9 +10218,6 @@ st.input.common:
             case u.look.ahead.token.string = 'UPCASE'
                gosub get.token
                input.flags = bitor(input.flags, IN$UPCASE)
-            case u.look.ahead.token.string = 'NOCASEINVERT'
-               gosub get.token
-               input.flags = bitor(input.flags, IN$NO.CASE.INVERT)
 
             case 1
                exit
@@ -10692,7 +10232,7 @@ st.input.common:
       if err then return
 
   * NJS use @vm
-      reserved.names<2> = "FOR":@VM:"HIDDEN":@VM:"NO.ECHO":@VM:"RAW":@VM:"TIMEOUT":@VM:"UPCASE":@VM:"WAITING":@VM:"NOCASEINVERT"
+      reserved.names<2> = "HIDDEN":@VM:"NO.ECHO":@VM:"RAW":@VM:"UPCASE":@VM:"WAITING"   ;* 27 Oct 26 dm - FOR, TIMEOUT and NOCASEINVERT removed
 
       * Emit maximum input string length
 
@@ -10747,13 +10287,10 @@ st.input.common:
                gosub get.token
                input.flags = bitor(input.flags, IN$UPCASE)
 
-            case listindex('FOR,TIMEOUT,WAITING', ',', u.look.ahead.token.string)
+            case u.look.ahead.token.string = 'WAITING'
                gosub get.token
                input.flags = bitor(input.flags, IN$TIMEOUT)
                gosub expr
-            case u.look.ahead.token.string = 'NOCASEINVERT'
-               gosub get.token
-               input.flags = bitor(input.flags, IN$NO.CASE.INVERT)
 
             case 1
                exit
@@ -10871,7 +10408,7 @@ st.ins:
 
    gosub emit.field.reference ; if err then return
 
-   opcode.byte = if bittest(mode, M.COMPAT.APPEND) then OP.COMPINS else OP.ins
+   opcode.byte = OP.ins
    gosub emit.simple
 
    return
@@ -10934,8 +10471,6 @@ st.local:
       case u.look.ahead.token.string = 'FUNCTION'
          is.local.function = @true
       case u.look.ahead.token.string = 'SUBROUTINE'
-         is.local.function = @false
-      case u.look.ahead.token.string = 'SUB'
          is.local.function = @false
       case 1
          err.msg = sysmsg(3421) ;* Expected FUNCTION or SUBROUTINE after LOCAL
@@ -11193,144 +10728,84 @@ st.local:
 * ST.LOCATE  -  LOCATE statement
 
 st.locate:
-   if look.ahead.token = TKN.LBR then    ;* Pick style
-      gosub get.token     ;* Skip bracket
+   * 27 Oct 26 dm - the bracketed Pick form, LOCATE(expr, array, f, v; position; order), was removed (S.87 batch 3)
+   * Emit search expression
 
-      * Emit search expression
+   gosub exprf
 
-      gosub exprf
-      gosub check.comma
+   if u.look.ahead.token.string # "IN" then goto err.in
 
-      * Emit dynamic array reference
+   gosub get.token          ;* Skip IN
 
-      gosub expr                         ;* 0287
-!0287    gosub simple.var.reference
-!0287    if err then return
+   gosub simple.var.reference ; if err then return
 
+   if bittest(mode, M.UV.LOCATE) then
       locate.level = 0
-      if look.ahead.token = TKN.COMMA then  ;* Field position present
-         gosub get.token
+      if look.ahead.token = TKN.LT then
+         gosub get.token                ;* Skip < token
+
+         format.qualifier.allowed = @false
+         gosub is.field.ref
+         if ifr.index  = 0 then goto err.field
+
+         * Field position
          gosub expr
          locate.level = 1
+
+         * Value position
+         if look.ahead.token = TKN.COMMA then
+            gosub get.token             ;* Skip comma
+            gosub expr
+            locate.level = 2
+         end
+
+         if look.ahead.token # TKN.END.FIELD then goto err.field
+         gosub get.token  ;* Skip >
       end
 
-      if look.ahead.token = TKN.COMMA then  ;* Value position present
+      * Start position
+
+      if look.ahead.token = TKN.COMMA then
          gosub get.token
          gosub expr
-         locate.level = 2
+      end else
+         n = 1 ; gosub emit.numeric.load
       end
-
-      * Emit start position - always 1 in this style
-
-      n = 1 ; gosub emit.numeric.load
 
       loop
       while locate.level < 2
          n = 0 ; gosub emit.numeric.load
          locate.level += 1
       repeat
-
-      * Emit reference to variable to receive position
-
-      if look.ahead.token # TKN.SEMICOLON then goto err.semicolon
-      gosub get.token          ;* Skip semicolon
-      gosub simple.lvar.reference
-      if err then return
-
-      if look.ahead.token = TKN.SEMICOLON then  ;* Ordering expression present
-         gosub get.token          ;* Skip semicolon
-         gosub exprf              ;* Emit ordering expression
-      end else
-         opcode.string = '' ; gosub emit.string.load
-      end
-
-      * Swap top two items on the stack
-
-      opcode.byte = OP.SWAP ; gosub emit.simple
-
-      if look.ahead.token # TKN.RBR then goto err.rbr
-      gosub get.token          ;* Skip bracket
-
-   end else    ;* Not Pick style
-      * Emit search expression
-
-      gosub exprf
-
-      if u.look.ahead.token.string # "IN" then goto err.in
-
-      gosub get.token          ;* Skip IN
-
-      gosub simple.var.reference ; if err then return
-
-      if bittest(mode, M.UV.LOCATE) then
-         locate.level = 0
-         if look.ahead.token = TKN.LT then
-            gosub get.token                ;* Skip < token
-
-            format.qualifier.allowed = @false
-            gosub is.field.ref
-            if ifr.index  = 0 then goto err.field
-
-            * Field position
-            gosub expr
-            locate.level = 1
-
-            * Value position
-            if look.ahead.token = TKN.COMMA then
-               gosub get.token             ;* Skip comma
-               gosub expr
-               locate.level = 2
-            end
-
-            if look.ahead.token # TKN.END.FIELD then goto err.field
-            gosub get.token  ;* Skip >
-         end
-
-         * Start position
-
-         if look.ahead.token = TKN.COMMA then
-            gosub get.token
-            gosub expr
-         end else
-            n = 1 ; gosub emit.numeric.load
-         end
-
-         loop
-         while locate.level < 2
-            n = 0 ; gosub emit.numeric.load
-            locate.level += 1
-         repeat
-      end else
-         if look.ahead.token # TKN.LT then
-            err.msg = sysmsg(2899) ;* Field reference not found where expected
-            goto error
-         end
-         gosub get.token                ;* Skip < token
-
-         format.qualifier.allowed = @false
-         gosub is.field.ref ; if ifr.index  = 0 then goto err.field
-
-         gosub emit.field.reference ; if err then return
-      end
-
-      if u.look.ahead.token.string = "BY" then
-         gosub get.token          ;* Skip BY
-         gosub exprf               ;* Emit ordering expression
-      end else
-         opcode.string = '' ; gosub emit.string.load
-      end
-
-      if u.look.ahead.token.string # "SETTING" then
-         err.msg = sysmsg(2914) ;* SETTING not found where expected
+   end else
+      if look.ahead.token # TKN.LT then
+         err.msg = sysmsg(2899) ;* Field reference not found where expected
          goto error
       end
+      gosub get.token                ;* Skip < token
 
-      gosub get.token          ;* Skip SETTING
-      gosub simple.lvar.reference ; if err then return
+      format.qualifier.allowed = @false
+      gosub is.field.ref ; if ifr.index  = 0 then goto err.field
+
+      gosub emit.field.reference ; if err then return
    end
 
-   if bittest(mode, M.STRING.LOCATE) then opcode.byte = OP.LOCATES
-   else opcode.byte = OP.LOCATE
+   if u.look.ahead.token.string = "BY" then
+      gosub get.token          ;* Skip BY
+      gosub exprf               ;* Emit ordering expression
+   end else
+      opcode.string = '' ; gosub emit.string.load
+   end
+
+   if u.look.ahead.token.string # "SETTING" then
+      err.msg = sysmsg(2914) ;* SETTING not found where expected
+      goto error
+   end
+
+   gosub get.token          ;* Skip SETTING
+   gosub simple.lvar.reference ; if err then return
+
+   opcode.byte = OP.LOCATE
    gosub emit.simple
 
    goto st.if.back.end           ;* Join IF statement for THEN / ELSE
@@ -11680,20 +11155,11 @@ st.matread:
 
    * Emit file variable
 
-   gosub stdfil.fvar.test
-   if stdfil.fvar then
-      gosub simple.var.reference ; if err then return
-      gosub check.comma
-   end else
-      gosub stdfil.var.load             ;* $MODE STDFIL: MATREAD mat FROM id
-   end
+   gosub simple.var.reference ; if err then return
+   gosub check.comma
 
    * Emit record key expression
    gosub exprf
-
-   if bittest(mode, M.PICK.READ) then
-      opcode.byte = OP.PICKREAD ; gosub emit.simple
-   end
 
    opcode = OP.MATREAD
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
@@ -11790,13 +11256,8 @@ st.matwrite:
 
    * Emit file variable
 
-   gosub stdfil.fvar.test
-   if stdfil.fvar then
-      gosub simple.var.reference ; if err then return
-      gosub check.comma
-   end else
-      gosub stdfil.var.load             ;* $MODE STDFIL: MATWRITE mat TO id
-   end
+   gosub simple.var.reference ; if err then return
+   gosub check.comma
 
    * Emit record key expression
 
@@ -11805,13 +11266,7 @@ st.matwrite:
    opcode = OP.WRITE
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
    ins '0' before testlock.stack<1>     ;* No LOCKED clause allowed
-   if bittest(mode, M.WRITE.DELETE.THEN.ELSE) then
-      ins '2' before thenelse.stack<1>  ;* Optional THEN / ELSE (trigger failure)
-      then.else.trig = @true
-   end else
-      ins '0' before thenelse.stack<1>  ;* No THEN / ELSE required
-   end
-   if bittest(mode2, M2.AUTOLOCK) then autolock.stmt = @true
+   ins '0' before thenelse.stack<1>  ;* No THEN / ELSE required
    goto back.end
 
 *****************************************************************************
@@ -11907,29 +11362,23 @@ st.on:
    * Emit value expression
 
    * NJS use @vm
-   reserved.names<2> = "GOSUB":@VM:"GOTO":@VM:"GO"  ;* 0265
+   reserved.names<2> = "GOSUB":@VM:"GOTO"  ;* 0265
    gosub exprf
    del reserved.names<2>
 
    begin case
       case u.look.ahead.token.string = "GOSUB"
          gosub get.token
-         opcode.byte = if bittest(mode, M.PICK.JUMP.RANGE) then OP.ONGOSUBP else OP.ONGOSUB
+         opcode.byte = OP.ONGOSUB
          is.on.gosub = @true
 
       case u.look.ahead.token.string = "GOTO"
          gosub get.token
-         opcode.byte = if bittest(mode, M.PICK.JUMP.RANGE) then OP.ONGOTOP else OP.ONGOTO
-         is.on.gosub = @false
-
-      case u.look.ahead.token.string = "GO"
-         gosub get.token
-         if u.look.ahead.token.string = "TO" then gosub get.token  ;* 0503
-         opcode.byte = if bittest(mode, M.PICK.JUMP.RANGE) then OP.ONGOTOP else OP.ONGOTO
+         opcode.byte = OP.ONGOTO
          is.on.gosub = @false
 
       case 1
-         err.msg = sysmsg(2935) ;* Expected GOSUB, GOTO or GO
+         err.msg = sysmsg(2935) ;* Expected GOSUB or GOTO
          goto error
    end case
 
@@ -12019,7 +11468,7 @@ emit.jump.table:
 
 st.inputtrap:
    * NJS use @vm
-   reserved.names<2> = "GOSUB":@VM:"GOTO":@VM:"GO"
+   reserved.names<2> = "GOSUB":@VM:"GOTO"
    gosub exprf
    del reserved.names<2>
 
@@ -12030,12 +11479,8 @@ st.inputtrap:
       case u.look.ahead.token.string = "GOTO"
          gosub get.token
          is.on.gosub = @false
-      case u.look.ahead.token.string = "GO"
-         gosub get.token
-         if u.look.ahead.token.string = "TO" then gosub get.token
-         is.on.gosub = @false
       case 1
-         err.msg = sysmsg(2935) ;* Expected GOSUB, GOTO or GO
+         err.msg = sysmsg(2935) ;* Expected GOSUB or GOTO
          goto error
    end case
 
@@ -12082,12 +11527,12 @@ st.openpath:
    gosub exprf               ;* Emit file name expression
    goto open.common
 
-* ST.OPENTEMP  -  OPENTEMP {pathname} {ECS} {NON.TRANSACTIONAL} TO file.var   (14 Oct 26 dm, openQM 431 and 440)
+* ST.OPENTEMP  -  OPENTEMP {pathname} {NON.TRANSACTIONAL} TO file.var   (14 Oct 26 dm, openQM 431 and 440)
 * The pathname may be left out (or be a null string): the kernel then makes the file in the temp directory.
-* ECS is read and ignored (SD has no ECS mode).  The file is deleted when the file variable is closed.
+* The file is deleted when the file variable is closed.  (The ECS word, read and ignored, was removed on 27 Oct 26: S.87 batch 3.)
 
 st.opentemp:
-   reserved.names<2> = "ECS":@VM:"NON.TRANSACTIONAL":@VM:"TO"
+   reserved.names<2> = "NON.TRANSACTIONAL":@VM:"TO"
    opcode = OP.OPENTEMP
    find u.look.ahead.token.string in reserved.names setting i then
       opcode.string = '' ; gosub emit.string.load        ;* No pathname
@@ -12134,27 +11579,12 @@ open.common:
             gosub get.token
             opcode.byte = OP.SETFLAGS  ; gosub emit.simple
             code.value = 0x200 ; code.bytes = 2 ; gosub emit.multibyte.value
-         case u.look.ahead.token.string = 'ECS' and opcode = OP.OPENTEMP
-            gosub get.token                                  ;* 14 Oct 26: ignored, SD has no ECS mode
          case 1
             exit
       end case
    repeat
 
-   * 14 Oct 26 dm - openQM 514: $MODE OPEN.FAIL.ZERO.FVAR, for OPEN and OPENPATH
-   if bittest(mode, M.OPEN.FAIL.ZERO.FVAR) then
-      opcode.byte = OP.SETFLAGS  ; gosub emit.simple
-      code.value = 0x100 ; code.bytes = 2 ; gosub emit.multibyte.value
-   end
-
-   if u.look.ahead.token.string # "TO" then
-      if bittest(mode, M.STDFIL) then
-         * $MODE STDFIL: OPEN name {READONLY} opens the default file variable
-         gosub stdfil.var.load
-         goto open.common.end
-      end
-      goto err.to
-   end
+   if u.look.ahead.token.string # "TO" then goto err.to
    gosub get.token      ;* Skip "TO"
    if (look.ahead.token # TKN.NAME) and (look.ahead.token # TKN.NAME.LBR) then
       goto err.fvar
@@ -12428,7 +11858,7 @@ st.printer:
             gosub get.token            ;* Skip "ON"
             gosub expr
          end else
-            n = if bittest(mode, M.PRCLOSE.DEFAULT.0) then 0 else -2
+            n = -2
             gosub emit.numeric.load
          end
 
@@ -12544,7 +11974,7 @@ st.public:
 st.public.common:
    is.public = @true
 
-   if listindex('FUNCTION,SUB,SUBROUTINE', ',', u.look.ahead.token.string) then
+   if listindex('FUNCTION,SUBROUTINE', ',', u.look.ahead.token.string) then
       gosub get.token
       is.public.function = (u.token.string = 'FUNCTION')
 
@@ -12755,36 +12185,10 @@ st.private.common:
 
    return
    
-* rev 1.0-1 add back PROCREAD and PROCWRITE
-*****************************************************************************
-* ST.PROCREAD  -  PROCREAD statement
-
-st.procread:
-   gosub simple.lvar.reference  ;* Emit target variable
-
-   * Perform common back-end processing
-
-   opcode = OP.PROCREAD
-   ins '0' before onerror.stack<1>        ;* No ON ERROR clause
-   ins '0' before testlock.stack<1>       ;* No LOCKED clause allowed
-   ins '1' before thenelse.stack<1>       ;* THEN / ELSE clause required
-   goto back.end
-
-*****************************************************************************
-* ST.PROCWRITE  -  PROCWRITE statement
-
-st.procwrite:
-   n = SYSCOM.PROC.IBUF:'.0' ; gosub emit.ldsys
-   gosub exprf
-   opcode.byte = OP.STOR ; gosub emit.simple
-   return
-   
-
 *****************************************************************************
 * ST.PROGRAM  -  PROGRAM statement
 
 st.program:
-   if is.ctype then goto err.ctype
    if name.set then goto err.name.set
 
    if pc # start.pc then
@@ -12889,14 +12293,8 @@ st.read.common:
 
       * Emit file variable
 
-      stdfil.fvar = @true
-      if opcode = OP.READ then gosub stdfil.fvar.test   ;* READ id: default file
-      if stdfil.fvar then
-         gosub simple.var.reference ; if err then return
-         gosub check.comma
-      end else
-         gosub stdfil.var.load
-      end
+      gosub simple.var.reference ; if err then return
+      gosub check.comma
    end
 
    * Emit record key expression (block size for readblk)
@@ -12907,19 +12305,10 @@ st.read.common:
       gosub exprf ;* Emit field number expression
    end
 
-   if bittest(mode, M.PICK.READ) then
-      opcode.byte = OP.PICKREAD ; gosub emit.simple
-   end
-
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
    ins (lock.opcode # 0) before testlock.stack<1>  ;* LOCKED clause allowed?
-   *rdm
-   if bittest(mode, M.OPTIONAL.THEN.ELSE) then
-     ins '2' before thenelse.stack<1>     ;* THEN / ELSE optional
-   end else
-     ins '1' before thenelse.stack<1>     ;* THEN / ELSE required
-   end
-   
+   ins '1' before thenelse.stack<1>     ;* THEN / ELSE required (27 Oct 26: the OPTIONAL.THEN.ELSE mode is gone)
+
    goto back.end
 
 *****************************************************************************
@@ -13015,31 +12404,14 @@ st.readnext:
          opcode.byte = OP.LDUNASS ; gosub emit.simple
       end
    end else
-      opcode = if bittest(mode, M.COMPOSITE.READNEXT) then OP.RDNXPOS else OP.READNEXT
+      opcode = OP.READNEXT
    end
 
-   default.sellist = @false
    if u.look.ahead.token.string = "FROM" then
       gosub get.token       ;* Skip FROM
       gosub exprf            ;* Emit list number expression
-   end else if bittest(mode, M.SELECTV) then
-      * 15 Oct 26 dm - openQM 85: under $MODE SELECTV the list is optional, and is the program's default select list variable
-      * (the one a SELECT with no TO fills), not list 0; a variable no SELECT has filled is an empty list (P_DEF_SELLIST)
-      gosub sellist.default.load
-      default.sellist = @true
    end else     ;* Use default select list
       n = 0 ; gosub emit.numeric.load
-   end
-
-   if default.sellist then
-      opcode.byte = OP.SETFLAGS  ; gosub emit.simple
-      code.value = 0x8000 ; code.bytes = 2 ; gosub emit.multibyte.value
-   end
-
-   * 14 Oct 26 dm - openQM 418: $MODE PICK.READNEXT, for the READNEXT forms that return an id only
-   if bittest(mode, M.PICK.READNEXT) and (opcode = OP.READNEXT or opcode = OP.RDNXPOS) then
-      opcode.byte = OP.SETFLAGS  ; gosub emit.simple
-      code.value = 0x200 ; code.bytes = 2 ; gosub emit.multibyte.value
    end
 
    * Perform common back-end processing
@@ -13106,14 +12478,6 @@ st.record.lock.common:
 * ST.RELEASE  -  RELEASE statement
 
 st.release:
-   if bittest(mode, M.STDFIL) and look.ahead.token = TKN.COMMA then
-      * $MODE STDFIL: RELEASE , id  -  the file is the default file variable
-      gosub get.token
-      gosub stdfil.var.load
-      gosub exprf
-      opcode = OP.RELEASE
-      goto st.release.back
-   end
    gosub convert.pick.file.reference
    find u.look.ahead.token.string in reserved.names setting i else i = 0 ;* 0303
 
@@ -13425,7 +12789,7 @@ st.selectv:
    goto st.select.common
 
 st.select:
-   opcode = if bittest(mode, M.SELECTV) then OP.SELECTV else OP.SELECT
+   opcode = OP.SELECT
 
 st.select.common:
    * 14 Oct 26: the two questions this routine kept asking of OPCODE, once each in several places, are asked once here
@@ -13435,20 +12799,10 @@ st.select.common:
 
    * Emit file variable / dynamic array reference
 
-   stdfil.use = @false
-   if bittest(mode, M.STDFIL) and not(sorted.select) then
-      * $MODE STDFIL: SELECT {TO list} names no file, so it is the default file variable
-      if look.ahead.token = TKN.END or look.ahead.token = TKN.SEMICOLON then stdfil.use = @true
-      if u.look.ahead.token.string = "TO" or u.look.ahead.token.string = "ON" then stdfil.use = @true
-   end
-   if stdfil.use then
-      gosub stdfil.var.load
-   end else
-      * A FORMLISTV array is not a file, so a single literal in it is not a file name (convert.pick.file.reference reads it
-      * as one: FORMLISTV '' TO sl made a list with the item __ in it)
-      if not(is.formlistv) then gosub convert.pick.file.reference
-      gosub expr    ;* 0208
-   end
+   * A FORMLISTV array is not a file, so a single literal in it is not a file name (convert.pick.file.reference reads it
+   * as one: FORMLISTV '' TO sl made a list with the item __ in it)
+   if not(is.formlistv) then gosub convert.pick.file.reference
+   gosub expr    ;* 0208
 
    sselect.mode = 0
    if sorted.select then gosub sselect.clauses    ;* the clauses may come before TO...
@@ -13462,9 +12816,7 @@ st.select.common:
       end
    end else     ;* Use default select list
       if to.variable then
-         * 15 Oct 26 dm - openQM 85: under $MODE SELECTV the list variable is optional, and is the program's default one
-         if not(bittest(mode, M.SELECTV)) then goto err.to
-         gosub sellist.default.load
+         goto err.to
       end else
          n = 0 ; gosub emit.numeric.load
       end
@@ -13482,13 +12834,6 @@ st.select.common:
          n = sselect.mode ; gosub emit.numeric.load
          opcode = OP.SSELECTM
       end
-   end
-
-   * 15 Oct 26 dm - QM4 gaps Q-16, $MODE PICK.SELECT: SELECTV (and SELECT, when $MODE SELECTV makes it one) moves an active
-   * default list to the target and ignores the file, which op_selectv does when it is given P_PICK_SEL
-   if opcode = OP.SELECTV and bittest(mode2, M2.PICK.SELECT) and not(is.formlistv) then
-      opcode.byte = OP.SETFLAGS  ; gosub emit.simple
-      code.value = 0x2000 ; code.bytes = 2 ; gosub emit.multibyte.value
    end
 
    * Perform common back-end processing
@@ -13589,113 +12934,6 @@ st.selectindexv:
    sys.call.n = 5
    gosub emit.sys.call.end
    return
-
-*****************************************************************************
-* ST.ROOT  -  ROOT file.name, index TO scan.var THEN / ELSE       (15 Oct 26 dm, QM4 gaps Q-2)
-* ST.KEY   -  KEY( operator, scan.var, index.key, item.id ) THEN / ELSE
-* ST.BSCAN -  BSCAN value {, ids} FROM file.var {, key} USING index {RESET} {BY A | D} THEN / ELSE
-*
-* The Pick style index scans.  Each is a call of a catalogued function (!rootidx, !keyop, !bscan), made of SETLEFT, SELECTINDEX,
-* SELECTLEFT and SELECTRIGHT, whose 1 or 0 the THEN and ELSE test, as OSREAD's does; the function leaves STATUS() as the manual
-* describes it (SET.STATUS just before it returns).  A scan variable is a string, the file name and the index name, so KEY
-* opens the file again each time.  The brackets of KEY are optional.  KEY( is a statement unless the program has a matrix
-* called KEY, which proc.statement checks before it gets here.
-
-st.root:
-   s = '!rootidx'
-   gosub emit.direct.call.reference
-   gosub emit.function.return.argument
-   gosub expr                           ;* The file name
-   gosub check.comma
-   gosub expr                           ;* The index
-   if u.look.ahead.token.string # 'TO' then goto err.to
-   gosub get.token
-   gosub simple.lvar.reference          ;* The scan variable
-   if err then return
-   sys.call.n = 4
-   gosub emit.sys.call.end
-   gosub emit.function.result.load
-   goto st.if.back.end
-
-st.key:
-   s = '!keyop'
-   gosub emit.direct.call.reference
-   gosub emit.function.return.argument
-   key.paren = @false
-   if look.ahead.token = TKN.LBR then
-      gosub get.token
-      key.paren = @true
-   end
-   gosub expr                           ;* The operator
-   gosub check.comma
-   gosub expr                           ;* The scan variable
-   gosub check.comma
-   gosub simple.lvar.reference          ;* The indexed value, in and out
-   if err then return
-   gosub check.comma
-   gosub simple.lvar.reference          ;* The record id, in and out
-   if err then return
-   if key.paren then
-      if look.ahead.token # TKN.RBR then goto err.rbr
-      gosub get.token
-   end
-   sys.call.n = 5
-   gosub emit.sys.call.end
-   gosub emit.function.result.load
-   goto st.if.back.end
-
-st.bscan:
-   s = '!bscan'
-   gosub emit.direct.call.reference
-   gosub emit.function.return.argument
-   gosub simple.lvar.reference          ;* The indexed value
-   if err then return
-   if look.ahead.token = TKN.COMMA then
-      gosub get.token
-      gosub simple.lvar.reference       ;* The list of ids
-      if err then return
-   end else
-      opcode.byte = OP.LDNULL ; gosub emit.simple    ;* none wanted: a constant takes the callee's assignment
-   end
-   if u.look.ahead.token.string # 'FROM' then goto err.from
-   gosub get.token
-   gosub convert.pick.file.reference
-   gosub simple.var.reference           ;* The file variable
-   if look.ahead.token = TKN.COMMA then
-      gosub get.token
-      gosub expr                        ;* The value to find
-      n = 1
-   end else
-      opcode.byte = OP.LDNULL ; gosub emit.simple
-      n = 0
-   end
-   gosub emit.numeric.load              ;* has.value
-   if u.look.ahead.token.string # 'USING' then goto err.syntax
-   gosub get.token
-   gosub expr                           ;* The index
-   n = 0
-   if u.look.ahead.token.string = 'RESET' then
-      gosub get.token
-      n = 1
-   end
-   gosub emit.numeric.load              ;* reset
-   opcode.string = 'A'
-   if u.look.ahead.token.string = 'BY' then
-      gosub get.token
-      if u.look.ahead.token.string = 'A' or u.look.ahead.token.string = 'D' then
-         gosub get.token
-         opcode.string = u.token.string
-         gosub emit.string.load
-      end else
-         gosub expr                     ;* a seq in a variable
-      end
-   end else
-      gosub emit.string.load
-   end
-   sys.call.n = 9
-   gosub emit.sys.call.end
-   gosub emit.function.result.load
-   goto st.if.back.end
 
 *****************************************************************************
 * ST.SELECTLEFTV   -  SELECTLEFTV index FROM file.var {SETTING key} TO list.var     (15 Oct 26 dm, QM4 gaps Q-2, sheet 291)
@@ -14031,7 +13269,6 @@ st.status:
 * ST.STOP -  STOP statement
 * 20240728 mab remove pick style messages 
 st.stop:
-st.stopm:
 st.stop.common:
 
    if recursive then goto err.recursive
@@ -14059,7 +13296,6 @@ st.stop.common:
 * ST.SUBROUTINE  -  SUBROUTINE statement
 
 st.subroutine:
-   if is.ctype then goto err.ctype
    if name.set then goto err.name.set
 
    if pc # start.pc then
@@ -14176,15 +13412,6 @@ st.subroutine.varset.continue:
 
    gosub arg.defaults.emit
 
-   return
-
-*****************************************************************************
-* TCLREAD
-
-st.tclread:
-   gosub simple.lvar.reference ;* Emit target variable
-   n = SYSCOM.SENTENCE ; gosub emit.ldsys
-   opcode.byte = OP.STOR ; gosub emit.simple   
    return
 
 *****************************************************************************
@@ -14431,7 +13658,6 @@ try.catch.names:
       end
 
       try.flags = 0
-      if bittest(mode, M.EXCEPTION.SAVE.STACK) then try.flags = 2
 
       loop
       while (look.ahead.token = TKN.NAME) and ~
@@ -14632,18 +13858,12 @@ st.write.common:
 
       * Emit file variable
 
-      stdfil.fvar = @true
-      if opcode = OP.WRITE then gosub stdfil.fvar.test   ;* WRITE rec TO id: default file
-      if stdfil.fvar then
-         gosub simple.var.reference ; if err then return
-         * 15 Oct 26 dm - WRITE / WRITEU rec TO file CREATING.SEQKEY id.var: no comma, no id expression
-         if opcode = OP.WRITE and u.look.ahead.token.string = 'CREATING.SEQKEY' then
-            write.seqkey = @true
-         end else
-            gosub check.comma
-         end
+      gosub simple.var.reference ; if err then return
+      * 15 Oct 26 dm - WRITE / WRITEU rec TO file CREATING.SEQKEY id.var: no comma, no id expression
+      if opcode = OP.WRITE and u.look.ahead.token.string = 'CREATING.SEQKEY' then
+         write.seqkey = @true
       end else
-         gosub stdfil.var.load
+         gosub check.comma
       end
    end
 
@@ -14666,13 +13886,7 @@ st.write.common:
 
    ins '1' before onerror.stack<1>      ;* Optional ON ERROR clause
    ins '0' before testlock.stack<1>     ;* No LOCKED clause allowed
-   if bittest(mode, M.WRITE.DELETE.THEN.ELSE) and opcode = OP.WRITE then
-      ins '2' before thenelse.stack<1>  ;* Optional THEN / ELSE (trigger failure); not WRITEV
-      then.else.trig = @true
-   end else
-      ins '0' before thenelse.stack<1>  ;* No THEN / ELSE required
-   end
-   if opcode = OP.WRITE and bittest(mode2, M2.AUTOLOCK) then autolock.stmt = @true   ;* not WRITEV
+   ins '0' before thenelse.stack<1>  ;* No THEN / ELSE required
    goto back.end
 
 *****************************************************************************
@@ -14739,27 +13953,6 @@ st.write.seq.common2:
 *****************************************************************************
 
 *****************************************************************************
-* Pick style errmsg argument processing for STOP and ABORT
-
-emit.errmsg.args:
-   if look.ahead.token = TKN.COMMA then
-      gosub get.token
-      gosub expr
-      loop
-      while look.ahead.token = TKN.COMMA
-         gosub get.token
-         opcode.string = @IM  ; gosub emit.string.load
-         opcode.byte = OP.CAT ; gosub emit.simple
-         gosub expr
-         opcode.byte = OP.CAT ; gosub emit.simple
-      repeat
-   end else
-      opcode.byte = OP.LDNULL ; gosub emit.simple
-   end
-
-   return
-
-*****************************************************************************
 * back.end  -  Common paths for ON ERROR / LOCKED / THEN / ELSE clauses
 *
 * The opcode we are to emit is in OPCODE as we need to know if we have
@@ -14775,29 +13968,6 @@ back.end:
    ins j.back.end:@vm:jump.no before jump.stack<1>
 
    jump.no += 1
-
-   * openQM 368 / 496: under $MODE WRITE.DELETE.THEN.ELSE a WRITE, MATWRITE or
-   * DELETE may take THEN / ELSE, and then a trigger failure takes ELSE.  Whether
-   * the clause is there is not known until after any ON ERROR clause has been
-   * compiled, so emit SETFLAGS with a zero value and patch it to P_THEN_ELSE
-   * (0x400) if the clause turns up.  With no clause the flag stays 0 and the
-   * statement behaves exactly as it did.
-
-   ins 0 before flagpatch.stack<1>
-   if then.else.trig then
-      then.else.trig = @false
-      opcode.byte = OP.SETFLAGS  ; gosub emit.simple
-      code.value = 0 ; code.bytes = 2 ; gosub emit.multibyte.value
-      flagpatch.stack<1> = pc - 2     ;* Address before the first value byte
-   end
-
-   * $MODE AUTOLOCK (openQM, QM4 gap 213): a WRITE, MATWRITE or DELETE locks a record it does not hold a lock on (P_AUTOLOCK)
-
-   if autolock.stmt then
-      autolock.stmt = @false
-      opcode.byte = OP.SETFLAGS  ; gosub emit.simple
-      code.value = 0x8000 ; code.bytes = 2 ; gosub emit.multibyte.value
-   end
 
    * Emit lock opcode if required
 
@@ -14968,12 +14138,6 @@ back.end:
          if (u.look.ahead.token.string # "THEN") and (u.look.ahead.token.string # "ELSE") then
             goto no.then.or.else.clause
          end
-
-         * A THEN / ELSE clause is there: tell the opcode (see top of back.end)
-         if flagpatch.stack<1> then
-            update.addr = flagpatch.stack<1>
-            code.value = 0x400 ; code.bytes = 2 ; gosub update.code
-         end
       end
 
       if u.look.ahead.token.string = "ELSE" then   ;* ELSE without THEN
@@ -15099,7 +14263,6 @@ exit.back.end:
    del onerror.stack<1>
    del testlock.stack<1>
    del thenelse.stack<1>
-   del flagpatch.stack<1>
 
    return
 
@@ -15456,7 +14619,7 @@ if.then.else.expr.abort:
 
          z = upcase(dict.rec[1,1])
          begin case
-            case z = 'D' or ((z = 'A' or z = 'S') and dict.rec<8> = '')
+            case z = 'D'
                if not(dict.rec<2> matches '1N0N') then
                   err.msg = sysmsg(3286, token.string)  ;* %1 dictionary item has no field number
                   gosub error
@@ -15473,13 +14636,15 @@ if.then.else.expr.abort:
                   opcode.byte = OP.EXTRACT ; gosub emit.simple
                end
 
-            case z = 'C' or z = 'I' or ((z = 'A' or z = 'S') and dict.rec<8> = '')
-               * Unlike nested I-types, C-types that reference other
-               * compiled items do this as a run time subroutine call
+            case z = 'I'
+               * A compiled item is called at run time as a subroutine
                * using ITYPE() to execute embedded object code.
+               * 28 Oct 26 S.87: C items are gone; they fall to err.field.name.
+               * 31 Oct 26: so are A and S items.
 
+               sys.chk.rec = dict.rec ; sys.chk.rec<DICT.SYS.INFO,1> = ''   ;* 28 Oct 26 S.87: REPLACE() is gone
                if len(dict.rec<DICT.ITYPE.OBJECT>) = 0 ~
-               or checksum(replace(dict.rec, DICT.SYS.INFO, 1;'')) # dict.rec<DICT.SYS.INFO,1> then
+               or checksum(sys.chk.rec) # dict.rec<DICT.SYS.INFO,1> then
                   * Need to compile nested item
 
                   if compiler.depth > 10 then
@@ -16044,7 +15209,7 @@ generate.debug:
 
 emit.skeleton.header:
    opcode.byte = 0
-   z = if is.ctype then itype.object.header.size else object.header.size
+   z = object.header.size
    loop
    until pc = z
       gosub emit
@@ -16141,10 +15306,8 @@ emit.final.header:
    * Compile time. 2 bytes
    code.image[HDR.COMPILE.TIME,4] = iconv(system(1005), 'IL')
 
-   if not(is.ctype) then
-      * Program name
-      code.image[HDR.PROGRAM.NAME, len(program.name)] = program.name
-   end
+   * Program name
+   code.image[HDR.PROGRAM.NAME, len(program.name)] = program.name
 
    return
 
@@ -16171,10 +15334,6 @@ err.class:
 
 err.comma:
    err.msg = sysmsg(2959) ;* Comma not found where expected
-   goto error
-
-err.ctype:
-   err.msg = sysmsg(2994) ;* Statement/function not allowed in a C-type record
    goto error
 
 err.field:
@@ -16254,11 +15413,9 @@ err.var:
 
 start.listing:
    if not(listing.used) then
-      if not(is.ctype) then
-         openseq output.file.name, listing.record.name to list.f else
-            if status() then
-               stop sysmsg(2971, status()) ;* "Error xx creating listing record
-            end
+      openseq output.file.name, listing.record.name to list.f else
+         if status() then
+            stop sysmsg(2971, status()) ;* "Error xx creating listing record
          end
       end
       listing.used = @true
@@ -16269,12 +15426,8 @@ start.listing:
 * ======================================================================
 
 emit.listing:
-   if is.ctype then
-      display list.rec
-   end else
-      writeseq list.pg:list.rec to list.f else null
-      list.pg = ''
-   end
+   writeseq list.pg:list.rec to list.f else null
+   list.pg = ''
    return
 
 
@@ -16338,7 +15491,7 @@ ifdef.test:
       ifdef.word = field(ifdef.line, ' ', ifdef.i)
       if ifdef.name.next then
          token.name = ifdef.word
-         if not(bittest(mode, M.CASE.SENSITIVE)) then token.name = upcase(token.name)
+         token.name = upcase(token.name)
          ss = find(defined.tokens, token.name)
          if ifdef.first then
             ifdef.term = (status() = 0)
@@ -16365,33 +15518,12 @@ ifdef.test:
    return
 
 * ======================================================================
-* Reassess kernel modes after $MODE or equivalent
-
-set.kernel.modes:
-   * Case sensitivity of names
-   i = bittest(mode, M.CASE.SENSITIVE)
-   if i then header.flags = bitor(header.flags, hdr.case.sensitive)
-   j = kernel(k$case.sensitive, i)
-
-   * The overlap modes reach the run time through OP.STROVL at the call (see intrinsic.common)
-   if bitand(mode2, 7) # 0 then str.ovl.used = @true
-
-   * The default file variable (openQM 17, QM4 gap 225): STDFIL gives each program its own, STDFIL.SHARED one for the command level,
-   * and both together are STDFIL.  Every statement tests the STDFIL bit, so STDFIL.SHARED alone turns it on and stdfil.shared
-   * says whose variable it is.
-   stdfil.shared = bittest(mode2, M2.STDFIL.SHARED) and not(stdfil.user)
-   if stdfil.user or stdfil.shared then mode = bitset(mode, M.STDFIL) else mode = bitreset(mode, M.STDFIL)
-
-   return
-
-* ======================================================================
 * Turn on or off the mode that position i of mode.names stands for.  Positions 1 to 32 are bits 0 to 31 of mode; 33 and
 * up are bits 0 up of mode2.
 *
 * In: i = position in mode.names, mode.off = @true to turn it off
 
 set.mode.bit:
-   if i = 32 then stdfil.user = not(mode.off)
    if i <= 32 then
       if mode.off then
          mode = bitreset(mode, i - 1)
@@ -16451,15 +15583,8 @@ get.file.ref:
       case s = 'D'
          fno = dict.rec<2>
 
-      case s = 'A' or s = 'S'
-         if dict.rec<DICT.A.CORRELATIVE> # '' then
-            err.msg = sysmsg(3417, token.string) ;* %1 has a correlative expression
-            goto error
-         end
-         fno = dict.rec<2>
-
       case 1
-         err.msg = sysmsg(3416, token.string) ;* %1 is not a D, A or S-type dictionary item
+         err.msg = sysmsg(3416, token.string) ;* %1 is not a D-type dictionary item
          goto error
    end case
 
@@ -16484,117 +15609,6 @@ convert.pick.file.reference:
    locate u.look.ahead.token.string in file.refs<1> setting pos then
       look.ahead.token.string = '__':look.ahead.token.string
    end
-   return
-
-* ======================================================================
-* $MODE STDFIL  -  the default file variable (openQM 4, sheet item 17)
-*
-* The statements that take a file variable may leave it out; the file is then
-* a hidden variable of the program, __STDFIL, which OPEN name (no TO) sets.
-* It is per program (QM's STDFIL, not STDFIL.SHARED) and @STDFIL names it.
-* A statement that names a file variable is compiled exactly as before.
-
-* STDFIL.VAR.LOAD  -  Emit a load of the default file variable
-stdfil.var.load:
-   symbol.name = '__STDFIL'
-   if not(stdfil.shared) then
-      goto hidden.var.load     ;* the routine FOR EACH uses for its counters (15 Oct 26 dm: this was a copy of it)
-   end
-   symbol.mode = SYM.SET
-   gosub find.var
-   if symbol.var.no < 0 then gosub stdfil.shared.make
-   goto emit.var.load
-
-* STDFIL.SHARED.MAKE  -  Make the variable of $MODE STDFIL.SHARED (16 Oct 26 dm, QM4 gap 225)
-*
-* openQM's @STDFIL is one variable for every program of a command processor level, and an EXECUTE starts a level of its own
-* and gives the old one back on return.  It is the only element of a named common block, $STDFIL, which every program that
-* uses it binds to by name; op_execute saves and clears the element for the command it starts and op_return puts it back.
-* Out: the symbol is entered as the first and only element of the block, SYMBOL.VAR.NO / COMMON.OFFSET / DIM / COMMON.INDEX set.
-stdfil.shared.make:
-   s = '$STDFIL'
-   locate s in commons<1,1> setting common.index else
-      symbol.var.no = var.count
-      var.count += 1
-      symbol.table<-1> = s
-      commons<1,common.index> = s
-      commons<2,common.index> = symbol.var.no
-      commons<3,common.index> = '1'
-   end
-   symbol.var.no = commons<2,common.index>
-   symbol.common.offset = 1
-   symbol.dim = 0
-   symbol.common.index = common.index
-   locate symbol.name in symbols<1> by 'AL' setting sympos else
-      ins symbol.name before symbols<sympos>
-      ins symbol.var.no : @vm : symbol.common.offset : @vm : symbol.dim : @vm : common.index before symbol.info<sympos>
-      ins '' before symbol.refs<sympos>
-   end
-   commons<4,common.index,1> = symbol.name
-   commons<5,common.index,1> = 0
-   commons<6,common.index,1> = 0
-   symbol.mode = SYM.SET
-   gosub note.symbol.ref
-   symbol.mode = SYM.USE
-   return
-
-* SELLIST.DEFAULT.LOAD  -  Emit a load of the default select list variable  (15 Oct 26 dm, openQM item 85)
-*
-* $MODE SELECTV makes the list variable of SELECT / SELECTV / SSELECTV and the FROM list of READNEXT optional. Left out, it
-* is a hidden variable of the program, __SELLIST: per program like __STDFIL, so a called subroutine has a default list
-* of its own, and a CALL gets a fresh (unassigned) one.  Made on first use, as __STDFIL is.
-sellist.default.load:
-   symbol.name = '__SELLIST'
-   goto hidden.var.load
-
-* STDFIL.NO.OPERAND  -  For CLEARFILE, CLOSE, FILELOCK, FILEUNLOCK.
-* STDFIL.USE is true when the mode is on and the next token is not a file
-* variable (the statement ends, or an ON ERROR / LOCKED clause starts).
-stdfil.no.operand:
-   stdfil.use = @false
-   if bittest(mode, M.STDFIL) then
-      if look.ahead.token # TKN.NAME and look.ahead.token # TKN.NAME.LBR then
-         stdfil.use = @true
-      end else
-         stdfil.s = u.look.ahead.token.string
-         if stdfil.s = "ON" or stdfil.s = "LOCKED" then stdfil.use = @true
-      end
-   end
-   return
-
-* STDFIL.FVAR.TEST  -  For the statements with a record id after the file.
-* STDFIL.FVAR is false only when the mode is on and the rest of the statement
-* has no comma outside brackets, subscripts and clauses: then there is no
-* file variable and the first expression is the record id.  Called with the
-* look-ahead token at the start of that file-or-id expression.
-stdfil.fvar.test:
-   stdfil.fvar = @true
-   if not(bittest(mode, M.STDFIL)) then return
-
-   stdfil.depth = 0
-   stdfil.i = token.index
-   loop
-      stdfil.t = tokens(stdfil.i)
-   until stdfil.t = TKN.END or stdfil.t = TKN.SEMICOLON
-      begin case
-         case stdfil.t = TKN.LBR or stdfil.t = TKN.NAME.LBR or stdfil.t = TKN.LT
-            stdfil.depth += 1
-         case stdfil.t = TKN.RBR or stdfil.t = TKN.GT
-            if stdfil.depth > 0 then stdfil.depth -= 1
-         case stdfil.depth = 0 and stdfil.t = TKN.COMMA
-            return
-         case stdfil.depth = 0 and stdfil.t = TKN.NAME
-            stdfil.s = upcase(token.strings(stdfil.i))
-            if stdfil.s = "CREATING.SEQKEY" then return   ;* WRITE rec TO file CREATING.SEQKEY id: the file is named
-            if stdfil.s = "THEN" or stdfil.s = "ELSE" or stdfil.s = "ON" or stdfil.s = "LOCKED" then
-               stdfil.fvar = @false
-               return
-            end
-      end case
-      stdfil.i += 1
-   repeat
-
-   stdfil.fvar = @false
    return
 
 * ======================================================================
@@ -16810,7 +15824,7 @@ emit.inheritance:
 *****************************************************************************
 * ERROR  -  Report error
 
-local sub error:
+local subroutine error:
    private i, s
 
    del reserved.names<2>   ;* 0265 Ensure no "local" reserved names left active
@@ -16855,7 +15869,7 @@ end
 
 * ======================================================================
 
-local sub warning:
+local subroutine warning:
    private i, s
 
    if warnings.as.errors then errors += 1

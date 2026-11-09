@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 14 Sep 26 dm  Enter at 2050 means N (W.2, the port's ruling of 13 Sep 26).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -47,9 +50,9 @@ $include syscom err.h
 $include syscom keys.h
 $include int$keys.h
 
-equ F.DEFAULT to 0
-equ F.HEX to 1
-equ F.BINARY to 2
+equate F.DEFAULT to 0
+equate F.HEX to 1
+equate F.BINARY to 2
 
 
    parser = "!PARSER"
@@ -74,10 +77,10 @@ equ F.BINARY to 2
 
    * Get file name
 
-   call @parser(PARSER$MFILE, token.type, file.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
    if keyword = KW$DICT then
       portion = 'DICT'
-      call @parser(PARSER$MFILE, token.type, file.name, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
    end
 
    if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
@@ -148,7 +151,7 @@ equ F.BINARY to 2
 
       case selectinfo(0, sl$active)      ;* CT using SELECT list
          readnext record.name then
-            if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+            if not(no.query) then
                loop
                   display sysmsg(2050, record.name) : ;* Use active select list (First item 'xx')?
                   prompt ""
@@ -245,7 +248,7 @@ display.record:
    * (DICT.ITYPE.OBJECT).  The default display leaves it out; HEX and BINARY
    * show the record as it is (11 Oct 26 dm, openQM ref 373).
 
-   if format = F.DEFAULT and index('ASCI', upcase(rec[1,1]), 1) and dcount(rec, @fm) > 15 then
+   if format = F.DEFAULT and upcase(rec[1,1]) = 'I' and dcount(rec, @fm) > 15 then      ;* 31 Oct 26: A, S and C items are gone
       if len(portion) and upcase(portion) = 'DICT' then rec = field(rec, @fm, 1, 15)
    end
 

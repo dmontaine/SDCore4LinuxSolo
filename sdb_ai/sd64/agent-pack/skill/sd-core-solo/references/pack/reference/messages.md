@@ -581,10 +581,10 @@ Error %d redirecting stderr
 ```
 
 ### msg:10149
-> kind=message tier=reference since=- src=sdsys/messages/10149:1#e1dd77ea
+> kind=message tier=reference since=- src=sdsys/messages/10149:1#9f7e64fd
 
 ```
-SD has no built-in help system.\n\nTo see the commands this account has, type:  listv\n\nWhat each release of SD changed, and why, is in %1
+SD has no built-in help system.\n\nTo see the commands this account has, type:  list voc with type = "V"\n\nWhat each release of SD changed, and why, is in %1
 ```
 
 cited by: `cproc`
@@ -735,7 +735,7 @@ Two ids that differ only by case would be the same record; there is no
 kind of file in which they are two. Leave the keyword off.
 ```
 
-cited by: `configf`, `createf`
+cited by: `configf`
 
 ### msg:10177
 > kind=message tier=reference since=- src=sdsys/messages/10177:1#f75030c6
@@ -1418,48 +1418,6 @@ cited by: `qproc`
 Non-numeric where numeric required|in %s
 ```
 
-### msg:11040
-> kind=message tier=reference since=- src=sdsys/messages/11040:1#6f8e1a06
-
-```
-Query processor EQ and NE always compare as strings
-```
-
-### msg:11041
-> kind=message tier=reference since=- src=sdsys/messages/11041:1#65542fa7
-
-```
-Query processor compares right aligned data as strings in every relation
-```
-
-### msg:11042
-> kind=message tier=reference since=- src=sdsys/messages/11042:1#916a6cd3
-
-```
-Query processor sorts ignore case
-```
-
-### msg:11043
-> kind=message tier=reference since=- src=sdsys/messages/11043:1#3f3b2a1f
-
-```
-Command line treats a backslash as an ordinary character
-```
-
-### msg:11044
-> kind=message tier=reference since=- src=sdsys/messages/11044:1#b6aae4a1
-
-```
-Query processor treats a blank single/multivalue flag as multivalued
-```
-
-### msg:11045
-> kind=message tier=reference since=- src=sdsys/messages/11045:1#d8b10646
-
-```
-Clear select list 0 after a command that did not create it
-```
-
 ### msg:11046
 > kind=message tier=reference since=- src=sdsys/messages/11046:1#0f6466b3
 
@@ -1742,20 +1700,6 @@ Directory file name required after in
 
 cited by: `como`
 
-### msg:11075
-> kind=message tier=reference since=- src=sdsys/messages/11075:1#5ce960dc
-
-```
-CATALOG and DELETE.CATALOG default to the local catalogue
-```
-
-### msg:11076
-> kind=message tier=reference since=- src=sdsys/messages/11076:1#ac3e147a
-
-```
-Selecting a directory file omits names that begin with a dot
-```
-
 ### msg:11077
 > kind=message tier=reference since=- src=sdsys/messages/11077:1#28cbce9a
 
@@ -1878,13 +1822,6 @@ cited by: `setptr`
 Unhandled exception %s
 ```
 
-### msg:1109
-> kind=message tier=reference since=- src=sdsys/messages/1109:1#f4afdabc
-
-```
-!Zero used for unassigned variable|%s
-```
-
 ### msg:11090
 > kind=message tier=reference since=- src=sdsys/messages/11090:1#baa2d151
 
@@ -1964,13 +1901,6 @@ Exception name is longer than 63 characters
 ```
 
 cited by: `bcomp`
-
-### msg:1110
-> kind=message tier=reference since=- src=sdsys/messages/1110:1#6fa9557a
-
-```
-!Null used for unassigned variable|%s
-```
 
 ### msg:11100
 > kind=message tier=reference since=- src=sdsys/messages/11100:1#ec391d37
@@ -2062,13 +1992,6 @@ Mark translation: Off
 
 cited by: `pterm`
 
-### msg:1111
-> kind=message tier=reference since=- src=sdsys/messages/1111:1#a4ea3a1c
-
-```
-!Zero returned from divide by zero|, variable %s
-```
-
 ### msg:11110
 > kind=message tier=reference since=- src=sdsys/messages/11110:1#ed39130e
 
@@ -2158,13 +2081,6 @@ As characters: %1
 ```
 
 cited by: `pterm`
-
-### msg:1112
-> kind=message tier=reference since=- src=sdsys/messages/1112:1#ce8f8c04
-
-```
-!Non-numeric where numeric required zero used|in %s
-```
 
 ### msg:11120
 > kind=message tier=reference since=- src=sdsys/messages/11120:1#64452957
@@ -3034,20 +2950,6 @@ cited by: `ide`
 
 cited by: `ide`
 
-### msg:11235
-> kind=message tier=reference since=- src=sdsys/messages/11235:1#6ca769bf
-
-```
-ML and MR conversions take a format mask in round brackets, not negatives in round brackets
-```
-
-### msg:11236
-> kind=message tier=reference since=- src=sdsys/messages/11236:1#fd6976a1
-
-```
-A select that finds records executes the first command in the data queue
-```
-
 ### msg:11237
 > kind=message tier=reference since=- src=sdsys/messages/11237:1#6ce6c512
 
@@ -3114,41 +3016,6 @@ cited by: `qproc`
 
 ```
 Subroutine %s is not in the catalogue
-```
-
-### msg:11251
-> kind=message tier=reference since=- src=sdsys/messages/11251:1#6ea0a8ed
-
-```
-A heading or footing set while RUN.NO.PAGE is in effect enables screen pagination
-```
-
-### msg:11252
-> kind=message tier=reference since=- src=sdsys/messages/11252:1#1e34b6c4
-
-```
-A program compiled or catalogued also resets every subroutine link variable, so the next CALL loads the current object code
-```
-
-### msg:11253
-> kind=message tier=reference since=- src=sdsys/messages/11253:1#567bef5b
-
-```
-Accept exponent form numbers such as 123.45E-2
-```
-
-### msg:11254
-> kind=message tier=reference since=- src=sdsys/messages/11254:1#f1b834fa
-
-```
-Pause for RETURN at the end of a query report that has a page footer
-```
-
-### msg:11255
-> kind=message tier=reference since=- src=sdsys/messages/11255:1#2d839e41
-
-```
-CREATE.FILE puts a new multifile subfile in the directory of the default subfile
 ```
 
 ### msg:11256
@@ -3271,20 +3138,6 @@ A directory file keeps .gitignore and .gitattributes under their own names
 Writing a record to a directory file updates the directory's date and time modified
 ```
 
-### msg:11268
-> kind=message tier=reference since=- src=sdsys/messages/11268:1#f3e0d244
-
-```
-A compilation that fails leaves the previous object code in place
-```
-
-### msg:11269
-> kind=message tier=reference since=- src=sdsys/messages/11269:1#ffac97e2
-
-```
-A phantom does not send a message to its parent when it ends
-```
-
 ### msg:1127
 > kind=message tier=reference since=- src=sdsys/messages/1127:1#15630500
 
@@ -3297,13 +3150,6 @@ Invalid object code %s
 
 ```
 Show the operating system command that is used to print
-```
-
-### msg:11271
-> kind=message tier=reference since=- src=sdsys/messages/11271:1#73fba66e
-
-```
-The query processor treats all fields as being in one association
 ```
 
 ### msg:11272
@@ -3325,10 +3171,10 @@ A default argument value must be a number, a string without both kinds of quote,
 cited by: `bcomp`
 
 ### msg:11274
-> kind=message tier=reference since=- src=sdsys/messages/11274:1#7860aa82
+> kind=message tier=reference since=- src=sdsys/messages/11274:1#a70c4870
 
 ```
-Default argument values need the VAR.ARGS option or $MODE DEFAULT.UNASS.ARGS
+Default argument values need the VAR.ARGS option
 ```
 
 cited by: `bcomp`
@@ -3359,20 +3205,6 @@ SD has no pools of phantom processes
 ```
 
 cited by: `listphan`
-
-### msg:11278
-> kind=message tier=reference since=- src=sdsys/messages/11278:1#11bda8cb
-
-```
-String operations in correlatives and I-types are not case sensitive
-```
-
-### msg:11279
-> kind=message tier=reference since=- src=sdsys/messages/11279:1#2a5d2d54
-
-```
-The operators of correlatives and I-types reuse the last value of a shorter array, as REUSE() does
-```
 
 ### msg:1128
 > kind=message tier=reference since=- src=sdsys/messages/1128:1#10d33c56
@@ -3747,21 +3579,12 @@ cited by: `disablei`
 Argument matrix too small
 ```
 
-### msg:11320
-> kind=message tier=reference since=- src=sdsys/messages/11320:1#5f51c6f7
-
-```
-A query to printer 0 leaves an already active printer on at the end of the report
-```
-
 ### msg:11321
 > kind=message tier=reference since=- src=sdsys/messages/11321:1#a63f8b1b
 
 ```
 Form queue %1 is not defined
 ```
-
-cited by: `setqueue`, `spassign`
 
 ### msg:11322
 > kind=message tier=reference since=- src=sdsys/messages/11322:1#641cf151
@@ -3770,104 +3593,12 @@ cited by: `setqueue`, `spassign`
 A form queue number is a whole number from 0 to 999 (%1)
 ```
 
-cited by: `setqueue`, `spassign`
-
-### msg:11323
-> kind=message tier=reference since=- src=sdsys/messages/11323:1#31b0cfb5
-
-```
-SET.QUEUE queue, width, depth, top.margin, bottom.margin, mode {, options}  or  SET.QUEUE queue  or  SET.QUEUE DISPLAY {LPTR {unit}}  or  SET.QUEUE DELETING queue
-```
-
-cited by: `setqueue`
-
-### msg:11324
-> kind=message tier=reference since=- src=sdsys/messages/11324:1#b1f88d44
-
-```
-Mode %1 is not a printing mode: use 1 (printer), 3 (hold file) or 6 (both)
-```
-
-cited by: `setqueue`
-
-### msg:11325
-> kind=message tier=reference since=- src=sdsys/messages/11325:1#db1923b8
-
-```
-No form queues are defined
-```
-
-cited by: `setqueue`
-
-### msg:11326
-> kind=message tier=reference since=- src=sdsys/messages/11326:1#9d6469ff
-
-```
-Deleted form queue %1
-```
-
-cited by: `setqueue`
-
-### msg:11327
-> kind=message tier=reference since=- src=sdsys/messages/11327:1#753242e2
-
-```
-Queue   Width  Depth   Top  Bottom  Mode  Options
-```
-
-cited by: `setqueue`
-
-### msg:11328
-> kind=message tier=reference since=- src=sdsys/messages/11328:1#c68883ac
-
-```
-Print unit %1 is not valid
-```
-
-cited by: `spassign`
-
-### msg:11329
-> kind=message tier=reference since=- src=sdsys/messages/11329:1#8aedd7c1
-
-```
-SP.ASSIGN option %1 is not understood
-```
-
-cited by: `spassign`
-
 ### msg:1133
 > kind=message tier=reference since=- src=sdsys/messages/1133:1#fc19b517
 
 ```
 GOSUBs nested too deeply
 ```
-
-### msg:11330
-> kind=message tier=reference since=- src=sdsys/messages/11330:1#1747d023
-
-```
-The S option of SP.ASSIGN is for use with H: both together keep the output in the hold file and do not print it
-```
-
-cited by: `spassign`
-
-### msg:11331
-> kind=message tier=reference since=- src=sdsys/messages/11331:1#212e43e9
-
-```
-Print unit %1 uses form queue %2
-```
-
-cited by: `spassign`
-
-### msg:11333
-> kind=message tier=reference since=- src=sdsys/messages/11333:1#12e92688
-
-```
-%1 must be a whole number from %2 to %3
-```
-
-cited by: `setqueue`
 
 ### msg:11334
 > kind=message tier=reference since=- src=sdsys/messages/11334:1#30069af8
@@ -4030,13 +3761,6 @@ lock tracing is on
 
 cited by: `locktracer`
 
-### msg:1136
-> kind=message tier=reference since=- src=sdsys/messages/1136:1#79288d8b
-
-```
-Cannot redimension a Pick style matrix
-```
-
 ### msg:11360
 > kind=message tier=reference since=- src=sdsys/messages/11360:1#49e22c87
 
@@ -4100,13 +3824,6 @@ no locks have been logged
 
 cited by: `locktracer`
 
-### msg:11367
-> kind=message tier=reference since=- src=sdsys/messages/11367:1#009892bb
-
-```
-A file variable that goes keeps its locks until the program returns to the command processor
-```
-
 ### msg:11368
 > kind=message tier=reference since=- src=sdsys/messages/11368:1#30e1f172
 
@@ -4130,13 +3847,6 @@ cited by: `qproc`
 
 ```
 String number too long|in %s
-```
-
-### msg:11370
-> kind=message tier=reference since=- src=sdsys/messages/11370:1#7c074916
-
-```
-An EXECUTE that changes account returns to the account it began in
 ```
 
 ### msg:11371
@@ -4302,13 +4012,6 @@ Non-printing characters are shown as ^nnn
 Non-printing characters are shown as ?
 ```
 
-### msg:1139
-> kind=message tier=reference since=- src=sdsys/messages/1139:1#9e6ecac6
-
-```
-Pick style matrices must have at least one element
-```
-
 ### msg:11390
 > kind=message tier=reference since=- src=sdsys/messages/11390:1#5b5eaaa4
 
@@ -4337,10 +4040,10 @@ At most 32 initialisation values may be given for an inherited class
 cited by: `bcomp`
 
 ### msg:11394
-> kind=message tier=reference since=- src=sdsys/messages/11394:1#b5d22315
+> kind=message tier=reference since=- src=sdsys/messages/11394:1#5699d3ae
 
 ```
-An initialisation value must be a numeric or string constant, CHAR() of a numeric constant, or a constant @-variable (@FM, @VM, @SM, @TM, @IM, @AM, @SVM, @TRUE, @FALSE)
+An initialisation value must be a numeric or string constant, CHAR() of a numeric constant, or a constant @-variable (@FM, @VM, @SM, @TM, @IM, @TRUE, @FALSE)
 ```
 
 cited by: `bcomp`
@@ -6775,171 +6478,165 @@ cited by: `setviewer`
 cited by: `setviewer`
 
 ### msg:11900
-> kind=message tier=reference since=- src=sdsys/messages/11900:1#877e0c48
+> kind=message tier=reference since=- src=sdsys/messages/11900:1#5568a11f
 
 ```
-Internal session admitted (opened by %1)
+%1 VOC record(s) removed, because SD no longer ships them: %2
 ```
 
 cited by: `login`
 
 ### msg:11901
-> kind=message tier=reference since=- src=sdsys/messages/11901:1#b550c063
+> kind=message tier=reference since=- src=sdsys/messages/11901:1#3bad830d
 
 ```
-Only the SD Core server may manage ssh keys
+%1 VOC record(s) kept although SD no longer ships the name, because the record is not the one SD shipped: %2
 ```
 
-cited by: `apisrvr`
+cited by: `login`
 
 ### msg:11902
-> kind=message tier=reference since=- src=sdsys/messages/11902:1#079364fb
+> kind=message tier=reference since=- src=sdsys/messages/11902:1#c7404a13
 
 ```
-The ssh key request was refused: %1
+%1 VOC record(s) kept although SD no longer ships them, because they are marked [locked]: %2
 ```
 
-cited by: `apisrvr`
+cited by: `login`
 
 ### msg:11903
-> kind=message tier=reference since=- src=sdsys/messages/11903:1#830a1174
+> kind=message tier=reference since=- src=sdsys/messages/11903:1#2eba16c8
 
 ```
-%1 contains a single quote, which SD cannot pass to Linux safely. Use a path without one.
+%1 locked verb(s) were removed all the same, as a verb is not kept by [locked]: %2
 ```
+
+cited by: `login`
 
 ### msg:11904
-> kind=message tier=reference since=- src=sdsys/messages/11904:1#21544be4
+> kind=message tier=reference since=- src=sdsys/messages/11904:1#99edb69e
 
 ```
-Counting the files in %1 failed (status %2): %3
+A copy of VOC record %1 could not be saved, so the record was left where it is.
 ```
+
+cited by: `login`
 
 ### msg:11905
-> kind=message tier=reference since=- src=sdsys/messages/11905:1#008d011b
+> kind=message tier=reference since=- src=sdsys/messages/11905:1#d19feaf0
 
 ```
-Making the archive %1 failed (status %2): %3
+%1 VOC record(s) that SD no longer ships:
 ```
+
+cited by: `lstvocrm`
 
 ### msg:11906
-> kind=message tier=reference since=- src=sdsys/messages/11906:1#53d32085
+> kind=message tier=reference since=- src=sdsys/messages/11906:1#3e7770e5
 
 ```
-%1 already exists. A backup never overwrites a file.
+Name                          Went in   Use instead
 ```
+
+cited by: `lstvocrm`
 
 ### msg:11907
-> kind=message tier=reference since=- src=sdsys/messages/11907:1#afc81877
+> kind=message tier=reference since=- src=sdsys/messages/11907:1#16ca7689
 
 ```
-Unpacking %1 failed (status %2): %3
+absent
 ```
 
 ### msg:11908
-> kind=message tier=reference since=- src=sdsys/messages/11908:1#055bc3ff
+> kind=message tier=reference since=- src=sdsys/messages/11908:1#36e946f4
 
 ```
-The archive tool did not report %1, so the result cannot be checked. Nothing was kept.
+would be removed
 ```
 
 ### msg:11909
-> kind=message tier=reference since=- src=sdsys/messages/11909:1#70816855
+> kind=message tier=reference since=- src=sdsys/messages/11909:1#04fd3a46
 
 ```
-Not in the backup: %1
+kept: not the shipped record
 ```
-
-cited by: `acc_archive`
 
 ### msg:11910
-> kind=message tier=reference since=- src=sdsys/messages/11910:1#a8e0ddc5
+> kind=message tier=reference since=- src=sdsys/messages/11910:1#0ef157bb
 
 ```
-SD Core for Linux Solo puts a restore in place at its next start, not while it runs (%1).
+kept: locked
 ```
 
 ### msg:11911
-> kind=message tier=reference since=- src=sdsys/messages/11911:1#de7dc116
+> kind=message tier=reference since=- src=sdsys/messages/11911:1#269a6602
 
 ```
-Cannot create the backup directory %1: %2
+would be removed (a locked verb)
 ```
 
 ### msg:11912
-> kind=message tier=reference since=- src=sdsys/messages/11912:1#401336ca
+> kind=message tier=reference since=- src=sdsys/messages/11912:1#1e9886ac
 
 ```
-You cannot write to the backup directory %1: %2
+Account %1 is not registered.
 ```
+
+cited by: `lstvocrm`, `rstvoc`
 
 ### msg:11913
-> kind=message tier=reference since=- src=sdsys/messages/11913:1#bab16d6b
+> kind=message tier=reference since=- src=sdsys/messages/11913:1#b00b4384
 
 ```
-Saving the backup directory in sd.conf failed: %1
+The VOC of account %1 cannot be opened from this session.
 ```
+
+cited by: `lstvocrm`, `rstvoc`
 
 ### msg:11914
-> kind=message tier=reference since=- src=sdsys/messages/11914:1#edefb7e4
+> kind=message tier=reference since=- src=sdsys/messages/11914:1#601550ba
 
 ```
-The backup directory %1 cannot be used: %2
+Format: restore.voc account id | restore.voc account all
 ```
 
-### msg:11920
-> kind=message tier=reference since=- src=sdsys/messages/11920:1#a2eb7f6a
+cited by: `rstvoc`
+
+### msg:11915
+> kind=message tier=reference since=- src=sdsys/messages/11915:1#b532f023
 
 ```
-Account %1
+Put back %1 in the VOC of %2.
 ```
 
-cited by: `upgrade_nocase`
+cited by: `rstvoc`
 
-### msg:11921
-> kind=message tier=reference since=- src=sdsys/messages/11921:1#9b118757
-
-```
-%1 private catalogue name(s) in %2 would be made lower case.
-```
-
-cited by: `upgrade_nocase`
-
-### msg:11922
-> kind=message tier=reference since=- src=sdsys/messages/11922:1#0c967c2c
+### msg:11916
+> kind=message tier=reference since=- src=sdsys/messages/11916:1#cadc947b
 
 ```
-'%1' and '%2' both exist in %3, so they were left as they are. Delete the one you do not need.
+No saved copy of %1 for account %2.
 ```
 
-cited by: `upgrade_nocase`
+cited by: `rstvoc`
 
-### msg:11923
-> kind=message tier=reference since=- src=sdsys/messages/11923:1#c4dab48b
-
-```
-%1 private catalogue name(s) in %2 were made lower case.
-```
-
-cited by: `upgrade_nocase`
-
-### msg:11924
-> kind=message tier=reference since=- src=sdsys/messages/11924:1#5b73358d
+### msg:11917
+> kind=message tier=reference since=- src=sdsys/messages/11917:1#577cce4c
 
 ```
-%1 file(s) named by an account's VOC lie under SDSYS and were left as they are. SDSYS's own files are made new by the install; convert one yourself with configure.file no.case if you need to:
+The VOC of account %1 cannot be written from this session: %2 left as it is.
 ```
 
-cited by: `upgrade_nocase`
+cited by: `rstvoc`
 
-### msg:11925
-> kind=message tier=reference since=- src=sdsys/messages/11925:1#f31910f8
+### msg:11918
+> kind=message tier=reference since=- src=sdsys/messages/11918:1#04d8d0dd
 
 ```
-Cannot open %1 (error %2). It was left as it is.
+The VOC of %2 already holds a record %1: it was not overwritten.
 ```
 
-cited by: `upgrade_nocase`
+cited by: `rstvoc`
 
 ### msg:11926
 > kind=message tier=reference since=- src=sdsys/messages/11926:1#2e09b893
@@ -6994,6 +6691,42 @@ The permission to add programs to the home screen could not be written
 ```
 
 cited by: `setpins`
+
+### msg:11938
+> kind=message tier=reference since=- src=sdsys/messages/11938:1#0dd04901
+
+```
+A or S type dictionary item %1 is not compiled: write it as a D-type or an I-type
+```
+
+cited by: `cd`, `dcomp`, `mkindx`
+
+### msg:11983
+> kind=message tier=reference since=- src=sdsys/messages/11983:1#39d32338
+
+```
+%1: this session cannot write that VOC (its file permissions refuse it), so it was left as it was. The installer's upgrade updates it.
+```
+
+cited by: `login`
+
+### msg:11984
+> kind=message tier=reference since=- src=sdsys/messages/11984:1#ae39ccce
+
+```
+%1 account(s) were left as they were: this session cannot write their VOC.
+```
+
+cited by: `login`
+
+### msg:11993
+> kind=message tier=reference since=- src=sdsys/messages/11993:1#4810cb0a
+
+```
+C-type dictionary item %1 is not compiled: write it as an I-type
+```
+
+cited by: `dcomp`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
@@ -7802,7 +7535,7 @@ cited by: `ed`, `sed`
 Error %1 opening %2
 ```
 
-cited by: `como`, `formlst`, `phantom`, `qselect`, `setqueue`
+cited by: `como`, `formlst`, `phantom`, `qselect`
 
 ### msg:1431
 > kind=message tier=reference since=- src=sdsys/messages/1431:1#3e0e3b4a
@@ -7820,7 +7553,7 @@ cited by: `clearfl`, `cname`, `configf`, `copy`, `copylst`, `delete`, `seqkey`
 Error %1 (os.error %2) creating %3
 ```
 
-cited by: `como`, `phantom`, `setqueue`
+cited by: `como`, `phantom`
 
 ### msg:1433
 > kind=message tier=reference since=- src=sdsys/messages/1433:1#5d7c4e5d
@@ -7976,6 +7709,173 @@ Error merging sort data
 ```
 Cannot open sort work file '%s' (Errno %d)
 ```
+
+### msg:14974
+> kind=message tier=reference since=- src=sdsys/messages/14974:1#877e0c48
+
+```
+Internal session admitted (opened by %1)
+```
+
+cited by: `login`
+
+### msg:14975
+> kind=message tier=reference since=- src=sdsys/messages/14975:1#b550c063
+
+```
+Only the SD Core server may manage ssh keys
+```
+
+cited by: `apisrvr`
+
+### msg:14976
+> kind=message tier=reference since=- src=sdsys/messages/14976:1#079364fb
+
+```
+The ssh key request was refused: %1
+```
+
+cited by: `apisrvr`
+
+### msg:14977
+> kind=message tier=reference since=- src=sdsys/messages/14977:1#830a1174
+
+```
+%1 contains a single quote, which SD cannot pass to Linux safely. Use a path without one.
+```
+
+### msg:14978
+> kind=message tier=reference since=- src=sdsys/messages/14978:1#21544be4
+
+```
+Counting the files in %1 failed (status %2): %3
+```
+
+### msg:14979
+> kind=message tier=reference since=- src=sdsys/messages/14979:1#008d011b
+
+```
+Making the archive %1 failed (status %2): %3
+```
+
+### msg:14980
+> kind=message tier=reference since=- src=sdsys/messages/14980:1#53d32085
+
+```
+%1 already exists. A backup never overwrites a file.
+```
+
+### msg:14981
+> kind=message tier=reference since=- src=sdsys/messages/14981:1#afc81877
+
+```
+Unpacking %1 failed (status %2): %3
+```
+
+### msg:14982
+> kind=message tier=reference since=- src=sdsys/messages/14982:1#055bc3ff
+
+```
+The archive tool did not report %1, so the result cannot be checked. Nothing was kept.
+```
+
+### msg:14983
+> kind=message tier=reference since=- src=sdsys/messages/14983:1#70816855
+
+```
+Not in the backup: %1
+```
+
+cited by: `acc_archive`
+
+### msg:14984
+> kind=message tier=reference since=- src=sdsys/messages/14984:1#a8e0ddc5
+
+```
+SD Core for Linux Solo puts a restore in place at its next start, not while it runs (%1).
+```
+
+### msg:14985
+> kind=message tier=reference since=- src=sdsys/messages/14985:1#de7dc116
+
+```
+Cannot create the backup directory %1: %2
+```
+
+### msg:14986
+> kind=message tier=reference since=- src=sdsys/messages/14986:1#401336ca
+
+```
+You cannot write to the backup directory %1: %2
+```
+
+### msg:14987
+> kind=message tier=reference since=- src=sdsys/messages/14987:1#bab16d6b
+
+```
+Saving the backup directory in sd.conf failed: %1
+```
+
+### msg:14988
+> kind=message tier=reference since=- src=sdsys/messages/14988:1#edefb7e4
+
+```
+The backup directory %1 cannot be used: %2
+```
+
+### msg:14989
+> kind=message tier=reference since=- src=sdsys/messages/14989:1#a2eb7f6a
+
+```
+Account %1
+```
+
+cited by: `upgrade_nocase`
+
+### msg:14990
+> kind=message tier=reference since=- src=sdsys/messages/14990:1#9b118757
+
+```
+%1 private catalogue name(s) in %2 would be made lower case.
+```
+
+cited by: `upgrade_nocase`
+
+### msg:14991
+> kind=message tier=reference since=- src=sdsys/messages/14991:1#0c967c2c
+
+```
+'%1' and '%2' both exist in %3, so they were left as they are. Delete the one you do not need.
+```
+
+cited by: `upgrade_nocase`
+
+### msg:14992
+> kind=message tier=reference since=- src=sdsys/messages/14992:1#c4dab48b
+
+```
+%1 private catalogue name(s) in %2 were made lower case.
+```
+
+cited by: `upgrade_nocase`
+
+### msg:14993
+> kind=message tier=reference since=- src=sdsys/messages/14993:1#5b73358d
+
+```
+%1 file(s) named by an account's VOC lie under SDSYS and were left as they are. SDSYS's own files are made new by the install; convert one yourself with configure.file no.case if you need to:
+```
+
+cited by: `upgrade_nocase`
+
+### msg:14994
+> kind=message tier=reference since=- src=sdsys/messages/14994:1#f31910f8
+
+```
+Cannot open %1 (error %2). It was left as it is.
+```
+
+cited by: `upgrade_nocase`
 
 ### msg:1500
 > kind=message tier=reference since=- src=sdsys/messages/1500:1#6ab4d1b0
@@ -8292,7 +8192,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit`, `listlck` and 17 more
+cited by: `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit`, `listlck` and 19 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -8415,7 +8315,7 @@ cited by: `findfile`
 Unexpected token (%1)
 ```
 
-cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 57 more
+cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 56 more
 
 ### msg:2019
 > kind=message tier=reference since=- src=sdsys/messages/2019:1#a22e9c3b
@@ -8442,7 +8342,7 @@ cited by: `analyseidx`, `deletei`, `disablei`, `listi`, `selecti`, `settrig`
 File %1 not found
 ```
 
-cited by: `catalog`, `cd`, `copylst`, `copyp`, `cproc`, `mkindx`, `release`
+cited by: `catalog`, `cd`, `copylst`, `cproc`, `mkindx`, `release`
 
 ### msg:2022
 > kind=message tier=reference since=- src=sdsys/messages/2022:1#047915a6
@@ -8514,7 +8414,7 @@ cited by: `fstat`
 Unrecognised option (%1)
 ```
 
-cited by: `copyp`, `pterm`
+cited by: `pterm`
 
 ### msg:2030
 > kind=message tier=reference since=- src=sdsys/messages/2030:1#563e059f
@@ -8559,7 +8459,7 @@ cited by: `delete`, `setmode`
 Invalid print unit number
 ```
 
-cited by: `analyseidx`, `copylst`, `filestat`, `fstatuser`, `listi`, `listrdu`, `listtrg`, `listu` and 10 more
+cited by: `analyseidx`, `copylst`, `filestat`, `fstatuser`, `listi`, `listrdu`, `listtrg`, `listu` and 9 more
 
 ### msg:2054
 > kind=message tier=reference since=- src=sdsys/messages/2054:1#f14c4807
@@ -8652,7 +8552,7 @@ Full pathname required
 File name required
 ```
 
-cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `ced`, `clearfl`, `cname`, `configf` and 18 more
+cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `ced`, `clearfl`, `cname`, `configf` and 17 more
 
 ### msg:2105
 > kind=message tier=reference since=- src=sdsys/messages/2105:1#05b315af
@@ -8724,7 +8624,7 @@ cited by: `cname`, `savestk`
 Cannot open accounts register
 ```
 
-cited by: `login`, `setacc`, `setfile`, `upgrade_nocase`
+cited by: `login`, `lstvocrm`, `rstvoc`, `setacc`, `setfile`, `upgrade_nocase`
 
 ### msg:2201
 > kind=message tier=reference since=- src=sdsys/messages/2201:1#704ebe48
@@ -8998,13 +8898,13 @@ cited by: `mkindx`
 Compilation error in %1
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`, `mkindx`
+cited by: `bcomp`, `mkindx`
 
 ### msg:2613
-> kind=message tier=reference since=- src=sdsys/messages/2613:1#aec90fbb
+> kind=message tier=reference since=- src=sdsys/messages/2613:1#f11811a5
 
 ```
-%1 is not a A, C, D, I or S-type dictionary item
+%1 is not a D or I-type dictionary item
 ```
 
 cited by: `mkindx`
@@ -9795,7 +9695,7 @@ cited by: `bcomp`
 Expected comma or semicolon
 ```
 
-cited by: `bcomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2862
 > kind=message tier=reference since=- src=sdsys/messages/2862:1#13f2f9d3
@@ -10451,10 +10351,10 @@ Expected comma or USING
 cited by: `bcomp`
 
 ### msg:2935
-> kind=message tier=reference since=- src=sdsys/messages/2935:1#bcf7a867
+> kind=message tier=reference since=- src=sdsys/messages/2935:1#be738b7d
 
 ```
-Expected GOSUB, GOTO or GO
+Expected GOSUB or GOTO
 ```
 
 cited by: `bcomp`
@@ -10590,7 +10490,7 @@ cited by: `bcomp`
 THEN not found where expected in conditional expression
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2951
 > kind=message tier=reference since=- src=sdsys/messages/2951:1#7ed0b54b
@@ -10599,7 +10499,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 ELSE not found where expected in conditional expression
 ```
 
-cited by: `acomp`, `bcomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2952
 > kind=message tier=reference since=- src=sdsys/messages/2952:1#b460f472
@@ -10626,7 +10526,7 @@ cited by: `bcomp`
 Mismatched brackets
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2955
 > kind=message tier=reference since=- src=sdsys/messages/2955:1#79693eb9
@@ -10635,7 +10535,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 Data item or constant not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2956
 > kind=message tier=reference since=- src=sdsys/messages/2956:1#5251dc3f
@@ -10671,7 +10571,7 @@ cited by: `bcomp`
 Comma not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2960
 > kind=message tier=reference since=- src=sdsys/messages/2960:1#86dc65d8
@@ -10680,7 +10580,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 Semicolon not found where expected
 ```
 
-cited by: `acomp`, `bcomp`
+cited by: `bcomp`
 
 ### msg:2961
 > kind=message tier=reference since=- src=sdsys/messages/2961:1#96bc5598
@@ -10707,7 +10607,7 @@ cited by: `bcomp`
 Right bracket not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2964
 > kind=message tier=reference since=- src=sdsys/messages/2964:1#58cd0e5b
@@ -10716,7 +10616,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 Right square bracket not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2965
 > kind=message tier=reference since=- src=sdsys/messages/2965:1#16cffb4d
@@ -10788,20 +10688,11 @@ cited by: `bcomp`
 Cannot open pcode file
 ```
 
-### msg:2973
-> kind=message tier=reference since=- src=sdsys/messages/2973:1#c709fe6b
-
-```
-Cannot redimension a Pick style common matrix
-```
-
-cited by: `bcomp`
-
 ### msg:2974
-> kind=message tier=reference since=- src=sdsys/messages/2974:1#367e92c9
+> kind=message tier=reference since=- src=sdsys/messages/2974:1#170147a4
 
 ```
-Record '%1' is not a C or I-type
+Record '%1' is not an I-type
 ```
 
 cited by: `cd`
@@ -10831,7 +10722,7 @@ cited by: `cd`
 Unclosed string
 ```
 
-cited by: `acomp`, `fmtsub`, `icomp`
+cited by: `fmtsub`, `icomp`
 
 ### msg:2978
 > kind=message tier=reference since=- src=sdsys/messages/2978:1#817cce17
@@ -10849,7 +10740,7 @@ cited by: `icomp`
 Structural error in IF/THEN/ELSE
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2980
 > kind=message tier=reference since=- src=sdsys/messages/2980:1#464b9080
@@ -10858,7 +10749,7 @@ cited by: `acomp`, `icomp`
 Internal error: Label %1 referenced but not defined
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2981
 > kind=message tier=reference since=- src=sdsys/messages/2981:1#d806630c
@@ -10867,7 +10758,7 @@ cited by: `acomp`, `icomp`
 Internal error: Duplicate label
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2982
 > kind=message tier=reference since=- src=sdsys/messages/2982:1#bdb29105
@@ -10876,7 +10767,7 @@ cited by: `acomp`, `icomp`
 Field '%1' is not defined
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2983
 > kind=message tier=reference since=- src=sdsys/messages/2983:1#1f9a4d1a
@@ -10894,7 +10785,7 @@ cited by: `icomp`
 Field '%1' is not a data item
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2985
 > kind=message tier=reference since=- src=sdsys/messages/2985:1#14b0f688
@@ -10977,15 +10868,6 @@ Statement/function not allowed in a recursive program
 
 cited by: `bcomp`
 
-### msg:2994
-> kind=message tier=reference since=- src=sdsys/messages/2994:1#182faca4
-
-```
-Statement/function not allowed in a C-type record
-```
-
-cited by: `bcomp`
-
 ### msg:2995
 > kind=message tier=reference since=- src=sdsys/messages/2995:1#345a07e2
 
@@ -11020,7 +10902,7 @@ cited by: `bcomp`
 {name} contructs nested too deeply
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`
 
 ### msg:2999
 > kind=message tier=reference since=- src=sdsys/messages/2999:1#dee06ded
@@ -11590,46 +11472,11 @@ No records specified
 
 cited by: `unlock`
 
-### msg:3100
-> kind=message tier=reference since=- src=sdsys/messages/3100:1#bb9a931e
-
-```
-Treat unassigned variable as a warning
-```
-
 ### msg:3101
 > kind=message tier=reference since=- src=sdsys/messages/3101:1#8e2d2919
 
 ```
 Allow DEBUGGING keyword to the query processor
-```
-
-### msg:3102
-> kind=message tier=reference since=- src=sdsys/messages/3102:1#04bcd904
-
-```
-Allow use of Pick style wildcards in queries
-```
-
-### msg:3103
-> kind=message tier=reference since=- src=sdsys/messages/3103:1#ac6ae932
-
-```
-Allow Pick style qualified display clauses
-```
-
-### msg:3104
-> kind=message tier=reference since=- src=sdsys/messages/3104:1#f403e037
-
-```
-Pick syntax for BREAK.ON and BREAK.SUP
-```
-
-### msg:3105
-> kind=message tier=reference since=- src=sdsys/messages/3105:1#31fd4e6b
-
-```
-Multiple WITH clauses imply OR relationship
 ```
 
 ### msg:3106
@@ -11639,34 +11486,6 @@ Multiple WITH clauses imply OR relationship
 Create memory dump on fatal error
 ```
 
-### msg:3107
-> kind=message tier=reference since=- src=sdsys/messages/3107:1#b432316f
-
-```
-Treat divide by zero as a warning
-```
-
-### msg:3108
-> kind=message tier=reference since=- src=sdsys/messages/3108:1#7650bc45
-
-```
-Treat non-numeric where numeric needed as a warning
-```
-
-### msg:3109
-> kind=message tier=reference since=- src=sdsys/messages/3109:1#3b4b1501
-
-```
-Treat all unassociated fields as associated together
-```
-
-### msg:3110
-> kind=message tier=reference since=- src=sdsys/messages/3110:1#f420e122
-
-```
-Handle U breakpoint option in Pick manner
-```
-
 ### msg:3111
 > kind=message tier=reference since=- src=sdsys/messages/3111:1#122c018c
 
@@ -11674,158 +11493,11 @@ Handle U breakpoint option in Pick manner
 Suppress all user options for an abort
 ```
 
-### msg:3112
-> kind=message tier=reference since=- src=sdsys/messages/3112:1#e3b0cb13
-
-```
-Start programs with pagination disabled
-```
-
 ### msg:3113
 > kind=message tier=reference since=- src=sdsys/messages/3113:1#57cec671
 
 ```
 Show call stack at a fatal error
-```
-
-### msg:3114
-> kind=message tier=reference since=- src=sdsys/messages/3114:1#dc15ce3b
-
-```
-Use CR/DB in place of cr/db in output conversions
-```
-
-### msg:3115
-> kind=message tier=reference since=- src=sdsys/messages/3115:1#a969641b
-
-```
-Use AM/PM in place of am/pm in time conversions
-```
-
-### msg:3116
-> kind=message tier=reference since=- src=sdsys/messages/3116:1#0d09686d
-
-```
-Return null for null data in ML, MR and FMT()
-```
-
-### msg:3117
-> kind=message tier=reference since=- src=sdsys/messages/3117:1#f784e2a5
-
-```
-GRAND.TOTAL text on same line as values
-```
-
-### msg:3118
-> kind=message tier=reference since=- src=sdsys/messages/3118:1#b322665c
-
-```
-Suppress program details on abort
-```
-
-### msg:3119
-> kind=message tier=reference since=- src=sdsys/messages/3119:1#112fd145
-
-```
-Reserved: has no effect (it rebound AccuTerm keys on entry to the debugger)
-```
-
-### msg:3120
-> kind=message tier=reference since=- src=sdsys/messages/3120:1#b0c3e3b6
-
-```
-Don't ask for confirmation on FD command in ED
-```
-
-### msg:3121
-> kind=message tier=reference since=- src=sdsys/messages/3121:1#e0b338b3
-
-```
-Don't query use of select list
-```
-
-### msg:3122
-> kind=message tier=reference since=- src=sdsys/messages/3122:1#15967ac0
-
-```
-Do not delete unnamed common on CHAIN
-```
-
-### msg:3123
-> kind=message tier=reference since=- src=sdsys/messages/3123:1#f6216940
-
-```
-Preserve case in directory file select
-```
-
-### msg:3124
-> kind=message tier=reference since=- src=sdsys/messages/3124:1#682917e5
-
-```
-Keep operating system file name case in CREATE.FILE
-```
-
-### msg:3125
-> kind=message tier=reference since=- src=sdsys/messages/3125:1#5530579b
-
-```
-Pick style processing of single value item in BY.EXP
-```
-
-### msg:3126
-> kind=message tier=reference since=- src=sdsys/messages/3126:1#3dc06f8e
-
-```
-Phantom inherits option settings
-```
-
-### msg:3127
-> kind=message tier=reference since=- src=sdsys/messages/3127:1#f0697499
-
-```
-Case insensitive query processor selection operators
-```
-
-### msg:3128
-> kind=message tier=reference since=- src=sdsys/messages/3128:1#6bdfba9b
-
-```
-Beep once per second when waiting for a lock
-```
-
-### msg:3129
-> kind=message tier=reference since=- src=sdsys/messages/3129:1#a2c0cbbe
-
-```
-Implied EQ between field and literal in query
-```
-
-### msg:3130
-> kind=message tier=reference since=- src=sdsys/messages/3130:1#0079cd0e
-
-```
-AND has priority over OR operator in query processor
-```
-
-### msg:3131
-> kind=message tier=reference since=- src=sdsys/messages/3131:1#1fce96db
-
-```
-Don't roll overlarge day number into next month
-```
-
-### msg:3132
-> kind=message tier=reference since=- src=sdsys/messages/3132:1#fc2381f6
-
-```
-Proc A(n,m) command ignores field mark
-```
-
-### msg:3133
-> kind=message tier=reference since=- src=sdsys/messages/3133:1#219fbe0f
-
-```
-MCT conversion uppercases after space
 ```
 
 ### msg:3200
@@ -11842,15 +11514,6 @@ cited by: `option`
 
 ```
 Option name not recognised
-```
-
-cited by: `option`
-
-### msg:3202
-> kind=message tier=reference since=- src=sdsys/messages/3202:1#75105e3c
-
-```
-This option cannot take a qualfying keyword
 ```
 
 cited by: `option`
@@ -12064,7 +11727,7 @@ cited by: `copylst`
 Error %1 opening $savedlists
 ```
 
-cited by: `copylst`, `dellist`, `getlist`, `lstmrg`, `savelst`, `savestk`, `sortlst`, `writelist`
+cited by: `copylst`, `dellist`, `getlist`, `savelst`, `savestk`, `sortlst`, `writelist`
 
 ### msg:3249
 > kind=message tier=reference since=- src=sdsys/messages/3249:1#51ea419e
@@ -12190,16 +11853,12 @@ cited by: `formlst`, `getlist`, `mrglist`, `nselect`, `qselect`, `seldir`, `sele
 First list name missing or invalid
 ```
 
-cited by: `lstmrg`
-
 ### msg:3263
 > kind=message tier=reference since=- src=sdsys/messages/3263:1#0c9599ae
 
 ```
 First source list does not exist
 ```
-
-cited by: `lstmrg`
 
 ### msg:3264
 > kind=message tier=reference since=- src=sdsys/messages/3264:1#391c6b6a
@@ -12208,16 +11867,12 @@ cited by: `lstmrg`
 Second source list does not exist
 ```
 
-cited by: `lstmrg`
-
 ### msg:3265
 > kind=message tier=reference since=- src=sdsys/messages/3265:1#0b313ae2
 
 ```
 Invalid merge mode in VOC entry
 ```
-
-cited by: `lstmrg`
 
 ### msg:3266
 > kind=message tier=reference since=- src=sdsys/messages/3266:1#7a2e67b5
@@ -12226,7 +11881,7 @@ cited by: `lstmrg`
 %1 records saved to select list '%2'
 ```
 
-cited by: `lstmrg`, `savelst`, `sortlst`
+cited by: `savelst`, `sortlst`
 
 ### msg:3267
 > kind=message tier=reference since=- src=sdsys/messages/3267:1#f2a164da
@@ -12601,16 +12256,7 @@ cited by: `hsm`, `profiler`
 Unable to load embedded object code for %1
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
-
-### msg:3401
-> kind=message tier=reference since=- src=sdsys/messages/3401:1#11d9c3b5
-
-```
-Compiled dictionary items nested too deeply
-```
-
-cited by: `acomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:3402
 > kind=message tier=reference since=- src=sdsys/messages/3402:1#241af69d
@@ -12618,24 +12264,6 @@ cited by: `acomp`
 ```
 Unsupported expression type in A/S type dictionary record
 ```
-
-### msg:3403
-> kind=message tier=reference since=- src=sdsys/messages/3403:1#8400841a
-
-```
-Expression would result in stack underflow
-```
-
-cited by: `acomp`
-
-### msg:3404
-> kind=message tier=reference since=- src=sdsys/messages/3404:1#379f5075
-
-```
-Unexpected token (%1) in correlative expression
-```
-
-cited by: `acomp`
 
 ### msg:3405
 > kind=message tier=reference since=- src=sdsys/messages/3405:1#841ed59e
@@ -12735,19 +12363,10 @@ Field name %1 is not in the dictionary
 cited by: `bcomp`
 
 ### msg:3416
-> kind=message tier=reference since=- src=sdsys/messages/3416:1#c03d8e51
+> kind=message tier=reference since=- src=sdsys/messages/3416:1#083dbe1b
 
 ```
-%1 is not a D, A or S-type dictionary item
-```
-
-cited by: `bcomp`
-
-### msg:3417
-> kind=message tier=reference since=- src=sdsys/messages/3417:1#d1070c34
-
-```
-%1 has a correlative expression
+%1 is not a D-type dictionary item
 ```
 
 cited by: `bcomp`
@@ -13174,8 +12793,6 @@ Cannot start sd serial port process. Error %1
 To: 
 ```
 
-cited by: `copyp`
-
 ### msg:3521
 > kind=message tier=reference since=- src=sdsys/messages/3521:1#4c6a7e8e
 
@@ -13183,7 +12800,7 @@ cited by: `copyp`
 Record "%1" not found
 ```
 
-cited by: `copyp`, `qproc`
+cited by: `qproc`
 
 ### msg:3522
 > kind=message tier=reference since=- src=sdsys/messages/3522:1#a9b0044f
@@ -13192,16 +12809,12 @@ cited by: `copyp`, `qproc`
 Item %1
 ```
 
-cited by: `copyp`
-
 ### msg:3523
 > kind=message tier=reference since=- src=sdsys/messages/3523:1#f3c14c98
 
 ```
 Item %1 already exists in target file - Not copied
 ```
-
-cited by: `copyp`
 
 ### msg:3524
 > kind=message tier=reference since=- src=sdsys/messages/3524:1#158b5819
@@ -13210,16 +12823,12 @@ cited by: `copyp`
 Copied item %1 from %2 to %3 item %4
 ```
 
-cited by: `copyp`
-
 ### msg:3525
 > kind=message tier=reference since=- src=sdsys/messages/3525:1#944e3fb2
 
 ```
 Moved item %1 from %2 to %3 item %4
 ```
-
-cited by: `copyp`
 
 ### msg:3526
 > kind=message tier=reference since=- src=sdsys/messages/3526:1#644caaf0
@@ -13240,8 +12849,6 @@ options:  (D - Deletes source records after copying
           (S - Suppresses field numbers with P/T
           (T - Output to the terminal
 ```
-
-cited by: `copyp`
 
 ### msg:5000
 > kind=message tier=reference since=- src=sdsys/messages/5000:1#6c085a08
@@ -13747,23 +13354,12 @@ Mode keyword missing or invalid
 
 cited by: `cproc`
 
-### msg:5060
-> kind=message tier=reference since=- src=sdsys/messages/5060:1#ce11e6d9
-
-```
-Access control subroutine '%1' for menu '%2' is not catalogued
-```
-
-cited by: `cproc`
-
 ### msg:5061
 > kind=message tier=reference since=- src=sdsys/messages/5061:1#dc2b7801
 
 ```
 Press return to continue
 ```
-
-cited by: `cproc`
 
 ### msg:5062
 > kind=message tier=reference since=- src=sdsys/messages/5062:1#d4a95ce6
@@ -14956,15 +14552,6 @@ DATA part of file already exists
 
 cited by: `createf`
 
-### msg:6103
-> kind=message tier=reference since=- src=sdsys/messages/6103:1#20134126
-
-```
-%1 already exists but not as a multifile
-```
-
-cited by: `createf`
-
 ### msg:6104
 > kind=message tier=reference since=- src=sdsys/messages/6104:1#f3b31bea
 
@@ -15082,15 +14669,6 @@ cited by: `createf`
 
 cited by: `createf`
 
-### msg:6117
-> kind=message tier=reference since=- src=sdsys/messages/6117:1#0a8b17f9
-
-```
-Invalid file version
-```
-
-cited by: `configf`, `createf`
-
 ### msg:6118
 > kind=message tier=reference since=- src=sdsys/messages/6118:1#442a0376
 
@@ -15116,7 +14694,7 @@ cited by: `configf`, `createf`
 File size is too large
 ```
 
-cited by: `configf`, `createf`
+cited by: `configf`
 
 ### msg:6121
 > kind=message tier=reference since=- src=sdsys/messages/6121:1#a140581b
@@ -15139,15 +14717,6 @@ Using '%1' as dictionary pathname
 
 ```
 Created DICT part as %1
-```
-
-cited by: `createf`
-
-### msg:6124
-> kind=message tier=reference since=- src=sdsys/messages/6124:1#be4172e0
-
-```
-Unable to create directory %1
 ```
 
 cited by: `createf`
@@ -15222,24 +14791,6 @@ Cannot delete system file %1
 
 cited by: `deletef`
 
-### msg:6133
-> kind=message tier=reference since=- src=sdsys/messages/6133:1#75ada6bc
-
-```
-Delete all data components of multifile - Y all, N dictionary only, C cancel (y/n/<c>)? 
-```
-
-cited by: `deletef`
-
-### msg:6134
-> kind=message tier=reference since=- src=sdsys/messages/6134:1#e4a2110a
-
-```
-Multifile component not found
-```
-
-cited by: `deletef`
-
 ### msg:6135
 > kind=message tier=reference since=- src=sdsys/messages/6135:1#186a9921
 
@@ -15254,15 +14805,6 @@ cited by: `deletef`
 
 ```
 DATA portion '%1' deleted
-```
-
-cited by: `deletef`
-
-### msg:6137
-> kind=message tier=reference since=- src=sdsys/messages/6137:1#916f7b1a
-
-```
-Multifile directory '%1' deleted'
 ```
 
 cited by: `deletef`
@@ -15353,15 +14895,6 @@ cited by: `deletef`
 
 ```
 %1 not valid when renaming a file
-```
-
-cited by: `cname`
-
-### msg:6148
-> kind=message tier=reference since=- src=sdsys/messages/6148:1#af42c698
-
-```
-Renaming of multifiles is not supported at this release
 ```
 
 cited by: `cname`
@@ -15483,15 +15016,6 @@ Cannot read old record '%1'
 
 cited by: `cname`
 
-### msg:6162
-> kind=message tier=reference since=- src=sdsys/messages/6162:1#79dd3fc3
-
-```
-Converting to multifile named "%1,%1"
-```
-
-cited by: `createf`
-
 ### msg:6163
 > kind=message tier=reference since=- src=sdsys/messages/6163:1#9ee54c9c
 
@@ -15508,7 +15032,7 @@ cited by: `cname`
 Error %1 writing record '%2'
 ```
 
-cited by: `cname`, `copy`, `copyp`
+cited by: `cname`, `copy`
 
 ### msg:6165
 > kind=message tier=reference since=- src=sdsys/messages/6165:1#cd591236
@@ -15733,7 +15257,7 @@ cited by: `copy`
 %1 record(s) copied.
 ```
 
-cited by: `copy`, `copyp`
+cited by: `copy`
 
 ### msg:6190
 > kind=message tier=reference since=- src=sdsys/messages/6190:1#86324f59
@@ -15742,7 +15266,7 @@ cited by: `copy`, `copyp`
 %1 record(s) copied and deleted.
 ```
 
-cited by: `copy`, `copyp`
+cited by: `copy`
 
 ### msg:6191
 > kind=message tier=reference since=- src=sdsys/messages/6191:1#f9ae791d
@@ -15780,15 +15304,6 @@ cited by: `copy`
 
 cited by: `copy`
 
-### msg:6195
-> kind=message tier=reference since=- src=sdsys/messages/6195:1#e98ae1a8
-
-```
-Convert to multifile named "%1,%1" (y/<n>)? 
-```
-
-cited by: `createf`
-
 ### msg:6196
 > kind=message tier=reference since=- src=sdsys/messages/6196:1#33bbbe53
 
@@ -15796,16 +15311,7 @@ cited by: `createf`
 Unable to create %1
 ```
 
-cited by: `createf`, `mkindx`
-
-### msg:6197
-> kind=message tier=reference since=- src=sdsys/messages/6197:1#4ecbe699
-
-```
-Error %1.%2 moving %3
-```
-
-cited by: `createf`
+cited by: `mkindx`
 
 ### msg:6198
 > kind=message tier=reference since=- src=sdsys/messages/6198:1#33e17aa6
@@ -15831,15 +15337,6 @@ cited by: `deletef`
 ```
 Cannot rename operating system items for files with relocated indices
 ```
-
-### msg:6201
-> kind=message tier=reference since=- src=sdsys/messages/6201:1#96540717
-
-```
-Subfile %1 would be created from the existing data element
-```
-
-cited by: `createf`
 
 ### msg:6202
 > kind=message tier=reference since=- src=sdsys/messages/6202:1#6d1dca02
@@ -18500,24 +17997,6 @@ Break trapping: Off (char ^%1)
 
 cited by: `pterm`
 
-### msg:6832
-> kind=message tier=reference since=- src=sdsys/messages/6832:1#57ffe41d
-
-```
-Case inversion: On
-```
-
-cited by: `pterm`
-
-### msg:6833
-> kind=message tier=reference since=- src=sdsys/messages/6833:1#137b3ae7
-
-```
-Case inversion: Off
-```
-
-cited by: `pterm`
-
 ### msg:6834
 > kind=message tier=reference since=- src=sdsys/messages/6834:1#d3283bc3
 
@@ -18586,15 +18065,6 @@ cited by: `pterm`
 
 ```
 Break recognition is off
-```
-
-cited by: `pterm`
-
-### msg:6842
-> kind=message tier=reference since=- src=sdsys/messages/6842:1#30354332
-
-```
-INVERT or NOINVERT required
 ```
 
 cited by: `pterm`
@@ -20218,15 +19688,6 @@ cited by: `setptr`
 
 ```
 Mode           : 4 (Stderr)
-```
-
-cited by: `setptr`
-
-### msg:7162
-> kind=message tier=reference since=- src=sdsys/messages/7162:1#cf508aa3
-
-```
-Mode           : 5 (Aux port)
 ```
 
 cited by: `setptr`

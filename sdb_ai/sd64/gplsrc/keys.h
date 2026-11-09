@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone; the number stays reserved.
  * 20 Oct 26 dm  SDNet carry 9 (SD Core's S.65 slice 2b): SD_FILE_PRIVATE (111) carried.
  * 31 Dec 23 SD launch - prior history suppressed 
  * 28 Jul 24 mab SD_ENCRYPT_SODIUM encode types
@@ -322,10 +323,7 @@
 /* 15 Oct 26 dm - QM4 gaps Q-8.
      K_PID_ALIVE       1 if the process with this id exists (a process of another user counts), 0 if it does not. */
 #define K_PID_ALIVE          106
-/* 15 Oct 26 dm - QM4 gaps Q-16, KEEP.SELECT.
-     K_KEEP_SELECT     the KEEP.SELECT flag of the command now running: 1 sets it, 0 clears it, -1 only asks.  The previous value
-                       comes back.  CPROC clears it as each outermost command starts and tests it when the command has finished. */
-#define K_KEEP_SELECT        107
+/* 107 was K_KEEP_SELECT (the KEEP.SELECT statement, removed 27 Oct 26, S.87 batch 16): the number stays reserved. */
 /* 15 Oct 26 dm - QM4 gaps Q-8, COMMAND.LOGGING (the per-process form).
      K_CMDLOG          1 starts logging this process's commands, 0 stops, -1 only asks.  The pathname of the log comes back
                        when logging is on after the call, a null string when it is off or could not be started (the file
@@ -341,10 +339,7 @@
                        logged out when this process ends.  1 if it was marked, 0 if the number is not one of this process's
                        phantoms.  SYSTEM(1073) lists the grouped ones; K_USERS reports the mark as USR_GROUPED in the flags. */
 #define K_GROUP_PHANTOM      110
-/* 15 Oct 26 dm - QM4 gaps Q-9 (SP.ASSIGN and SET.QUEUE).
-     K_FORM_QUEUE      unit * 1000 + queue: SP.ASSIGN has assigned form queue (0 to 999) to print unit (0 to 255).  GETPU(PU$FORM.QUEUE,
-                       unit) gives it back, SYSTEM(1066) gives the last one given to any unit.  Returns 1, or 0 for numbers out of range. */
-#define K_FORM_QUEUE         111
+/* 111 was K_FORM_QUEUE (SP.ASSIGN's form queues, removed 27 Oct 26, S.87 batch 14): the number stays reserved. */
 /* 15 Oct 26 dm - QM4 gaps Q-8 (FSTAT.USER).
      K_USER_STATS      the file activity counts of one user (the number) or of every user (0): a field for each, the user number,
                        then opens, reads, writes, deletes, clears, selects, AK reads, AK writes, AK deletes, splits, merges and
@@ -400,7 +395,7 @@
 
 /* PTERM() function action keys */
 #define PT_BREAK              1
-#define PT_INVERT             2
+/* 2 was PT_INVERT (case inversion, removed 27 Oct 26, S.87): the number stays reserved. */
 #define PT_BRKCH              3
 #define PT_ONEWLINE           4
 #define PT_INEWLINE           5
@@ -549,7 +544,7 @@
 #define PU_FILE_NAME          1018
 #define PU_SEQNO              1019
 /* 12 Oct 26 dm - the openQM 4 manual's GETPU() keys 1020 to 1025 (read only) */
-#define PU_FORM_QUEUE         1020  /* Last form queue assigned by SP.ASSIGN: SD has none, 0 */
+/* 1020 was PU_FORM_QUEUE (form queues, removed 27 Oct 26, S.87 batch 14): the number stays reserved. */
 #define PU_FORM_FEED          1021  /* The form feed string of this print unit */
 #define PU_ENCODING           1022  /* Character encoding: SD is English only, null */
 #define PU_FONT               1023  /* Font name: not used, null */

@@ -115,25 +115,6 @@ F
 @SDSYS/dict.dic
 ```
 
-### voc:entry:edit.list
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/edit.list:1#4f357ef8 src2=sdsys/voc_template/edit.list:1#02aa629c
-
-VOC record `edit.list` (type S). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Sentence to edit select lists
-ED $savedlists
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-S
-ED $savedlists
-```
-
 ### voc:entry:first.compile
 > kind=voc.entry tier=examples since=0.6.1 src=sdsys/voc_template/first.compile:1#39a0f31b
 
@@ -183,226 +164,6 @@ File - Compiled GPL BASIC object
 gpl.bp.out
 ```
 
-### voc:entry:listdict
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listdict:1#39a0f31b src2=sdsys/voc_template/listdict:1#39a0f31b
-
-VOC record `sdsys/newvoc/listdict` (type PA), the same in `newvoc` and `voc_template`:
-
-```
-PA
-list dict <<C2>> with type = "A" "D" "I" "S" <<C3>>
-```
-
-### voc:entry:listf
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listf:1#ad0b6122 src2=sdsys/voc_template/listf:1#06576556
-
-VOC record `listf` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list files
-sd.voclib
-listf
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listf
-```
-
-### voc:entry:listfl
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listfl:1#44d58953 src2=sdsys/voc_template/listfl:1#06576556
-
-VOC record `listfl` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list local files
-sd.voclib
-listfl
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listfl
-```
-
-### voc:entry:listfr
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listfr:1#cc834ac6 src2=sdsys/voc_template/listfr:1#06576556
-
-VOC record `listfr` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list remote files
-sd.voclib
-listfr
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listfr
-```
-
-### voc:entry:listk
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listk:1#abd86acf src2=sdsys/voc_template/listk:1#06576556
-
-VOC record `listk` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list keywords
-sd.voclib
-listk
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listk
-```
-
-### voc:entry:listpa
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listpa:1#4abb37b8 src2=sdsys/voc_template/listpa:1#06576556
-
-VOC record `listpa` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list paragraphs
-sd.voclib
-listpa
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listpa
-```
-
-### voc:entry:listph
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listph:1#82077ed6 src2=sdsys/voc_template/listph:1#06576556
-
-VOC record `listph` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list phrases
-sd.voclib
-listph
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listph
-```
-
-### voc:entry:listq
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listq:1#16cde3e0 src2=sdsys/voc_template/listq:1#06576556
-
-VOC record `listq` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list indirect file pointers
-sd.voclib
-listq
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listq
-```
-
-### voc:entry:listr
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listr:1#506af0e1 src2=sdsys/voc_template/listr:1#06576556
-
-VOC record `listr` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list remote items
-sd.voclib
-listr
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listr
-```
-
-### voc:entry:lists
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/lists:1#20bfa624 src2=sdsys/voc_template/lists:1#06576556
-
-VOC record `lists` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list sentences
-sd.voclib
-lists
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-lists
-```
-
-### voc:entry:listv
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listv:1#39c2106b src2=sdsys/voc_template/listv:1#06576556
-
-VOC record `listv` (type R). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Remote item to list verbs
-sd.voclib
-listv
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-R
-sd.voclib
-listv
-```
-
 ### voc:entry:login
 > kind=voc.entry tier=examples since=- src=sdsys/newvoc/login:1#39a0f31b src2=sdsys/voc_template/login:1#39a0f31b
 
@@ -411,28 +172,6 @@ VOC record `sdsys/newvoc/login` (type PA), the same in `newvoc` and `voc_templat
 ```
 PA
 TERM LINUX
-PTERM CASE NOINVERT
-```
-
-### voc:entry:md
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/md:1#86af101e src2=sdsys/voc_template/md:1#c3156e00
-
-VOC record `md` (type Q). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Q - Vocabulary synonym
-
-voc
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-Q
-
-voc
 ```
 
 ### voc:entry:messages
@@ -456,25 +195,6 @@ File - VOC given to a new account
 @SDSYS/voc.dic
 ```
 
-### voc:entry:no.grand.total
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/no.grand.total:1#b0225cc0 src2=sdsys/voc_template/no.grand.total:1#cf8f5eae
-
-VOC record `no.grand.total` (type PH). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-PHrase to suppress grand total in query
-GRAND.TOTAL "'L'"
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-PH
-GRAND.TOTAL "'L'"
-```
-
 ### voc:entry:qfile
 > kind=voc.entry tier=examples since=- src=sdsys/voc_template/qfile:1#10fe1290
 
@@ -494,27 +214,6 @@ VOC record `sdsys/newvoc/sd.accounts` (type Q), the same in `newvoc` and `voc_te
 Q
 sdsys
 accounts
-```
-
-### voc:entry:sd.voclib
-> kind=voc.entry tier=examples since=0.6.1 src=sdsys/newvoc/sd.voclib:1#8445a5a8 src2=sdsys/voc_template/sd.voclib:1#e69f20e9
-
-VOC record `sd.voclib` (type F). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-File - Shared VOC extension library
-@SDSYS/sd.voclib
-@SDSYS/voc.dic
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-F
-@SDSYS/sd.voclib
-@SDSYS/voc.dic
 ```
 
 ### voc:entry:second.compile
@@ -554,10 +253,10 @@ VOC record `sdsys/voc_template/third.compile` (type PA), the same in `voc_templa
 
 ```
 PA
-CD $MAP
-CD accounts
-CD dict.dict
-CD voc
+compile.dict $map
+compile.dict accounts
+compile.dict dict.dict
+compile.dict voc
 ```
 
 ### voc:entry:voc
@@ -598,14 +297,4 @@ In `voc_template` (SDSYS's own VOC):
 ```
 S
 DISPLAY <<@PATH>>
-```
-
-### voc:entry:without
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/without:1#cf8f5eae src2=sdsys/voc_template/without:1#cf8f5eae
-
-VOC record `sdsys/newvoc/without` (type PH), the same in `newvoc` and `voc_template`:
-
-```
-PH
-WITH NO
 ```

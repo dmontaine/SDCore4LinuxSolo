@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: OPTION COMMAND.LEVEL.LOCKS is gone: k_return() releases no parked files.
+ * 28 Oct 26 dm  S.87: OPTION FORCE.RELOAD is gone: an unload event no longer supersedes the objects that are in use.
+ * 27 Oct 26 dm  S.87 batch 17: k_return() no longer gives back a caller's @STDFIL ($MODE STDFIL.SHARED is gone).
+ * 27 Oct 26 dm  S.87 batch 8: OPTION CORRELATIVE.NOCASE is gone; a correlative is case blind only through its own A;NOCASE; flag or an I-type's $mode nocase.strings.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: kill_process() releases the class objects held in named common before
  *               the e-stack is freed (Core e7ea5f8): their destroy code ran on freed memory and the process died with a double free.
  *               Core's S.64 'gates' word of the user table is not carried; SOLO_ACCOUNT_NAME stays.
@@ -300,23 +304,16 @@ Private void init_program() {
   process.program.itrap_n = 0;
   process.program.itrap_stub = 0;
   process.program.itrap_hit = 0;
-  process.program.str_ovl = 0; /* the overlap modes belong to the program that set them: the caller's copy keeps its own (Q-16) */
   process.program.has_stacked = FALSE; /* the caller's copy, saved before this call, keeps the stacked list (openQM 61) */
-  process.program.has_stdfil = FALSE;  /* ...and the @STDFIL of STDFIL.SHARED (16 Oct 26) */
   process.program.gosub_depth = 0;
   process.program.break_handler = NULL;
 }
 
 /* ======================================================================
-   reserved_user_top()  -  The user numbers kept for FIXUSERS, PORTMAP and PHANTOMS (16 Oct 26).
-   Returns the last number of the kept block that holds user number i, zero if i is in none.  The kept blocks do not overlap
-   (read_config() refuses a configuration where they do).                                                                  */
+   reserved_user_top()  -  The user numbers kept for PHANTOMS (16 Oct 26; FIXUSERS and PORTMAP were removed 27 Oct 26).
+   Returns the last number of the kept block that holds user number i, zero if i is in none.                              */
 
 Private int16_t reserved_user_top(int16_t i) {
-  if ((sysseg->portmap_range != 0) && (i >= sysseg->portmap_base_user) && (i < sysseg->portmap_base_user + sysseg->portmap_range))
-    return sysseg->portmap_base_user + sysseg->portmap_range - 1;
-  if ((sysseg->fixusers_range != 0) && (i >= sysseg->fixusers_base) && (i < sysseg->fixusers_base + sysseg->fixusers_range))
-    return sysseg->fixusers_base + sysseg->fixusers_range - 1;
   if ((sysseg->phantoms_range != 0) && (i >= sysseg->phantoms_base) && (i < sysseg->phantoms_base + sysseg->phantoms_range))
     return sysseg->phantoms_base + sysseg->phantoms_range - 1;
   return 0;
@@ -332,15 +329,10 @@ int16_t assign_user_no(int16_t user_table_index, bool interactive) {
   int16_t hi;
   int16_t top;
   int tries;
-  int16_t portmap_lo_user = 9999;
-  int16_t portmap_lo_port;
-  int16_t portmap_range;
-  int16_t fixusers_lo_user = 9999;
-  int16_t fixusers_hi_user;
 
   /* 15 Oct 26 dm - QM4 gaps Q-19, USPLIT.  Interactive users take the lowest free user number and every other process (a
-     phantom, an API session) the highest free one in the range 1 to NUMUSERS, so the two kinds never meet.  FIXUSERS,
-     PORTMAP and USERPOOL are ignored, as the manual says.  There is always a free number: the caller holds a free
+     phantom, an API session) the highest free one in the range 1 to NUMUSERS, so the two kinds never meet.  USERPOOL is
+     ignored, as the manual says.  There is always a free number: the caller holds a free
      user table cell and the table and the number range are the same size.                                           */
   if (sysseg->usplit) {
     if (interactive) {
@@ -361,42 +353,6 @@ int16_t assign_user_no(int16_t user_table_index, bool interactive) {
     return 0;
   }
 
-  /* Copy FIXUSERS and PORTMAP related parameters from shared memory
-    for best performance                                             */
-
-  if (sysseg->fixusers_range != 0) {
-    fixusers_lo_user = sysseg->fixusers_base;
-    fixusers_hi_user = fixusers_lo_user + sysseg->fixusers_range - 1;
-
-    if ((forced_user_no >= fixusers_lo_user) &&
-        (forced_user_no < fixusers_hi_user)) {
-      /* This user is trying to logon as a specific user number */
-
-      if (*(UMap(forced_user_no)))
-        return 0;
-      *(UMap(forced_user_no)) = user_table_index;
-      return forced_user_no;
-    }
-  }
-
-  if ((portmap_range = sysseg->portmap_range) != 0) {
-    portmap_lo_user = sysseg->portmap_base_user;
-    portmap_lo_port = sysseg->portmap_base_port;
-
-    if ((port_no >= portmap_lo_port) &&
-        (port_no < portmap_lo_port + portmap_range)) {
-      /* This user has arrived from a port with a fixed user mapping */
-
-      i = portmap_lo_user + port_no - portmap_lo_port;
-
-      if (*(UMap(i)))
-        return 0;
-
-      *(UMap(i)) = user_table_index;
-      return i;
-    }
-  }
-
   /* Starting at the next user number in cyclic order, find the first
     available user number (there must be one).  USERPOOL=0 (openQM item
     551) starts again from 1 every time, which takes the lowest free number
@@ -408,7 +364,7 @@ int16_t assign_user_no(int16_t user_table_index, bool interactive) {
   do {
     i = (i % hi) + 1;
 
-    /* 16 Oct 26 dm - skip the numbers FIXUSERS, PORTMAP and PHANTOMS keep.  After a skip the number landed on may be the first
+    /* 16 Oct 26 dm - skip the numbers PHANTOMS keeps.  After a skip the number landed on may be the first
        of the next kept block (two blocks side by side), so it is looked at again; the old code looked once and could hand
        out a kept number.  The count of tries stops a configuration that keeps every number from looping for ever.        */
     while (((top = reserved_user_top(i)) != 0) && (++tries <= 2 * hi))
@@ -879,13 +835,8 @@ void k_return() {
     op_sortclr();
   }
 
-  if (process.program.flags & HDR_IS_CPROC)
-    release_parked_fvars(cproc_level); /* back at the command processor: OPTION COMMAND.LEVEL.LOCKS lets its locks go (QM4 gap 231) */
-
   if (old_flags & IS_EXECUTE) {
     tio.prompt_char = process.program.saved_prompt_char;
-    if (process.program.has_stdfil)
-      stdfil_shared_restore(); /* the command's @STDFIL goes, the caller's comes back (QM4 gap 225) */
   }
 
   if (old_flags & HDR_IS_DEBUGGER) {
@@ -1100,11 +1051,6 @@ void k_call(char* name, int num_args, u_char* code_ptr, int16_t stack_adj) {
   /* Set flags */
 
   process.program.flags |= hdr->flags;
-
-  /* 15 Oct 26 QM4 gaps Q-17, OPTION CORRELATIVE.NOCASE: a correlative or I-type that is started now is case blind, whenever it was
-    compiled.                                                                                                                  */
-  if ((hdr->flags & HDR_ITYPE) && Option(OptCorrelativeNoCase))
-    process.program.flags |= HDR_NOCASE;
 }
 
 /* ======================================================================
@@ -1259,8 +1205,6 @@ void process_events() {
 
   if (events & EVT_UNLOAD) /* Unload inactive cached object code */
   {
-    if (Option(OptForceReload)) /* openQM FORCE.RELOAD: links are reset too */
-      stale_objects();
     unload_all();
   }
 

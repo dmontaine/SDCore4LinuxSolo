@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
+*           are still the records SD shipped (!vocrmchk), saves a copy of each to sdsys/voc_removed.saved first, reports the ones it kept and audits.  Messages 11900-11904.
 * 26 Oct 26 SD Core for Linux Solo (Solo carry 21, SD Core's 26 Oct change) - UPDATE.ACCOUNTS (modes 2 and 4) updates the SDSYS account's own VOC from VOC_TEMPLATE, not NEWVOC.
 * 22 Oct 26 SD Core for Linux Solo (Solo carry 13, Core's 18 Oct 26 change) - the size a session with no tty takes is DEFAULT.WIDTH by DEFAULT.DEPTH, now
 *           140 by 42 (int$keys.h), and the terminfo entries say the same; a real terminal still decides its own size.
@@ -30,6 +32,9 @@
 *           (K$SET.ACCOUNT), the internal FCI$NON.TXN fcontrol, and the SDTERM size escape
 *           is gone.  NOT carried then (both carried 24 Oct 26, Solo carry 18): INHIBIT.LOGIN and the newvoc.mods loop.  Solo's own
 *           message 11040 (the internal session announcement) is 11900 now.
+* 09 Nov 26 SD Core for Linux Solo (Solo carry 22; owner, 9 Nov: "Yes, renumber Solo") - Solo's own messages moved again, 11900-11914 to
+*           14974-14988 and 11920-11925 to 14989-14994, so that SD Core's 11900-11918 (the VOC deletion list) keep their numbers here: the
+*           internal session announcement is 14974.
 * 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-12) - a release
 *           mismatch at login no longer asks (5025/5026/5027); it proceeds, as on
 *           Windows and Windows Solo.  UPDATE.ACCOUNTS ALL refreshes the account.
@@ -131,7 +136,7 @@ $flags trusted
 
 subroutine login(ok, mode)
 
-$catalogue $LOGIN
+$catalog $LOGIN
 
 $include revstamp.h
 
@@ -237,7 +242,9 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   installer runs on every install, wrote NEWVOC's over the administrator's.  SD Core had it for tool.gates; Solo's two sets hold the same tool.gates today, so nothing
 *   changes in Solo now, and the next id the two sets disagree about is safe.
          update.sdsys.voc = (@who = 'sdsys' and kernel(K$ADMINISTRATOR,-1))
+         upd.account = downcase(@who)               ;* 27 Oct 26 - the name the deletion list's saved copies and audit line carry
          gosub update.voc
+         if upd.denied then display sysmsg(11983, @path : @ds : 'voc')
          close update.voc.f
       end
 
@@ -268,6 +275,7 @@ deffun pw_complex(pw) calling '!pw_complex'
 
          if yn = 'Y' then
             acc.updated = 0
+            acc.denied = 0
             voc.paths = @path
             openpath @sdsys:@ds:'accounts' to acc.f then
                select acc.f to 12
@@ -283,16 +291,23 @@ deffun pw_complex(pw) calling '!pw_complex'
 * 18 Sep 26 dm - TEARDOWN (S.25).  One VOC layer: every account is NEWVOC, so
 *   the walk no longer resolves a tier first.
                            update.sdsys.voc = 0             ;* the walk passes over the SDSYS account (its path is in voc.paths); every account here is NEWVOC's
+                           upd.account = downcase(acc.name)   ;* 27 Oct 26 - see above
                            gosub update.voc
                            close update.voc.f
                            voc.paths<-1> = acc.path
-                           acc.updated += 1
+                           if upd.denied then
+                              display sysmsg(11983, s)
+                              acc.denied += 1
+                           end else
+                              acc.updated += 1
+                           end
                         end
                      end
                   end
                repeat
                close acc.f
                display sysmsg(10171, acc.updated) ;* xx account(s) had their VOC updated
+               if acc.denied then display sysmsg(11984, acc.denied) ;* xx account(s) were left as they were
             end else
                display sysmsg(2200) ;* Cannot open accounts register
             end
@@ -377,11 +392,7 @@ deffun pw_complex(pw) calling '!pw_complex'
      end
   end
 
-* 13 Sep 26 dm - CASE INVERSION IS NO LONGER TURNED ON HERE.  This line set it,
-*   the VOC login paragraph's PTERM CASE NOINVERT turned it off again, and so an
-*   account without that paragraph typed with every letter flipped (measured on
-*   80bd15c).  Nothing between here and the paragraph prompts for input.  C now
-*   starts with it off too (linuxio.c); PTERM CASE INVERT still turns it on.
+* 13 Sep 26 dm - CASE INVERSION IS NOT TURNED ON HERE (27 Oct 26: case inversion has since been removed altogether).
 
    * Determine account
 * 20240330 mab we no longer support forced accounts from $LOGINS
@@ -726,7 +737,7 @@ abort.login:
 * THE REFUSAL SAYS NOTHING ABOUT WHY: it leaves through terminate.connection, so
 * the operator sees "Connection terminated" and the audit trail carries the
 * reason.  EVERY USE IS AUDITED, admitted or refused, with the writer named on the
-* marker's first line (capped).  An admitted session ANNOUNCES itself (11900).
+* marker's first line (capped).  An admitted session ANNOUNCES itself (14974).
 
 internal.gate:
    gate.ok = @false
@@ -740,7 +751,7 @@ internal.gate:
 
       openseq gate.marker to gate.mf then
          readseq gate.writer from gate.mf else gate.writer = ''
-         closeseq gate.mf
+         close gate.mf
       end else gate.writer = ''
       gate.writer = trim(gate.writer[1, 80])
 
@@ -750,7 +761,7 @@ internal.gate:
          create gate.sf else gate.sf = ''
       end
       if ospath(gate.stamp, OS$EXISTS) then
-         closeseq gate.sf
+         close gate.sf
          gate.now = ospath(gate.stamp, OS$DTM)
          if gate.now > 0 and gate.mtime > 0 then gate.age = gate.now - gate.mtime
       end
@@ -774,7 +785,7 @@ internal.gate:
    audit.account = initial.account
    if gate.ok then
       void kernel(K$AUDIT, 'internal session admitted account=' : initial.account : ' writer=' : gate.writer : ' age=' : gate.age)
-      display sysmsg(11900, gate.writer) ;* Internal session admitted (opened by %1)
+      display sysmsg(14974, gate.writer) ;* Internal session admitted (opened by %1)
    end
    return
 
@@ -993,6 +1004,7 @@ set.first.password:
 
 update.voc:
    yn = ''
+   upd.denied = 0                 ;* 26 Oct 26 - set when a write is refused (the session may not write this account's VOC); the callers say so and go on to the next account
 
 * 11 Sep 26 Windows port - [locked] RECORDS (port PRE_RELEASE_FIXES 70, the
 *   owner's design of 2 Sep 2026).  A site marks a VOC record it has customised
@@ -1065,14 +1077,6 @@ update.voc:
             old.type = upcase(old.rec[1,1])
             if old.type = 'P' then old.type = upcase(old.rec[1,2])
 
-            * Special case to avoid prompt for 2.4-15 change to MD item
-* 11 Sep 26 Windows port - upcase(id), so this survives section M's rename of
-*   the record to 'md' (port 5.12 (b)).  Identical today: every id is upper.
-
-            if upcase(id) = 'MD' and (old.type = 'Q' or old.type = 'F') then
-               goto accept.without.query
-            end
-
             if new.type # old.type then
                if yn # 'A' then
                   display
@@ -1096,7 +1100,6 @@ update.voc:
             end
          end
 
-accept.without.query:
 * 10 Sep 26 dm - THE RECORD IS WRITTEN WHOLE, the port's PRE_RELEASE_FIXES 136
 *   (2 Sep 2026).  Two lines here reduced field 1 - the description whose first
 *   character is the type code - and a K record's field 3 to their type
@@ -1106,8 +1109,19 @@ accept.without.query:
 *   still derived that way.
 
          if compare(old.rec, rec) then
-            write rec to update.voc.f, id
-            display '.' :
+* 26 Oct 26 dm - A REFUSED WRITE ENDS THIS ACCOUNT'S UPDATE, NOT THE COMMAND.  Since F6 the sdsys user is in no user account's group as delivered, so an UPDATE.ACCOUNTS ALL run by SDSYS cannot write
+*   the VOC of a user account that has not switched sdsys on (modify.account <name> sdsys-on): the first write stopped the whole command with "Error 3018 ... (Possible full disk?)" and the other
+*   accounts and the count were lost (found on a real install by witness-release-run.sh V10).  Now the account is left as it was, the caller says why (11983), the walk goes on and the count
+*   (10171) and the number left alone (11984) are printed.  The installer's upgrade walk runs as root and is not affected.
+            upd.wrote = @true
+            write rec to update.voc.f, id on error upd.wrote = @false
+            if upd.wrote then
+               display '.' :
+            end else
+               upd.denied = 1
+               release update.voc.f, id
+               exit
+            end
          end else
             release update.voc.f, id
          end
@@ -1158,6 +1172,15 @@ accept.without.query:
 
    close sdsys.file
 
+   if upd.denied then return      ;* 26 Oct 26 - the account could not be written: nothing more is tried in it (newvoc.mods included)
+
+* 27 Oct 26 dm - S.87: THE VOC DELETION LIST.  The loop above adds and changes records and never deletes one, so a record SD stops shipping stayed in every
+*   account that had it.  sdsys/voc_removed lists them; the step below removes a listed record from THIS account's VOC, but only when it is the record SD
+*   shipped (!vocrmchk), after saving a copy to sdsys/voc_removed.saved (RESTORE.VOC puts it back), and audits it.  It runs BEFORE newvoc.mods, so a site's
+*   own file still has the last word.
+   gosub remove.listed.voc
+   if upd.denied then return
+
 * 12 Oct 26 dm (Core) - openQM 501, carried to Solo 24 Oct 26 (Solo carry 18).  An optional SDSYS file, newvoc.mods, holds the administrator's changes to the standard
 *   VOC (a verb withdrawn, a Q-pointer to a shared file, a paragraph for every sign-on).  Each record in it is written to
 *   the account's VOC after the standard records, so it has the last word; an account record marked [locked] keeps
@@ -1175,6 +1198,79 @@ accept.without.query:
          end
       repeat
       close mods.f
+   end
+
+   return
+
+*****************************************************************************
+* REMOVE.LISTED.VOC  -  the VOC deletion list (S.87), one account: update.voc.f is its open VOC, upd.account its register name
+
+remove.listed.voc:
+   rm.ids.removed = ''
+   rm.ids.overruled = ''
+   rm.ids.differs = ''
+   rm.ids.locked = ''
+   openpath @sdsys:@ds:'voc_removed' to rm.f else return        ;* no list shipped with this tree: nothing to remove
+   openpath @sdsys:@ds:'voc_removed.saved' to rm.sv then rm.can.save = @true else rm.can.save = @false
+   if upd.account = '' then upd.account = '?'
+
+   select rm.f to 11                                            ;* the add / change loop above has finished with list 11 and newvoc.mods below takes it again
+   loop
+      readnext rm.id from 11 else exit
+      read rm.sig from rm.f, rm.id else continue
+
+      old.rec = ''
+      readu old.rec from update.voc.f, rm.id else old.rec = ''
+      call !vocrmchk(rm.sig, old.rec, rm.verdict)
+
+      begin case
+         case rm.verdict = 'absent'
+            release update.voc.f, rm.id
+
+         case rm.verdict = 'differs'                            ;* a person's own record of that name
+            rm.ids.differs<-1> = rm.id
+            release update.voc.f, rm.id
+
+         case rm.verdict = 'locked'
+            rm.ids.locked<-1> = rm.id
+            release update.voc.f, rm.id
+
+         case 1                                                 ;* delete, or overruled (a locked verb)
+            rm.saved.ok = @false
+            if rm.can.save then
+               rm.saved.ok = @true
+               rm.key = upd.account : '*' : rm.id : '*' : date() : '-' : fmt(int(time()), '5"0"R')
+               rm.copy = upd.account : @fm : rm.id : @fm : date() : @fm : int(time()) : @fm : @logname : @fm : old.rec
+               write rm.copy to rm.sv, rm.key on error rm.saved.ok = @false
+            end
+            if rm.saved.ok then
+               rm.deleted = @true
+               delete update.voc.f, rm.id on error rm.deleted = @false
+               if rm.deleted then
+                  rm.ids.removed<-1> = rm.id
+                  if rm.verdict = 'overruled' then rm.ids.overruled<-1> = rm.id
+               end else
+                  upd.denied = 1                                ;* the session may not write this VOC: the update of the account ends, as for a refused write
+                  release update.voc.f, rm.id
+                  exit
+               end
+            end else
+               display sysmsg(11904, rm.id)                     ;* no copy, no deletion
+               release update.voc.f, rm.id
+            end
+      end case
+   repeat
+
+   close rm.f
+   if rm.can.save then close rm.sv
+
+   if rm.ids.removed # '' then display sysmsg(11900, dcount(rm.ids.removed, @fm), convert(@fm, ' ', rm.ids.removed))
+   if rm.ids.overruled # '' then display sysmsg(11903, dcount(rm.ids.overruled, @fm), convert(@fm, ' ', rm.ids.overruled))
+   if rm.ids.differs # '' then display sysmsg(11901, dcount(rm.ids.differs, @fm), convert(@fm, ' ', rm.ids.differs))
+   if rm.ids.locked # '' then display sysmsg(11902, dcount(rm.ids.locked, @fm), convert(@fm, ' ', rm.ids.locked))
+
+   if rm.ids.removed # '' or rm.ids.differs # '' or rm.ids.locked # '' then
+      void kernel(K$AUDIT, 'voc update account=' : upd.account : ' removed=' : dcount(rm.ids.removed, @fm) : ' differs=' : dcount(rm.ids.differs, @fm) : ' locked=' : dcount(rm.ids.locked, @fm) : ' ids=' : convert(@fm, ',', rm.ids.removed))
    end
 
    return

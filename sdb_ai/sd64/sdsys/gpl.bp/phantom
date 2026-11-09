@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the option flags are no longer in the phantom's start-up record or in the seal (OPTION INHERIT went on 27 Oct 26 and the field was always null).
+* 27 Oct 26 dm  S.87 batch 16: OPTION INHERIT is gone; a phantom starts with every option off, as it did unless the parent had INHERIT on.
 * 16 Oct 26 dm  USER n: the phantom takes user number n, one of those the PHANTOMS parameter keeps (QM4 gaps).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -166,8 +168,7 @@ $define como.dir.voc.name "$COMO"
 
       * Write phantom command to Xn record
 
-      s = if option(OPT.INHERIT) then kernel(K$GET.OPTIONS,0) else ''
-      write s:@fm:ph.command to ipc.f, 'X':uid
+      write ph.command to ipc.f, 'X':uid     ;* 28 Oct 26 (S.87, Solo carry 22): OPTION INHERIT is gone; the Xn record holds only the command (cproc reads no option field)
 
       * The extras travel in their own records, read and deleted by the phantom (cproc)
       if pass.data then

@@ -17,7 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: op_itype no longer knows the C-type (HDR_CTYPE): it takes no C dictionary record and loads no @ANS.
+ * 28 Oct 26 dm  S.87: the PROC leftovers PROCREAD, PROCWRITE, @PIB, @SIB, @POB and @SOB are gone (opcode 0xCF9A reserved).
+ * 27 Oct 26 dm  S.87 batch 17: op_forloops and op_for1s ($MODE FOR.STORE.BEFORE.TEST) are gone: forloop() and for1() store the control variable only when the loop goes round again.
  * 15 Oct 26 dm  op_epochcv converts in the TIMEZONE of the process when one was set (QM4 gaps Q-3, SET.TIMEZONE).
+ * 27 Oct 26 dm  S.87 batch 17: op_strovl and op_roll3 (and the modes CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP and PICK.CONVERT they served) are gone; their opcodes are op_illegal rows.
  * 15 Oct 26 dm  op_strovl and op_roll3 for the $MODE options of QM4 gaps bundle Q-16
  * 14 Sep 26 Windows port - op_procread looks for $proc, lower case
  *           (RELEASE_1.1 5 stage 3a)
@@ -55,10 +59,7 @@
  *    op_csvmode        CSV.MODE
  *    op_csvdelim       Push the CSV delimiter
  *    op_epochcv        MVDATE() MVTIME() MVDATE.TIME() MVEPOCH()
- *    op_strovl         STROVL         $MODE CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP
- *    op_roll3          ROLL3          Third item of the stack to the top ($MODE PICK.CONVERT)
  *    op_precision     PRECISION
- *    op_procread()     PROCREAD
  *    op_rtrans()       RTRANS()
  *    op_saveaddr                       Save address descriptor
  *    op_sendmail       SENDMAIL()
@@ -107,8 +108,8 @@ Private int32_t date_adjustment = 0;
 Private int16_t tbase; /* Base of TOTAL() accumulator array,
                                    zero if not to be used              */
 
-Private void for1(bool store_before_test);
-Private void forloop(bool store_before_test);
+Private void for1(void);
+Private void forloop(void);
 Private void itype(void);
 
 /* ======================================================================
@@ -418,18 +419,13 @@ void op_forinit() {
 }
 
 /* ======================================================================
-   op_forloop()  -  Increment and test FOR loop control variable
-   op_forloops() -  As OP_FORLOOP but store value before test             */
+   op_forloop()  -  Increment and test FOR loop control variable          */
 
 void op_forloop() {
-  forloop(FALSE);
+  forloop();
 }
 
-void op_forloops() {
-  forloop(TRUE);
-}
-
-Private void forloop(bool store_before_test) {
+Private void forloop(void) {
   /* Stack:
 
      |=============================|=============================|
@@ -565,7 +561,7 @@ Private void forloop(bool store_before_test) {
       again = (fcontrol_value - pcfg.fltdiff <= flimit);
     else
       again = (fcontrol_value + pcfg.fltdiff >= flimit);
-    if (store_before_test || again) {
+    if (again) {
       Release(control_descr); /* Might have changed type inside loop! */
       InitDescr(control_descr, FLOATNUM);
       control_descr->data.float_value = fcontrol_value;
@@ -575,7 +571,7 @@ Private void forloop(bool store_before_test) {
       again = (control_value <= limit);
     else
       again = (control_value >= limit);
-    if (store_before_test || again) {
+    if (again) {
       Release(control_descr); /* Might have changed type inside loop! */
       InitDescr(control_descr, INTEGER);
       control_descr->data.value = control_value;
@@ -590,18 +586,13 @@ Private void forloop(bool store_before_test) {
 }
 
 /* ======================================================================
-   op_for1()  -  Increment and test FOR loop control variable
-   op_for1s   -  As FOR1 but store value before test                      */
+   op_for1()  -  Increment and test FOR loop control variable             */
 
 void op_for1() {
-  for1(FALSE);
+  for1();
 }
 
-void op_for1s() {
-  for1(TRUE);
-}
-
-Private void for1(bool store_before_test) {
+Private void for1(void) {
   /* Stack:
 
      |=============================|=============================|
@@ -713,7 +704,7 @@ Private void for1(bool store_before_test) {
   if (is_float) {
     again = (fcontrol_value - pcfg.fltdiff <= flimit);
 
-    if (store_before_test || again) {
+    if (again) {
       Release(control_descr); /* Might have changed type inside loop! */
       InitDescr(control_descr, FLOATNUM);
       control_descr->data.float_value = fcontrol_value;
@@ -721,7 +712,7 @@ Private void for1(bool store_before_test) {
   } else {
     again = (control_value <= limit);
 
-    if (store_before_test || again) {
+    if (again) {
       Release(control_descr); /* Might have changed type inside loop! */
       InitDescr(control_descr, INTEGER);
       control_descr->data.value = control_value;
@@ -813,7 +804,6 @@ Private void itype() {
   int16_t i;
   int n;
   u_char type;
-  u_int16_t header_flags;
   OBJECT_HEADER* obj;
 
   /* Find I-type code.  An I-type must be referenced via an ADDR as we are
@@ -838,7 +828,7 @@ Private void itype() {
   p = str->data;
   type = UpperCase(*p);
 
-  if ((type == 'I') || (type == 'C') || (type == 'A') || (type == 'S')) {
+  if ((type == 'I') || (type == 'A') || (type == 'S')) {
     /* It's a complete dictionary record */
     for (i = 15; i--;) /* Skip 15 field marks */
     {
@@ -872,29 +862,16 @@ Private void itype() {
     n = str->bytes - (p - str->data);
     k_put_string(p, n, e_stack);
     obj = (OBJECT_HEADER*)((e_stack++)->data.str.saddr->data);
-    header_flags = obj->flags;
     k_recurse((u_char*)obj, 0);
-    if (header_flags & HDR_CTYPE) /* 0560 */
-    {
-      k_release(e_stack - 1);
-    } else {
-      k_release(e_stack - 2);
-      *(e_stack - 2) = *(e_stack - 1);
-    }
+    k_release(e_stack - 2);
+    *(e_stack - 2) = *(e_stack - 1);
     e_stack--;
   } else {
-    header_flags = ((OBJECT_HEADER*)p)->flags;
     k_recurse((u_char*)p, 0);
   }
 
-  /* If this is a C-type, load @ANS on to the stack */
-
-  if (header_flags & HDR_CTYPE) {
-    *e_stack = *(Element(process.syscom, SYSCOM_AT_ANS));
-    if (e_stack->type >= COMPLEX_DESCR)
-      k_incr_refct(e_stack);
-    e_stack++;
-  }
+  /* 28 Oct 26 S.87: the C-type (HDR_CTYPE) is gone, so the value is always
+     the one the I-type code left on the stack; there is no @ANS to load. */
 
   return;
 
@@ -1230,40 +1207,6 @@ void op_csvdelim() {
 }
 
 /* ======================================================================
-   op_strovl()  -  STROVL  -  $MODE CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP   (15 Oct 26, QM4 gaps Q-16)
-
-   Stack:  mask  ->  (nothing).  The compiler pushes the SO_ bits that are in force at the call it is about to emit and
-   follows them with this opcode, so the argument list of CHANGE, SWAP, EREPLACE, COUNT, COUNTS, INDEX or INDEXS is
-   untouched under the mask.  The bits live in the program's own frame (init_program() clears them for a called program
-   and the caller's copy comes back with its frame), so a subroutine compiled without the modes is not affected by its
-   caller's. */
-
-void op_strovl() {
-  DESCRIPTOR* descr;
-
-  descr = e_stack - 1;
-  GetInt(descr);
-  process.program.str_ovl = (u_char)descr->data.value;
-  k_pop(1);
-}
-
-/* ======================================================================
-   op_roll3()  -  ROLL3  -  Move the third item of the stack to the top   (15 Oct 26, QM4 gaps Q-16)
-
-   Stack:  a, b, c  ->  b, c, a   (c is on top before, a after).  The descriptors are moved, not copied, so no reference
-   count changes.  $MODE PICK.CONVERT evaluates CONVERT(source, from, to) and rolls the source to where the function
-   expects it, after the two character lists. */
-
-void op_roll3() {
-  DESCRIPTOR a;
-
-  a = *(e_stack - 3);
-  *(e_stack - 3) = *(e_stack - 2);
-  *(e_stack - 2) = *(e_stack - 1);
-  *(e_stack - 1) = a;
-}
-
-/* ======================================================================
    op_epochcv()  -  MVDATE(), MVTIME(), MVDATE.TIME() and MVEPOCH()   (14 Oct 26, openQM 124 and the epoch family)
 
    Stack:  arg1, arg2, mode  ->  result.   The mode, pushed last by the compiler:
@@ -1420,58 +1363,6 @@ void op_precision() {
 
   k_pop(1);
 }
-
-// rev 1.0-1 add back op_procread
-/* ======================================================================
-   op_procread()  -  Read data from PROC primary input buffer             */
-
-void op_procread() {
-  /* Stack:
-
-     |=============================|=============================|
-     |            BEFORE           |           AFTER             |
-     |=============================|=============================|
- top |  ADDR to target variable    | 0 = success, 1 = error      |
-     |=============================|=============================|
- */
-
-  DESCRIPTOR* descr;
-  DESCRIPTOR* ibuf_descr;
-  struct PROGRAM* pgm;
-  bool is_proc = FALSE;
-
-  /* The semantics of this statement require that we check that we are
-    in a PROC. The simplest thing to do is to wander down the call stack
-    looking for $PROC.                                                   */
-
-  for (pgm = process.program.prev; pgm != NULL; pgm = pgm->prev) {
-    if (!strcmp(
-            ((OBJECT_HEADER*)(pgm->saved_c_base))->ext_hdr.prog.program_name,
-            "$proc")) { /* RELEASE_1.1 5 stage 3a: names are lower case */
-      is_proc = TRUE;
-      break;
-    }
-  }
-
-  descr = e_stack - 1;
-  while (descr->type == ADDR)
-    descr = descr->data.d_addr;
-  Release(descr);
-
-  if (is_proc) {
-    ibuf_descr = Element(process.syscom, SYSCOM_PROC_IBUF);
-    *descr = *(Element(ibuf_descr->data.ahdr_addr, 0));
-    k_incr_refct(descr);
-  } else {
-    InitDescr(descr, STRING);
-    descr->data.str.saddr = NULL;
-  }
-
-  k_dismiss();
-  InitDescr(e_stack, INTEGER);
-  (e_stack++)->data.value = !is_proc;
-}
-
 
 /* ======================================================================
    op_rtrans()  -  RTRANS function (Revelation style, no mark lowering)   */

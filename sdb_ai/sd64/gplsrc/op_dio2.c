@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the five CASE_INSENSITIVE_FILE_SYSTEM blocks (op_ospath, op_osrename: upper-casing a path on a case-blind file system) are gone; a Linux build never compiled them.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file routes of FILEINFO and the OPEN-time status.
  * 18 Oct 26 dm  S.65 slice 3e: FILEINFO FL$READONLY of a NET_FILE answers the file variable's own read-only flag (1 for a file of a read-mode
  *               server, 0 for a write-mode one), and FL$SETRDONLY from a $internal program sets it, as for a local file.
@@ -932,10 +933,6 @@ void op_ospath() {
       goto set_status;
   }  
 
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-  UpperCaseString(path);
-#endif
-
   switch (key) {
     case OS_PATHNAME: /* Test if valid pathname */
       p = path;
@@ -1005,9 +1002,6 @@ void op_ospath() {
 
     case OS_CWD:
       (void)getcwd(name, MAX_PATHNAME_LEN);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-      UpperCaseString(name);
-#endif
       k_put_c_string(name, e_stack);
       e_stack++;
       goto exit_op_pathinfo;
@@ -1085,9 +1079,6 @@ void op_ospath() {
             continue;
 
           strcpy(name + 1, dp->d_name);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-          UpperCaseString(name + 1);
-#endif
           if (stat_buff.st_mode & S_IFDIR) {
             name[0] = 'D';
             if (head != NULL)
@@ -1213,9 +1204,6 @@ void op_osrename() {
     process.status = ER_INVAPATH;
     goto exit_osrename;
   }
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-  UpperCaseString(new_path);
-#endif
 
   /* Get old pathname */
 
@@ -1225,9 +1213,6 @@ void op_osrename() {
     process.status = ER_INVAPATH;
     goto exit_osrename;
   }
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-  UpperCaseString(old_path);
-#endif
 
   /* Check old path exists */
 

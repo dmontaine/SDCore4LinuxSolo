@@ -20,8 +20,13 @@
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on DIR() is back (op_dir()).
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote SELECT and the S.63 OS-access test on DIR();
  *               DIR() still gives STATUS() a value of its own (0, ER_FNF or ER_PERM) as Core's S.63 commit made it do.
+ * 28 Oct 26 dm  S.87: OPTION DIR.SEL.OMIT.HIDDEN is gone: a select of a directory file includes the names that begin with a dot.
+ * 27 Oct 26 dm  S.87 batch 17: op_rdnxpos ($MODE COMPOSITE.READNEXT) is gone; readnext() mode 0 is no longer called.
+ * 27 Oct 26 dm  S.87 batch 9: $MODE PICK.READNEXT is gone; READNEXT stores the id and a READNEXT that takes its ELSE sets the target to the null string, as without the mode.
+ * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of op_dir() (upper-casing the names of a directory) is gone, as the select's went with select.keep.case.
  * 17 Oct 26 dm  S.65 slice 3c: op_select() and op_selectv() refuse a NET_FILE (net_refuse) before the target list is touched
  * 16 Oct 26 dm  dir_select() closes the oldest cached file and tries again when opendir() fails at the open-file limit (QM4 Fixes 279).
+ * 27 Oct 26 dm  S.87 batch 17: $MODE SELECTV and PICK.SELECT are gone, so readnext() no longer takes P_DEF_SELLIST and op_selectv() no longer takes P_PICK_SEL.
  * 15 Oct 26 dm  $MODE SELECTV default select list variable (openQM item 85): readnext() takes P_DEF_SELLIST, an unassigned
  *               default variable being an empty list
  * 15 Oct 26 dm  $MODE PICK.SELECT (QM4 gaps Q-16): op_selectv() moves an active list 0 to its target;
@@ -260,28 +265,8 @@ void op_readlist() {
 }
 
 /* ======================================================================
-   op_rdnxpos()   Standard READNEXT, returning composite exploded list
    op_readnext()  Standard READNEXT, returning id only in exploded list
    op_rdnxexp()   Extended READNEXT, returning positional data            */
-
-void op_rdnxpos() {
-  /* Stack:
-
-     |=============================|=============================|
-     |            BEFORE           |           AFTER             |
-     |=============================|=============================|
- top |  Select list number         | Status 0=ok, >0 = ELSE      |
-     |                             |        <0 = ON ERROR        |
-     |-----------------------------|-----------------------------| 
-     |  ADDR to id target          |                             |
-     |=============================|=============================|
-                    
-    ON ERROR codes are only returned if ONERROR opcode executed prior to
-    call to READNEXT.
- */
-
-  readnext(0);
-}
 
 void op_readnext() {
   /* Stack:
@@ -351,7 +336,7 @@ void op_rdnxint() {
 }
 
 Private void readnext(int16_t mode)
-/* 0 = Standard READNEXT, returns composite exploded data */
+/* (mode 0, composite exploded data, went with $MODE COMPOSITE.READNEXT on 27 Oct 26) */
 /* 1 = Standard READNEXT, returns id only */
 /* 2 = Extended READNEXT, returns id and  positional data */
 /* 3 = Extended READNEXT, Mode 2 + internal data */
@@ -415,14 +400,6 @@ Private void readnext(int16_t mode)
 
   descr = e_stack - 1;
   for (d = descr; d->type == ADDR; d = d->data.d_addr) {
-  }
-
-  /* 15 Oct 26 dm - $MODE SELECTV (openQM item 85): the list is the program's default select list variable. Until a
-     SELECT has given it a list there is no list, which is a list that is not active: take the ELSE clause. */
-  if ((op_flags & P_DEF_SELLIST) && d->type == UNASSIGNED) {
-    k_pop(1); /* The unassigned variable */
-    status = 1;
-    goto exit_readnext_null;
   }
 
   if (d->type == SELLIST) {
@@ -496,7 +473,7 @@ Private void readnext(int16_t mode)
     status = 0; /* Take THEN clause */
   }
 
-  if (mode) {
+  { /* (this block was `if (mode)` while mode 0 existed) */
     descr = e_stack - 1;
     str = descr->data.str.saddr;
 
@@ -579,24 +556,11 @@ Private void readnext(int16_t mode)
     }
   }
 
-  /* 14 Oct 26 dm - $MODE PICK.READNEXT (openQM item 418): a list variable that has no more items takes the ELSE
-     clause and the id variable is left as it was */
-  if ((op_flags & P_PICK_RDNX) && status) {
-    k_pop(2); /* The (empty) string and the address of the target */
-    goto exit_readnext;
-  }
-
   op_stor(); /* Store the id string */
 
   goto exit_readnext;
 
 exit_readnext_null:
-
-  /* 14 Oct 26 dm - $MODE PICK.READNEXT (openQM item 418): the id variable is left as it was */
-  if (op_flags & P_PICK_RDNX) {
-    k_pop(1);
-    goto exit_readnext;
-  }
 
   /* Set target as null string */
 
@@ -922,14 +886,6 @@ void op_selectv() {
   while (tgt_descr->type == ADDR)
     tgt_descr = tgt_descr->data.d_addr;
   k_release(tgt_descr);
-
-  /* $MODE PICK.SELECT: with the default list active, SELECTV moves it to the target and looks at nothing else, the file
-     variable included (15 Oct 26, QM4 gaps Q-16) */
-
-  if ((op_flags & P_PICK_SEL) && SelectList(0)->data.str.saddr != NULL) {
-    transfer_list0(tgt_descr);
-    goto selectv_status;
-  }
 
   /* Get file variable / dynamic array */
 
@@ -1303,10 +1259,6 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
          */
         break; /* TODO: Work out the correct way of exiting this function with an error */
       }
-      /* 12 Oct 26 (openQM item 445): OPTION DIR.SEL.OMIT.HIDDEN leaves out the names that begin with a dot */
-      if (Option(OptDirSelOmitHidden) && dp->d_name[0] == '.')
-        continue;
-
       /* 16 Oct 26 (QM4 Fixes item 177): %header% holds the directory file's trigger, and is not a record */
       if (is_dir_header(dp->d_name))
         continue;
@@ -1316,10 +1268,6 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
 
       if (statbuf.st_mode & S_IFREG) {
         strcpy(name, dp->d_name);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-        if (!Option(OptSelectKeepCase))
-          UpperCaseString(name);
-#endif
 
         if (map_dir_ids && (strchr(name, '%') != NULL)) /* Mapped name */
         {
@@ -1499,9 +1447,6 @@ void op_dir() {
           continue;
 
         strcpy(name, dp->d_name);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-        UpperCaseString(name);
-#endif
         if (statbuf.st_mode & S_IFREG)
           mode = 'F';
         else if (statbuf.st_mode & S_IFDIR)

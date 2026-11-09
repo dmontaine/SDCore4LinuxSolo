@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 18 Oct 26 dm  Solo carry A (owner's ruling B): setting or removing a trigger asks !voc_guard for the file.
 * 16 Oct 26 dm  A directory file can have a trigger (QM4 Fixes item 177): it is kept in the file's %header% file and takes
 *               effect when the file is next opened.
@@ -65,10 +66,10 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
    * Get and process file name
 
    dict.flag = ''
-   call @parser(PARSER$MFILE, token.type, filename, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, filename, keyword)
    if keyword = KW$DICT then
       dict.flag = 'DICT'
-      call @parser(PARSER$MFILE, token.type, filename, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, filename, keyword)
    end
    if token.type = PARSER$END then stop sysmsg(2102)  ;* File name required
 

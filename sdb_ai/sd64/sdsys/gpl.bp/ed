@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 19 Oct 26 dm  The end of the input leaves ED.  INPUT gives '' with STATUS() = ER$EOF when the input is a pipe that has ended, and the
 *               command loop took that '' for an empty command and asked again for ever (6.1 s of CPU in 6.1 s of wall time, printing
 *               the prompt without end).  The command prompt now leaves the edit as X would, asking nothing and saving nothing, with
@@ -196,7 +198,7 @@ $define COMMAND.STACK.DEPTH 99
 
    * Get name of input file
 
-   call @parser(PARSER$MFILE, token.type, file.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
 
    if token.type = PARSER$END then
       display sysmsg(6501) :  ;* File name?
@@ -212,7 +214,7 @@ $define COMMAND.STACK.DEPTH 99
    end else
       if keyword = KW$DICT then
          dict.flag = "DICT"
-         call @parser(PARSER$MFILE, token.type, file.name, keyword)
+         call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
       end
    end
 
@@ -279,7 +281,7 @@ $define COMMAND.STACK.DEPTH 99
       readlist id.list then      ;* Edit using SELECT list
          edit.from.list = @true
          record.name = remove(id.list, more.ids)
-            if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+            if not(no.query) then
                loop
                   display sysmsg(2050, record.name) :  ;* Use active select list (First item 'xx')?
                   prompt ""
@@ -1240,11 +1242,9 @@ d:
             return
          end
 
-         if not(option(OPT.ED.NO.QUERY.FD)) then
-            display sysmsg(6555) : ;* Are you sure you want to delete the entire record?
-            gosub yes.no
-            if no then return
-         end
+         display sysmsg(6555) : ;* Are you sure you want to delete the entire record?
+         gosub yes.no
+         if no then return
 
          if not(voc_guard(file)) then return   ;* 29 Sep 26 LSOLO 6, ruling 14
          delete file, record.name
@@ -1446,11 +1446,9 @@ f:
             return
          end
 
-         if not(option(OPT.ED.NO.QUERY.FD)) then
-            display sysmsg(6558) :  ;* Are you sure you want to delete the entire record?
-            gosub yes.no
-            if no then return
-         end
+         display sysmsg(6558) :  ;* Are you sure you want to delete the entire record?
+         gosub yes.no
+         if no then return
          if not(voc_guard(file)) then return   ;* 29 Sep 26 LSOLO 6, ruling 14
          delete file, record.name
          done = @true

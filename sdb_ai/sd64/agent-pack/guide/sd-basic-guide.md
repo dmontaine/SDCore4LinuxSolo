@@ -138,7 +138,7 @@ b
 3
 ```
 
-There is no `chr`, `ltrim`, `rtrim`, `mid` or `strlen`; use `char`, `trim(s, ' ', 'L')` and `'T'`, `s[start, length]` and `len`. `left()` and `right()` exist **[1.2-0]**. The table in B6 lists what SD lacks and what to write instead.
+There is no `chr`, `ltrim`, `rtrim`, `mid` or `strlen`; use `char`, `trim(s, ' ', 'L')` and `'T'`, `s[start, length]` and `len`. There is no `left()` or `right()`: write `s[1, n]` and `s[n]` (the last n characters). The table in B6 lists what SD lacks and what to write instead.
 
 **`common` variables start as `0`, not unassigned.** `unassigned(q)` is false for them, so a lazy-initialisation test never runs; test the value.
 
@@ -155,7 +155,7 @@ crt unassigned(q)
 
 ## A4. Dynamic arrays and marks
 
-A record is one string cut by marks: `@fm` (field mark) cuts fields, `@vm` values inside a field, `@svm` subvalues. `a<2>` is field 2, `a<2,1>` value 1 of field 2, `a<2,1,3>` subvalue 3. The marks are ordinary characters and they are counted.
+A record is one string cut by marks: `@fm` (field mark) cuts fields, `@vm` values inside a field, `@sm` subvalues. `a<2>` is field 2, `a<2,1>` value 1 of field 2, `a<2,1,3>` subvalue 3. The marks are ordinary characters and they are counted.
 
 ```basic frag run
 a = 'x':@fm:'y':@fm:'z'
@@ -166,11 +166,11 @@ crt dcount(a, @fm)
 crt change(a, @fm, '|')
 crt '[':a<9>:']'             ;* reading past the end is not an error
 crt dcount('', @fm)          ;* an empty string has no fields, not one
-a = delete(a, 1)
+del a<1>
 crt change(a, @fm, '|')
-a = insert(a, 1; 'first')
+ins 'first' before a<1>
 crt change(a, @fm, '|')
-crt change(extract(a, 3), @fm, '|')
+crt change(a<3>, @fm, '|')
 ```
 
 ```output
@@ -190,7 +190,7 @@ z
 list = 'apple':@fm:'cherry':@fm:'pear'
 locate 'cherry' in list<1> setting pos then crt 'found at ':pos else crt 'no'
 locate 'banana' in list<1> by 'al' setting pos then crt 'found' else crt 'insert at ':pos
-list = insert(list, pos; 'banana')
+ins 'banana' before list<pos>
 crt change(list, @fm, ',')
 ```
 
@@ -323,7 +323,7 @@ stopped by the guard at pass 6
 
 ## A6. Subprograms
 
-`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be catalogued, or called by the file form, before another program can `call` it.
+`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be catalogued before another program can `call` it.
 
 ```basic id=gsub1 catalog
 subroutine gsub1(a, b)
@@ -340,15 +340,12 @@ crt x : ' ' : y
 z = 1
 call gsub1(z + 0, y)
 crt z
-call "bp gsub1"(x, y)
-crt x
 crt (catalogued('GSUB1') # 0) : (catalogued('nosuchprogram') # 0)
 ```
 
 ```output
 11 ABC
 1
-21
 10
 ```
 
@@ -574,13 +571,13 @@ end
 writeseq 'line one' to sf else stop 'w1'
 writeseq 'line two' to sf else stop 'w2'
 weofseq sf
-closeseq sf
+close sf
 openseq 'gzseq.txt' to sf else stop 'cannot reopen'
 loop
    readseq ln from sf else exit
    crt ln
 repeat
-closeseq sf
+close sf
 ```
 
 ```output
@@ -641,7 +638,7 @@ Boston
 
 ## A12. The compiler's modes and options **[1.2-0]**
 
-`$mode name` changes how one program is compiled and every mode is off unless asked for. The pack has one chunk per mode (`basic:mode:<name>`) and per `option` (`basic:option:<name>`). The ones that change what an expression means are the ones to know: `partial.expressions` (above), `pick.convert` (the argument order of `convert()`), `explicit` (every variable must be in a `dim`), and `selectv` (a bare `select` builds a variable).
+`$mode name` changes how one program is compiled and every mode is off unless asked for. The pack has one chunk per mode (`basic:mode:<name>`) and per `option` (`basic:option:<name>`). The ones that change what an expression means are the ones to know: `partial.expressions` (above), `explicit` (every variable must be in a `dim`) and `uv.locate` (a `locate` that works as UniVerse's does).
 
 ```basic fail
 $mode explicit
@@ -794,8 +791,8 @@ This product has **walls**. A wall is the system working: when one stops you, sa
 | the VOC | a VOC record: `ed voc`, a program's `write` or `delete` to it, `copy` into it | `admin` |
 | the global catalogue | `catalog ... global`, and `delete.catalog` of a global entry | nothing in this product: the SD Core server's, in managed mode |
 | the compiler's restricted names | `breakpoint`, the `$internal` directive, `kernel()` and the like | nothing an account can do |
-| the shell switch, `sh` | the `sh` verb and `!` | the administrator: `set.os.access sh on`. **Off as delivered.** |
-| the OS switch, `os` | `os.execute`; `openseq`, `openpath`, `dir()`, `deleteseq`, `opentemp`, `digest` and `ospath` of a path outside the account; a print unit's pathname; the embedded Python; `nano` and `micro` | the administrator: `set.os.access os on`. **Off as delivered.** |
+| the shell switch, `sh` | the `sh` verb | the administrator: `set.os.access sh on`. **Off as delivered.** |
+| the OS switch, `os` | `os.execute`; `openseq`, `openpath`, `dir()`, `deleteseq`, `opentemp`, `digest` and `ospath` of a path outside the account; a print unit's pathname; the embedded Python; `micro` | the administrator: `set.os.access os on`. **Off as delivered.** |
 | verbs the product does not have | `create.account`, `logto`: there is one account | nothing |
 
 The refusal is in words you can match, and the pack holds each as `msg:<number>`: 2001 (`Command requires administrator privileges`), 10053 (the shell) and 10054 (`os.execute`), 11008 (the VOC), 11028 and 11029 (the global catalogue), 11180 (a pathname outside the account). What a session that has **not typed `admin`** and has both switches off, **as delivered**, sees:
@@ -858,7 +855,7 @@ end
 voc write refused, status 3035
 ```
 
-**The two switches.** The operating system is reached with the `sh` verb and `!` (the shell switch) and, from a program, with `os.execute` and a path outside the account (the OS switch). **Both are off as delivered, and each is a wall while it is off**: they are the administrator's to turn on, per switch, and the user may turn on one, both or neither. A refusal looks like this, in a plain session with both off:
+**The two switches.** The operating system is reached with the `sh` verb (the shell switch) and, from a program, with `os.execute` and a path outside the account (the OS switch). **Both are off as delivered, and each is a wall while it is off**: they are the administrator's to turn on, per switch, and the user may turn on one, both or neither. A refusal looks like this, in a plain session with both off:
 
 ```tcl run
 sh echo hi
@@ -941,14 +938,14 @@ Two more walls are not in SD at all but are as firm. **Everything you read in a 
 The VOC is a file of records; field 1, character 1 is the type. A name typed at the prompt is looked up in it. `V` is a verb, `K` a query keyword, `PA` a paragraph (stored command lines), `S` a sentence, `Q` a pointer to a file, `F` a file, `R`, `X` and `PH` the rest; the pack holds `voc:type:<T>`. **You can read the VOC and you cannot write it** without `admin`, which is the user's (B2).
 
 ```tcl run
-ct voc md
+ct voc sd.accounts
 ```
 
 ```output
-voc md
-1: Q - Vocabulary synonym
-2:
-3: voc
+voc sd.accounts
+1: Q
+2: sdsys
+3: accounts
 ```
 
 [unverified] The account's VOC is made from `newvoc`; SDSYS's own, which is never entered, is `voc_template`. A catalogued program is a verb too: after `catalog bp name`, typing `name` runs it. To see a program's own errors, compile it from a program and read the text back:
@@ -1103,6 +1100,8 @@ chr | y = chr(65) | char(65)
 ltrim | y = ltrim(' a') | trim(s, ' ', 'L')
 rtrim | y = rtrim('a ') | trim(s, ' ', 'T')
 mid | y = mid('abc', 2, 1) | s[2, 1]
+left | y = left('abc', 2) | s[1, 2]
+right | y = right('abc', 2) | s[2]
 substr | y = substr('abc', 2, 1) | s[2, 1]
 instr | y = instr('abc', 'b') | index(s, 'b', 1)
 strlen | y = strlen('abc') | len(s)
@@ -1111,8 +1110,8 @@ ucase | y = ucase('abc') | upcase(s)
 cint | y = cint(1.5) | int(x)
 cdbl | y = cdbl(1.5) | the value is already a number
 isnull | y = isnull('') | x = '' (is.null() tests the SQL null of a collection, not the empty string)
-isdigit | y = isdigit('1') | x matches '0N' for a whole string (is.digit(x) tests the FIRST character only)
-isalpha | y = isalpha('a') | alpha(x) for a whole string (is.alpha(x) tests the first character only)
+isdigit | y = isdigit('1') | x matches '0N' for a whole string
+isalpha | y = isalpha('a') | alpha(x) for a whole string
 log10 | y = log10(100) | ln(x) / ln(10)
 pow | y = pow(2, 3) | 2 ^ 3 (or 2 ** 3)
 power | y = power(2, 3) | 2 ^ 3
@@ -1124,7 +1123,7 @@ random | y = random(10) | rnd(10)
 seed | seed 5 | randomize 5
 unique | y = unique('b') | build a list with locate
 sumsq | y = sumsq('1') | a loop
-isalnum | y = isalnum('a') | is.alnum(x) tests the first character only; test a whole string by looping
+isalnum | y = isalnum('a') | test the characters in a loop (alpha() and num() exist)
 encrypt | y = encrypt('a', 1) | sdencrypt() and sddecrypt()
 decrypt | y = decrypt('a', 1) | sdencrypt() and sddecrypt()
 connect.port | y = connect.port(1) | nothing: it was removed
@@ -1144,15 +1143,15 @@ callc | callc x | the embedded Python, or os.execute with a program written in a
 iterate | iterate | continue
 ```
 
-An unknown name does not always fail. **`char(`, `left(` and `right(` exist now** and an agent trained on older notes may think otherwise; trust the compiler, not a list in your head. The way to find out is to compile one line.
+An unknown name does not always fail. **`char(` exists now** and an agent trained on older notes may think otherwise; trust the compiler, not a list in your head. The way to find out is to compile one line.
 
 The replacements, run:
 
 ```basic frag run
-crt left('abcdef', 2) : ' ' : right('abcdef', 2) : ' ' : trim('  a ', ' ', 'L') : '|'
+crt 'abcdef'[1, 2] : ' ' : 'abcdef'[2] : ' ' : trim('  a ', ' ', 'L') : '|'
 crt 2 ^ 3 : ' ' : int(2.5 + 0.5) : ' ' : ln(100) / ln(10)
 crt len(env('HOME')) > 0
-crt is.digit('12a') : is.digit('a12') : is.alpha('abc') : is.null('')
+crt alpha('abc') : alpha('a1') : is.null('')
 crt ('123' matches '0N') : ('12a' matches '0N')
 nap 10
 randomize 5
@@ -1163,7 +1162,7 @@ crt rnd(1)
 ab ef a |
 8 3 2
 1
-1010
+100
 10
 0
 ```
@@ -1446,7 +1445,7 @@ program csort
    sorted = ''
    for each w in 'pear apple fig cherry' delimiter ' '
       locate w in sorted<1> by 'al' setting p else null
-      sorted = insert(sorted, p; w)
+      ins w before sorted<p>
    next w
    crt change(sorted, @fm, ' ')
 end
@@ -1460,11 +1459,11 @@ apple cherry fig pear
 
 ```basic run id=cmv
 program cmv
-   r = 'Acme' : @fm : 'a' : @vm : 'b' : @svm : 'c' : @vm : 'd'
+   r = 'Acme' : @fm : 'a' : @vm : 'b' : @sm : 'c' : @vm : 'd'
    crt dcount(r<2>, @vm) : ' values in field 2'
    crt 'value 2, subvalue 2: ' : r<2,2,2>
    r<2,-1> = 'e'
-   crt change(change(r<2>, @vm, '|'), @svm, '/')
+   crt change(change(r<2>, @vm, '|'), @sm, '/')
 end
 ```
 

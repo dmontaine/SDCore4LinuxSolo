@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone: GENERATE makes constants from D items only.
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
+* 27 Oct 26 dm  S.87 batch 4: field locations 9998 and 9999 are no longer skipped (they are ordinary numbers now); only location 0 is.
 * 18 Oct 26 dm  Solo carry A (owner's ruling B): the file the include records go to asks !voc_guard before either record is opened.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
 *               dictionary read folds case, as typed then lower then upper.
@@ -75,7 +79,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
 
    * Get file name
 
-   call @parser(PARSER$MFILE, token.type, dict.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, dict.name, keyword)
    if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
 
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
@@ -155,7 +159,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
             begin case
                case type = 'D'
                   fno = dict.rec<DICT.LOC>
-                  if num(fno) and fno # 0 and fno # 9998 and fno # 9999 then
+                  if num(fno) and fno # 0 then
                      if fno > hi.fno then hi.fno = fno
                      locate fno in loc<1> by 'AR' setting idx then
                         if not(duplicates.allowed) then continue
@@ -167,26 +171,6 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
                      ins fno before loc<idx>
 
                      cnv = dict.rec<DICT.CONV>
-                     ins cnv before conv<idx>
-                     if cnv # '' then conversion.present = @true
- 
-                     ins dict.rec<DICT.TYPE>[2,9999] before comments<idx>
-                  end
-
-               case (type = 'A' or type = 'S') and dict.rec<DICT.A.CORRELATIVE> = ''
-                  fno = dict.rec<DICT.A.LOC>
-                  if num(fno) and fno # 0 and fno # 9998 and fno # 9999 then
-                     if fno > hi.fno then hi.fno = fno
-                     locate fno in loc<1> by 'AR' setting idx then
-                        if not(duplicates.allowed) then continue
-                     end
-
-                     ins id before names<idx>
-                     if len(id) > longest then longest = len(id)
-
-                     ins fno before loc<idx>
-
-                     cnv = dict.rec<DICT.A.CONV>
                      ins cnv before conv<idx>
                      if cnv # '' then conversion.present = @true
  
@@ -274,7 +258,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
                end
             next i
 
-            closeseq include.file
+            close include.file
          end
 
          if matrix.mode then
@@ -338,7 +322,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
                end
             next i
 
-            closeseq include.file
+            close include.file
          end
 
       end

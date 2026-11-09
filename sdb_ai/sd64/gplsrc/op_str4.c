@@ -17,7 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: the PMATRIX descriptor type and AH_PICK_STYLE are gone: MATBUILD, MATSTR and MATPARSE have the one (zero element) style of matrix.
  * 31 Dec 23 SD launch - prior history suppressed
+ * 27 Oct 26 dm  S.87 batch 3: op_ereplace() (EREPLACE) is gone; its opcode is an op_illegal row in opcodes.h.
+ * 27 Oct 26 dm  S.87 batch 13: op_md5() (MD5()) is gone, with the OpenSSL include only it used; its opcode is an op_illegal row (write DIGEST(s, 0, 'MD5')).
  * 12 Oct 26 dm  MATCHES and MATCHFIELD set INMAT() to the number of the template that matched (1.2-0, 315)
  * 15 Oct 26 dm  $MODE COUNT.OVERLAP and INDEX.OVERLAP: count() and op_index() find overlapping occurrences (QM4 gaps Q-16)
  * END-HISTORY
@@ -44,7 +47,6 @@
  * START-CODE
  */
 
-#include <openssl/evp.h>   /* before sd.h: descr.h defines OBJ, which turns OpenSSL's OBJ_dup into 15_dup */
 #include "sd.h"
 #include "header.h"
 
@@ -250,15 +252,12 @@ void op_index() {
           goto exit_op_index;
         }
 
-        /* $MODE INDEX.OVERLAP: the next occurrence may start inside this one, so the search goes on from the byte after
-           the start of the match, which is where the outer loop already points */
+        /* The next occurrence starts after this one (27 Oct 26: $MODE INDEX.OVERLAP, which let it start inside, is gone) */
 
-        if (!(process.program.str_ovl & SO_INDEX_OVERLAP)) {
-          src_bytes_remaining = isrc_bytes_remaining;
-          offset += ioffset;
-          src = isrc;
-          src_str = isrc_str;
-        }
+        src_bytes_remaining = isrc_bytes_remaining;
+        offset += ioffset;
+        src = isrc;
+        src_str = isrc_str;
       no_match:;
       } else /* Matching single character substring */
       {
@@ -309,11 +308,9 @@ void op_matbuild() {
  */
 
   DESCRIPTOR *mat_descr;
-  DESCRIPTOR *com_descr;
   DESCRIPTOR *descr; /* Various descriptors */
 
   STRING_CHUNK *delim_str;
-  PMATRIX_HEADER *pm_hdr;
 
   ARRAY_HEADER *a_hdr;
   int32_t num_elements;
@@ -362,20 +359,6 @@ void op_matbuild() {
       /* Excludes zero element */
       if ((end_index < 1) || (end_index > num_elements))
         end_index = num_elements;
-      break;
-
-    case PMATRIX:
-      pm_hdr = mat_descr->data.pmatrix;
-      com_descr = pm_hdr->com_descr;
-      if (pm_hdr->cols == 0)
-        num_elements = pm_hdr->rows;
-      else
-        num_elements = pm_hdr->cols * pm_hdr->rows;
-      if ((end_index < 1) || (end_index > num_elements))
-        end_index = num_elements;
-      start_index += pm_hdr->base_offset - 1;
-      end_index += pm_hdr->base_offset - 1;
-      a_hdr = com_descr->data.ahdr_addr;
       break;
 
     default:
@@ -434,7 +417,7 @@ void op_matbuild() {
   }
 
   zero_added = FALSE;
-  if ((mat_descr->type == ARRAY) && !(a_hdr->flags & AH_PICK_STYLE)) {
+  if (mat_descr->type == ARRAY) {
     /* Now add the zero element, if it is not null */
 
     a_chunk = a_hdr->chunk[0];
@@ -472,8 +455,6 @@ void op_matbuild() {
      was not null and so was added.                                                                                    */
   if (zero_added)
     process.inmat = 0;
-  else if (mat_descr->type == PMATRIX)
-    process.inmat = end_index - (pm_hdr->base_offset - 1);
   else
     process.inmat = end_index;
 
@@ -517,7 +498,6 @@ Private void matstr_element(ARRAY_HEADER* a_hdr, int32_t indx) {
 void op_matstr() {
   DESCRIPTOR* mat_descr;
   DESCRIPTOR* descr;
-  PMATRIX_HEADER* pm_hdr;
   ARRAY_HEADER* a_hdr;
   ARRAY_CHUNK* a_chunk;
   DESCRIPTOR tgt_descr;
@@ -538,14 +518,6 @@ void op_matstr() {
       a_hdr = mat_descr->data.ahdr_addr;
       rows = a_hdr->rows;
       cols = a_hdr->cols;
-      break;
-
-    case PMATRIX:
-      pm_hdr = mat_descr->data.pmatrix;
-      a_hdr = pm_hdr->com_descr->data.ahdr_addr;
-      rows = pm_hdr->rows;
-      cols = pm_hdr->cols;
-      base = pm_hdr->base_offset - 1;
       break;
 
     default:
@@ -638,7 +610,6 @@ void op_matparse() {
 
   DESCRIPTOR *array_descr; /* Target array */
   ARRAY_HEADER *a_hdr;
-  PMATRIX_HEADER *pm_hdr;
   int lo_index;
   int32_t hi_index; /* Index of last element */
   int32_t indx;     /* Current target element number */
@@ -651,11 +622,8 @@ void op_matparse() {
   STRING_CHUNK *tgt_str;
   u_int16_t last_char = 256;
 
-  DESCRIPTOR *com_descr;
   int rows;
   int cols;
-  bool pick_style;
-  int offset;
 
   register char c;
   int16_t i;
@@ -693,27 +661,15 @@ void op_matparse() {
   switch (array_descr->type) {
     case ARRAY:
       a_hdr = array_descr->data.ahdr_addr;
-      pick_style = a_hdr->flags & AH_PICK_STYLE;
       rows = a_hdr->rows;
       cols = a_hdr->cols;
-      offset = 0;
-      break;
-
-    case PMATRIX:
-      pick_style = TRUE;
-      pm_hdr = array_descr->data.pmatrix;
-      com_descr = pm_hdr->com_descr;
-      rows = pm_hdr->rows;
-      cols = pm_hdr->cols;
-      offset = pm_hdr->base_offset - 1; /* Allow pseudo zero element */
-      a_hdr = com_descr->data.ahdr_addr;
       break;
 
     default:
       k_not_array_error(array_descr);
   }
 
-  lo_index = (pick_style) ? 1 : 0;
+  lo_index = 0;
   if (cols == 0)
     cols = 1;
   hi_index = cols * rows;
@@ -721,7 +677,7 @@ void op_matparse() {
   /* Set all elements as null strings */
 
   for (indx = lo_index; indx <= hi_index; indx++) {
-    tgt_descr = Element(a_hdr, indx + offset);
+    tgt_descr = Element(a_hdr, indx);
     Release(tgt_descr);
     InitDescr(tgt_descr, STRING);
     tgt_descr->data.str.saddr = NULL;
@@ -760,15 +716,13 @@ void op_matparse() {
           continue;
 
         if (indx == hi_index) {
-          if (pick_style)
-            ts_copy_byte(c);
           goto assign_excess_data;
         }
 
         /* Terminate current element */
 
         ts_terminate();
-        Element(a_hdr, indx + offset)->data.str.saddr = tgt_str;
+        Element(a_hdr, indx)->data.str.saddr = tgt_str;
         indx++;
 
         /* Start new element */
@@ -789,7 +743,7 @@ void op_matparse() {
               goto assign_excess_data;
 
             ts_terminate();
-            Element(a_hdr, indx + offset)->data.str.saddr = tgt_str;
+            Element(a_hdr, indx)->data.str.saddr = tgt_str;
             indx++;
           }
 
@@ -810,11 +764,8 @@ void op_matparse() {
 
 assign_excess_data:
 
-  if ((!pick_style) || (src_str == NULL)) /* Nothing to append to final element */
-  {
-    ts_terminate(); /* Terminate final element */
-    Element(a_hdr, indx + offset)->data.str.saddr = tgt_str;
-  }
+  ts_terminate(); /* Terminate final element */
+  Element(a_hdr, indx)->data.str.saddr = tgt_str;
 
 no_elements:
   if (src_str == NULL) /* No text remains to be assigned */
@@ -824,11 +775,9 @@ no_elements:
   {
     process.inmat = 0;
 
-    if (!pick_style) {
-      indx = 0;
-      ts_init(&tgt_str, 32);
-      tgt_str = NULL;
-    }
+    indx = 0;
+    ts_init(&tgt_str, 32);
+    tgt_str = NULL;
 
     do {
       if (src_bytes_remaining)
@@ -840,7 +789,7 @@ no_elements:
     } while (src_str != NULL);
 
     ts_terminate();
-    Element(a_hdr, indx + offset)->data.str.saddr = tgt_str;
+    Element(a_hdr, indx)->data.str.saddr = tgt_str;
   }
 
 exit_op_matparse:
@@ -1175,61 +1124,6 @@ void op_trimw() {
 
 exit_trimw:
   return;
-}
-
-/* ======================================================================
-   op_md5()  -  MD5() function
-
-   12 Oct 26  openQM ref 63.  The MD5 message digest of the string, as 32
-   lower case hexadecimal characters (the owner supplied the openQM
-   description).  Uses OpenSSL's EVP interface.                           */
-
-void op_md5() {
-  /* Stack:
-
-     |=============================|=============================|
-     |            BEFORE           |           AFTER             |
-     |=============================|=============================|
- top |  Source string              |  Digest, 32 hex characters  |
-     |=============================|=============================|
- */
-
-  DESCRIPTOR *src_descr;
-  STRING_CHUNK *src_str;
-  EVP_MD_CTX *ctx;
-  unsigned char digest[EVP_MAX_MD_SIZE];
-  unsigned int digest_len = 0;
-  char hex[2 * EVP_MAX_MD_SIZE + 1];
-  unsigned int i;
-
-  src_descr = e_stack - 1;
-  k_get_string(src_descr);
-  src_str = src_descr->data.str.saddr;
-
-  ctx = EVP_MD_CTX_new();
-  if (ctx == NULL || EVP_DigestInit_ex(ctx, EVP_md5(), NULL) != 1) {
-    if (ctx != NULL)
-      EVP_MD_CTX_free(ctx);
-    k_error("MD5() is not available");
-    return;
-  }
-
-  while (src_str != NULL) {
-    if (src_str->bytes > 0)
-      EVP_DigestUpdate(ctx, src_str->data, (size_t)src_str->bytes);
-    src_str = src_str->next;
-  }
-
-  EVP_DigestFinal_ex(ctx, digest, &digest_len);
-  EVP_MD_CTX_free(ctx);
-
-  for (i = 0; i < digest_len; i++)
-    sprintf(hex + 2 * i, "%02x", digest[i]);
-  hex[2 * digest_len] = '\0';
-
-  k_dismiss();                      /* Dismiss the source string */
-  k_put_c_string(hex, e_stack);
-  e_stack++;
 }
 
 /* ======================================================================
@@ -1625,14 +1519,11 @@ Private void count(bool dcount) /* Doing DCOUNT? */
 
         ct++;
 
-        /* $MODE COUNT.OVERLAP (COUNT only, never DCOUNT): the next occurrence may start inside this one, so the search
-           goes on from the byte after the start of the match, where the outer loop already points */
+        /* The next occurrence starts after this one (27 Oct 26: $MODE COUNT.OVERLAP, which let it start inside, is gone) */
 
-        if (dcount || !(process.program.str_ovl & SO_COUNT_OVERLAP)) {
-          src_bytes_remaining = isrc_bytes_remaining;
-          src = isrc;
-          src_str = isrc_str;
-        }
+        src_bytes_remaining = isrc_bytes_remaining;
+        src = isrc;
+        src_str = isrc_str;
 
       no_match:;
       } else /* Matching single character substring */
@@ -2412,56 +2303,6 @@ Private void sarith(int which) { /* 0 add, 1 sub, 2 mul, 3 div, 4 cmp */
   k_put_c_string(out, e_stack);
   e_stack++;
   free(out);
-}
-
-/* EREPLACE(string, old, new {, occurrence {, start}})  (12 Oct 26, openQM item 472, the description the owner supplied).
-   With a non-null OLD it is CHANGE() exactly, except that an occurrence count below 1 means all; with a null OLD the
-   result is NEW put in front of STRING.  Stack as for op_change(), whose body does the work.                       */
-void op_change(void);
-
-void op_ereplace() {
-  DESCRIPTOR* d;
-  int old_len;
-  char* src;
-  char* nw;
-  char* buf;
-  int sl = 0;
-  int nl = 0;
-
-  d = e_stack - 4;
-  k_get_string(d);
-  old_len = (d->data.str.saddr == NULL) ? 0 : (int)d->data.str.saddr->string_len;
-
-  if (old_len > 0) {
-    d = e_stack - 2;
-    GetInt(d);
-    if (d->data.value < 1)
-      d->data.value = -1;
-    op_change();
-    return;
-  }
-
-  src = top_string_copy(e_stack - 5, &sl);
-  nw = top_string_copy(e_stack - 3, &nl);
-  if (src == NULL || nw == NULL) {
-    free(src);
-    free(nw);
-    k_error("Insufficient memory for EREPLACE()");
-    return;
-  }
-  buf = (char*)malloc((size_t)(sl + nl) + 1);
-  memcpy(buf, nw, (size_t)nl);
-  memcpy(buf + nl, src, (size_t)sl);
-  free(src);
-  free(nw);
-  k_dismiss();
-  k_dismiss();
-  k_dismiss();
-  k_dismiss();
-  k_dismiss();
-  k_put_string(buf, sl + nl, e_stack);
-  e_stack++;
-  free(buf);
 }
 
 /* FIX(number {, precision {, mode}})  (12 Oct 26, openQM item 472, the description the owner supplied)

@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: k_release() closes a file variable whose last reference has gone (OPTION COMMAND.LEVEL.LOCKS is gone).
+ * 28 Oct 26 dm  S.87: OPTION NUMERIC.EXPONENT is gone: 123.45E-2 is never numeric, so k_is_num() and k_str_to_num() have no exponent state.
+ * 28 Oct 26 dm  S.87: the PMATRIX descriptor type (Pick style matrices in a common block) is gone.
+ * 27 Oct 26 dm  S.87 batch 16: OPTION UNASS.WARNING and NON.NUMERIC.WARNING are gone, so an unassigned variable and a non-numeric value are always errors;
+ *               k_unass_zero(), k_unass_null() and k_non_numeric_zero() (the substitution of zero or null with a warning) are deleted.
  * 16 Oct 26 dm  k_release() offers a file variable whose last reference has gone to park_fvar() (OPTION COMMAND.LEVEL.LOCKS)
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
@@ -74,8 +79,6 @@ double rounding[14] = {0.5,
                        0.000000000005,
                        0.0000000000005,
                        0.00000000000005};
-
-Private void k_non_numeric_zero(DESCRIPTOR* original, DESCRIPTOR* dereferenced);
 
 /* ======================================================================
    k_blank_string()  -  Check for blank string                            */
@@ -325,14 +328,12 @@ void k_get_bool(DESCRIPTOR* p) {
       break;
 
     case UNASSIGNED:
-      if (!Option(OptUnassignedWarning))
-        k_unassigned(descr);
-      k_unass_zero(descr, p);
-      result = (p->data.value != 0);
+      k_unassigned(descr); /* fatal: it does not return */
+      result = FALSE;
       break;
 
     default:
-      k_non_numeric_zero(descr, p);
+      k_non_numeric_error(descr);
       result = (p->data.value != 0);
       break;
   }
@@ -411,7 +412,7 @@ void k_get_float(DESCRIPTOR* p) {
     case STRING:
     case SELLIST:
       if (!k_str_to_num(p))
-        k_non_numeric_zero(descr, p);
+        k_non_numeric_error(descr);
       if (p->type == INTEGER) {
         InitDescr(p, FLOATNUM);
         p->data.float_value = (double)(p->data.value);
@@ -419,15 +420,11 @@ void k_get_float(DESCRIPTOR* p) {
       break;
 
     case UNASSIGNED:
-      if (!Option(OptUnassignedWarning))
-        k_unassigned(descr);
-      k_unass_zero(descr, p);
-      InitDescr(p, FLOATNUM);
-      p->data.float_value = 0;
+      k_unassigned(descr); /* fatal: it does not return */
       break;
 
     default:
-      k_non_numeric_zero(descr, p);
+      k_non_numeric_error(descr);
       InitDescr(p, FLOATNUM);
       p->data.float_value = (double)(p->data.value);
       break;
@@ -469,7 +466,7 @@ void k_get_int(DESCRIPTOR* p) {
     case STRING:
     case SELLIST:
       if (!k_str_to_num(p))
-        k_non_numeric_zero(descr, p);
+        k_non_numeric_error(descr);
       if (p->type == FLOATNUM) {
         if (fabs(p->data.float_value) > INT32_MAX) {
           k_error(sysmsg(1220));
@@ -480,13 +477,11 @@ void k_get_int(DESCRIPTOR* p) {
       break;
 
     case UNASSIGNED:
-      if (!Option(OptUnassignedWarning))
-        k_unassigned(descr);
-      k_unass_zero(descr, p);
+      k_unassigned(descr); /* fatal: it does not return */
       break;
 
     default:
-      k_non_numeric_zero(descr, p);
+      k_non_numeric_error(descr);
   }
 
   process.numeric_array_allowed = FALSE;
@@ -522,7 +517,7 @@ void k_get_int32(DESCRIPTOR* p) {
     case STRING:
     case SELLIST:
       if (!k_str_to_num(p))
-        k_non_numeric_zero(descr, p);
+        k_non_numeric_error(descr);
       if (p->type == FLOATNUM) {
         InitDescr(p, INTEGER);
         p->data.value = (int32_t)p->data.float_value;
@@ -530,13 +525,11 @@ void k_get_int32(DESCRIPTOR* p) {
       break;
 
     case UNASSIGNED:
-      if (!Option(OptUnassignedWarning))
-        k_unassigned(descr);
-      k_unass_zero(descr, p);
+      k_unassigned(descr); /* fatal: it does not return */
       break;
 
     default:
-      k_non_numeric_zero(descr, p);
+      k_non_numeric_error(descr);
   }
 
   process.numeric_array_allowed = FALSE;
@@ -559,17 +552,15 @@ void k_get_num(DESCRIPTOR* p) {
 
     case STRING:
       if (!k_str_to_num(p))
-        k_non_numeric_zero(descr, p);
+        k_non_numeric_error(descr);
       break;
 
     case UNASSIGNED:
-      if (!Option(OptUnassignedWarning))
-        k_unassigned(descr);
-      k_unass_zero(descr, p);
+      k_unassigned(descr); /* fatal: it does not return */
       break;
 
     default:
-      k_non_numeric_zero(descr, p);
+      k_non_numeric_error(descr);
   }
 
   process.numeric_array_allowed = FALSE;
@@ -606,9 +597,7 @@ void k_get_string(DESCRIPTOR* p) {
       break;
 
     case UNASSIGNED:
-      if (!Option(OptUnassignedWarning))
-        k_unassigned(descr);
-      k_unass_null(descr, p);
+      k_unassigned(descr); /* fatal: it does not return */
       break;
 
     default:
@@ -640,9 +629,7 @@ void k_get_value(DESCRIPTOR* p) {
       break;
 
     case UNASSIGNED:
-      if (!Option(OptUnassignedWarning))
-        k_unassigned(descr);
-      k_unass_zero(descr, p);
+      k_unassigned(descr); /* fatal: it does not return */
       break;
 
     default:
@@ -663,7 +650,6 @@ void k_incr_refct(DESCRIPTOR* p) {
     case ADDR:
     case INTEGER:
     case FLOATNUM:
-    case PMATRIX:
     case OBJCD:
     case OBJCDX:
       break;
@@ -730,9 +716,6 @@ bool k_is_num(DESCRIPTOR* p) {
   bool dp = FALSE;      /* Decimal point seen */
   char* q;
   bool digit_seen = FALSE;
-  int16_t exp_state = 0; /* NUMERIC.EXPONENT: 0 none, 1 after E, 2 digits seen */
-  bool exp_sign = FALSE;
-  int16_t exp_val = 0;
 
   str_hdr = p->data.str.saddr;
   if (str_hdr == NULL)
@@ -741,20 +724,6 @@ bool k_is_num(DESCRIPTOR* p) {
   do {
     for (i = str_hdr->bytes, q = str_hdr->data; i > 0; i--) {
       c = *(q++);
-
-      if (exp_state) { /* In the exponent: [+|-] digits and nothing else */
-        if ((c >= '0') && (c <= '9')) {
-          exp_val = (exp_val * 10) + (c - '0');
-          if (exp_val > 308)
-            goto non_numeric;
-          exp_state = 2;
-        } else if (exp_state == 1 && !exp_sign && (c == '+' || c == '-')) {
-          exp_sign = TRUE;
-        } else {
-          goto non_numeric;
-        }
-        continue;
-      }
 
       if ((c >= '0') && (c <= '9')) {
         digit_seen = TRUE;
@@ -778,15 +747,6 @@ bool k_is_num(DESCRIPTOR* p) {
             digits++; /* Assume a zero before the decimal point */
             break;
 
-          case 'E':
-          case 'e':
-            /* 123.45E-2 - only with OPTION NUMERIC.EXPONENT, and only
-               after at least one digit                               */
-            if (!Option(OptNumericExponent) || !digit_seen)
-              goto non_numeric;
-            exp_state = 1;
-            break;
-
           default:
             goto non_numeric;
         }
@@ -794,7 +754,7 @@ bool k_is_num(DESCRIPTOR* p) {
     }
   } while ((str_hdr = str_hdr->next) != NULL);
 
-  if (!digit_seen || exp_state == 1)
+  if (!digit_seen)
     goto non_numeric;
 
 is_numeric:
@@ -1262,8 +1222,7 @@ void k_release(DESCRIPTOR* p) {
     case FILE_REF:
       fvar = p->data.fvar;
       if (--(fvar->ref_ct) == 0) {
-        if (!park_fvar(fvar)) /* OPTION COMMAND.LEVEL.LOCKS keeps a file whose locks are wanted open */
-          dio_close(fvar);
+        dio_close(fvar);
       }
       break;
 
@@ -1298,10 +1257,6 @@ void k_release(DESCRIPTOR* p) {
           free_btree_element(btree->head, btree->keys);
         k_free(btree);
       }
-      break;
-
-    case PMATRIX:
-      k_free(p->data.pmatrix);
       break;
 
     case SOCK:
@@ -1365,10 +1320,6 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
   bool num_array;
   register int32_t temp;
   bool trailing_space;
-  int16_t exp_state = 0; /* NUMERIC.EXPONENT: 0 none, 1 after E, 2 digits seen */
-  bool exp_sign = FALSE;
-  bool exp_neg = FALSE;
-  int16_t exp_val = 0;
 
   num_array = FALSE;
   dp = 0;
@@ -1386,34 +1337,6 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
     do {
       for (i = str_chnk->bytes, q = str_chnk->data; i > 0; i--) {
         c = *(q++);
-
-        if (exp_state) {
-          /* In the exponent of 123.45E-2: [+|-] digits, then only
-             trailing spaces (or an array mark when arrays are allowed) */
-          if ((c >= '0') && (c <= '9')) {
-            if (trailing_space)
-              goto non_numeric;
-            exp_val = (exp_val * 10) + (c - '0');
-            if (exp_val > 308)
-              goto non_numeric;
-            exp_state = 2;
-            continue;
-          } else if (exp_state == 1 && !exp_sign && !trailing_space &&
-                     (c == '+' || c == '-')) {
-            exp_sign = TRUE;
-            exp_neg = (c == '-');
-            continue;
-          } else if (exp_state == 2 && c == ' ') {
-            trailing_space = TRUE;
-            continue;
-          } else if (!(IsMark(c) && process.numeric_array_allowed)) {
-            goto non_numeric;
-          }
-          /* A mark: fall through to start the next array element */
-          exp_state = 0;
-          exp_sign = exp_neg = FALSE;
-          exp_val = 0;
-        }
 
         if ((c >= '0') && (c <= '9')) {
           if (trailing_space)
@@ -1493,15 +1416,6 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
               dplace = 0.1;
               break;
 
-            case 'E':
-            case 'e':
-              /* 123.45E-2 - only with OPTION NUMERIC.EXPONENT, and only
-                 after at least one digit of the mantissa              */
-              if (!Option(OptNumericExponent) || digits == 0)
-                goto non_numeric;
-              exp_state = 1;
-              break;
-
             default:
               goto non_numeric;
           }
@@ -1511,9 +1425,6 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
       str_chnk = str_chnk->next;
     } while (str_chnk != NULL);
 
-    if (exp_state == 1) /* E with no exponent digits */
-      goto non_numeric;
-
     if (num_array) /* We have found a numeric array */
     {
       p->flags |= reuse_flag;
@@ -1522,15 +1433,6 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
 
     if ((digits | dp) == 0)
       goto non_numeric;
-
-    if (exp_state == 2) {
-      /* Apply the exponent: the result is always a floating point number */
-      if (!floating) {
-        floating = TRUE;
-        float_value = (double)value;
-      }
-      float_value *= pow(10.0, (double)(exp_neg ? -exp_val : exp_val));
-    }
 
     /* Release string chunks */
 
@@ -1720,39 +1622,8 @@ u_int32_t GetUnsignedInt(DESCRIPTOR* descr) {
   }
 
 non_numeric:
-  k_non_numeric_zero(descr, q);
+  k_non_numeric_error(descr);
   return 0;
-}
-
-/* ======================================================================
-   k_non_numeric_zero()  -  Substitue zero for non-numeric variable       */
-
-Private void k_non_numeric_zero(DESCRIPTOR* original,
-                                DESCRIPTOR* dereferenced) {
-  if (!Option(OptNonNumericWarning))
-    k_non_numeric_error(original);
-  k_non_numeric_warning(original);
-  k_release(dereferenced);
-  InitDescr(dereferenced, INTEGER);
-  dereferenced->data.value = 0;
-}
-
-/* ======================================================================
-   k_unass_zero()  -  Substitue zero for unassigned variable              */
-
-void k_unass_zero(DESCRIPTOR* original, DESCRIPTOR* dereferenced) {
-  InitDescr(dereferenced, INTEGER);
-  dereferenced->data.value = 0;
-  k_unassigned_zero(original);
-}
-
-/* ======================================================================
-   k_unass_null()  -  Substitute null for unassigned variable             */
-
-void k_unass_null(DESCRIPTOR* original, DESCRIPTOR* dereferenced) {
-  InitDescr(dereferenced, STRING);
-  dereferenced->data.str.saddr = NULL;
-  k_unassigned_null(original);
 }
 
 /* END-CODE */

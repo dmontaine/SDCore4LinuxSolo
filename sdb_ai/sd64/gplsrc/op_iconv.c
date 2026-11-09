@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 03 Nov 26 dm  MCDX is back, as a second name of MX (owner: "Restore MCDX only", for programs moved from openQM); MCD, MCX and MCXD stay invalid.
+ * 27 Oct 26 dm  S.87 batch 7: OPTION PICK.ML.CONV.MASK is gone; a left bracket in an ML / MR conversion is a negative value action, as it was with the option off.
+ * 27 Oct 26 dm  S.87 batch 3: the conversions MCD, MCDX, MCX and MCXD (second spellings of MX) are gone.
  * 18 Oct 26 dm  The XE{;name} conversion: encrypt with a key in the process's key ring (xe_iconv(), sd_keyring.c).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
@@ -40,10 +43,8 @@
  *
  *    L[n[,m]]  String length checks
  *
- *    MCD[X]    Convert hexadecimal to decimal
  *    MCL       Convert to lower case
  *    MCU       Convert to upper case
- *    MCX[D]    Convert decimal to hexadecimal
  *
  *    MO        Convert octal string to integer
  *
@@ -85,8 +86,6 @@ int16_t month_offsets[12] = {0,   31,  59,  90,  120, 151,
 int16_t days_in_month[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 extern char* month_names[];
 
-int32_t conv_dtx(char* p);
-int32_t conv_xtd(char* p);
 STRING_CHUNK* b64decode(STRING_CHUNK* str);
 
 /* OP_OCONV.C */
@@ -127,7 +126,6 @@ void op_iconv() {
 #define MAX_CONV_STRING_LEN 256
   char conv_string[MAX_CONV_STRING_LEN + 1];
   bool ok;
-  char c;
   char* p;
   char* q;
   bool done = FALSE;
@@ -220,27 +218,19 @@ void op_iconv() {
 
           case 'C': /* Case conversion (plus oddments) */
             switch (UpperCase(*(++p))) {
-              case 'D': /* Hexadecimal to decimal */
-                c = UpperCase(*(++p));
-                if ((c != '\0') && (c != 'X'))
-                  goto bad_conv_string;
-                if (c == 'X')
-                  p++;
-                process.status = conv_xtd(p);
-                break;
+              case 'D': /* MCDX is MX, for programs moved from openQM (3 Nov 26); MCD, MCX and MCXD were removed on 27 Oct 26 */
+                if (UpperCase(*(p + 1)) == 'X') {
+                  process.status = radix_conversion(p + 2, 16);
+                  break;
+                }
+                goto bad_conv_string;
+              case 'X':
+                goto bad_conv_string;
               case 'L':
                 set_case(FALSE);
                 break;
               case 'U':
                 set_case(TRUE);
-                break;
-              case 'X': /* Decimal to hexadecimal */
-                c = UpperCase(*(++p));
-                if ((c != '\0') && (c != 'D'))
-                  goto bad_conv_string;
-                if (c == 'D')
-                  p++;
-                process.status = conv_dtx(p);
                 break;
               default:
                 mc_conversion(p);
@@ -611,8 +601,6 @@ Private int32_t date_conversion(char* p) {
   days += month_offsets[month - 1];
 
   if (day > days_in_month[month - 1]) {
-    if (Option(OptNoDateWrapping))
-      goto exit_date_conversion;
     status = 3;
   } else {
     status = 0;
@@ -1017,21 +1005,16 @@ Private int32_t masked_decimal_conversion(char* p) {
 
   /* Negative value action present? */
 
-  /* 14 Oct 26 dm - OPTION PICK.ML.CONV.MASK (openQM item 49): a left bracket starts a parenthesised format mask,
-     which is not a negative value action; the mask is read as if the bracket were not there */
-  if ((*p == '(') && Option(OptPickMLConvMask))
-    p++;
-  else
-    switch (UpperCase(*p)) {
-      case '+':
-      case '-':
-      case '<':
-      case '(':
-      case 'C':
-      case 'D':
-        p++;
-        break;
-    }
+  switch (UpperCase(*p)) {
+    case '+':
+    case '-':
+    case '<':
+    case '(':
+    case 'C':
+    case 'D':
+      p++;
+      break;
+  }
 
   /* Suppress scaling if decimal point present? */
 

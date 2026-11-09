@@ -45,11 +45,14 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 # keep_prune DIR: what --keep-data leaves in DIR.  24 Oct 2026 (PAL-36, the owner: "build the keep cycle"): the account folders, sd.conf and, when it is a REAL
 # directory, newvoc.mods - the administrator's site-local VOC additions (QM4 gap 501), which are the user's work and not part of the installation, as in SD Core,
 # where the remover saves @sdsys/newvoc.mods and the installer puts it back.  A file or a link called newvoc.mods is not kept: it is not what the VOC reads.
+# 9 Nov 2026 (Solo carry 22, SD Core's S.87 VOC deletion list): voc_removed.saved too, on the same terms - the copies the VOC update saved of the records it
+# removed from the account's VOC, which RESTORE.VOC puts back (SD Core's remover keeps it the same way).
 # Returns find's status.  (An empty array is expanded with the + form: bash before 4.4 calls "${keep[@]}" unbound under set -u.)
 keep_prune() {
   local d="$1"
   local -a keep=()
   if [ -d "$d/newvoc.mods" ] && [ ! -L "$d/newvoc.mods" ]; then keep=(! -name newvoc.mods); fi
+  if [ -d "$d/voc_removed.saved" ] && [ ! -L "$d/voc_removed.saved" ]; then keep+=(! -name voc_removed.saved); fi
   find "$d" -mindepth 1 -maxdepth 1 ! -name user_accounts ! -name sd.conf ${keep[@]+"${keep[@]}"} -exec rm -rf {} +
 }
 # END keep_prune

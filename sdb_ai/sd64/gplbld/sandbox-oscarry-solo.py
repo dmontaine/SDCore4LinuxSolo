@@ -228,12 +228,12 @@ def sec_voc():
         ok = has(out, r"^V3 status -4$") and intact()
         row("V3 !IOSCOPY over a file of the VOC answers -4 and the bytes are as they were", ok, "output=%r intact=%r" % (out, intact()))
         restore()
-        out = run_prog("zzvoc4", ["openseq '%s' to f then" % tgt, "   crt 'V4 opened'", "   writeseq 'JUNK' to f else crt 'V4 write-refused'", "   closeseq f",
+        out = run_prog("zzvoc4", ["openseq '%s' to f then" % tgt, "   crt 'V4 opened'", "   writeseq 'JUNK' to f else crt 'V4 write-refused'", "   close f",
                                   "end else crt 'V4 open-refused ':status()"])
         ok = compiled(out) and has(out, r"^V4 (opened|open-refused)") and (has(out, r"^V4 write-refused$") or has(out, r"^V4 open-refused")) and intact()
         row("V4 OPENSEQ + WRITESEQ of a file of the VOC changes nothing (the open is read only or refused; the write is refused)", ok, "output=%r intact=%r" % (out, intact()))
         restore()
-        out = run_prog("zzvoc5", ["openseq '%s' creating to f then" % new, "   crt 'V5 created'", "   closeseq f", "end else crt 'V5 refused ':status()"])
+        out = run_prog("zzvoc5", ["openseq '%s' creating to f then" % new, "   crt 'V5 created'", "   close f", "end else crt 'V5 refused ':status()"])
         ok = compiled(out) and has(out, r"^V5 refused ") and not os.path.exists(new)
         row("V5 OPENSEQ ... CREATING a new file inside the VOC's directory is refused and nothing is made", ok, "output=%r exists=%r" % (out, os.path.exists(new)))
         clean(new)
@@ -254,7 +254,7 @@ def sec_voc():
         link = os.path.join(ACCT, "zzvlink")
         clean(link)
         os.symlink(voc, link)
-        out = run_prog("zzvoc8", ["openseq '%s/%%1' to f then" % link, "   crt 'V8 opened'", "   writeseq 'JUNK' to f else crt 'V8 write-refused'", "   closeseq f", "end else crt 'V8 open-refused ':status()"])
+        out = run_prog("zzvoc8", ["openseq '%s/%%1' to f then" % link, "   crt 'V8 opened'", "   writeseq 'JUNK' to f else crt 'V8 write-refused'", "   close f", "end else crt 'V8 open-refused ':status()"])
         ok = compiled(out) and (has(out, r"^V8 write-refused$") or has(out, r"^V8 open-refused")) and intact()
         row("V8 a symbolic link in the account that points at the VOC's directory does not get round it", ok, "output=%r intact=%r" % (out, intact()))
         restore()
@@ -262,7 +262,7 @@ def sec_voc():
         # controls: a file that is not the VOC's is written, copied and deleted as ever
         other = os.path.join(ACCT, "zzvother")
         clean(other)
-        out = run_prog("zzvoc9", ["openseq '%s' creating to f then" % other, "   writeseq 'PLAIN' to f else crt 'V9 write-failed'", "   closeseq f", "   crt 'V9 written'", "end else crt 'V9 not-opened ':status()"])
+        out = run_prog("zzvoc9", ["openseq '%s' creating to f then" % other, "   writeseq 'PLAIN' to f else crt 'V9 write-failed'", "   close f", "   crt 'V9 written'", "end else crt 'V9 not-opened ':status()"])
         row("V9 CONTROL: OPENSEQ + WRITESEQ of a file of the account that is not the VOC's still works (the file is on the disk)", has(out, r"^V9 written$") and slurp(other) is not None, "output=%r" % (out,))
         clean(other)
         # the administrator is not asked: ADMIN, then a copy of a new file into the VOC's directory

@@ -4,6 +4,10 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the PROC leftovers PROCREAD, PROCWRITE, @PIB, @SIB, @POB and @SOB are gone (opcode 0xCF9A reserved).
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
+* 27 Oct 26 dm S.87 batch 13: the highlight list lost the statement go and the functions adds, divs, muls, subs, md5 (and dquote, dquotes, swap, xlate of batch 11).
+* 27 Oct 26 dm S.87 batch 13: the highlight list lost @svm, @user and @filename.
 * 13 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -61,7 +65,6 @@ rules.sd.basic:
    r<-1> = 'line comment ;*'
    r<-1> = 'line comment ;!'
    r<-1> = 'line comment rem bol whole'
-   r<-1> = 'line comment remark bol whole'
    r<-1> = 'line preproc $ bol'
    r<-1> = 'region string " "'
    r<-1> = "region string ' '"
@@ -69,46 +72,46 @@ rules.sd.basic:
    r<-1> = 'number constant'
    * the statements (bcomp: statements and non.debug.statements)
    r<-1> = 'words keyword abort begin break call case catch chain clear clearcommon cleardata clearfile clearinput clearselect close'
-   r<-1> = 'words keyword closeseq close.socket commit continue convert create create.file crt data debug del delete deletelist'
-   r<-1> = 'words keyword deleteseq deleteu dim dimension disinherit display do dparse dparse.csv echo else end enter execute exit'
-   r<-1> = 'words keyword file filelock fileunlock find findstr flush footing for formlist getlist go gosub goto heading hush if in'
-   r<-1> = 'words keyword include inherit input inputclear inputcsv inputerr inputfield ins keyedit keyexit keytrap local locate'
+   r<-1> = 'words keyword close.socket commit continue convert create create.file crt data debug del delete deletelist'
+   r<-1> = 'words keyword deleteseq deleteu dim disinherit display do dparse dparse.csv echo else end execute exit'
+   r<-1> = 'words keyword file filelock fileunlock find findstr flush footing for formlist getlist gosub goto heading hush if in'
+   r<-1> = 'words keyword inherit input inputcsv inputerr inputfield ins keyedit keyexit keytrap local locate'
    r<-1> = 'words keyword lock logmsg loop mark.mapping mat matbuild matparse matread matreadcsv matreadl matreadu matwrite'
-   r<-1> = 'words keyword matwriteu nap next nobuf null on open openpath openseq os.execute page pause pdump perform phantom'
-   r<-1> = 'words keyword precision print printer printcsv printerr procread procwrite prompt randomize read readblk readcsv readl'
-   r<-1> = 'words keyword readlist readnext readseq readu readv readvl readvu recordlockl recordlocku redim redimension release'
-   r<-1> = 'words keyword rem remark remove remove.break.handler repeat restore.screen return rollback rqm savelist screen seek'
+   r<-1> = 'words keyword matwriteu nap next nobuf null on open openpath openseq os.execute page pause pdump phantom'
+   r<-1> = 'words keyword precision print printer printcsv prompt randomize read readblk readcsv readl'
+   r<-1> = 'words keyword readlist readnext readseq readu readv readvl readvu recordlockl recordlocku redim release'
+   r<-1> = 'words keyword rem remove remove.break.handler repeat restore.screen return rollback savelist screen seek'
    r<-1> = 'words keyword select selecte selectindex selectleft selectn selectright selectv sendmail set.arg set.break.handler'
-   r<-1> = 'words keyword set.exit.status setleft setnls setpu setright setrem sleep sselect sselectn status stop tclread throw'
+   r<-1> = 'words keyword set.exit.status setleft setnls setpu setright setrem sleep sselect sselectn status stop throw'
    r<-1> = 'words keyword timeout transaction try unlock until void wake weofseq while write writeblk writecsv writeseq writeseqf'
-   r<-1> = 'words keyword writeu writev writevu class com common deffun equ equate function get private program public set sub'
+   r<-1> = 'words keyword writeu writev writevu class common deffun equ equate function get private program public set'
    r<-1> = 'words keyword subroutine'
    * the words of the language that are not statements
    r<-1> = 'words keyword then else and or not eq ne lt gt le ge matches match by step to setting from using returning locked'
    r<-1> = 'words keyword error each before after repeat while until do'
    * the intrinsic functions (bcomp: intrinsics)
-   r<-1> = 'words type abs abss accept.socket.connection acos adds akmap alpha analyse ands arg arg.count ascii asin assigned atan'
+   r<-1> = 'words type abs abss accept.socket.connection acos akmap alpha analyse ands arg arg.count ascii asin assigned atan'
    r<-1> = 'words type bindkey bitand bitnot bitor bitreset bitset bittest bitxor break.count btree catalogued cats caught ccall'
    r<-1> = 'words type change changed char checksum chgphant col1 col2 collection compare config convert cos count counts'
-   r<-1> = 'words type create.server.socket crop csvdq date dcount debug.info delete dir div divs downcase dquote dquotes dtx ebcdic'
-   r<-1> = 'words type element.exists enumerate env eqs ereplace events exp expand expand.hf extract fcontrol field fields fieldstore'
+   r<-1> = 'words type create.server.socket crop csvdq date dcount debug.info delete dir div downcase dtx ebcdic'
+   r<-1> = 'words type element.exists enumerate env eqs events exp expand expand.hf extract fcontrol field fields fieldstore'
    r<-1> = 'words type fileinfo find fix fmt fmts fold folds formcsv ges getlocks get.messages getnls get.port.params getpu getrem'
    r<-1> = 'words type grpstat gts iconv iconvs idiv ifs index indexs indices inmat inputblk insert int ismv is.subr itype jboolean'
    r<-1> = 'words type jbuild jnull jparse jtype kernel keycode keyin keyinc keyinr keyready len lens les list.common listindex ln'
-   r<-1> = 'words type loaded load.object locate login login.port logout lower lts mat matchfield matstr max maximum md5 min'
-   r<-1> = 'words type minimum mod mods muls neg negs nes not nots num nums object objinfo oconv oconvs open.socket option ors'
+   r<-1> = 'words type loaded load.object locate login login.port logout lower lts mat matchfield matstr max maximum min'
+   r<-1> = 'words type minimum mod mods neg negs nes not nots num nums object objinfo oconv oconvs open.socket option ors'
    r<-1> = 'words type os.error ospath osrename outerjoin pconfig phantom printer.setting prompt pterm pwcrypt pwr quote quotes'
    r<-1> = 'words type raise rdiv readpkt read.socket recordlocked regex rem remove removef replace reuse rnd rtrans sadd save.screen'
-   r<-1> = 'words type scan scmp sddecrypt sdencrypt sdext sdiv sdkey sdpyobj sdrandkey sdsalt selectinfo sentence seq server.addr set.port.params'
+   r<-1> = 'words type scan scmp sddecrypt sdencrypt sdext sdiv sdkey sdpyobj sdrandkey sdsalt selectinfo seqserver.addr set.port.params'
    r<-1> = 'words type set.socket.mode shift sin smul socket.info sortdata sortnext soundex soundexs space spaces splice sqrt squote'
-   r<-1> = 'words type ssub status str strs subr subs substitute substrings sum summation swap swapcase sysmsg system tan terminfo'
+   r<-1> = 'words type ssub status str strs subr substitute substrings sum summation swapcase sysmsg system tan terminfo'
    r<-1> = 'words type testlock time timedate trans trim trimb trimbs trimf trimfs trims trimw umask unassigned upcase vartype'
-   r<-1> = 'words type vslice write.socket xlate xtd'
+   r<-1> = 'words type vslice write.socket xtd'
    * the @ variables
-   r<-1> = 'words constant @fm @vm @sm @tm @im @svm @true @false @id @record @data @date @time @day @month @year @user @userno'
+   r<-1> = 'words constant @fm @vm @sm @tm @im @true @false @id @record @data @date @time @day @month @year @userno'
    r<-1> = 'words constant @logname @account @path @sentence @parasentence @command @option @selected @who @tty @term.type'
-   r<-1> = 'words constant @crthigh @crtwide @level @nv @ns @nd @ni @ans @lpv @file.name @filename @ds @conv @itype.mode'
-   r<-1> = 'words constant @abort.code @abort.message @command.stack @data.pending @pib @sib @pob @sob @transaction.id @system.return.code'
+   r<-1> = 'words constant @crthigh @crtwide @level @nv @ns @nd @ni @ans @lpv @file.name @ds @conv @itype.mode'
+   r<-1> = 'words constant @abort.code @abort.message @command.stack @data.pending @transaction.id @system.return.code'
    return
 
 rules.c:

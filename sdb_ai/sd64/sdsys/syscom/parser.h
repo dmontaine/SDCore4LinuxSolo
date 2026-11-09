@@ -125,8 +125,6 @@ $define KW$WHEN           109
 $define KW$PROMPT         110
 $define KW$BREAK          111
 $define KW$CASE           112
-$define KW$INVERT         113
-$define KW$NOINVERT       114
 $define KW$DISPLAY        115
 $define KW$STATISTICS     116
 $define KW$INFORM         117
@@ -143,7 +141,6 @@ $define KW$ASSOC.WITH     127
 $define KW$DISPLAY.LIKE   128
 $define KW$NFMT           129
 $define KW$NEXT           130
-$define KW$RAW            131
 $define KW$LABEL          132
 $define KW$NO.DEFAULT     133
 $define KW$CURRENCY       134
@@ -154,14 +151,13 @@ $define KW$REQUIRE.INDEX  138
 $define KW$NO.INDEX       139
 $define KW$LEVEL          140
 $define KW$CLEAR          141
-$define KW$GDI            142
 $define KW$DELIMITER      143
 $define KW$TASKLOCK       144
 $define KW$COPIES         145
 $define KW$BANNER         146
 $define KW$NO.QUERY       147
 $define KW$BETWEEN        148
-$define KW$VERSION        149
+*  KW$VERSION 149 was removed 28 Oct 26 (S.87): the number is reserved
 $define KW$NODEFAULT      150
 $define KW$PORTRAIT       151
 $define KW$LANDSCAPE      152
@@ -229,7 +225,7 @@ $define KW$TELNET         213
 $define KW$INTERNAL       214
 $define KW$ABSENT.IGNORE  215   ;* 10 Oct 26  1.2-0 (openQM ref 25)
 $define KW$SORTED.SAMPLE  216   ;* 10 Oct 26  1.2-0 (openQM ref 438)
-$define KW$COL.HDR.SPACE  217   ;* 10 Oct 26  1.2-0 (openQM ref 467)
+* 217 was KW$COL.HDR.SPACE, retired 27 Oct 26 (S.87 batch 10); the number stays reserved
 $define KW$FOR            218   ;* 10 Oct 26  1.2-0 (openQM ref 190)
 $define KW$KEEP           219   ;* 11 Oct 26  1.2-0 (openQM ref 387)
 $define KW$NUM.SUP        220   ;* 11 Oct 26  1.2-0 (openQM ref 242)
@@ -260,7 +256,7 @@ $define PARSER$GET.TOKEN    1
 $define PARSER$GET.REST     2
 $define PARSER$EXPAND       3
 $define PARSER$LOOK.AHEAD   4
-$define PARSER$MFILE        5  ;* Like GET.TOKEN but allows multifile syntax
+* 5 was PARSER$MFILE (multifile syntax), retired 28 Oct 26 (S.87): do not recycle the number
 
 * !PARSER token type values
 

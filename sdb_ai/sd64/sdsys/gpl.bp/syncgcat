@@ -18,6 +18,13 @@
 *
 *
 * START-HISTORY:
+* 09 Nov 26 SD Core for Linux Solo (Solo carry 22, SD Core's S.87 fb98cfb5 took the * and - global
+*           prefixes away; the Windows agent's T1420, as Windows Solo did in 97debab3) - a server's
+*           program is catalogued under its PLAIN name and called as CALL name; a gcat entry with no
+*           $ ! _ prefix is the server's (a left-over *name entry is swept as stale); a name in
+*           global.bp.out that begins with $ ! _ * or - is refused, so SD's own programs are never
+*           touched.  A local program of the same name is found first (object.c tries the local
+*           catalogue for every name without a $ ! _ prefix).
 * 08 Oct 26 SD Core for Linux Solo (LSOLO 46) - a server's program is catalogued as *name in
 *           LOWER case (it was *NAME, which the loader no longer finds since PAL-1 stage 3a);
 *           stale entries are compared by their stored name, so an upper-case one goes.
@@ -42,19 +49,21 @@
 * global.bp.out. if necessary create a command usable only by the server".
 * This is that command.
 *
-* WHAT IT DOES.  Makes the global catalogue's * entries match GLOBAL.BP.OUT
+* WHAT IT DOES.  Makes the global catalogue's server entries match GLOBAL.BP.OUT
 * (SDSYS's global.bp.out, which starts empty - the owner chose that the server
 * fills it after installing):
-*   - every object in GLOBAL.BP.OUT is catalogued as *<name>, lower case as CATALOG does on Linux -
-*     written whole, so a changed object replaces the old one;
-*   - every * entry in the global catalogue with no object in GLOBAL.BP.OUT is
-*     deleted.
-* THE * PREFIX IS THE WHOLE BOOKKEEPING.  Nothing else can put a * entry in the
-* global catalogue now - CATALOG and DELETE.CATALOG refuse every global entry
-* for every session (11029) - so the * entries ARE this command's, and SD's own
-* $ ! _ programs are never touched.  An upgrade replaces gcat wholesale, which
-* drops the * entries; the installer runs this afterwards and they come back
-* from GLOBAL.BP.OUT, which an upgrade keeps.
+*   - every object in GLOBAL.BP.OUT is catalogued under its plain name, lower case as CATALOG
+*     does on Linux - written whole, so a changed object replaces the old one; a name that
+*     begins with $ ! _ * or - is refused;
+*   - every entry in the global catalogue with no $ ! _ prefix and no object in GLOBAL.BP.OUT
+*     is deleted (an old *name entry from before 9 Nov 26 included).
+* THE ABSENCE OF A $ ! _ PREFIX IS THE WHOLE BOOKKEEPING.  Nothing else can put such an entry
+* in the global catalogue - CATALOG and DELETE.CATALOG refuse every global entry for every
+* session (11029), and every program SD ships has a $ ! or _ name - so those entries ARE this
+* command's, and SD's own programs are never touched.  A program catalogued locally under the
+* same name is found first.  An upgrade replaces gcat wholesale, which drops the server's
+* entries; the installer runs this afterwards and they come back from GLOBAL.BP.OUT, which an
+* upgrade keeps.
 *
 * WHO MAY RUN IT: a session signed in with the global password
 * (K$GLOBAL.SESSION - over the API, as the server does, or at a prompt), and
@@ -123,19 +132,25 @@ $include err.h
    openpath @sdsys : @ds : 'gcat' to gcat.f else
       stop sysmsg(3022) ;* Cannot open global catalogue directory
    end
+   mark.mapping gcat.f, off     ;* object code is read whole (the sweep below tests its magic byte)
 
    magic = if system(1009) then HDR.MAGIC.NO.B else HDR.MAGIC.NO.L
 
-*  1. Every object in GLOBAL.BP.OUT goes in as *<name>.
+*  1. Every object in GLOBAL.BP.OUT goes in under its plain name.
    select src.f to 11
    loop
       readnext id from 11 else exit
 *     08 Oct 26: catalogue names are LOWER case since PAL-1 stage 3a (7 Oct) - CATALOG
 *     lower-cases the name and the loader looks it up lower-cased (valid_call_name
-*     accepts lower only).  This said UPPER, so a server's program was catalogued as
-*     *NAME and "CALL *name" failed with "Unable to load" (verify-solo-global leg 4c,
-*     the first run on a managed Solo).
-      call.name = '*' : downcase(id)
+*     accepts lower only).
+*     09 Nov 26: the plain name (the * prefix is gone, S.87).  A name that begins with a
+*     prefix character would be taken for one of SD's own programs: refused.
+      call.name = downcase(id)
+      if index('$!_*-', call.name[1, 1], 1) then
+         display 'sync.global.catalog: ' : id : ' begins with $ ! _ * or - - refused'
+         n.bad += 1
+         continue
+      end
       read obj from src.f, id else
          display 'sync.global.catalog: ' : id : ' could not be read - refused'
          n.bad += 1
@@ -163,15 +178,20 @@ $include err.h
    repeat
    obj = ''
 
-*  2. Every * entry with no object behind it goes.  Collected first, deleted
-*  after, so the select is not walking a directory it is changing.
+*  2. Every server entry (no $ ! _ prefix) with no object behind it goes.  Collected
+*  first, deleted after, so the select is not walking a directory it is changing.
    gone = ''
    select gcat.f to 12
    loop
       readnext id from 12 else exit
-      if id[1, 1] = '*' then
-*        The stored name, exactly: an UPPER-case entry left by a sync before 8 Oct is
-*        not in want (which is lower case), so it goes with the other stale ones.
+      if not(index('$!_', id[1, 1], 1)) then
+*        Only an object record is a catalogue entry: gcat also holds the shipped README,
+*        which has no prefix and must stay.
+         read obj from gcat.f, id else continue
+         if obj[hdr.magic, 1] # char(magic) then continue
+*        The stored name, exactly: an UPPER-case entry left by a sync before 8 Oct, or a
+*        *name entry left by a sync before 9 Nov, is not in want (plain, lower case), so it
+*        goes with the other stale ones.
          locate id in want<1> setting pos else gone<-1> = id
       end
    repeat

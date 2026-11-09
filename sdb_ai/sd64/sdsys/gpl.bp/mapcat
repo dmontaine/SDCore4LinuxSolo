@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 18 Oct 26 dm  Solo carry A (owner's ruling B): FILE asks !voc_guard before it clears the file it names.
 * 13 Sep 26 dm  The default map file is $map, its lower-case VOC id (plan M3).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -220,7 +221,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
                   readblk blk from obj.f, 32768 else exit
                   object := blk
                repeat
-               closeseq obj.f
+               close obj.f
             end else null
             found.obj = (object # '')
          end else

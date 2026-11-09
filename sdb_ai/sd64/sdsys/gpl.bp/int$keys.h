@@ -19,6 +19,7 @@
   	  * 
 	  * START-HISTORY:
 	  * 24 Oct 26 dm  Solo carry 19: K$EDIT.OS.OK (126), SD Core's number, for the OS-path programs that write for the user (!OSCOPY, !IOSCOPY).
+	  * 27 Oct 26 dm S.87 batch 13: $define for OS$OPEN, as # no longer starts a directive.
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
 	  * 22 Oct 26 dm  Solo carry 13: DEFAULT.WIDTH 140 and DEFAULT.DEPTH 42 (were 120 and 36), as Core's 18 Oct 26 change; gplsrc/tio.h has the same two.
@@ -69,7 +70,6 @@
       $define IN$APPEND          0x00008000  ;* Append (used with IN$EDIT)
       $define IN$PANNING         0x00010000  ;* Panning input field
       $define IN$NO.ECHO.DATA    0x00020000  ;* Supress echo on input from DATA statements.
-      $define IN$NO.CASE.INVERT  0x00040000  ;* Disable PTERM CASE inversion for the input session
       $define IN$NO.ECHO         0x00080000  ;* NO.ECHO: no echo of typed characters (14 Oct 26, openQM 168)
       $define IN$IF              0x00100000  ;* INPUTIF: only if input is waiting (14 Oct 26, openQM 584)
       $define IN$FILL            0x00400000  ;* a fill string was given (K$INPUT.FILL.SET): fill the field with it (openQM 389)
@@ -211,11 +211,10 @@
       $define K$INPUT.TRAP.HIT  104      ;* the stub of INPUTTRAP: which label, and forget it
       $define K$MAXMIN.POS.SET  105      ;* _MAXIMUM and _MINIMUM leave the position they found, for SYSTEM(1088) (15 Oct 26, Q-18)
       $define K$PID.ALIVE       106      ;* 1 if the process with this id exists, 0 if not (15 Oct 26, Q-8, !login_inhibit)
-      $define K$KEEP.SELECT     107      ;* KEEP.SELECT flag of the running command: 1 set, 0 clear, -1 ask; the old value returns (15 Oct 26, Q-16)
+      * 107 was K$KEEP.SELECT (KEEP.SELECT, removed 27 Oct 26, S.87 batch 16): the number stays reserved.
       $define K$CMDLOG          108      ;* COMMAND.LOGGING: 1 on, 0 off, -1 ask; the log's pathname when it is on, else null (15 Oct 26, Q-8)
       $define K$CMDLOG.WRITE    109      ;* "origin<FM>command": one line in the command log if it is on (15 Oct 26, Q-8)
       $define K$GROUP.PHANTOM   110      ;* Mark the phantom with this user number as grouped with this process: 1 if marked (15 Oct 26, Q-8, PHANTOM GROUP)
-      $define K$FORM.QUEUE      111      ;* unit * 1000 + queue: SP.ASSIGN gave form queue 'queue' to print unit 'unit' (15 Oct 26, Q-9)
       $define K$NON.DURABLE.TXN 113      ;* 1: the next COMMIT is non-durable, a nested transaction goes to its parent (15 Oct 26, sheet 442)
       $define K$USER.STATS      112     ;* File activity counts of a user (0: all): uid, 11 counts, when counting began, login name (15 Oct 26, Q-8)
       $define K$PHANTOM.USER    114     ;* The next phantom() is to be this user number (one PHANTOMS keeps, not in use); 0 cancels (16 Oct 26, PHANTOM USER)
@@ -232,7 +231,6 @@
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?
-      $define PT$INVERT          2       ;* Case inversion
       $define PT$BRKCH           3       ;* Set break character
       $define PT$ONEWLINE        4       ;* Set output newline mode
       $define PT$INEWLINE        5       ;* Set input newline mode
@@ -255,7 +253,7 @@
       $define OS$FLUSH.CACHE     8       ;* Flush DH file cache
       $define OS$CD              9       ;* Change working directory
       $define OS$MAPPED.NAME    10       ;* Map a directory file name
-      #define OS$OPEN           11       ;* Check if file is open by pathanme
+      $define OS$OPEN          11       ;* Check if file is open by pathanme
       $define OS$DIR            12       ;* Return content of directory
       $define OS$MKDIR          13       ;* Create a directory
       $define OS$MKPATH         14       ;* Create a directory path
@@ -412,13 +410,13 @@
       $define V$FILE.REF      6
       $define V$ARRAY         7
       ;* These tokens are from csrc descr.h
-      $define AH$PICK.STYLE  0x0001  ;* Pick style matrix
+      * AH$PICK.STYLE (0x0001, a Pick style matrix) was removed 28 Oct 26 (S.87): the bit stays reserved
       $define AH$AUTO.DELETE 0x0002  ;* Self-deleting common block
       $define V$COMMON        8
       $define V$IMAGE         9
       $define V$BTREE        10
       $define V$SELLIST      11
-      $define V$PMATRIX      12
+      * V$PMATRIX (12, a Pick style matrix in a common block) was removed 28 Oct 26 (S.87): the number stays reserved
       $define V$SOCK         13
       $define V$LOCALVARS    14
       $define V$OBJ          15
@@ -431,65 +429,19 @@
       $define V$JSON.NULL    21
 
       * Option flags (see also csrc options.h)
-      $define OPT.UNASS.WARNING        0 ;* Treat unassigned variable as warning
       $define OPT.QUERY.DEBUG          1 ;* QPROC debugging (restricted)
-      $define OPT.PICK.WILDCARD        2 ;* QPROC supports Pick wildcards
-      $define OPT.QUAL.DISPLAY         3 ;* QPROC supports qualified display clauses
-      $define OPT.PICK.BREAKPOINT      4 ;* QPROC Pick placement of breakpoint text
-      $define OPT.WITH.IMPLIES.OR      5 ;* QPROC Pick WITH ... (OR) WITH ...
+      * 27 Oct 26: options 2, 3, 4, 5, 9, 10, 14, 15, 16, 17, 19, 20, 23, 24, 25 and 27 to 33 are RETIRED (the owner's emulation survey, entries A-001 to A-018 and
+      * A-039 to A-041).  Their numbers stay reserved so that the later options keep theirs; see gplsrc/options.h.
       $define OPT.DUMP.ON.ERROR        6 ;* Dump process on error
-      $define OPT.DIV.ZERO.WARNING     7 ;* Treat divide by zero as warning
-      $define OPT.NON.NUMERIC.WARNING  8 ;* Treat non-numeric as warning
-      $define OPT.ASSOC.UNASSOC.MV     9 ;* Associate unassociated MV fields
-      $define OPT.PICK.BREAKPOINT.U   10 ;* QPROC Use Pick meaning of U breakpoint
       $define OPT.NO.USER.ABORTS      11 ;* Suppress user options to abort
-      $define OPT.RUN.NO.PAGE         12 ;* RUN/DEBUG defaults to NO.PAGE
+      * 27 Oct 26 (S.87 batch 7): options 12, 34, 35, 38, 42, 43, 44, 47, 51, 54 and 57 are RETIRED too (entries A-020 to A-026, A-029, A-034, A-035 and A-037).
       $define OPT.SHOW.STACK.ON.ERROR 13 ;* Show stack on error
-      $define OPT.CRDB.UPCASE         14 ;* Show CR/DB in OCONV MD in uppercase?
-      $define OPT.AMPM.UPCASE         15 ;* Show AM/PM in OCONV MTH in uppercase?
-      $define OPT.PICK.NULL           16 ;* Return null for null data in ML, MR and FMT()
-      $define OPT.PICK.GRAND.TOTAL    17 ;* GRAND.TOTAL text on same line as values
-      $define OPT.SUPPRESS.ABORT.MSG  18 ;* Suppress program details on abort
-      $define OPT.DEBUG.REBIND.KEYS   19 ;* Reserved: no effect (it rebound AccuTerm keys on entry to the debugger)
-      $define OPT.ED.NO.QUERY.FD      20 ;* Don't ask for confirmation on FD command in ED
-      $define OPT.NO.SEL.LIST.QUERY   21 ;* Don't query use of select list
-      $define OPT.CHAIN.KEEP.COMMON   22 ;* Keep unnamed common on CHAIN
-      $define OPT.SELECT.KEEP.CASE    23 ;* Keep case in Windows dir file select
-      $define OPT.CREATE.FILE.CASE    24 ;* Keep operating system file name case in CREATE.FILE
-      $define OPT.PICK.EXPLODE        25 ;* Pick style processing of single value item in BY.EXP
-      $define OPT.INHERIT             26 ;* Phantom inherits options
-      $define OPT.QUERY.NO.CASE       27 ;* Case insensitive query processor selection operators
-      $define OPT.LOCKBEEP            28 ;* Beep on wait for record lock
-      $define OPT.PICK.IMPLIED.EQ     29 ;* Implied EQ between field and literal in query
-      $define OPT.QUERY.PRIORITY.AND  30 ;* AND has priority over OR operator in query processor
-      $define OPT.NO.DATE.WRAPPING    31 ;* Don't roll overlarge day number into next month
-      $define OPT.PROC.A              32 ;* Treat Proc A command as in D3
-      $define OPT.SPACE.MCT           33 ;* Spaces in MCT conversion (kernel)
-      $define OPT.QUERY.STRING.COMP   34 ;* QPROC: EQ and NE are string comparisons
-      $define OPT.QUERY.STR.COMP.ALL  35 ;* QPROC: all relations on right aligned data are string comparisons
-      $define OPT.QUERY.SORT.NO.CASE  36 ;* QPROC: sorts are case insensitive
-      $define OPT.BACKSLASH.NOT.QUOTE 37 ;* Command parser: backslash is not a quote
-      $define OPT.DEFAULT.MV          38 ;* QPROC: C, D, I items with blank S/M are multivalued
-      $define OPT.CLEAR.SELECT        39 ;* Clear select list 0 after a command that did not make it
-      $define OPT.CATALOGUE.LOCAL     40 ;* CATALOG and DELETE.CATALOG default to the local catalogue
-      $define OPT.DIR.SEL.OMIT.HIDDEN 41 ;* Select of a directory file leaves out names that begin with a dot (kernel)
-      $define OPT.PICK.ML.CONV.MASK   42 ;* ML and MR: ( starts a parenthesised format mask, not round bracket negatives (kernel)
-      $define OPT.CHAINED.SELECT      43 ;* A select that finds something executes the first command in the data queue (cproc)
-      $define OPT.PAGINATE.ON.HEADING 44 ;* With RUN.NO.PAGE, a heading or footing enables pagination (kernel)
-      $define OPT.QUERY.FOOTER.PAUSE  47 ;* Pause for RETURN at end of a report with a page footer
-      $define OPT.FORCE.RELOAD        45 ;* An unload event also resets subroutine link variables (kernel)
-      $define OPT.INHERIT.MFILE.PATH  48 ;* CREATE.FILE puts a new subfile in the directory of the default subfile (createf)
+      * 27 Oct 26 (S.87 batch 8): options 21, 40, 48 and 55 are RETIRED too (entries A-019, A-033, A-036 and A-030).
+      * 27 Oct 26 (S.87 batch 12): options 22, 37 and 56 are RETIRED too (entries A-038, A-028 and A-031).
+      * 27 Oct 26 (S.87 batch 16): options 0, 7, 8, 26, 36 and 39 are RETIRED too (entries A-042, A-044, A-027 and A-032).
       $define OPT.GIT                 49 ;* .gitignore and .gitattributes are not mapped in a directory file (kernel)
       $define OPT.DIR.DTM             50 ;* A write to a directory file moves the directory's date and time modified (kernel)
-      $define OPT.KEEP.OLD.OBJECT     51 ;* A failed compilation leaves the previous object code (basic)
-      $define OPT.NO.PHANTOM.NOTIFY   52 ;* A phantom does not tell its parent when it ends (cproc)
       $define OPT.SPOOL.COMMAND       53 ;* Show the operating system command that prints (kernel)
-      $define OPT.ASSOC.ALL           54 ;* The query processor treats all fields as one association (qproc)
-      $define OPT.CORRELATIVE.NOCASE  55 ;* String operations in a correlative or I-type are case blind (kernel)
-      $define OPT.CORRELATIVE.REUSE   56 ;* Every operand of an array operation in a correlative or I-type is read as if REUSE() was applied (kernel)
-      $define OPT.QUERY.MERGE.PRINT   57 ;* A query to printer 0 leaves an already active printer on (qdisp)
-      $define OPT.COMMAND.LEVEL.LOCKS 58 ;* A file variable that goes keeps its locks until the program returns to the command processor (kernel)
-      $define OPT.STACKED.ACCOUNT     59 ;* An EXECUTE that changes account returns to the account it began in (cproc); accepted and inert in Solo (no LOGTO)
       $define OPT.INHERIT.OWNERSHIP   60 ;* CREATE.FILE gives a new file the account directory's owner and group (kernel)
 
       * MKINDEX flag values (additive)

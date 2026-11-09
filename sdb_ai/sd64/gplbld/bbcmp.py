@@ -1742,12 +1742,10 @@ def at_uid():
 # DO NOT MESS WITH  ORDER OF THE LISTS  
 #
 #/* !!ATVAR!!  <- tag for atvar editing (make sure all spots get changed in mult source files)*/
-at_constants = ["FM" , "VM" , "SM" , "TM" , "IM" , "AM" , "SVM" , "FALSE" , "TRUE" ,
- "SDSYS" , "USERNO" , "USER.NO" , "DAY" , "MONTH" , "YEAR" , "YEAR4" , "LPTRHIGH" , "LPTRWIDE" , "CRTHIGH" , "CRTWIDE" ,
+at_constants = ["FM" , "VM" , "SM" , "TM" , "IM" , "FALSE" , "TRUE" ,
+ "SDSYS" , "USERNO" , "DAY" , "MONTH" , "YEAR" , "YEAR4" , "LPTRHIGH" , "LPTRWIDE" , "CRTHIGH" , "CRTWIDE" ,
  "LEVEL" , "TERM.TYPE" , "TRANSACTION.ID" , "TRANSACTION.LEVEL" , "IP.ADDR" , "HOSTNAME" , "GID" , "UID" , "SDSYS"]
 at_constants_func = [
-at_mark,
-at_mark,
 at_mark,
 at_mark,
 at_mark,
@@ -1756,7 +1754,6 @@ at_mark,
 at_false,
 at_true,
 at_sdsys,
-at_userno,
 at_userno,
 at_day,
 at_month,
@@ -1794,7 +1791,6 @@ at_syscom_vars = [
    "DATE"               ,
    "DS"                 ,
    "FILE.NAME"          ,
-   "FILENAME"           ,
    "ID"                 ,
    "ITYPE.MODE"         ,
    "LOGNAME"            ,
@@ -1821,7 +1817,6 @@ at_syscom_vars = [
    "TTY"                ,
    "TRIGGER.RETURN.CODE",
    "USER.RETURN.CODE"   ,
-   "USER"               ,
    "USER0"              ,
    "USER1"              ,
    "USER2"              ,
@@ -1849,7 +1844,6 @@ at_syscom_offsets = [
     SYSCOM_CPROC_DATE           ,
     SYSCOM_DS                   ,
     SYSCOM_QPROC_FILE_NAME      ,
-    SYSCOM_QPROC_FILE_NAME      ,
     SYSCOM_QPROC_ID             ,
     SYSCOM_ITYPE_MODE           ,
     SYSCOM_LOGNAME              ,
@@ -1876,7 +1870,6 @@ at_syscom_offsets = [
     SYSCOM_TTY                  ,
     SYSCOM_TRIGGER_RETURN_CODE  ,
     SYSCOM_USER_RETURN_CODE    ,
-    SYSCOM_LOGNAME             ,
     SYSCOM_USER0               ,
     SYSCOM_USER1               ,
     SYSCOM_USER2               ,
@@ -1925,7 +1918,6 @@ reserved_names = [
 "DO"      ,
 "ELSE"    ,
 "FROM"    ,
-"GO"      ,
 "IN"      ,
 "LOCKED"  ,
 "NEXT"    ,
@@ -3570,13 +3562,6 @@ def st_getlist():
     error(token_string + ' statement not coded')
     return
 
-def st_go():
-    if u_look_ahead_token_string == "TO":
-        get_token()
-    
-    st_goto()
-    return
-
 def st_goto():
     get_label_name()
     if lsub_var_no >= 0:
@@ -4318,9 +4303,7 @@ def st_on():
 
     reserved_names.append("GOSUB")
     reserved_names.append("GOTO")
-    reserved_names.append("GO")
     exprf()
-    reserved_names.pop(-1)
     reserved_names.pop(-1)
     reserved_names.pop(-1)
 
@@ -4335,15 +4318,8 @@ def st_on():
         opcode = OP_ONGOTO
         is_on_gosub = False
 
-    elif u_look_ahead_token_string == "GO":
-        get_token()
-        if u_look_ahead_token_string == "TO":
-            get_token()  # 0503
-        opcode = OP_ONGOTO
-        is_on_gosub = False
-
     else:
-        error('ON - Expected GOSUB, GOTO or GO')
+        error('ON - Expected GOSUB or GOTO')
 
     #end case
 
@@ -6012,7 +5988,6 @@ STATEMENTS = {
 "FOR":  st_for,
 "FORMLIST":  st_formlist,
 "GETLIST":  st_getlist,
-"GO":  st_go,
 "GOSUB":  st_gosub,
 "GOTO":  st_goto,
 "HEADING":  st_heading,
@@ -6022,7 +5997,6 @@ STATEMENTS = {
 "INCLUDE":  st_include,
 "INHERIT":  st_inherit,
 "INPUT":  st_input,
-"INPUTCLEAR":  st_clearinput,           
 "INPUTCSV":  st_inputcsv,
 "INPUTERR":  st_printerr,             
 "INPUTFIELD":  st_inputfield,
@@ -7306,7 +7280,7 @@ def pass2(sfn):
             ln = ln.rstrip()    # get rid of white space (and cr / lf) at end of line 
             uln = ln.upper()    # upper case copy for compare
             if len(ln) > 0:
-                if uln[:7] == "$DEFINE" or uln[:7] == "#DEFINE":   # define statement, add to dictionary
+                if uln[:7] == "$DEFINE":   # define statement, add to dictionary
                     tokens = uln.split() 
                     if len(tokens) >= 3:
                        # we need to determine the type of the $DEFINE value
@@ -8431,7 +8405,7 @@ def proc_statement():
             start_again = True      # start again for leading semicolon (mimic goto)
 
         else:
-            if (token_string == '$' or token_string == '#') and (token_index == 2):
+            if token_string == '$' and token_index == 2:
                 # appears to be a compilier directive which should have already been processed
                 error('compilier directive found at compile stage, error')
 

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone with the KEEP.SELECT statement and OPTION CLEAR.SELECT; the number stays reserved.
  * 24 Oct 26 SD Core for Linux Solo (Solo carry 19): K_EDIT_OS_OK (126, SD Core's number and name), an OS pathname about to be written, created, deleted or copied into: asks edit_os_path_refusal()
  *           (op_sh.c; the VOC is the one kind Solo classifies).  !OSCOPY and !IOSCOPY ask it, as Core's do.
  * 21 Oct 26 SD Core for Linux Solo (Solo carry 10, SD Core's S.73 item 1): K_PATH_IN (96), SD Core's second-sitting case of 13 Oct, for API request 29's OS question.
@@ -919,20 +920,6 @@ void op_kernel() {
       ts_terminate();
     } break;
 
-    case K_FORM_QUEUE: {
-      int32_t fq_unit, fq_queue;
-
-      GetInt(descr);
-      fq_unit = descr->data.value / 1000;
-      fq_queue = descr->data.value % 1000;
-      result.data.value = 0;
-      if ((descr->data.value >= 0) && (fq_unit <= HIGH_PRINT_UNIT)) {
-        form_queue_of[fq_unit] = (int16_t)fq_queue;
-        last_form_queue = (int16_t)fq_queue;
-        result.data.value = 1;
-      }
-    } break;
-
     case K_GROUP_PHANTOM: {
       /* PHANTOM GROUP: the phantom with this user number, if it is one this process started, is to be logged out when this
          process ends (ReleaseLicence).  Returns 1 if it was marked, 0 if not. */
@@ -1029,15 +1016,6 @@ void op_kernel() {
         }
       }
     } break;
-
-    /* 15 Oct 26 dm - QM4 gaps Q-16.  The KEEP.SELECT flag: set by the statement (!keepselect), cleared and read by CPROC. */
-    case K_KEEP_SELECT:
-      GetInt(descr);
-      n = descr->data.value;
-      result.data.value = keep_select ? 1 : 0;
-      if (n >= 0)
-        keep_select = (n != 0);
-      break;
 
     case K_OBJKEY:
       result.data.value = object_key;

@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone: the all-items pass no longer picks them up and a named A or S item is refused with message 11938.
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 18 Oct 26 dm  Solo carry A (owner's ruling B): the file it compiles into (CD DATA file) asks !voc_guard before any record is read.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
 *               dictionary read folds case, as typed then lower then upper.
@@ -32,18 +36,18 @@
 *
 *   Defaults to DICT portion of file.
 *
-*   If I-type name is omitted, all A, C, I and S-types are compiled unless the
+*   If I-type name is omitted, all A, I and S-types are compiled unless the
 *   default select list is active, in which case it is used.
 *
 * CD LOCAL
 *
-*   Compiles all dictionary A, C, I and S-types in the account.  All F-type
+*   Compiles all dictionary A, I and S-types in the account.  All F-type
 *   VOC items where the dictionary pathname does not include a directory
 *   separator are processed.
 *
 * CD ALL
 *
-*   Compiles all dictionary A,C,I and S-types visible from the account.
+*   Compiles all dictionary A, I and S-types visible from the account.
 *
 *
 * @SYSTEM.RETURN.CODE
@@ -84,7 +88,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
 
    * Get file name
 
-   call @parser(PARSER$MFILE, token.type, file.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
    if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
 
    begin case
@@ -137,7 +141,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
          file.to.open = file.name
          begin case
          case upcase(field(file.to.open, ' ', 1)) = 'DATA'
-            call @parser(PARSER$MFILE, token.type, file.name, keyword)
+            call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
             if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
             file.to.open = file.name
 
@@ -200,7 +204,7 @@ deffun voc_guard(f) calling '!voc_guard'   ;* 18 Oct 26, Solo carry A
 
             case selectinfo(0, SL$ACTIVE)  ;* List 0 is active
                readnext itype.name then
-                  if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+                  if not(no.query) then
                      loop
                         display sysmsg(2050, itype.name) :  ;* Use active select list (First item 'xx')?
                         prompt ""
@@ -245,15 +249,7 @@ compile.all:
       read itype.rec from dict.f,itype.name then
          type = upcase(itype.rec[1,1])
          begin case
-            case type = 'C' or type = 'I'
-               if display.file.name # '' then
-                  display
-                  display display.file.name
-                  display.file.name = ''
-               end
-               gosub compile
-
-            case (type = 'A' or type = 'S') and itype.rec<8> # ''
+            case type = 'I'
                if display.file.name # '' then
                   display
                   display display.file.name
@@ -295,17 +291,17 @@ compile:
    type = upcase(itype.rec[1,1])
    begin case
       case type = 'A' or type = 'S'
-         if itype.rec<DICT.A.CORRELATIVE> = '' then goto no.source
-         
-      case type = 'I'
-         if trimf(trimb(itype.rec<DICT.ITYPE.SOURCE>)) = '' then goto no.source
+         release dict.f, itype.name
+         display sysmsg(11938, itype.name)
+         errors += 1
+         return
 
-      case type = 'C'
+      case type = 'I'
          if trimf(trimb(itype.rec<DICT.ITYPE.SOURCE>)) = '' then goto no.source
 
       case 1
          release dict.f, itype.name
-         display sysmsg(2974, itype.name) ;* Record 'xx' is not an C or I-type
+         display sysmsg(2974, itype.name) ;* Record 'xx' is not an I-type
          errors += 1
          return
    end case
