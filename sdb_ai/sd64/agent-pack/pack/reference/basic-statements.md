@@ -320,7 +320,7 @@ clause of `execute` and `os.execute` — take the output
 `create.file` *name* {`directory`} {`on error` …}
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 389
+- docs: `User/markdown/07-sd-basic-file-handling.md` line 412
 
 ### basic:stmt:creating
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:11639#58a91974 src2=docs:tools/syntax-shapes.txt:314#17000a0a
@@ -1999,7 +1999,7 @@ clause of `loop`: `loop` … `until` *condition* … `repeat`
 `varset` *var*, *value*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 398
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 397
 
 ### basic:stmt:void
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:449#aac0767c src2=docs:tools/syntax-shapes.txt:265#90e71409

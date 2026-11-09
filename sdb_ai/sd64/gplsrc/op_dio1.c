@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 09 Nov 26 dm  SD Core for Linux Solo (owner, 9 Nov 26: "leave solo without it"): OPTION INHERIT.OWNERSHIP and inherit_ownership() /
+ *               inherit_ownership_of() are gone; a file CREATE.FILE makes keeps the owner and group of the user who made it, Solo's one user.
  * 27 Oct 26 dm  S.87 batch 9: $MODE OPEN.FAIL.ZERO.FVAR is gone; the file variable of a failed open stays as the open left it (unassigned).
  * 27 Oct 26 dm  S.87 batch 5: the comment about a name containing ';' no longer being a network file reference is gone with the code it described (_voc_ref no longer builds such a name).
  * 17 Oct 26 dm  S.65 slice 3c: op_configfl() refuses a NET_FILE (net_refuse)
@@ -77,7 +79,6 @@
 #include "locks.h"
 #include "syscom.h"
 #include "config.h" /* pcfg.dhcache, MAX_DH_CACHE_SIZE */
-#include "options.h" /* OPTION INHERIT.OWNERSHIP */
 
 /* Modified by Composer AI - 2026/06/10.
    k_error() longjmps back to the kernel command loop and never returns,
@@ -209,42 +210,6 @@ void op_configfl() {
 }
 
 /* ======================================================================
-   inherit_ownership()  -  OPTION INHERIT.OWNERSHIP (16 Oct 26, QM4 gap 239)
-
-   With the option on, a file just made (a directory, and for a hashed file the subfiles in it, to any depth) is given the
-   owner and group of the account directory, the working directory, instead of those of the user who made it.  The kernel
-   lets an ordinary user change the group to one they belong to (the account's own group) and not the owner, and no error is
-   reported when it refuses: the manual says so too.  Off by default; the group it gives is the account's, whose members
-   then have on the file what they have on the account.                                                                   */
-
-Private void inherit_ownership(const char* path, uid_t uid, gid_t gid, int depth) {
-  struct stat st;
-  DIR* dir;
-  struct dirent* ent;
-  char sub[MAX_PATHNAME_LEN + 1];
-
-  (void)lchown(path, uid, gid);
-  if ((depth > 8) || (lstat(path, &st) != 0) || !S_ISDIR(st.st_mode))
-    return;
-  if ((dir = opendir(path)) == NULL)
-    return;
-  while ((ent = readdir(dir)) != NULL) {
-    if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
-      continue;
-    if (snprintf(sub, sizeof(sub), "%s%c%s", path, DS, ent->d_name) < (int)sizeof(sub))
-      inherit_ownership(sub, uid, gid, depth + 1);
-  }
-  closedir(dir);
-}
-
-Private void inherit_ownership_of(const char* path) {
-  struct stat acct;
-
-  if (Option(OptInheritOwnership) && (stat(".", &acct) == 0))
-    inherit_ownership(path, acct.st_uid, acct.st_gid, 0);
-}
-
-/* ======================================================================
    op_create_dh()  -  Create a DH file                                    */
 
 void op_create_dh() {
@@ -368,8 +333,6 @@ void op_create_dh() {
   if (!dh_create_file(path_name, group_size, min_modulus, big_rec_size,
                       merge_load, split_load, creation_flags, version)) {
     process.status = -dh_err;
-  } else {
-    inherit_ownership_of(path_name);
   }
 
 exit_op_create_dh:
@@ -428,8 +391,6 @@ void op_create_t1() {
   if (!make_path(path_name)) {
     process.os_error = OSError;
     process.status = -ER_NOT_CREATED;
-  } else {
-    inherit_ownership_of(path_name);
   }
 
   /* Set status code on stack */

@@ -442,7 +442,7 @@
       $define OPT.GIT                 49 ;* .gitignore and .gitattributes are not mapped in a directory file (kernel)
       $define OPT.DIR.DTM             50 ;* A write to a directory file moves the directory's date and time modified (kernel)
       $define OPT.SPOOL.COMMAND       53 ;* Show the operating system command that prints (kernel)
-      $define OPT.INHERIT.OWNERSHIP   60 ;* CREATE.FILE gives a new file the account directory's owner and group (kernel)
+      * 60 is SD Core's INHERIT.OWNERSHIP, not in Solo (owner, 9 Nov 26: "leave solo without it")
 
       * MKINDEX flag values (additive)
       $define MKI$CREATE               1 ;* Create indices

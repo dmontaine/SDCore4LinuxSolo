@@ -1960,13 +1960,6 @@
 "tier": "reference",
 "words": 29
 },
-"basic:option:inherit.ownership": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 31
-},
 "basic:option:no.user.aborts": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
@@ -8070,13 +8063,6 @@
 "since": "-",
 "tier": "reference",
 "words": 13
-},
-"msg:11384": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
 },
 "msg:11386": {
 "kind": "message",

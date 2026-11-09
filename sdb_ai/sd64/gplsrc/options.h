@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 09 Nov 26 dm  SD Core for Linux Solo (owner, 9 Nov 26: "leave solo without it and inform linux to do the same"): OPTION 60 INHERIT.OWNERSHIP
+ *               is not in Solo, as it never was in Windows Solo; NumOptions is 60.  A Solo has one operating-system user who owns the whole tree,
+ *               so there is no other owner for a new file to take.  A deliberate deviation from SD Core, which keeps it.
  * 28 Oct 26 dm  S.87: four more option numbers retired: 18, 41, 46, 52.
  * 31 Dec 23 SD Launch - Prior history suppressed
  * END-HISTORY
@@ -51,8 +54,8 @@
 #define OptGit               49   /* 15 Oct 26  Q-17, the QM4 gaps: .gitignore and .gitattributes are not mapped in a directory file (map_t1_id() in op_dio3.c) */
 #define OptDirDtm            50   /*            a write to a directory file moves the directory's date and time modified (dir_write() in op_dio3.c) */
 #define OptSpoolCommand      53   /*            show the operating system command that prints (kernel, the print start) */
-#define OptInheritOwnership  60   /* 16 Oct 26  openQM ref 239: CREATE.FILE gives a new file the account directory's owner and group (inherit_ownership_of() in op_dio1.c) */
-#define NumOptions           61
+/* 60 is SD Core's INHERIT.OWNERSHIP, which Solo has not got (9 Nov 26, the owner's word; see the history) */
+#define NumOptions           60
 
 Public char option_flags[NumOptions];
 

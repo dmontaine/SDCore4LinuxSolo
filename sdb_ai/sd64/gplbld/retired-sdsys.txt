@@ -17,6 +17,9 @@ gpl.bp/euid_restore
 voc_template/logto
 newvoc/logto
 #
+# LS2.0-0 (9 Nov 26, the owner: "leave solo without it"): OPTION 60 INHERIT.OWNERSHIP's message; the option is not in Solo.
+messages/11384
+#
 # LS2.0-0 (Solo carry 22, 9 Nov 26): SD Core's S.87 emulation removals, S.93 (A and S dictionary types), S.74 (_formcsv).
 gpl.bp/acomp
 gpl.bp/bscan

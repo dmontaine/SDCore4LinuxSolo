@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+09 Nov 26  OPTION INHERIT.OWNERSHIP IS NOT IN SOLO (the owner, 9 Nov 2026: "leave solo without it").
+
+             What        OPTION INHERIT.OWNERSHIP (option 60), which made CREATE.FILE give a new file the account directory's owner and
+                         group, is gone from Solo, with its message, as SD Core Solo for Windows never had it. The option table ends at 59.
+                         OPTION INHERIT.OWNERSHIP is now refused as a name SD does not know.
+             Why it      A Solo has one operating-system user who owns the whole tree, so there is no other owner for a new file to take.
+             matters
+             Does not    Change SD Core for Linux, which keeps the option, or the owner and group a new file gets in Solo (yours).
+
 09 Nov 26  THE PHANTOM DEBUGGER'S MESSAGES ARE KEPT IN YOUR PRIVATE DIRECTORY, NOT IN $IPC (carried from SD Core for Linux's W.11 F10b,
            31 Oct 2026).
 

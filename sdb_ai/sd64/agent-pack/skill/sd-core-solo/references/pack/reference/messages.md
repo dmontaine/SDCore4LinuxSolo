@@ -3973,13 +3973,6 @@ User number to open, or Q to quit:
 
 cited by: `profiler`
 
-### msg:11384
-> kind=message tier=reference since=- src=sdsys/messages/11384:1#8a055b29
-
-```
-CREATE.FILE gives a new file the owner and group of the account directory
-```
-
 ### msg:11386
 > kind=message tier=reference since=- src=sdsys/messages/11386:1#04f1613d
 

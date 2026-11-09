@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 09 Nov 26 dm  SD Core for Linux Solo (owner, 9 Nov 26: "leave solo without it and inform linux to do the same"): INHERIT.OWNERSHIP (60)
+*               is not in Solo, as in Windows Solo; the table ends at 59 (NumOptions 60).  SD Core keeps it.
 * 28 Oct 26 dm  S.87: COMMAND.LEVEL.LOCKS, STACKED.ACCOUNT, FORCE.RELOAD retired (blank rows).
 * 28 Oct 26 dm  S.87: STACKED.ACCOUNT retired (blank row).
 * 28 Oct 26 dm  S.87: FORCE.RELOAD retired (blank row).
@@ -126,7 +128,7 @@ $include int$keys.h
    opt<-1> = '||'                                ;* 57 was QUERY.MERGE.PRINT
    opt<-1> = '||'                                ;* 58 was COMMAND.LEVEL.LOCKS
    opt<-1> = '||'                                ;* 59 was STACKED.ACCOUNT
-   opt<-1> = 'INHERIT.OWNERSHIP||11384'          ;* 60, 16 Oct 26 QM4 gap 239
+   * 60 is SD Core's INHERIT.OWNERSHIP: not in Solo (owner, 9 Nov 26), so the table ends at 59
    *         'xxxxxxxxxxxxxxxxxxx'    Option name limit = 19 characters
 
    * 27 Oct 26: the shortcut options (PICK, a master switch for nine options, and SDBASIC.WARNINGS, for three) are gone with the options they set
