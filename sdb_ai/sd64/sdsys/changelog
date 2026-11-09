@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+09 Nov 26  SORTED LISTS TIE ON THE RECORD ID; EXECUTE AND OS.EXECUTE TAKE SILENT (carried from SD Core for Linux's fixes of 2-3 Nov 2026).
+
+             What        A SELECT or LIST with BY gives records whose sort keys are equal in record-id order, as SORT and SSELECT always did
+                         (not with SAVING UNIQUE); before, their order depended on where they sat in the file. EXECUTE, PHANTOM and OS.EXECUTE
+                         take the word SILENT, which throws the command's output away; SILENT used to compile as a variable and stop the program
+                         when it ran. (MCDX and the ACCOUNT:FILE form came back with the carry of the removals, the entry below.)
+             Why it      A report that sorted on a field with repeated values could come out in a different order after a file was resized.
+             matters
+             Does not    Change SORT, SSELECT or a BY with SAVING UNIQUE.
+
 09 Nov 26  THE FEATURES THAT ONLY IMITATED OTHER PRODUCTS ARE GONE, AS IN SD CORE FOR LINUX (carried from SD Core for Linux's removals of 27-31 Oct 2026:
            its S.87 survey, the A and S dictionary types, and the unused _formcsv program).
 
