@@ -98,6 +98,12 @@
 #define SD_SHM_KEY 0x53434C11
 #define SD_SEM_KEY 0x53434C12
 
+/* 31 Oct 26 dm - S.94 (gpmmouse.c).  The socket of the gpm daemon, which reads the mouse on a Linux text console, and whether a session on something that is not one may talk to it.
+ * Both fixed at compile time and NOT environment variables, for the reason of the audit socket above; the sandbox tools change them in their own copy of the tree, so that a
+ * session on a pseudo terminal can talk to a stand-in daemon.  A shipped build asks for a console (character device 4:1 to 4:63) and nothing else. */
+#define SD_GPM_SOCK "/dev/gpmctl"
+#define SD_GPM_ANY_TTY 0
+
 #define RelinquishTimeslice sched_yield()
 
 /* WINFS denotes use of the Windows file system interface (PDA only so far) */

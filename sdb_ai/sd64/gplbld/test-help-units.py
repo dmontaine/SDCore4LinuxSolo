@@ -154,12 +154,12 @@ def checks(s):
     ck("P14 ...and every shipped record is asked for by a page (so text does not rot)", not (set(hts) - asked), repr(sorted(set(hts) - asked)))
 
     # the pages
-    ck("P15 tool.menus (Solo): a [?] on each of the eight rows of the Menu box (inside the row loop) and one at the Accounts list; Solo has no system default box",
-       "call $tk_help('mark', 134, 1 + r, 0, 0)" in tm and "call $tk_help('mark', 66, 2, 0, 0)" in tm and "width 59\n      call $tk_help('mark'" in tm and "for r = 1 to 8" in tm
-       and "hit.default" not in tm and "tool.menus.default" not in tm)
+    ck("P15 tool.menus (Solo): a [?] on each row of the Menu box (inside the row loop, over nmenu rows: where the account starts, its own programs and a row for each standard tile) and one at the Accounts list; Solo has no system default box",
+       "call $tk_help('mark', mk.mx, mnu.y + r, 0, 0)" in tm and "call $tk_help('mark', mk.acx, mk.acy, 0, 0)" in tm and "width mw - 4\n      call $tk_help('mark'" in tm
+       and "nmenu = 2 + dcount(tids, @fm)" in tm and "   for r = 1 to nmenu\n      begin case" in tm and "if pane = 2 and si < nmenu then" in tm and "hit.default" not in tm and "tool.menus.default" not in tm)
     ck("P16 ...F1 and ? show the help of the selected row (the key by pane and row), and a left press on a [?] selects its row, then shows it; the loop variable of the click is not the drawing routines'",
-       "case nm = 'f1' or nm = '?'" in tm and "call $tk_help('box', hk, hm, 0, 0)" in tm and "call $tk_help('hit', mev, 134, 1 + hr, hit.now)" in tm and "for hr = 1 to 8" in tm
-       and "call $tk_help('hit', mev, 66, 2, hit.accounts)" in tm and "hk = 'tool.menus.tile.' : tids<si - 2>" in tm)
+       "case nm = 'f1' or nm = '?'" in tm and "call $tk_help('box', hk, hm, 0, 0)" in tm and "call $tk_help('hit', mev, mk.mx, mnu.y + hr, hit.now)" in tm and "for hr = 1 to nmenu" in tm
+       and "call $tk_help('hit', mev, mk.acx, mk.acy, hit.accounts)" in tm and "hk = 'tool.menus.tile.' : tids<si - 2>" in tm)
     ck("P17 tool.viewers: a [?] on each box, F1 and ? and a click show their help, and the page runs only set.viewer",
        "call $tk_help('mark', 66, 2, 0, 0)" in tv and "call $tk_help('mark', 134, 2, 0, 0)" in tv and "case nm = 'f1' or nm = '?'" in tv and "call $tk_help('hit', mev, 66, 2, hit.allowed)" in tv
        and "call $tk_help('hit', mev, 134, 2, hit.found)" in tv and "allow = 'set.viewer'" in tv and "tool.viewers.allowed" in tv and "tool.viewers.found" in tv)
@@ -176,7 +176,7 @@ def checks(s):
 
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
-       "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, 63, pieces)" in tm and "call $tk_wrap(lines<wi>, 134, pieces)" in tv
+       "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, ww, pieces)" in tm and "call $tk_wrap(lines<wi>, 134, pieces)" in tv
        and "rest[cut" not in tc and "rest[cut" not in tm and "rest[cut" not in tv and "wl[wp" not in tm)
     ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed in Core's tool.gates, 24 Oct 26)",
        "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)

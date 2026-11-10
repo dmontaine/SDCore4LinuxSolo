@@ -40,7 +40,7 @@ $include err.h
       stop sysmsg(2001) ;* Command requires administrator privileges
    end
 
-   standard = 'editor ide terminal keys signout files voc dict query bulk catalog test'            ;* (Solo has no Switch account tile)
+   standard = 'editor ide terminal keys signout files voc dict query bulk catalog test recent'     ;* recent is the group, as in Core; (Solo has no Switch account tile)
 
    words = trim(@sentence)
    n.words = dcount(words, ' ')

@@ -144,8 +144,8 @@ def checks(raw):
        0 < i_on and "typed = gids<k>" in ch[i_on:] and "typed = gids<k>" not in ch[:i_on] and "typed = ''" in ch[:i_on] and "Leaving it off is the tighter choice; you decide." in ch[i_on:]
        and "It will still be able to " in ch[:i_on] and ch.count("typed = ") == 2, "on at %d" % i_on)
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
-    ck("GS11", "the key table has exactly: help, change, refresh, quit - and 'change' (Enter) is added only for the administrator; there is no key that turns everything on, no queue and no 'tighten'",
-       acts == sorted(["help", "change", "refresh", "quit"]) and "if adm then call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)" in pg and "case nm = 'enter' or nm = ' '" in pg
+    ck("GS11", "the key table has exactly: help, change, refresh, quit, and the Esc row that opens the menu bar (the bar runs nothing, a choice is one of those keys) - and 'change' (Enter) is added only for the administrator; there is no key that turns everything on, no queue and no 'tighten'",
+       acts == sorted(["help", "change", "refresh", "quit", "menu"]) and "if adm then call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)" in pg and "case nm = 'enter' or nm = ' '" in pg
        and not re.search(r"case nm = '(?:a|t|r|u)'", pg) and " all" not in re.sub(r"[^\n]*(?:rows? ?|gates? ?)all[^\n]*", "", pg).split("on.key:")[-1].split("redraw:")[0], " ".join(acts))
     ck("GS12", "after a command the state is read again and the whole page is drawn again, and what the status line shows is the verb's own last line",
        re.search(r"call \$tk_run\(allow, sent, out, st, err\)[\s\S]*?for oi = dcount\(out, @fm\) to 1 step -1[\s\S]*?msg = \(if said # '' then said\[1, 130\] else 'ran, status ' : st\)[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", ch) is not None)

@@ -189,10 +189,10 @@ def checks(s):
        and "stop sysmsg(11881, tile)" in st_ and "if who = 'sdsys' then stop sysmsg(2202)" in st_)
     ck("H23b ...it takes ONE account (no 'all'), changes field 17 by readu and write under the lock, says already when nothing changes (11877), audits, and notes a tile that is not standard (11883)",
        "tiles.off" not in st_ and "'all'" not in st_ and "readu acc.rec from acc.f, who else" in st_ and "acc.rec<ACC$TILES.OFF> = new.list" in st_ and "write acc.rec to acc.f, who on error ok = @false" in st_
-       and "sysmsg(11877, tile, state, who)" in st_ and "K$AUDIT, 'set.tile '" in st_ and "sysmsg(11883, tile)" in st_ and "standard = 'editor ide terminal keys signout files voc dict query bulk catalog test'" in st_)
+       and "sysmsg(11877, tile, state, who)" in st_ and "K$AUDIT, 'set.tile '" in st_ and "sysmsg(11883, tile)" in st_ and "standard = 'editor ide terminal keys signout files voc dict query bulk catalog test recent'" in st_)
     ck("H23c ...and the standard ids it knows are the ids of the table of tool_home that every session gets, and the menu management page offers the same list (Solo has no switch)",
        sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - set(ADMIN_TILES) - {"mymenu", "back"}) == sorted("editor ide terminal keys signout files voc dict query bulk catalog test".split())
-       and re.findall(r"'([a-z]+)'", strip(s["tool_menus"]).split("tids = ", 1)[1].split("\n", 1)[0]) == "editor ide terminal keys signout files voc dict query bulk catalog test".split(), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
+       and re.findall(r"'([a-z]+)'", strip(s["tool_menus"]).split("tids = ", 1)[1].split("\n", 1)[0]) == "editor ide terminal keys signout files voc dict query bulk catalog test recent".split(), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
     adm = between(th, "   if is.admin then\n      bnd += 1", "\n   end\n")
     ck("H23d ...and the tiles that are not standard (the administrator's pages) are built for the administrator only (inside `if is.admin then`), each exactly once and running its page's verb",
        adm.startswith("   if is.admin then") and all(adm.count("id = '%s' ;" % i) == 1 and th.count("id = '%s' ;" % i) == 1 and re.search(r"id = '%s' ; grp = g ;[^\n]*act = 'cmd:%s'" % (i, re.escape(v)), adm) is not None for i, v in ADMIN_TILES.items()), repr(adm[:200]))

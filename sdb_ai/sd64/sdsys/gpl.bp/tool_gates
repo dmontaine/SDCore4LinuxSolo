@@ -9,6 +9,8 @@
 *               and no modify.account: its gates are set by set.os.access (sh, os), set.net.access (net) and set.ai gate (ai).  So this is one page with four rows and two modes, and it has no
 *               accounts, no filter, no queue and no route gates (Solo has no ssh, api or files routes of its own).  A DEVIATION FROM THE LINUX CORE TEMPLATE FOR AN OPERATING-SYSTEM-INDEPENDENT
 *               REASON (one account, no modify.account), listed for the parity audit; the wording of the rows, the confirm box and the rule "typed name when a gate reaching beyond SD is turned ON" are Core's.
+* 10 Nov 26 dm  SOLO CARRY (S.117): Core's shared frame, as every Core page has it: Esc and the menu bar, Ctrl-T, Ctrl-K, Ctrl-O and View > Mouse
+*               ($tk_std), F6 / Shift-F6 between the boxes and the AI line ($tk_aipage, offered only refresh).  The page's own content is Solo's, unchanged.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -63,6 +65,14 @@ $include tk.h
    if adm then call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc opens the menu bar, as on every page
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   if adm then call $tk_keys('menu', keys, 'change', '&Gate', '&Turn the gate on or off', '', '')      ;* the administrator's, as Enter is
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')  ;* the AI line is offered only refresh: no change of a setting is proposed by it
+   call $tk_aipage('init', ctx, keys, '', '', aout)
 
 *  The table: one row to a gate, in the order the page shows them.  The words are the verbs' own (set.os.access, set.net.access, set.ai).
    gids = 'sh' : @fm : 'os' : @fm : 'net' : @fm : 'ai'
@@ -90,11 +100,25 @@ $include tk.h
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, 'Gates', '', '', mr)            ;* the bar first: it writes row 0 whole
       call $tk_frame(ctx, keys, 'Gates', msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, 'Gates', nm, ao)           ;* while the AI line has the focus it takes the keys
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted
+      if ao<1> # '' then msg = ao<4>
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, 'Gates', nm, 0, mr)       ;* F10, Alt and a letter, and Esc: the bar
+      if mr<1> # '' then nm = mr<4>
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -293,6 +317,20 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'asked the system again'
+      case nm = 'ctrl-t'                    ;* the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
+      case nm = 'ctrl-k'                    ;* the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, 'Gates', std.r)
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* F6 / Shift-F6 go round the box and the AI line; AI > Ask the AI goes to the line
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
    end case
@@ -306,6 +344,18 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, 'Gates', mev, '', mr)                   ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      if nm # '' then gosub on.key
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, 'Gates', mev, ap)                          ;* a click on the AI line gives it the focus
+   if ap # '' then
+      msg = ap
+      return
+   end
    call $tk_help('hit', mev, 134, 2, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.gates.page', hm, 0, 0)
