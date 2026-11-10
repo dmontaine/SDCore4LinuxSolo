@@ -17,8 +17,14 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: K_MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
+ * 28 Oct 26 dm  S.88: SD_USER_HOME (112), the SDEXT test of the effective user's home and a directory below it (the recovery store).
+ * 28 Oct 26 dm  S.88 phase 2: K_SHOW_SAFE (151), the kernel's one rule for showing another session's text, for BASIC (PSTAT, PROFILER, HSM).
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone; the number stays reserved.
- * 20 Oct 26 dm  SDNet carry 9 (SD Core's S.65 slice 2b): SD_FILE_PRIVATE (111) carried.
+ * 19 Oct 26 dm  S.67: K_MASTERS (150), the master files (stage 1), and its op "refusal", the reason the last save of a master record was refused (stage 2).
+ * 18 Oct 26 dm  S.66: K_SHARED_READ, K_SHARED_WRITE, K_SHARED_REF and K_SHARED_ONCE (128-131), the shared account's gates and lookup test.
+ * 17 Oct 26 dm  S.65 slice 2b: SD_FILE_PRIVATE (111), the SDEXT private-file test.
+ * 17 Oct 26 dm  S.65 slice 1: K_NET (127), the per-account NET gate for SDNet remote files.
  * 31 Dec 23 SD launch - prior history suppressed 
  * 28 Jul 24 mab SD_ENCRYPT_SODIUM encode types
  * 08 Aug 24 mab SDEXT keys for salt and key from password
@@ -26,12 +32,6 @@
  * rev 0.9.0 Jan 25 mab SD_EUID_SET SD_EUID_RESTORE
  * rev 0.9-2 Mar 25 mab add sdext_pyobj direct control of python dictionary object
  * 29 Sep 26 dm  K_SET_LANGUAGE (38) retired: SD is English only
- * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's numbers 92, 97 to 117, 119 and 120 and FL_WHO 1021 (FL_HOLDERS
- *               moves to 1100 as in Core), the OS$ and SKT$ and JSON constants of the 1.2-0 work.  NOT carried, and not to be reused for another
- *               meaning: 91 (K_LOGIN_UID), 93 to 96 (the S.63 OS-access gates), 118 (SD.ACCOUNTS), 121 to 127 (the S.64 edit gates and the S.65 NET
- *               gate), 128 to 131 (the S.66 shared account), SKT$INFO.TLS.SPKI, SD_FILE_PRIVATE, FL_TYPE_NET.  Solo's K_GLOBAL_SESSION (69) stays.
- * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, owner's order of 20 Oct): K_NET (127) and SKT_INFO_TLS_SPKI (11) are carried, at SD Core's numbers.
- *               The rest of the 18 Oct list (91, 118, 121 to 126, 128 to 131) still is not, and is not to be reused for another meaning.
  *
  * END-HISTORY
  *
@@ -228,12 +228,25 @@
    op_kernel.c.  GPL.BP/INT$KEYS.H carries the same two numbers.             */
 #define K_SET_USERNAME       60
 #define K_ASSUME_USER        61
-/* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - 65 WAS K_LOGIN_UID (does the
-   kernel's audit loginuid belong to the named user), the multi-user product's
-   "the login itself must be sdsys" check.  Solo has no sdsys OS user and its
-   one caller is deleted, so the key is gone.  THE NUMBER STAYS RESERVED: a key
-   number is never reused, and 65+ is this family's block clear of the port's
-   0-64.  GPL.BP/INT$KEYS.H says the same.                                   */
+/* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: the LOGIN itself must be
+   sdsys.  kernel(K$LOGIN.UID, 'user') answers 1 when the kernel's audit
+   loginuid - set once by PAM at login, inherited by every descendant,
+   unwritable without root - belongs to the named user.  This tree's own key.
+   GPL.BP/INT$KEYS.H carries the same number.
+   06 Oct 26 dm - PAL-7 (parity audit): MOVED FROM 65 TO 91.  The Windows port
+   uses 65 for K_OS_ELEVATED (and 58-59, 62-68), so one number meant two things
+   across the ports: a program shipped byte for byte on both that called either
+   would have silently asked the other's question.  Agreed with the Windows
+   agent: it keeps 58-89 for kernel() keys, this tree 90-99 (K_REAL_USER 90 and
+   K_LOGIN_UID 91 now sit together), 100-199 is the shared SDEXT range.  A key
+   number is compiled into every BASIC program that calls KERNEL, so the binary
+   and GPL.BP are one unit: install the commit, do not mix.                   */
+#define K_LOGIN_UID          91
+/* 171 was K_LOGIN_MARK (S.101, the authenticator code) - retired 2 Nov 26 (S.106) with it; do not reuse */
+/* 02 Nov 26 dm - S.102 stage 3 (Linux Core only).  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process IS
+   (systemd's cgroup sdcore-job-<name>.service, a root-owned /etc/sdcore/jobs.d/<name> whose command= is this session's own command line), or ''
+   (sd_jobmark.c).  172: free in this tree and in the Windows tree.  GPL.BP/INT$KEYS.H carries the same number.                        */
+#define K_JOB_MARK           172
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
@@ -246,40 +259,7 @@
 /* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
    are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
    own Linux permissions, and the kernel no longer carries those keys.
-   18 Oct 26 (the carry from SD Core): 92 now means K_WINSIZE below, as it does
-   in SD Core, so it must not be read as the old K_OS_EXEC; 91 stays unused.   */
-
-/* 20 Oct 26 SOLO OS SWITCH (the owner: two words like SD Core, SET.OS.ACCESS, the installer asks).  SD Core's S.63 keys, at SD Core's
-   numbers, which are free here: the per-account OS-access switches are back, OFF unless the administrator turns them on.
-     K_SH       the session may use SH and "!".  Set only from a $internal program, like K_ADMINISTRATOR.
-     K_OS_EXEC  the session may use OS.EXECUTE and reach OS paths outside its own account.  Same rule.
-     K_PATH_OK  the argument is a pathname; the answer is 1 if THIS ACCOUNT may open it - whoever asks.
-                An $internal program is exempt from the gate itself, so it must ask on the user's behalf; it cannot be
-                allowed to be the way round the gate.
-     K_PATH_IN  (21 Oct 26, Solo carry 10, SD Core's second sitting of 13 Oct) the argument is a directory, a field mark and a pathname;
-                the answer is 1 if the pathname is inside that directory (realpath, so .. and links out do not count).  The geometry
-                only: it does not ask the gate.  API request 29 uses it, with the named account's directory, for a VOC pointer that
-                leads out of the account (S.73 item 1).
-   LOGIN loads the first two from fields 7 and 8 of the account's register record (blank is OFF); APISRVR loads them when it
-   enters the account itself.  GPL.BP/INT$KEYS.H carries the same numbers.                                                       */
-#define K_SH                 93
-#define K_OS_EXEC            94
-#define K_PATH_OK            95
-#define K_PATH_IN            96
-/* 24 Oct 26, Solo carry 19.  K_EDIT_OS_OK, at SD Core's number (126, free here): the argument is an OPERATING SYSTEM pathname that the caller is about to write, create, delete or
-   copy into (OSCOPY, !IOSCOPY); 1 if no component of it below the account's directory names a VOC that THIS SESSION may not change (op_sh.c edit_os_path_refusal(): the
-   administrator and an account with OS.EXECUTE are not asked).  Not asked for reading.  Asked in addition to K_PATH_OK by the $internal programs that write a path for the user. */
-#define K_EDIT_OS_OK         126
-
-/* 30 Sep 26 SD Core for Linux Solo - LSOLO 12, RULING 33 (the Windows Solo
-   key, same number).  WAS THIS SESSION ADMITTED WITH THE GLOBAL PASSWORD?
-   K_ADMINISTRATOR (26) cannot say: $ADMIN and $GLOBAL both set it.  Only a
-   $GLOBAL session may change the global catalogue (the master server's
-   global.bp.out, SYNC.GLOBAL.CATALOG).  Same shape as 26: get with -1; set
-   with 1 or clear with 0 only from a program compiled $internal (LOGIN, ADMIN,
-   APISRVR), so user code can neither grant nor forge it.  Held in the user
-   table as USR_GLOBAL.  int$keys.h carries the same key.                    */
-#define K_GLOBAL_SESSION     69
+   06 Oct 26 dm - 91 is K_LOGIN_UID now (see above).                         */
 /* 13 Oct 26 dm - THE TERMINAL'S OWN SIZE.  kernel(K$WINSIZE, '') answers the
    terminal's width, a field mark and its height, as the kernel last read them
    from the tty (TIOCGWINSZ, at start-up and again whenever the terminal is
@@ -288,6 +268,24 @@
    kernel read and no longer overrides it with terminfo's 120 by 36.  This
    tree's own key, in its own block; GPL.BP/INT$KEYS.H carries the same number. */
 #define K_WINSIZE            92
+/* 13 Oct 26 dm - S.63.  The per-account OS-access gates are back (the 18 Sep teardown, S.27, had taken
+   them out with the tiers; the owner's correction of 13 Oct: the tiers were to go and the gates to stay,
+   off by default, switched by SDSYS).  They were K_SH / K_OS_EXEC at 91 and 92 (PRE_RELEASE 23); 91 is
+   K_LOGIN_UID now (06 Oct 26) and 92 is the screen library's K_WINSIZE on its branch, so they come back
+   at 93 and 94.  GPL.BP/INT$KEYS.H must carry the same numbers.
+     K_SH       the session may use SH and "!".  Set only from a $internal program, like K_ADMINISTRATOR.
+     K_OS_EXEC  the session may use OS.EXECUTE and reach OS paths outside its own account.  Same rule.
+     K_PATH_OK  the argument is a pathname; the answer is 1 if THIS ACCOUNT may open it - whoever asks.
+                An $internal program (SED) is exempt from the gate itself, so it must ask on the user's
+                behalf; it cannot be allowed to be the way round the gate.
+     K_PATH_IN  (second sitting, 13 Oct) the argument is a directory, a field mark and a pathname; the
+                answer is 1 if the pathname is inside that directory (realpath, so .. and links out do not
+                count).  The geometry only: it does not ask the gate.  _VOC_REF uses it for a file reached
+                through a Q-pointer into an account the user may enter.                                */
+#define K_SH                 93
+#define K_OS_EXEC            94
+#define K_PATH_OK            95
+#define K_PATH_IN            96
 /* 14 Oct 26 dm - 1.2-0 sheet items 24, 29 and 38 (LISTU).  This tree's own block, 90-99; GPL.BP/INT$KEYS.H carries
    the same numbers.
      K_SET_ACCOUNT  the account the session is in, for the user table.  The argument is the account name, set only from
@@ -355,6 +353,13 @@
                        those the PHANTOMS parameter keeps and not be in use, or phantom() returns 0.  0 cancels.  phantom() clears
                        it, made or not.  Returns 1. */
 #define K_PHANTOM_USER       114
+/* 26 Oct 26 dm - W.11 F10 (the start-up records of a phantom are written to $ipc, a file every SD user's process may write).
+     K_PHANTOM_NONCE   'S' followed by 16 to 64 characters of the base64 alphabet: the secret the next phantom() of this process is to
+                       give the new process (in its environment, SD_PHANTOM_NONCE, which only the same operating-system user can read).
+                       Returns 1, or 0 and nothing staged if the text is not of that shape.  phantom() clears it, made or not.
+                       'G' answers the secret THIS process was started with, or the null string when it was not started by a phantom()
+                       that gave one (the environment variable is removed when the process starts, so nothing it runs inherits it). */
+#define K_PHANTOM_NONCE      144
 /* 16 Oct 26 dm - QM4 gaps (LOCK.TRACER).
      K_LOCK_TRACE      1 starts lock tracing, 0 stops it, -1 only asks.  Starting (administrator only) makes an empty file
                        locktrace in the system directory, mode 0620; every lock taken or let go after that is added to it by
@@ -368,6 +373,10 @@
      K_PROFILER_USER   user * 4096 + 2048 + n starts it in another process, user * 4096 alone stops it and has that process
                        write its table to the $ipc record F<user>.  The administrator only.  Returns 1 if the process was found,
                        0 if not, -1 if the caller may not. */
+/* 16 Oct 26 dm - QM4 gap 22 (the SD.ACCOUNTS gate).  K_SD_ACCOUNTS: like K_OS_EXEC, 1 / 0 sets (only from a $internal program),
+   -1 asks; the session may reach any file under the directory of an account its user could LOGTO, except that account's VOC.
+   GPL.BP/INT$KEYS.H carries the same number. */
+#define K_SD_ACCOUNTS        118
 /* 16 Oct 26 dm - QM4 Fixes item 30 (LOGTO ... RESET ALL).  K_RESET_ALL with a command: keep it, cast off every programme and
    stacked command processor and return to the bottom one (k_exit_cause K_RESET_ALL_EXIT), which takes the command back with a
    null argument and runs it.  Returns 1 when accepted, 0 when refused (an API server has no bottom command processor to go
@@ -377,21 +386,67 @@
    (kernel.c, class_main_ok).  CPROC sets it just before it calls a catalogued command; op_run() and op_chain() set it themselves.
    Used by that one call whatever becomes of it. */
 #define K_CLASS_MAIN         120
-/* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 1, 17 Oct 26).  K_NET: 1 / 0 sets (only from a $internal program), -1 asks;
-   may the session open a file on another SD server.  Loaded at sign-on (LOGIN) and by the API server from register field 15 (ACC$NET), as
-   K_SH and K_OS_EXEC are; the administrator is never refused.  SD Core keeps it in a gates word; Solo has none, so it is the user flag USR_NET
-   (sysseg.h).  GPL.BP/INT$KEYS.H carries the same number. */
+/* 17 Oct 26 dm - S.64 (the edit gates, owner's request of 17 Oct).  K_VOC_EDIT, K_BP_EDIT and K_DICT_EDIT: like K_SD_ACCOUNTS, 1 / 0
+   sets (only from a $internal program), -1 asks; may the session save changes to a VOC, to a program file (source or object code, and
+   BASIC / CATALOG), to a dictionary.  Loaded at SIGN-ON only (LOGIN, the API server), never by LOGTO.  The administrator is never
+   refused whatever they say.
+     K_EDIT_OK    the argument is the pathname of an open file (FILEINFO(f, FL$PATH)); the answer is 1 if THIS SESSION may save a change to
+                  it - the file is none of the three kinds, or the gate for its kind is on, or the session is the administrator.  It
+                  does not matter who asks: a $internal program (exempt from the test in op_dio3.c, as it has to be to do its work)
+                  that writes a file the USER named asks here first, as K_PATH_OK is asked.
+     K_EDIT_KIND  the same argument; 0 the file is none of them, 1 a VOC, 2 a dictionary, 3 a program file.  For the message.
+   GPL.BP/INT$KEYS.H carries the same numbers. */
+#define K_VOC_EDIT           121
+#define K_BP_EDIT            122
+#define K_DICT_EDIT          123
+#define K_EDIT_OK            124
+#define K_EDIT_KIND          125
+/*   K_EDIT_OS_OK the argument is an OPERATING SYSTEM pathname that the caller is about to write, create, delete or copy into (OSCOPY,
+                  a print file): 1 if no component of it below the account's directory names a VOC, a dictionary or a program file
+                  that THIS SESSION may not change (op_sh.c edit_os_path_refusal).  Not asked for reading. */
+#define K_EDIT_OS_OK         126
+/* 17 Oct 26 dm - S.65 slice 1 (SDNet, the NET gate).  K_NET: like K_SD_ACCOUNTS, 1 / 0 sets (only from a $internal program), -1 asks;
+   may the session open a file on another SD server.  ACCOUNT-SCOPED: loaded at sign-on (LOGIN), at LOGTO (CPROC, restored when LOGTO
+   returns) and by the API server, as K_SD_ACCOUNTS is.  The administrator is never refused.  The gate takes effect for the remote-file
+   slices that follow and does nothing yet.  GPL.BP/INT$KEYS.H carries the same number. */
 #define K_NET                127
+/* 18 Oct 26 dm - S.66 (the shared account).  K_SHARED_READ and K_SHARED_WRITE: like K_NET, 1 / 0 sets (only from a $internal program,
+   n >= 0), -1 asks; the answer is the bit as 1 / 0.  ACCOUNT-SCOPED: loaded at sign-on (LOGIN), at LOGTO (CPROC, restored when LOGTO returns)
+   and by the API server.  Each touches its own bit of the gates word and nothing else (not net_close_all).  shared.read is tested by the
+   BASIC lookup at OPEN (GPL.BP/_VOC_REF, !SHARED_REF); shared.write by the kernel at every write to a file inside the shared account's
+   directory (op_sh.c edit_refusal_for_canon); the administrator is never refused.
+     K_SHARED_REF  the argument is  pathname <FM> fno <FM> catname  (FM = char 254): 1 if that F-pointer target is acceptable as a file of
+                   the shared account that other accounts may open by name (op_sh.c shared_ref_ok), else 0.  Reads only; any $internal caller.
+     K_SHARED_ONCE the argument is a file name: 1 the first time THIS PROCESS is asked about that name (case aside), 0 afterwards, so that the
+                   audit line is written once per name per session.  64 names are remembered; when full it answers 1.
+   GPL.BP/INT$KEYS.H carries the same numbers.  Linux only: Windows defines no kernel key above 117. */
+#define K_SHARED_READ        128
+#define K_SHARED_WRITE       129
+#define K_SHARED_REF         130
+#define K_SHARED_ONCE        131
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
+/* 150 was K_MASTERS (S.67, the master-file copies) - retired 2 Nov 26 (S.96 M6) with masters.c; do not reuse */
+/* 28 Oct 26 dm - S.88 phase 2 (the readers of $IPC).  K_SHOW_SAFE: the argument is any text; the answer is that text with every byte of
+   THE ONE RULE (op_lock.c show_unsafe_byte(): 0-31, 127, 128-159, 248-255) made '?', the same length.  It reads and changes nothing else and
+   any program may ask.  It is how a BASIC program that prints another session's text (PSTAT, PROFILER DISPLAY, HSM USER n, which print the
+   $IPC records S<n>, F<n> and H<n>, and $IPC is writable by every SD user) applies the kernel's rule instead of a copy of it.  Number 151,
+   next to K_MASTERS.  GPL.BP/INT$KEYS.H carries the same number.  Linux only. */
+#define K_SHOW_SAFE          151
 
-/* 23 Oct 26 dm - Solo carry 15 (S.69 step 2; the numbers are Core's, 160 to 163, so a program means the same on both).  The in-SD AI helper's transport (op_ai.c).  Only a
-   $internal program may call them (anything else is answered ERR, internal).  The argument of K_AI_START is  system <FM> maxtokens <FM> prompt ; the answers are strings,
-   described at the head of op_ai.c.  K_AI_START writes the audit line itself, before it connects.  GPL.BP/INT$KEYS.H carries the same numbers. */
+/* 23 Oct 26 dm - S.69 step 2 (the in-SD AI helper, op_ai.c).  Linux only; Windows defines nothing here.  Only a $internal program may call them (anything else is answered
+   ERR, internal).  The argument of K_AI_START is  system <FM> maxtokens <FM> prompt ; the answers are strings, described at the head of op_ai.c.  K_AI_START writes the
+   audit line itself, before it connects.  GPL.BP/INT$KEYS.H carries the same numbers. */
 #define K_AI_START           160
 #define K_AI_POLL            161
 #define K_AI_CANCEL          162
 #define K_AI_STATUS          163
+
+/* 31 Oct 26 dm - S.94 (gpmmouse.c).  K_GPM: the Linux console's mouse, through the gpm daemon.  The argument is 1 (connect for this session's console and have the daemon's reports
+   read as xterm mouse reports; the answer is 1 if connected, 0 if this is not a text console or no daemon answers), 0 (disconnect) or 2 (is it connected).  Any program may ask: it only
+   changes where mouse input comes from, and it connects nothing for a session that is not on a text console.  $SL_MOUSE asks it with the escape sequences that switch an xterm's
+   mouse reporting on and off.  Linux only: Windows has no text console of this kind and defines nothing here.  GPL.BP/INT$KEYS.H carries the same number. */
+#define K_GPM                170
 
 /* PTERM() function action keys */
 #define PT_BREAK              1
@@ -582,9 +637,8 @@
    a program can watch for.  Mirrored in sdsys/syscom/keys.h. */
 #define SKT_INFO_EVENTS          9    /* Events to watch (SET.SOCKET.MODE) / events last found (SOCKET.INFO) */
 #define SKT_INFO_TRACE          10    /* 15 Oct 26 dm - SET.SOCKET.MODE: the pathname of a log of the data sent and received; null turns it off */
-/* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 2).  SOCKET.INFO only: the SHA-256 of the SubjectPublicKeyInfo of the
-   certificate the server of a socket opened with SKT$TLS presented, as 64 lower case hex digits; "" for any other socket.  What a server
-   definition pins.  Mirrored in sdsys/syscom/keys.h. */
+/* 17 Oct 26 dm - S.65 slice 2.  SOCKET.INFO only: the SHA-256 of the SubjectPublicKeyInfo of the certificate the server of a socket opened with
+   SKT$TLS presented, as 64 lower case hex digits; "" for any other socket.  What a server definition pins.  Mirrored in sdsys/syscom/keys.h. */
 #define SKT_INFO_TLS_SPKI       11
 #define SKT_READ_EVENT           1    /* Data can be read, or a connection is waiting on a server socket, or it was closed */
 #define SKT_WRITE_EVENT          2    /* Data can be sent */
@@ -633,6 +687,8 @@
 #define FC_SET_SEQ_KEY           8    /* Set the next id of WRITE ... CREATING.SEQKEY (hashed files; 15 Oct 26) */
 #define FC_GET_SEQ_KEY           9    /* Take the next such id (null string if the file is not a hashed file) */
 #define FC_SET_MODE              7    /* Set the permission bits of a record of a directory file: "id<FM>ooo" (15 Oct 26, Q-8) */
+#define FC_NET_ADMIN            10    /* 21 Oct 26, S.73 item 3: run a server verb on the open remote file: "operation<FM>words"; the result is what it printed */
+#define FC_NET_CREATE           11    /* ... CREATE.FILE on a server, no file yet: "server<FM>words"; the file variable is any local one */
 
 /* SD_ENCRYPT_SODIUM encryption decryption  */
 #define SD_EncodeHX     201  /* encode passed string as Hex String */
@@ -659,19 +715,22 @@
    not TLS (a local pipe connection).  A new number; the Windows port takes
    the same one when it adopts TLS (RELEASE_1.1 41).  No arguments. */
 #define SD_TLS_CBIND    110  /* sd_tlssrv channel binding, 0 args */
-/* 20 Oct 26 Solo carry 7 (SD Core's 00a5888).
-   18 Oct 26 dm - encryption layer 3.  The process-held key ring of the XE conversion (sd_keyring.c).  A number well clear of the
-   neighbours, since the parallel S.6x work takes the next free ones; the Windows port takes the same one when it adopts the ring.
-   Args: the operation in lower case, then "set": name, base64 key (answers the key id as 8 hex digits); "clear": name or * for all
-   (answers how many keys went); "list": none (answers one field per key: name, key id and 1 if it is the one new values are
-   encrypted with, value-mark separated).  Mirrored in sdsys/syscom/keys.h. */
-#define SD_KEYRING      120  /* sd_keyring key ring: set, clear, list */
 /* 17 Oct 26 dm - S.65 slice 2b.  Is a path a file or directory only the running
    user can touch (lstat, owner, no 077 bits, a file's parent directory too)?
    Args: path, FILE or DIR.  Answers "1" or "0"; every failure is "0".  Mirrored
    in sdsys/syscom/keys.h. */
 #define SD_FILE_PRIVATE 111  /* op_sdext private-file test, 2 args: path, FILE|DIR */
-#define SD_USER_HOME    112  /* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path (9 Nov 26, Solo carry 22) */
+/* 28 Oct 26 dm - S.88 (the recovery store in the person's home).  The effective user's home from the password database, and a
+   directory below it, trusted only when every step is a real directory of that user's that group and other cannot write.  One
+   argument: the path relative to the home ('' the home).  Answers the absolute path, or '' on every failure.  Mirrored in
+   sdsys/syscom/keys.h.  112 is free on both ports (the Windows block is 130-139). */
+#define SD_USER_HOME    112  /* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path */
+/* 18 Oct 26 dm - encryption layer 3.  The process-held key ring of the XE conversion (sd_keyring.c).  A number well clear of the
+   neighbours, since the parallel S.6x work takes the next free ones; the Windows port takes the same one when it adopts the ring.
+   Args: the operation in lower case, then "set": name, base64 key (answers the key id as 8 hex digits); "clear": name or * for all
+   (answers how many keys went); "list": none (answers one field per key: name, key id and 1 if it is the one new values are
+   encrypted with, value-mark separated).  Mirrored in sdsys/syscom/keys.h. */
+#define SD_KEYRING      120  /* sd_keyring key ring: set, clear, list */
 
 /* embedded python  */
 /* py  object types */
@@ -710,3 +769,6 @@
 #define SD_PyListAppd     2222  /* append object to list     */
 #define SD_PyListClr      2223  /* clear list object   */
 /* END-CODE */
+
+/* Solo's own (kept by the carry of 10 Nov 26, S.117) */
+#define K_GLOBAL_SESSION     69

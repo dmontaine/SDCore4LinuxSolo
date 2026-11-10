@@ -1,0 +1,1 @@
+remote.sdsys on | off\n\nON        opens ssh for sdsys: it can sign in from other computers with its\n          password.\nOFF       shuts ssh for sdsys again, as delivered.\n\nWith no keyword it reports the state and changes nothing.

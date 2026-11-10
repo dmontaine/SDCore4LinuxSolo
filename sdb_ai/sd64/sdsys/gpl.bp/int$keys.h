@@ -18,16 +18,16 @@
   	  * 
   	  * 
 	  * START-HISTORY:
-	  * 24 Oct 26 dm  Solo carry 19: K$EDIT.OS.OK (126), SD Core's number, for the OS-path programs that write for the user (!OSCOPY, !IOSCOPY).
+	  * 2 Nov 26 dm  DEFAULT.DEPTH 43 (was 42), with gplsrc/tio.h DEFAULT_DEPTH (owner: "Change to 43").
 	  * 27 Oct 26 dm S.87 batch 13: $define for OS$OPEN, as # no longer starts a directive.
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
-	  * 22 Oct 26 dm  Solo carry 13: DEFAULT.WIDTH 140 and DEFAULT.DEPTH 42 (were 120 and 36), as Core's 18 Oct 26 change; gplsrc/tio.h has the same two.
-	  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's numbers 92, 97 to 117, 119 and 120, USR$GROUPED, the
-	  *               FCI$ names, the OPT. numbers to 60, the V$ and FL$ additions, as gplsrc/keys.h carries them.  NOT carried: K$LOGIN.UID (91),
-	  *               K$SH to K$PATH.IN (93-96), K$SD.ACCOUNTS (118), K$VOC.EDIT to K$EDIT.OS.OK (121-126), K$NET (127).  Solo's K$GLOBAL.SESSION (69)
-	  *               and USR$GLOBAL stay.
-	  * 20 Oct 26 dm  SDNet carry 9: K$NET (127) carried, as gplsrc/keys.h has it.
+	  * 17 Oct 26 dm S.65 slice 1: K$NET (127), the per-account NET gate.
+	  * 18 Oct 26 dm DEFAULT.WIDTH 140 and DEFAULT.DEPTH 42 (were 120 and 36); gplsrc/tio.h has the same two.
+	  * 18 Oct 26 dm S.66: K$SHARED.READ (128), K$SHARED.WRITE (129), K$SHARED.REF (130), K$SHARED.ONCE (131).
+	  * 19 Oct 26 dm S.67 stage 1: K$MASTERS (150), the master files.
+	  * 28 Oct 26 dm S.88 phase 2: K$SHOW.SAFE (151), the kernel's one rule for showing another session's text (PSTAT, PROFILER, HSM).
+	  * 02 Nov 26 dm S.96 M6: K$MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
 	  * END-HISTORY
       *
       *  START-DESCRIPTION:
@@ -47,7 +47,7 @@
       $define DEFAULT.WIDTH      140
       $define MAX.WIDTH        32767
       $define MIN.DEPTH           10
-      $define DEFAULT.DEPTH       42
+      $define DEFAULT.DEPTH       43
       $define MAX.DEPTH        32767
 
 
@@ -142,7 +142,7 @@
       $define K$AK.COLLATION    47       ;* Select/deselect AK collation map
       $define K$EXIT.STATUS     48       ;* Set/retrieve exit status
       $define K$CASE.MAP        49       ;* Set upper/lower case pairing
-      $define K$AUTOLOGOUT      50       ;* Set/retrieve autologout period
+      $define K$AUTOLOGOUT      50       ;* Set/retrieve autologout period (-1 reads it; -2 reads the inactivity clock, in ms)
       $define K$MAP.DIR.IDS     51       ;* Enable/disable dir file id mapping
       $define K$IN.GROUP        52       ;* Is user in named group?
       $define K$BREAK.HANDLER   53       ;* Define break handler
@@ -155,11 +155,21 @@
       * 14 Sep 26 dm - the Windows port's two, at its numbers (W.4 SCRAM phase 3)
       $define K$SET.USERNAME    60       ;* Set the session user name ($internal)
       $define K$ASSUME.USER     61       ;* Become the authenticated user ($internal)
-* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - 65 WAS K$LOGIN.UID (does the kernel's
-*   audit loginuid belong to the named user), the multi-user product's "the login
-*   itself must be sdsys" check.  Solo has no sdsys OS user and its one caller is
-*   deleted, so the key is gone.  The number stays reserved and is never reused.
-*   Must match gplsrc/keys.h.
+* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: the login itself must be
+*   sdsys - "sudo -u sdsys sd" and "su - sdsys" arrive as the sdsys OS user
+*   on a local session, but the login that started them was somebody else's.
+*   kernel(K$LOGIN.UID, 'user') answers 1 when the kernel's audit loginuid -
+*   set once by PAM at login and inherited by every descendant, unwritable
+*   without root - belongs to the named user, 0 when it is unset or cannot
+*   be read.  This tree's own key.  Must match gplsrc/keys.h.
+* 06 Oct 26 dm - PAL-7 (parity audit): MOVED FROM 65 TO 91, because the Windows
+*   port's K$OS.ELEVATED is 65.  See gplsrc/keys.h.  The binary and GPL.BP are
+*   one unit: a binary that still says 65 refuses this program's KERNEL call.
+      $define K$LOGIN.UID      91       ;* Session's loginuid belongs to user?
+* 171 was K$LOGIN.MARK (S.101, the authenticator code) - retired 2 Nov 26 (S.106); do not reuse.  Must match gplsrc/keys.h.
+* 02 Nov 26 dm - S.102 stage 3.  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process is (systemd's
+*   cgroup, a root-owned definition whose command is this session's own command line), or ''.  Must match gplsrc/keys.h.
+      $define K$JOB.MARK       172      ;* The scheduled job this session is, or ''
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no
@@ -171,33 +181,21 @@
 * 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
 *   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
 *   own Linux permissions, and the kernel no longer carries those keys.
-* 30 Sep 26 LSOLO 12, RULING 33.  Admitted with the GLOBAL password?  26 cannot
-*   say ($ADMIN and $GLOBAL both set it).  Get -1; set 1 / clear 0 from
-*   $internal code only.  gplsrc/keys.h carries the same note.
-      $define K$GLOBAL.SESSION   69      ;* Signed in with $GLOBAL ($internal to set)
 *   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above).
 * 13 Oct 26 dm - The terminal's own size: kernel(K$WINSIZE, '') answers width, a
 *   field mark, height as the kernel last read them from the tty (start-up and
 *   every SIGWINCH), or null when it could not.  Must match gplsrc/keys.h.
       $define K$WINSIZE         92       ;* The terminal's size from the tty
-* 20 Oct 26 SOLO OS SWITCH - SD Core's S.63 keys (see gplsrc/keys.h), at SD Core's numbers: K$SH and K$OS.EXEC are settable only from
-*   $internal (LOGIN and APISRVR load them from the register at account entry); K$PATH.OK asks whether THIS ACCOUNT may open a pathname.
+* 13 Oct 26 dm - S.63.  The per-account OS-access gates are back (see gplsrc/keys.h): K$SH and
+*   K$OS.EXEC, at 93 and 94 now.  Settable only from $internal, like K$ADMINISTRATOR; LOGIN and CPROC
+*   load them at account entry from ACC$SH / ACC$OS.EXEC.  K$PATH.OK asks whether THIS ACCOUNT may open
+*   a pathname - for an $internal program (SED) that is exempt from the gate itself.  Must match keys.h.
       $define K$SH              93       ;* may use SH and "!"
       $define K$OS.EXEC         94       ;* may use OS.EXECUTE and reach OS paths outside its account
       $define K$PATH.OK         95       ;* 1 if this account may open the pathname
-* 21 Oct 26 dm - Solo carry 10 (SD Core's S.73 item 1).  K$PATH.IN: "directory : @fm : pathname", 1 if the pathname is inside the directory (realpath, so ".." and links out
-*   do not count).  The geometry only: the OS gate is not asked.  API request 29 uses it with the named account's directory.  Must match gplsrc/keys.h.
+* 13 Oct 26 dm - second sitting.  K$PATH.IN: "directory : @fm : pathname", 1 if the pathname is inside the
+*   directory (geometry only, realpath).  _VOC_REF uses it for a file reached through a Q-pointer.
       $define K$PATH.IN         96       ;* 1 if the pathname is inside the directory
-* 24 Oct 26 dm - Solo carry 19.  K$EDIT.OS.OK, at SD Core's number: an OS pathname about to be written, created, deleted or copied into (!OSCOPY, !IOSCOPY); 1 if no component of it
-*   below the account's directory names a VOC that this session may not change.  Must match gplsrc/keys.h.
-      $define K$EDIT.OS.OK      126      ;* an OS pathname about to be written, created, deleted or copied into: 1 if no VOC is on the way
-* 20 Oct 26 SDNET CARRY 9 - SD Core's S.65 K$NET, at SD Core's number: the NET gate, settable only from $internal (LOGIN and APISRVR load it from
-*   register field 15 at account entry; the same field guards API request 29), -1 asks.  Must match gplsrc/keys.h.
-      $define K$NET             127      ;* may open a file on another SD server (SDNet); account-scoped like K$SH; set from $internal, -1 asks
-* 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
-*   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
-*   own Linux permissions, and the kernel no longer carries those keys.
-*   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above); 92 is still free.
 * 14 Oct 26 dm - sheet items 24, 29 and 38 (LISTU).  K$SET.ACCOUNT: the account the session is in, for the user
 *   table; settable only from $internal (LOGIN, CPROC's logto, APISRVR), the name as it stands is returned.
 *   K$USER.PEAK: the most user table cells in use at once since SD started.  Must match gplsrc/keys.h.
@@ -218,16 +216,32 @@
       $define K$NON.DURABLE.TXN 113      ;* 1: the next COMMIT is non-durable, a nested transaction goes to its parent (15 Oct 26, sheet 442)
       $define K$USER.STATS      112     ;* File activity counts of a user (0: all): uid, 11 counts, when counting began, login name (15 Oct 26, Q-8)
       $define K$PHANTOM.USER    114     ;* The next phantom() is to be this user number (one PHANTOMS keeps, not in use); 0 cancels (16 Oct 26, PHANTOM USER)
+      $define K$PHANTOM.NONCE   144     ;* 'S':secret stages the secret the next phantom() gives the new process (its environment); 'G' answers the one this process was started with (26 Oct 26, W.11 F10)
       $define K$CLASS.MAIN      120     ;* 1: the next call may run a class module through its MAIN subroutine (CPROC, before it calls a catalogued command) (16 Oct 26, Fixes item 484)
       $define K$IS.SDAPISRVR     25     ;* Is this process an API server?  (kernel.h K_IS_SDAPISRVR; named here 16 Oct 26)
       $define K$RESET.ALL       119     ;* LOGTO ... RESET ALL: with a command, keep it and return to the bottom command processor, which takes it back with a null argument; 1 accepted, 0 refused (an API session) (16 Oct 26, Fixes item 30)
-      $define K$PROFILER        116     ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
+      $define K$SD.ACCOUNTS     118     ;* may reach files under the directory of an account its user could LOGTO, except its VOC (set from $internal; -1 asks) (16 Oct 26)
+      $define K$VOC.EDIT        121     ;* may save changes to a VOC (set from $internal at sign-on only; -1 asks) (17 Oct 26, S.64)
+      $define K$BP.EDIT         122     ;* may save changes to a program file, source or object, and BASIC / CATALOG (same rules) (17 Oct 26, S.64)
+      $define K$DICT.EDIT       123     ;* may save changes to a dictionary (same rules) (17 Oct 26, S.64)
+      $define K$EDIT.OK         124     ;* the pathname of an open file: 1 if THIS SESSION may save a change to it (17 Oct 26, S.64; ask before writing a file the user named)
+      $define K$EDIT.KIND       125     ;* the same argument: 0 none of the three, 1 a VOC, 2 a dictionary, 3 a program file (for the message) (17 Oct 26, S.64)
+      $define K$EDIT.OS.OK      126     ;* an OS pathname about to be written, created, deleted or copied into: 1 if no part of it below the account names a guarded file the session may not change (17 Oct 26, S.64)
+      $define K$NET             127     ;* may open a file on another SD server (SDNet): account-scoped like K$SD.ACCOUNTS (set from $internal; -1 asks); does nothing until the remote-file slices (17 Oct 26, S.65 slice 1)
+      $define K$SHARED.READ     128     ;* may open the files of the shared account by name: account-scoped like K$NET (set from $internal; -1 asks) (18 Oct 26, S.66)
+      $define K$SHARED.WRITE    129     ;* may write records in the files of the shared account (same rules) (18 Oct 26, S.66)
+      $define K$SHARED.REF      130     ;* argument pathname:@fm:fno:@fm:catname: 1 if that F-pointer target is acceptable as a shared file, else 0; reads only (18 Oct 26, S.66)
+      $define K$SHARED.ONCE     131     ;* a file name: 1 the first time this process is asked about it, 0 afterwards (the audit of a shared open) (18 Oct 26, S.66)
+      $define K$PROFILER        116   ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
       $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
-      $define K$AI.START        160     ;* the in-SD AI helper (op_ai.c; S.69 step 2, Solo carry 15): system:@fm:maxtokens:@fm:prompt, answered 'OK' or 'ERR':@fm:why; the kernel writes the audit line itself
+      $define K$SHOW.SAFE       151     ;* any text: the same text with every byte of the kernel's one rule (0-31, 127, 128-159, 248-255) as '?', the same length; for printing another session's text (28 Oct 26, S.88 phase 2: PSTAT, PROFILER, HSM)
+      * 150 was K$MASTERS (S.67, the master-file copies) - retired 2 Nov 26 (S.96 M6); do not reuse
+      $define K$AI.START        160     ;* the in-SD AI helper (op_ai.c; S.69 step 2): system:@fm:maxtokens:@fm:prompt, answered 'OK' or 'ERR':@fm:why; the kernel writes the audit line itself
       $define K$AI.POLL         161     ;* 'W' waiting, 'D':@fm:the helper's reply (JSON), or 'E':@fm:why
       $define K$AI.CANCEL       162     ;* give the request up
       $define K$AI.STATUS       163     ;* the helper's status line, 'D':@fm:json, or 'E':@fm:why (waits at most two seconds)
-      $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
+      $define K$GPM             170     ;* 1 connect to the gpm daemon for this text console's mouse (answers 1 if connected, else 0), 0 disconnect, 2 is it connected (31 Oct 26, S.94; Linux only)
+      $define K$LOCK.TRACE      115    ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?
@@ -279,7 +293,6 @@
       $define USR$SDNET        0x0010    ;* SDNet process (USR$SDVBSRVR also set)
       $define USR$CHGPHANT     0x0020    ;* Chargeable phantom
       $define USR$MSG.OFF      0x0040    ;* Messge reception disabled
-      $define USR$GLOBAL       0x0100    ;* Signed in with $GLOBAL (ruling 33)
       $define USR$GROUPED      0x0800    ;* (K$USERS only) a phantom grouped with its parent: logged out when the parent ends
 
       * USER_ENTRY events word
@@ -442,7 +455,7 @@
       $define OPT.GIT                 49 ;* .gitignore and .gitattributes are not mapped in a directory file (kernel)
       $define OPT.DIR.DTM             50 ;* A write to a directory file moves the directory's date and time modified (kernel)
       $define OPT.SPOOL.COMMAND       53 ;* Show the operating system command that prints (kernel)
-      * 60 is SD Core's INHERIT.OWNERSHIP, not in Solo (owner, 9 Nov 26: "leave solo without it")
+      $define OPT.INHERIT.OWNERSHIP   60 ;* CREATE.FILE gives a new file the account directory's owner and group (kernel)
 
       * MKINDEX flag values (additive)
       $define MKI$CREATE               1 ;* Create indices
@@ -461,6 +474,8 @@
       $define FCI$SET.MODE             7 ;* Set the permission bits of a record of a directory file: "id<FM>ooo" (15 Oct 26, Q-8)
       $define FCI$SET.SEQ.KEY          8 ;* Set the next id of WRITE ... CREATING.SEQKEY (hashed files only)
       $define FCI$GET.SEQ.KEY          9 ;* Take the next such id; a null string for a file that is not a hashed file
+      $define FCI$NET.ADMIN           10 ;* 21 Oct 26, S.73 item 3: run a verb on the SERVER of an open remote file (NET_FILE): the qualifier is "operation<FM>words", the result what it printed, STATUS() its return code
+      $define FCI$NET.CREATE          11 ;* ... CREATE.FILE on a server, no file yet: "server<FM>words"; the file variable is any local file (the VOC the verb has open)
 
 
 
@@ -468,3 +483,7 @@
       $define READ.ONLY.AT.VARS 'ABORT.CODE,ANS,CRTHIGH,CRTWIDE,DATE,DAY,GID,HOSTNAME,IP.ADDR,LEVEL,LOGNAME,LPTRHIGH,LPTRWIDE,MONTH,PARASENTENCE,PATH,PIB,POB,SDSYS,SELECTED,SIB,SOB,TERM.TYPE,TIME,TTY,UID,USER,USERNO,USER.NO,WHO,YEAR,YEAR4'
 
       * END-CODE
+
+* Solo's own (kept by the carry of 10 Nov 26, S.117)
+      $define K$GLOBAL.SESSION   69      ;* Signed in with $GLOBAL ($internal to set)
+      $define USR$GLOBAL       0x0100    ;* Signed in with $GLOBAL (ruling 33)

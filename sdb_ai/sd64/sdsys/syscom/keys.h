@@ -3,10 +3,10 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
-      * 20 Oct 26 dm  Solo OS switch: ACC$SH (7) and ACC$OS.EXEC (8), SD Core's S.63 fields, are back.  Still not carried: ACC$SD.ACCOUNTS to ACC$NET.
-      * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's FILEINFO keys 1021-1040 (FL$HOLDERS moves to 1100), the
-      *               SYSTEM, OSPATH, SRT$, ML$, FC$, VT$, PU$, SKT$ and JP$/JB$ constants.  NOT carried: ACC$SH to ACC$NET (fields 7-12 and 15),
-      *               FL$TYPE.NET, SKT$INFO.TLS.SPKI, SD_FILE_PRIVATE.
+      * 28 Oct 26 dm  S.88: SD_USER_HOME (112), mirrored from gplsrc/keys.h: the user's home and a trusted directory below it.
+      * 28 Oct 26 dm  S.88 2.9 (D2): ACC$RECOVERY (19), whether the editors keep a recovery copy of unsaved text (off as delivered).
+      * 18 Oct 26 dm  S.66: ACC$SHARED.READ (13) and ACC$SHARED.WRITE (14), the shared-account gates.
+      * 17 Oct 26 dm  S.65 slice 1: ACC$NET (15), the per-account NET gate.
       * 09 Sep 26 dm  add ACC$TIER (5) and ACC$PRIOR.TIER (6), matching the
       *               Windows port.  PRE_RELEASE 18.
       * rev 0.9-2 Mar 25 mab add sdpyobj
@@ -303,14 +303,14 @@
       * 15 Sep 26 dm - S.19: SOCKET.INFO only.  The SCRAM c= value for a socket
       *   opened with SKT$TLS: base64("p=tls-exporter,," + binding); "" otherwise.
       $define SKT$INFO.TLS.CBIND       8    ;* SCRAM c= for this TLS session
+      * 17 Oct 26 dm - S.65 slice 2: SOCKET.INFO only.  The SHA-256 of the server certificate's public key (SubjectPublicKeyInfo) of a socket
+      *   opened with SKT$TLS, 64 lower case hex digits; "" otherwise.  What set.server pins.
+      $define SKT$INFO.TLS.SPKI        11   ;* hash of the server's public key
       $define SKT$INFO.FAMILY.IPV4     1    ;* Socket address family IPV4
       $define SKT$INFO.FAMILY.IPV6     2    ;* Socket address family IPV6
       * 15 Oct 26 dm - QM4 gaps Q-5, SELECT.SOCKET().  SKT$INFO.EVENTS is SD's own number; the events are openQM's.
       $define SKT$INFO.EVENTS          9    ;* SET.SOCKET.MODE: events to watch.  SOCKET.INFO: the letters last found
       $define SKT$INFO.TRACE           10   ;* SET.SOCKET.MODE: pathname of a log of the data sent and received (null turns it off)
-      * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 2): SOCKET.INFO only.  The SHA-256 of the server certificate's public key
-      *   (SubjectPublicKeyInfo) of a socket opened with SKT$TLS, 64 lower case hex digits; "" otherwise.  What set.server pins.
-      $define SKT$INFO.TLS.SPKI        11   ;* hash of the server's public key
       $define SKT$READ.EVENT           1    ;* Data to read, a connection waiting on a server socket, or the peer closed
       $define SKT$WRITE.EVENT          2    ;* Data can be sent
       $define SKT$EXCEPTION.EVENT      4    ;* An exception condition
@@ -384,27 +384,72 @@
       *
       *   FIELD 4 REMAINS FREE, for conformity with the port, as before.
       *
-      *   FIELDS 7 AND 8 (ACC$SH / ACC$OS.EXEC, the OS-access grants of
-      *   PRE_RELEASE 23) WENT WITH THE TEARDOWN (S.27) AND ARE BACK
-      *   (20 Oct 26, the Solo OS switch; SD Core's S.63 at SD Core's field
-      *   numbers).  yes means on and anything else, blank included, is off;
-      *   LOGIN and APISRVR load them as K$SH and K$OS.EXEC at account entry;
-      *   the administrator changes them with SET.OS.ACCESS.
+      * 13 Oct 26 dm - S.63.  FIELDS 7 AND 8 ARE BACK: the per-account OS-access gates.
+      *   The 18 Sep teardown (S.27) had taken them out with the tiers; the owner's correction of
+      *   13 Oct was that the tiers were to go and the gates to stay.  They are defined by nothing
+      *   but these two fields, and SDSYS switches them (MODIFY.ACCOUNT SH-ON / SH-OFF / OS-ON /
+      *   OS-OFF; CREATE.ACCOUNT takes SH-ON and OS-ON).  Two independent fields, so SH-OFF says
+      *   nothing about OS.EXECUTE.  BLANK MEANS DENIED: a record that has never been told, or one
+      *   that cannot be read, gets no shell and no OS.EXECUTE.  Loaded into the session at account
+      *   entry as K$SH / K$OS.EXEC (LOGIN, CPROC logto).  The records that exist when this ships
+      *   are set to 'yes' once, by the upgrade, so no account loses what it had; accounts made
+      *   afterwards start 'no'.
       $define ACC$SH           7     ;* may use the SH verb and "!" (yes/no)
       $define ACC$OS.EXEC      8     ;* may use OS.EXECUTE, and reach OS paths outside its account (yes/no)
-      *   FIELD 15 (ACC$NET, 20 Oct 26, Solo carry 8; SD Core's number for SD Core's S.65 NET gate): the account's
-      *   permission to have its files opened by API request 29 (the SDNet open, apisrvr's vb.open.sdnet).  yes means
-      *   on and anything else, blank and an absent field included, is OFF.  Fields 9 to 14 are SD Core's and are not
-      *   used here; a record written with field 15 has them empty.  The administrator changes it with SET.NET.ACCESS.
-      $define ACC$NET         15     ;* may have its files opened over the API by request 29 (yes/no)
-      * 23 Oct 26 dm - Solo carry 14: FIELDS 16, 17 AND 18 with SD Core's numbers (S.75, the home screen).  Solo has ONE account, so none of the three is set per account name:
-      *   FIELD 16 (ACC$START) is never written here - where a session starts is the one word in the file start.default in the SD system directory (SET.START.DEFAULT),
-      *   which !HOME_ENTRY reads when the field is blank ("menu" when the file is absent; Core's delivered default).  FIELD 17 (ACC$TILES.OFF) lists the tile ids the administrator
-      *   has turned off for the account, separated by spaces (blank = every tile on; SET.TILE account tile on | off).  FIELD 18 (ACC$PINS) is yes when the person may add their OWN
-      *   programs to the home screen (blank = no, delivered off; SET.PINS ON | OFF); the administrator always may.
+      * 16 Oct 26 dm - FIELD 9: the SD.ACCOUNTS gate (QM4 gap 22), the owner's third gate between the own account and OS.EXECUTE: with
+      *   it an account reaches any file under the directory of an account its user could LOGTO, except that account's VOC.  yes/no,
+      *   blank = no; loaded as K$SD.ACCOUNTS at account entry; SDSYS switches it (MODIFY.ACCOUNT SD-ON / SD-OFF).
+      $define ACC$SD.ACCOUNTS  9     ;* may reach files in the accounts its user could LOGTO (yes/no)
+      * 17 Oct 26 dm - FIELDS 10 TO 12: the edit gates (S.64, owner's request of 17 Oct).  Whether a session may SAVE CHANGES to a VOC, to a
+      *   program file (source or object code, and the compiler and CATALOG with it) or to a dictionary.  yes/no; BLANK MEANS NO, like the
+      *   gates above.  Loaded as K$VOC.EDIT / K$BP.EDIT / K$DICT.EDIT at SIGN-ON ONLY: LOGTO does not reload them, so the account a
+      *   person signed on to decides wherever they go.  The records that exist when this ships are set to 'yes' once (upgrade_editgates),
+      *   so no account loses what it had; accounts made afterwards start 'no'.  SDSYS switches them: MODIFY.ACCOUNT VOC-ON / VOC-OFF,
+      *   BP-ON / BP-OFF, DICT-ON / DICT-OFF; CREATE.ACCOUNT takes the -ON words.
+      $define ACC$VOC.EDIT     10    ;* may save changes to a VOC (yes/no)
+      $define ACC$BP.EDIT      11    ;* may save changes to a program file, and compile and catalogue (yes/no)
+      $define ACC$DICT.EDIT    12    ;* may save changes to a dictionary (yes/no)
+      * 17 Oct 26 dm - FIELD 15: the NET gate (S.65 slice 1, SDNet; owner's rulings of 17 Oct).  Whether the account may open a file on
+      *   another SD server.  yes/no; BLANK MEANS NO.  ACCOUNT-SCOPED like ACC$SD.ACCOUNTS: loaded as K$NET at sign-on, at LOGTO (restored
+      *   when LOGTO returns) and by the API server.  No upgrade walk: nothing existing used it, so every existing account stays off.
+      *   SDSYS switches it (MODIFY.ACCOUNT NET-ON / NET-OFF; CREATE.ACCOUNT takes NET-ON).  The gate takes effect for the remote-file
+      *   slices that follow and does nothing yet.
+      $define ACC$NET          15    ;* may open a file on another SD server (yes/no)
+      * 18 Oct 26 dm - FIELDS 13 AND 14: the shared-account gates (S.66; owner's rulings of 17 Oct).  Whether the account may open the
+      *   files of the group account named SHARED by file name, with no LOGTO and no Q-pointer (13), and whether it may write records in
+      *   them (14).  yes/no.  FIELD 13 IS THE ONE GATE WHOSE BLANK MEANS YES: only the word NO withdraws it, so every account that
+      *   exists when this ships can read shared and nothing has to be migrated.  Field 14 is like the gates above: BLANK MEANS NO.
+      *   A loader reads field 13 as UPCASE(TRIM(x)) # 'NO' and field 14 as = 'YES'.  ACCOUNT-SCOPED like ACC$NET: loaded as
+      *   K$SHARED.READ / K$SHARED.WRITE at sign-on, at LOGTO (restored when LOGTO returns) and by the API server.  An account reached by
+      *   a path has no register record, so it has read OFF.  Either field may sit on a USER, GROUP or OTHER account.  SDSYS switches
+      *   them: MODIFY.ACCOUNT SHARED-READ-ON / SHARED-READ-OFF / SHARED-WRITE-ON / SHARED-WRITE-OFF; CREATE.ACCOUNT takes
+      *   SHARED-READ-OFF and SHARED-WRITE-ON.
+      $define ACC$SHARED.READ  13    ;* may open the files of the shared account by name (yes/no; BLANK = yes)
+      $define ACC$SHARED.WRITE 14    ;* may write records in the files of the shared account (yes/no; blank = no)
+      * 22 Oct 26 dm - FIELD 16: where a session of the account starts (S.75, plan section 13.5; owner, 22 Oct: "terminal or menu determined by admin
+      *   for each account (another gate) - default menu"; "default for new accounts can be set by admin and then overridden for specific
+      *   accounts").  The word menu (the home screen) or terminal (the command prompt); BLANK MEANS FOLLOW THE SYSTEM DEFAULT, the one word in the
+      *   file start.default in the sdsys directory ("menu" when the file is absent), so a change of the default moves every account that has no
+      *   word of its own.  Not a wall: the home screen has a Terminal tile.  SDSYS sets it (MODIFY.ACCOUNT START-MENU / START-TERMINAL /
+      *   START-DEFAULT); !HOME_ENTRY reads it at sign-on and at LOGTO.  Any account type may have it.
       $define ACC$START        16    ;* menu, terminal, or blank = the system default
+      * 22 Oct 26 dm - FIELD 17: the home screen's tiles the administrator has turned off for this account (S.75; owner, 22 Oct: "disabling tiles should be on a
+      *   per account basis, by default they are on").  Tile ids in lower case separated by spaces; blank means every tile is on, and there is no setting for every
+      *   account.  !HOME_OFF reads it.  With terminal among them an account that starts in the menu is never given the prompt (the home screen signs it out
+      *   instead).  SDSYS sets it (SET.TILE account tile on | off).  Any account type may have it.
       $define ACC$TILES.OFF    17    ;* tile ids that are off for this account, separated by spaces
+      * 22 Oct 26 dm - FIELD 18: whether the person may add their OWN programs to the home screen (S.75; owner, 22 Oct: "users need to be able to add their own items to the
+      *   full screen menu if allowed by the admin - not manage universal tiles, but just for their own programs").  yes/no; BLANK MEANS NO (delivered off; SDSYS loosens it per
+      *   account).  The administrator always may.  A tile of their own runs a sentence the account could type at its prompt, so it adds no access; what the gate decides is whether
+      *   the screen shows such tiles and MY.MENU edits them.  SDSYS sets it (MODIFY.ACCOUNT PINS-ON / PINS-OFF).  Any account type may have it.
       $define ACC$PINS         18    ;* may add its own programs to the home screen (yes/no; blank = no)
+      * 28 Oct 26 dm - FIELD 19: the recovery copy (S.88, plan 2.9, defect D2; owner's answer to Q2 of 28 Oct: "Build it, ship it off").  yes/no; BLANK MEANS NO (delivered off;
+      *   SDSYS turns it on per account: MODIFY.ACCOUNT RECOVERY-ON / RECOVERY-OFF; CREATE.ACCOUNT takes RECOVERY-ON).  With it the IDE keeps a copy of a changed record's text that
+      *   was not saved, in the directory $recovery of the account, mode 0700 / 0600, so that a hang-up or an abort does not lose it; the copy is offered back the next time
+      *   the record is opened and never written to the record without the person choosing it (!edit_recovery).  A USER ACCOUNT ONLY, and only for the account's own person:
+      *   a group or other account is entered by several people, any of whom could rename the directory, so the words are refused there (11771).  Not a gate: nothing is
+      *   loaded at sign-on; the editor reads the field when it writes a copy, so RECOVERY-OFF stops new copies at once.  No upgrade walk: existing accounts stay off.
+      $define ACC$RECOVERY     19    ;* the editors keep a recovery copy of unsaved text (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *
@@ -429,14 +474,16 @@
       * 15 Sep 26 dm - S.19, mirrored from gplsrc/keys.h: this API session's SCRAM
       *   c= value, base64("p=tls-exporter,," + binding), or "" with no TLS.
       $define SD_TLS_CBIND    110  ;* sd_tlssrv channel binding, 0 args
-      * 20 Oct 26 Solo carry 7 (SD Core's 00a5888).
-      * 18 Oct 26 dm - encryption layer 3, mirrored from gplsrc/keys.h: the key ring of the XE conversion.
-      *   Args: 'set', name, base64 key (answers the key id, 8 hex digits) / 'clear', name or * (answers how many) / 'list'.
-      $define SD_KEYRING      120  ;* sd_keyring key ring: set, clear, list
       * 17 Oct 26 dm - S.65 slice 2b, mirrored from gplsrc/keys.h: is a path a file
       *   or directory only the running user can touch.  Args: path, FILE or DIR.
       $define SD_FILE_PRIVATE 111  ;* op_sdext private-file test, 2 args: path, FILE|DIR
-      $define SD_USER_HOME    112  ;* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path (9 Nov 26, Solo carry 22)
+      * 28 Oct 26 dm - S.88, mirrored from gplsrc/keys.h: the effective user's home (password database, not $HOME) followed by a
+      *   relative path, answered only when every directory on the way is a real one of that user's that group and other cannot write.
+      *   One argument: the relative path ('' the home).  Answers the absolute path, or '' on every failure.
+      $define SD_USER_HOME    112  ;* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path
+      * 18 Oct 26 dm - encryption layer 3, mirrored from gplsrc/keys.h: the key ring of the XE conversion.
+      *   Args: 'set', name, base64 key (answers the key id, 8 hex digits) / 'clear', name or * (answers how many) / 'list'.
+      $define SD_KEYRING      120  ;* sd_keyring key ring: set, clear, list
       
       * embedded python 
       
