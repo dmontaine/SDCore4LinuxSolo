@@ -615,6 +615,23 @@ void op_kernel() {
       result.data.value = 1;
       break;
 
+    /* 10 Nov 26 S.117: what the account page and the file pages ask.  Solo has one account: a VOC is the administrator's, a dictionary or a program file is
+       the account's own, and there is no shared account and no sd.accounts file to reach. */
+    case K_VOC_EDIT:
+      result.data.value = (my_uptr->flags & USR_ADMIN) ? 1 : 0;
+      break;
+
+    case K_BP_EDIT:
+    case K_DICT_EDIT:
+      result.data.value = 1;
+      break;
+
+    case K_SD_ACCOUNTS:
+    case K_SHARED_READ:
+    case K_SHARED_WRITE:
+      result.data.value = 0;
+      break;
+
     case K_EDIT_KIND: {
       char edit_kname[MAX_PATHNAME_LEN + 1];
       char *edit_leaf;

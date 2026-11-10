@@ -64,8 +64,8 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   tids = 'editor' : @fm : 'ide' : @fm : 'ced' : @fm : 'terminal' : @fm : 'keys' : @fm : 'signout'
-   tlabs = 'Editor' : @fm : 'IDE' : @fm : 'Record editor' : @fm : 'Terminal' : @fm : 'Keys' : @fm : 'Sign out'
+   tids = 'editor' : @fm : 'ide' : @fm : 'terminal' : @fm : 'keys' : @fm : 'signout' : @fm : 'files' : @fm : 'voc' : @fm : 'dict' : @fm : 'query' : @fm : 'bulk' : @fm : 'catalog' : @fm : 'test'
+   tlabs = 'Editor' : @fm : 'IDE' : @fm : 'Terminal' : @fm : 'Keys' : @fm : 'Sign out' : @fm : 'Files' : @fm : 'Vocabulary' : @fm : 'Dictionary' : @fm : 'Queries' : @fm : 'Bulk update' : @fm : 'Programs' : @fm : 'Tests'
    pnames = 'Accounts' : @fm : 'Menu'
 
    VIS = 26                                                      ;* account rows shown at a time (rows 3 to 28 of the Accounts box)

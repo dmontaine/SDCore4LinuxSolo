@@ -94,15 +94,17 @@ def checks(s):
        0 < th.find("if @tty[1, 5] # '/dev/' then") < th.find("sysmsg(11863)") < th.find("call $tk_open('home', '', ctx, err)") and "hlogto = 0" in th)
     ck("H3b ...it is a user app (audience null: the page differs, nobody is refused) and the administrator's page is the kernel's answer, not a name",
        "call $tk_open('home', '', ctx, err)" in th and "is.admin = kernel(K$ADMINISTRATOR, -1)" in th and "if is.admin then ctx<TK.C.AUD> = sysmsg(11803)" in th)
+    ADMIN_TILES = {"menus": "tool.menus", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "sessions": "tool.sessions", "gates": "tool.gates", "remote": "tool.remote", "ai": "tool.ai"}
+    DEV_TILES = {"files": "tool.files", "voc": "tool.voc", "dict": "tool.dict", "query": "tool.query", "bulk": "tool.bulk", "catalog": "tool.catalog", "test": "tool.test"}
     cmds = re.findall(r"act = '(cmd:[^']*|terminal|switch|signout)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
-    ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, ced, tool.keys, tool.menus, my.menu), terminal or signout (Solo has no switch); the ONLY other action is a person's own program (H25)",
-       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "cmd:ced", "terminal", "cmd:tool.keys", "signout", "cmd:tool.menus", "cmd:tool.viewers", "cmd:my.menu"]), repr(cmds))
+    ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, tool.keys, my.menu, the development apps and the administrator pages), terminal or signout (Solo has no switch); the ONLY other action is a person's own program (H25)",
+       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "terminal", "cmd:tool.keys", "signout", "cmd:my.menu"] + ["cmd:" + v for v in list(ADMIN_TILES.values()) + list(DEV_TILES.values())]), repr(cmds))
     ck("H4b ...execute is given only a sentence from that table or 'quit' (Solo has no LOGTO to run)",
-       sorted(re.findall(r"execute ([^\n]+)", th)) == sorted(["sentence", "'quit'", "'quit'"]), repr(re.findall(r"execute ([^\n]+)", th)))     # 'quit' twice: sign out, and the confined account
+       sorted(re.findall(r"execute ([^\n]+)", th)) == sorted(["sentence trapping aborts", "'quit'", "'quit'"]), repr(re.findall(r"execute ([^\n]+)", th)))     # 'quit' twice: sign out, and the confined account
     fin = between(th, "\nfinish:\n", "\nreturn")
     t0 = fin.find("outcome = 'terminal'")
     ck("H5 the Terminal tile: the screen is given back FIRST, then the flag is set and the banner (11864) shown; the program then ends and the real prompt is there",
-       0 < t0 < fin.find("call $tk_close(ctx)", t0) < fin.find("hflag = 1") < fin.find("sysmsg(11864)"), fin[:500])
+       0 < t0 < fin.find("call $tk_close(ctx)", t0) < fin.find("hflag = (if menu.session then 1 else 2)") < fin.find("sysmsg(11864)"), fin[:500])
     s0 = fin.find("outcome = 'signout'")
     ck("H5b ...sign out gives the screen back, then runs QUIT; every other way out gives it back too",
        0 < s0 < fin.find("call $tk_close(ctx)", s0) < fin.find("execute 'quit'", s0) and "case 1\n         call $tk_close(ctx)" in fin, fin[:500])
@@ -134,7 +136,7 @@ def checks(s):
        "int.logto:" not in cp and "'logto'" not in cp)
     ck("H11d ...and that is the only call", cp.count("call !home_entry(") == 1)
 
-    ck("H12 EXIT: with the flag and a terminal it starts HOME, otherwise it does what QUIT does", "if hflag and @tty[1, 5] = '/dev/' then\n      execute 'home'\n   end else\n      execute 'quit'\n   end" in ex)
+    ck("H12 EXIT: with the flag and a terminal it starts HOME (saying first what kind of screen it was: hstart = (hflag = 1), S.201), otherwise it does what QUIT does", "if hflag and @tty[1, 5] = '/dev/' then\n      hstart = (hflag = 1)\n      execute 'home'\n   end else\n      execute 'quit'\n   end" in ex)
     ck("H13 SET.START.DEFAULT asks for the administrator first (2001), takes only menu or terminal, writes only the one file, audits it, and says what it is without a word",
        0 < ss.find("kernel(K$ADMINISTRATOR, -1)") < ss.find("stop sysmsg(2001)") < ss.find("openseq path overwrite to df else null") and "openseq path readonly to df then" in ss and "want = 'menu' or want = 'terminal'" in ss
        and "path = @sdsys : @ds : 'start.default'" in ss and "K$AUDIT, 'set.start.default ' : want" in ss and "case want = ''" in ss)
@@ -170,10 +172,15 @@ def checks(s):
        and "off = downcase(trim(convert(',' : char(9), '  ', off)))" in ho and "writeseq" not in ho and "write " not in ho, ho[:300])
     ck("H21 tool_home: the off list is asked for the account the session is in BEFORE any tile is added, a tile that is off is not added (and a header tile that was not added is not placed), a group with no tile has no heading",
        0 < th.find("call !home_off(@who, off.list)") < th.find("id = 'editor'") and "if index(off.set, ' ' : id : ' ', 1) then return" in th
-       and "gosub add.tile\n   if not(added) then return" in th and "if gr<k, HG.BAND> = b and gn.tiles > 0 then" in th and "if gy # '' then" in th)
-    ck("H21b ...the menus are made by build.page (so F5 sees the change), and the Terminal and Keys entries carry the D flag when their tile is off",
-       "gosub alloc.styles\n   gosub make.menus\n   return" in th and "'&Go|&Terminal~~terminal~' : tflag\n" in th
-       and "'&Help|&Keys~~keys~' : kflag" in th and "tflag = (if terminal.off then 'D' else '')" in th)
+       and "gosub add.tile\n   if not(added) then return" in th and "if gr<k, HG.BAND> = b and gtiles<k> > 0 then\n            gcols = gcw<k>" in th and "if gk > 0 then gtiles<gk> = gtiles<gk> + 1" in th and "if gy # '' then" in th)
+    mkm = between(th, "\nmake.menus:\n", "\nfind.tile:\n")
+    ck("H21b ...the menus are made by build.page (so F5 sees the change), and the Terminal, Keys and Recent group entries are given a reason - dimmed, "
+       "not choosable, their keys out of use - when their tile is off (S.88 U9: through the key table, $tk_keys 'why')",
+       "gosub alloc.styles\n   gosub make.menus\n   return" in th and "call $tk_keys('menu', keys, 'terminal', '&Go', '&Terminal', '', '')" in mkm
+       # 8 Nov 26 (S.179): Help > Keys is $tk_std's (Ctrl-K the keys of this page, as on every page), and is never off: the Keys TILE (tool.keys) still is
+       and "call $tk_std('keys', ctx, keys, '', '')" in mkm and "'keys', H.TILE.OFF" not in mkm
+       and "if terminal.off then call $tk_keys('why', keys, 'terminal', H.TILE.OFF, '', '', '')" in mkm
+       and "if index(off.set, ' recent ', 1) then call $tk_keys('why', keys, 'recent', H.TILE.OFF, '', '', '')" in mkm, mkm[:400])
     ck("H22 !home_entry: when the screen ends and the account's Terminal tile is off, the person is signed out (QUIT) and not left at the prompt",
        he.find("execute 'home'") > 0 and he.find("call !home_off(@who, off)") > he.find("execute 'home'")
        and "if index(' ' : off : ' ', ' terminal ', 1) then\n      sleep 2\n      execute 'quit'\n   end" in he)
@@ -182,12 +189,13 @@ def checks(s):
        and "stop sysmsg(11881, tile)" in st_ and "if who = 'sdsys' then stop sysmsg(2202)" in st_)
     ck("H23b ...it takes ONE account (no 'all'), changes field 17 by readu and write under the lock, says already when nothing changes (11877), audits, and notes a tile that is not standard (11883)",
        "tiles.off" not in st_ and "'all'" not in st_ and "readu acc.rec from acc.f, who else" in st_ and "acc.rec<ACC$TILES.OFF> = new.list" in st_ and "write acc.rec to acc.f, who on error ok = @false" in st_
-       and "sysmsg(11877, tile, state, who)" in st_ and "K$AUDIT, 'set.tile '" in st_ and "sysmsg(11883, tile)" in st_ and "standard = 'editor ide ced terminal keys signout'" in st_)
-    ck("H23c ...and the standard ids it knows are the ids of the table of tool_home (every id in the table is standard, every standard id is in the table; Solo has no switch)",
-       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - {"menus", "viewers", "mymenu"}) == sorted("editor ide ced terminal keys signout".split()), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
-    ck("H23d ...and the two tiles that are not standard, Menu management ('menus') and Bypass programs ('viewers'), are built for the administrator only (inside `if is.admin then`), and run tool.menus and tool.viewers",
-       re.search(r"if is\.admin then\n\s+bnd \+= 1\n\s+g \+= 1\n\s+gr<g> = 'System'[^\n]*\n\s+id = 'menus' ; grp = g ;[^\n]*act = 'cmd:tool\.menus'[^\n]*\n\s+id = 'viewers' ; grp = g ;[^\n]*act = 'cmd:tool\.viewers'[^\n]*\n\s+end\n", th) is not None
-       and th.count("id = 'menus'") == 1 and th.count("id = 'viewers'") == 1)
+       and "sysmsg(11877, tile, state, who)" in st_ and "K$AUDIT, 'set.tile '" in st_ and "sysmsg(11883, tile)" in st_ and "standard = 'editor ide terminal keys signout files voc dict query bulk catalog test'" in st_)
+    ck("H23c ...and the standard ids it knows are the ids of the table of tool_home that every session gets, and the menu management page offers the same list (Solo has no switch)",
+       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - set(ADMIN_TILES) - {"mymenu", "back"}) == sorted("editor ide terminal keys signout files voc dict query bulk catalog test".split())
+       and re.findall(r"'([a-z]+)'", strip(s["tool_menus"]).split("tids = ", 1)[1].split("\n", 1)[0]) == "editor ide terminal keys signout files voc dict query bulk catalog test".split(), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
+    adm = between(th, "   if is.admin then\n      bnd += 1", "\n   end\n")
+    ck("H23d ...and the tiles that are not standard (the administrator's pages) are built for the administrator only (inside `if is.admin then`), each exactly once and running its page's verb",
+       adm.startswith("   if is.admin then") and all(adm.count("id = '%s' ;" % i) == 1 and th.count("id = '%s' ;" % i) == 1 and re.search(r"id = '%s' ; grp = g ;[^\n]*act = 'cmd:%s'" % (i, re.escape(v)), adm) is not None for i, v in ADMIN_TILES.items()), repr(adm[:200]))
     hp = strip(s["home_pins"])
     mm = strip(s["mymenu"])
     tm = strip(s["tool_menus"])
@@ -230,8 +238,8 @@ MUTANTS = [
     ("a header tile that is off is placed on the previous tile", "tool_home", "   gosub add.tile\n   if not(added) then return\n", "   gosub add.tile\n"),
     ("a tile that is off is added", "tool_home", "   if index(off.set, ' ' : id : ' ', 1) then return        ;* turned off by the administrator: not on the page at all\n", ""),
     ("the menus are made once, at the start", "tool_home", "   gosub alloc.styles\n   gosub make.menus\n   return", "   gosub alloc.styles\n   return"),
-    ("the Terminal entry stays choosable", "tool_home", "tflag = (if terminal.off then 'D' else '')", "tflag = ''"),
-    ("an empty group still has a heading", "tool_home", "if gr<k, HG.BAND> = b and gn.tiles > 0 then", "if gr<k, HG.BAND> = b then"),
+    ("the Terminal entry stays choosable", "tool_home", "   if terminal.off then call $tk_keys('why', keys, 'terminal', H.TILE.OFF, '', '', '')\n", ""),
+    ("an empty group still has a heading", "tool_home", "      for k = 1 to ng\n         if gr<k, HG.BAND> = b and gtiles<k> > 0 then", "      for k = 1 to ng\n         if gr<k, HG.BAND> = b then"),
     ("home_off forgets the account's own list", "home_off", "read arec from af, downcase(acct) then off = arec<ACC$TILES.OFF>", "read arec from af, downcase(acct) then null"),
     ("home_off reads another account's list", "home_off", "read arec from af, downcase(acct) then", "read arec from af, 'sdsys' then"),
     ("SET.TILE does not ask for the administrator", "settile", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001) ;* Command requires administrator privileges\n   end\n", ""),
@@ -251,8 +259,8 @@ MUTANTS = [
     ("EXIT never ends the session", "exit", "      execute 'quit'\n", "      null\n"),
     ("SET.START.DEFAULT does not ask for the administrator", "setstart", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001) ;* Command requires administrator privileges\n   end\n", ""),
     ("SET.START.DEFAULT takes any word", "setstart", "      case want = 'menu' or want = 'terminal'", "      case 1"),
-    ("the Terminal tile does not set the flag", "tool_home", "         hflag = 1                                        ;* EXIT comes back here\n", ""),
-    ("the Terminal tile shows the banner before giving the screen back", "tool_home", "         call $tk_close(ctx)\n         hflag = 1", "         hflag = 1"),
+    ("the Terminal tile does not set the flag", "tool_home", "         hflag = (if menu.session then 1 else 2)          ;* EXIT comes back here, to the same kind of screen (S.201)\n", ""),
+    ("the Terminal tile shows the banner before giving the screen back", "tool_home", "         call $tk_close(ctx)\n         hflag = (if", "         hflag = (if"),
     ("Sign out does not ask", "tool_home", "   if b = 1 then\n      outcome = 'signout'", "   if @true then\n      outcome = 'signout'"),
     ("Enter on the sign-out box signs out", "tool_home", "default 2 returning b", "default 1 returning b"),
     ("a tile draws outside the panel", "tool_home", "      if sy >= lo and sy <= hi then", "      if @true then"),
@@ -264,8 +272,8 @@ MUTANTS = [
     ("SET.PINS works on another account", "setpins", "   acc.name = 'sduser'\n", "   acc.name = 'sdsys'\n"),
     ("SET.PINS treats anything but yes as on", "setpins", "is.on = (upcase(trim(acc.rec<ACC$PINS>)) = 'YES')", "is.on = (trim(acc.rec<ACC$PINS>) # '')"),
     ("SET.PINS runs a command", "setpins", "   @system.return.code = 0\n   void kernel(K$AUDIT,", "   execute 'sh'\n   @system.return.code = 0\n   void kernel(K$AUDIT,"),
-    ("SET.TILE accepts the Switch account tile Solo has not got", "settile", "standard = 'editor ide ced terminal keys signout'", "standard = 'editor ide ced terminal keys switch signout'"),
-    ("a Switch account tile comes back", "tool_home", "hx = 117 ; hy = 1 ", "id = 'switch' ; grp = 0 ; label = 'Switch account' ; glyph = '<> ' ; sub = '' ; act = 'switch' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header\n   hx = 117 ; hy = 1 "),
+    ("SET.TILE accepts the Switch account tile Solo has not got", "settile", "standard = 'editor ide terminal keys signout files", "standard = 'editor ide terminal keys switch signout files"),
+    ("a Switch account tile comes back", "tool_home", "   id = 'signout' ; grp = 0", "   id = 'switch' ; grp = 0 ; label = 'Switch account' ; glyph = '<> ' ; sub = '' ; act = 'switch' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header\n   id = 'signout' ; grp = 0"),
     ("home_pins does not ask the gate", "home_pins", "   if not(on) then return\n", ""),
     ("home_pins lets everyone have the gate", "home_pins", "on = (upcase(trim(arec<ACC$PINS>)) = 'YES')", "on = 1"),
     ("home_pins keeps control characters", "home_pins", "label = trim(convert(ctl, blanks, rec<i, 1>))[1, 21]", "label = trim(rec<i, 1>)[1, 21]"),
@@ -276,7 +284,6 @@ MUTANTS = [
     ("the menu management page can run another command", "tool_menus", "allow = 'set.pins set.tile set.start.default'", "allow = 'set.pins set.tile set.start.default sh'"),
     ("the register field moves", "keys.h", "$define ACC$START        16 ", "$define ACC$START        15 "),
     ("the scroll bar goes black again in blue", "sl_theme", "'scroll=black,cyan,bold'", "'scroll=black,cyan,'"),
-    ("the Bypass programs tile is built for everyone", "tool_home", "gosub add.tile\n      id = 'viewers' ;", "gosub add.tile\n   end\n   if @true then\n      id = 'viewers' ;"),
     ("MENU runs another program for every account", "menu.n", "$tool_home", "$exit"),
     ("MENU is missing from SDSYS's VOC", "menu.t", "$tool_home", ""),
     ("the sandbox no longer starts at the terminal", "sandbox-fromtree.py", "f.write(\"terminal\\n\")", "f.write(\"menu\\n\")"),
