@@ -352,6 +352,8 @@ build.page:
       id = 'menus' ; grp = g ; label = 'Menu management' ; glyph = '[=]' ; sub = 'tiles and start' ; act = 'cmd:tool.menus' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'audit' ; grp = g ; label = 'Audit trail' ; glyph = '[*]' ; sub = 'who did what' ; act = 'cmd:tool.audit' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'config' ; grp = g ; label = 'Configuration' ; glyph = '[%]' ; sub = 'sd.conf and SD' ; act = 'cmd:tool.config' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      * Solo keeps the pdf verb (owner, 9 Nov 2026), so it keeps the page of the readers pdf may start (Core's S.187 removed both)
+      id = 'viewers' ; grp = g ; label = 'Bypass programs' ; glyph = '[!]' ; sub = 'readers for pdf' ; act = 'cmd:tool.viewers' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       * who may do what, and who is on: the people and access group
       g += 1
       gr<g> = 'People and access' : @vm : bnd : @vm : 2

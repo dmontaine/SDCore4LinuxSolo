@@ -105,13 +105,12 @@ def checks(s):
     i_open = th.find("openpath @sdsys : @ds : 'context.help' to hf then")
     ck("P1 $tk_help tests the characters of a key (a-z 0-9 . _ -, 1 to 80) BEFORE it opens the file, and the file is context.help of the SD system directory",
        0 < i_chars < i_open and "len(k) >= 1 and len(k) <= 80" in th, repr((i_chars, i_open)))
-    ck("P2 ...it only reads: one OPENPATH, no OPENSEQ, WRITE, DELETE or EXECUTE, and it runs no command through $tk_run (9 Nov 26, S.187: the pdf verb is gone); the caller supplies a key and never a path",
-       th.count("openpath") == 1 and not re.search(r"\b(openseq|writeseq|write|delete|clearfile|execute|os\.execute)\b", th) and "$tk_run" not in th, "")
-    ck("P3 ...the document it names is a lower case name from field 2 of the record, and only when the record names one, the box's last line is message 14046 naming it (one line, %1.pdf in the shared account's pdf directory)",
-       "doc = downcase(trim(rec<2>))" in th and "if doc # '' then body<-1> = '' ; body<-1> = sysmsg(14046, doc)" in th and th.count("sysmsg(14046") == 1
-       and (s.get("msg.14046") or "").count("\n") == 1 and "%1.pdf" in (s.get("msg.14046") or ""), repr(s.get("msg.14046")))
-    ck("P4 ...the box has ONE button, Close, which the Enter key chooses (no Documentation button since 9 Nov 26), and a session with no terminal gets nothing",
-       "buttons '&Close' default 1" in th and "Documentation" not in th and "if system(25) then return" in th)
+    ck("P2 ...it only reads: one OPENPATH (the file), no OPENSEQ, WRITE, DELETE or EXECUTE; the caller supplies a key and never a path",
+       th.count("openpath") == 1 and not re.search(r"\b(openseq|writeseq|write|delete|clearfile|execute|os\.execute)\b", th) and "pdf " in th, "")
+    ck("P3 ...the document it offers is a lower case name from field 2 of the record, and the ONE command it runs is pdf <name> through $tk_run, only when a document is named and the button was chosen",
+       "doc = downcase(trim(rec<2>))" in th and th.count("call $tk_run(") == 1 and "call $tk_run('pdf', 'pdf ' : doc, out, st, err)" in th and "if doc # '' and bn = 1 then" in th)
+    ck("P4 ...the box has a Close button the Enter key chooses (the Documentation button is the other, never the default), and a session with no terminal gets nothing",
+       "btn = '&Documentation,&Close'\n      dflt = 2" in th and "btn = '&Close'\n      dflt = 1" in th and "if system(25) then return" in th)
     ck("P5 ...the [?] button answers a LEFT PRESS on its three cells and nothing else",
        "if a<1> = 'press' and a<2> = 1 and a<4> = c and a<3> >= b and a<3> <= b + 2 then d = 1" in th and "screen text '[?]' at a,b attr 'bold'" in th)
     ck("P6 ...a missing file and a missing record are answered in words (11832, 11831 and the title 11830), not with an error",

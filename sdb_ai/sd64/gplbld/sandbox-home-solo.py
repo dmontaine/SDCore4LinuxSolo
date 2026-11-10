@@ -166,7 +166,7 @@ class H:
 
     def focus(self):
         out = []
-        for n in ("Editor", "IDE", "Record editor", "Terminal", "Keys", "Add a program", "Menu management", "Bypass programs", "Sign out"):
+        for n in ("Editor", "IDE", "Terminal", "Keys", "Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests", "Add a program", "Menu management", "Bypass programs", "Sign out"):
             p = self.find(n)
             if p and "r" in self.style(p[0], p[1] + 1)[2]:
                 out.append(n)
@@ -505,18 +505,19 @@ def sec_page():
     if not h.home():
         dump(h)
         bail("the home screen never drew, so no row below can be believed")
-    row("the page: group 'My tools' with Editor, IDE and Record editor; group 'Everyone' with Terminal and Keys; Sign out in the header",
-        all(w in T for w in ("My tools", "Editor", "IDE", "Record editor", "Everyone", "Terminal", "Keys", "Sign out")), "")
+    row("the page: group 'My tools' with Editor and IDE; group 'Everyone' with Terminal and Keys; group 'Develop' with the seven development pages; Sign out in the header",
+        all(w in T for w in ("My tools", "Editor", "IDE", "Everyone", "Terminal", "Keys", "Develop", "Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests", "Sign out"))
+        and "Record editor" not in T, "")
     row("...and NO Switch account (Solo has one account), no Menu management and no Bypass programs (the administrator's), and no 'My programs' group while set.pins is off",
         not any(w in T for w in ("Switch account", "Menu management", "Bypass programs", "My programs")), T[:300])
     row("the identity (row 2) and the date and time (row 3): 'sduser @ sduser' and a line like 'Friday 23 Oct 2026  -  09:03'",
         h.line(2).strip().startswith("sduser @ sduser") and re.match(r"^\s+[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} \d{4}  -  \d\d:\d\d", h.line(3)) is not None, repr((h.line(2)[:40], h.line(3)[:50])))
-    row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F5 refresh, F10 menu, ^Q sign out)",
-        "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F5 refresh  F10 menu  ^Q sign out", repr((h.line(39)[:30], h.line(40), h.line(42))))
+    row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F1 help, F5 refresh, ^Q sign out, / find)",
+        "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F1 help  F5 refresh  ^Q sign out  / find", repr((h.line(39)[:30], h.line(40), h.line(42))))
     row("row 0: the menu bar File Go View AI Help at the left, 'home  sduser@sduser' at the right", h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  sduser@sduser"), repr(h.line(0)))
     row("the focus starts on the first tile of the page (Editor): one tile in reverse video", h.focus() == ["Editor"], repr(h.focus()))
-    seq = [("right", "IDE"), ("right", "Record editor"), ("left", "IDE"), ("down", "Terminal"), ("right", "Keys"), ("left", "Terminal"), ("up", "Editor"), ("down", "Terminal"), ("home", "Editor"),
-           ("end", "Keys"), ("home", "Editor"), ("tab", "IDE"), ("btab", "Editor"), ("btab", "Sign out"), ("tab", "Editor")]
+    seq = [("right", "IDE"), ("right", "Keys"), ("left", "Terminal"), ("down", "Files"), ("right", "Vocabulary"), ("left", "Files"), ("up", "Terminal"), ("down", "Files"), ("home", "Editor"),
+           ("end", "Tests"), ("home", "Editor"), ("tab", "IDE"), ("btab", "Editor"), ("btab", "Sign out"), ("tab", "Editor")]
     bad = []
     for k, want in seq:
         h.key(k)
@@ -535,8 +536,8 @@ def sec_page():
     row("...Page Up: Editor", h.focus() == ["Editor"], repr(h.focus()))
     h.typed("k", idle=0.45)
     row("a letter jumps to the next tile whose label begins with it: k - Keys", h.focus() == ["Keys"], repr(h.focus()))
-    h.typed("r", idle=0.45)
-    row("...r - Record editor", h.focus() == ["Record editor"], repr(h.focus()))
+    h.typed("q", idle=0.45)
+    row("...q - Queries", h.focus() == ["Queries"], repr(h.focus()))
     h.key("f5", idle=0.8)
     row("F5 builds the page again: the page is the same and the status line says so", h.home() and "page built again" in h.line(40) and h.focus() == ["Editor"], repr((h.line(40), h.focus())))
     h.key("f10", idle=0.8)
@@ -563,7 +564,7 @@ def sec_page():
     T = h.text()
     p = h.find("Editor")
     row("on a terminal with no colour every tile is boxed: the corners and the lines are on the screen (LC_ALL=C: + - |), and the focused tile (Editor) is in reverse video",
-        h.home() and "+-------------------+" in T and "|  [=]" in T and p is not None and "r" in h.style(p[0], p[1] + 1)[2], repr((h.line(7)[:30], p)))
+        h.home() and "+-------------------+" in T and "| [=]" in T and p is not None and "r" in h.style(p[0], p[1] + 1)[2], repr((h.line(7)[:30], p)))
     h.end()
 
 
@@ -596,7 +597,7 @@ def sec_tiles():
     row("IDE (Enter): the IDE takes the terminal (its menu bar is on the screen) and not the home screen", "File" in h.line(0) and "Go" in h.line(0) and "Everyone" not in T, repr(h.line(0)[:60]))
     h.typed("\x11", idle=1.2)
     row("Ctrl-Q ends the IDE and the home screen is drawn again, with the IDE tile still the one selected (not the first tile)", h.home() and h.focus() == ["IDE"], repr((h.home(), h.focus())))
-    h.key("end")
+    h.typed("k", idle=0.45)                          # End now goes to the last development tile (Tests); the letter k jumps to Keys
     h.key("enter", idle=1.8)
     row("Keys (Enter): tool.keys is on the screen", "Last keys" in h.text(), h.text()[:200])
     h.typed("\x11", idle=1.2)
@@ -663,9 +664,11 @@ def sec_tiles():
     say("\n--- a window that is too small")
     h = H(cols=100, rows=30)
     T = h.text()
-    row("a 100 by 30 window is not handed to the screen: no tile is drawn, the library's size message is shown and the prompt is there", not h.home() and h.prompt() and re.search(r"140", T) is not None, T[-400:])
-    h.typed("who.am.i\r", idle=1.2)
-    row("...and the session works", re.search(r"Account\s*:\s*sduser", h.text()) is not None, h.text()[-200:])
+    # 10 Nov 26 (S.117 carry): Core's S.164 is carried - an account that starts in the home screen and cannot be given it is signed out with message 14015, not left at the prompt
+    row("S164a a 100 by 30 window on a start-menu account is not handed to the screen: no tile is drawn, the library's size message and 14015 are shown",
+        not h.home() and re.search(r"140", T) is not None and "which could not open, so the session is signed out" in T, T[-400:])
+    time.sleep(2.0)
+    row("S164b ...and the session is SIGNED OUT, not left at the prompt, although the account's Terminal tile is on", not h.alive(), h.text()[-300:])
     h.end()
 
 
@@ -684,7 +687,7 @@ def sec_tileoff():
     row("SET.TILE alone lists it: 'Tiles off for sduser: editor' (11880)", has(out, r"^Tiles off for sduser: editor$"), repr(out[:3]))
     h = H()
     T = h.text()
-    row("the page has no Editor tile (the first is now IDE, which has the focus), and the other tiles are there", h.home() and "Editor" not in T and h.focus() == ["IDE"] and all(w in T for w in ("IDE", "Record editor", "Terminal", "Keys", "Sign out")), repr((h.focus(), T[:300])))
+    row("the page has no Editor tile (the first is now IDE, which has the focus), and the other tiles are there", h.home() and "Editor" not in T and h.focus() == ["IDE"] and all(w in T for w in ("IDE", "Terminal", "Keys", "Files", "Sign out")), repr((h.focus(), T[:300])))
     h.end()
     for cmd, rx, why in (("set.tile sduser signout off", r"^Sign out cannot be turned off: a person must always be able to leave$", "Sign out cannot be turned off (11878)"),
                          ("set.tile sduser Bad_Name off", r"^bad_name is not a tile name: lower case letters, digits, dots and hyphens, 32 at most$", "a name with an underscore is refused (11881)"),
@@ -713,7 +716,7 @@ def sec_tileoff():
     adm("set.tile sduser terminal on")
     h = H(cols=100, rows=30)
     time.sleep(3.0)
-    row("(control) with Terminal on the same window gives the prompt and the session stays", h.alive() and h.prompt(), h.text()[-200:])
+    row("with Terminal on the same window signs the session out too (Core's S.164, carried): the tile does not decide it, the window does", not h.alive() and "which could not open, so the session is signed out" in h.text(), h.text()[-200:])
     h.end()
     row("every tile is on again (the register field is empty)", reg_lines()[16].strip() == "", repr(reg_lines()[16]))
 
@@ -916,7 +919,7 @@ def sec_pages():
     h.key("esc", idle=0.8)
     T = h.text()
     row("Esc closes it: the box is gone and the page is as it was", "The account of this installation" not in T and "What this means" in T, T[-300:])
-    h.key("tab", idle=0.6)
+    h.key("f6", idle=0.6)                           # F6 changes the box on every page (Core's S.176, carried); Tab no longer does
     h.typed("?", idle=1.2)
     T = h.text()
     row("'?' on the first row of the Menu box (where a session starts) shows that setting's help", "Where a session starts" in T and "Chooses what you see when you sign on" in T, T[-500:])
@@ -926,7 +929,7 @@ def sec_pages():
     T = h.text()
     row("F1 on the next row (programs of its own) shows that one", "Programs of the account's own" in T and "Off as delivered." in T, T[-500:])
     h.key("esc", idle=0.8)
-    for _ in range(4):
+    for _ in range(3):                              # Editor, IDE, Terminal: the Record editor row is gone
         h.key("down", idle=0.4)
     h.key("f1", idle=1.2)
     T = h.text()

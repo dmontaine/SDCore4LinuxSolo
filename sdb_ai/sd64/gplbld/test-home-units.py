@@ -94,7 +94,7 @@ def checks(s):
        0 < th.find("if @tty[1, 5] # '/dev/' then") < th.find("sysmsg(11863)") < th.find("call $tk_open('home', '', ctx, err)") and "hlogto = 0" in th)
     ck("H3b ...it is a user app (audience null: the page differs, nobody is refused) and the administrator's page is the kernel's answer, not a name",
        "call $tk_open('home', '', ctx, err)" in th and "is.admin = kernel(K$ADMINISTRATOR, -1)" in th and "if is.admin then ctx<TK.C.AUD> = sysmsg(11803)" in th)
-    ADMIN_TILES = {"menus": "tool.menus", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "sessions": "tool.sessions", "gates": "tool.gates", "remote": "tool.remote", "ai": "tool.ai"}
+    ADMIN_TILES = {"menus": "tool.menus", "audit": "tool.audit", "config": "tool.config", "viewers": "tool.viewers", "backups": "tool.backups", "sessions": "tool.sessions", "gates": "tool.gates", "remote": "tool.remote", "ai": "tool.ai"}
     DEV_TILES = {"files": "tool.files", "voc": "tool.voc", "dict": "tool.dict", "query": "tool.query", "bulk": "tool.bulk", "catalog": "tool.catalog", "test": "tool.test"}
     cmds = re.findall(r"act = '(cmd:[^']*|terminal|switch|signout)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
     ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, tool.keys, my.menu, the development apps and the administrator pages), terminal or signout (Solo has no switch); the ONLY other action is a person's own program (H25)",

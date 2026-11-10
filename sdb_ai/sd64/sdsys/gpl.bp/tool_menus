@@ -38,7 +38,7 @@
 *     Menu        for the account: where it starts, whether it may add programs, and each standard tile of the home screen (and the Recent group) with its
 *                 state, [x] on and [ ] off
 *
-*   Keys: Up and Down move in the pane, Tab and Back-tab (or Left and Right) change pane, Enter or the space bar changes the setting under the cursor, F5 reads the
+*   Keys: Up and Down move in the pane, F6 and Shift-F6 (or Left and Right) change pane, Enter or the space bar changes the setting under the cursor, F5 reads the
 *   register again, Ctrl-Q leaves.  A click selects a row.  F1 or ? on the selected row, or a click on the [?] at the end of a setting's row, shows what the
 *   setting means (keys tool.menus.accounts, tool.menus.starts-in, tool.menus.pins, tool.menus.tile.<id>; the text is in helptext/).
 *
@@ -372,7 +372,7 @@ wrap.lines:
    return
 
 draw.help:
-   screen text 'Arrows move, Tab changes pane, Enter changes (Run or Cancel).' at hlp.x + 2,hlp.y + 1 width hw
+   screen text 'Arrows move, F6 changes box, Enter changes (Run or Cancel).' at hlp.x + 2,hlp.y + 1 width hw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and the mouse
