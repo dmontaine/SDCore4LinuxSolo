@@ -39,6 +39,10 @@
  *           the installer's bind/firewall choice.  See start_connection().
  * 20240219 mab move to only allow AF_UNIX socket types
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: keyin()'s t1 starts at 0 (-Wmaybe-uninitialized); it is read only under a timeout, which sets it.
+ * 10 Nov 26 dm  S.196: signal_handler() no longer logs (it took ERRLOG_SEM inside the handler and deadlocked a session hung up
+ *               while it held it); it records the signal, and log_termination_signal() writes the line from process_events().
+ * 10 Nov 26 dm  S.178: keyin() waits on a pipe with poll and sees the events, so a session idle on a pipe leaves on SIGTERM.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -117,6 +121,7 @@ Private bool tty_modes_saved = FALSE;
 Private int16_t type_ahead = -1;
 
 Private void signal_handler(int signum);
+Private volatile sig_atomic_t term_signal_seen = 0;   /* S.196: SIGHUP or SIGTERM received, not yet logged (log_termination_signal()) */
 
 void set_term(bool trap_break);
 void set_old_tty_modes(void);
@@ -607,7 +612,7 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
 {
   char c;
   struct timeval tv;
-  int64 t1;
+  int64 t1 = 0;
   int64 t2;
   int td;
   int poll_ret;
@@ -627,6 +632,21 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
     goto exit_keyin;
   } else {
     if (piped_input) {
+      /* 10 Nov 26 dm - S.178: a read of a pipe is not woken by a signal (SA_RESTART), so a session idle on a pipe never saw
+         EVT_TERMINATE and `sd -stop` had to SIGKILL it after ten seconds.  Wait with poll, as the terminal branch below does,
+         and see the events once a second.  An error other than EINTR goes on to the read, which reports it.                  */
+      for (;;) {
+        poll_ret = sdpoll(0, 1000);
+        if ((poll_ret > 0) || ((poll_ret < 0) && (errno != EINTR)))
+          break;
+        if ((my_uptr != NULL) && (my_uptr->events))
+          process_events();
+        if (k_exit_cause & K_INTERRUPT) {
+          input_handler_enabled = TRUE;
+          return 0;
+        }
+      }
+
       if (read(0, &c, 1) <= 0) {
         process.status = ER_EOF;
         return -1;
@@ -960,10 +980,29 @@ void signal_handler(signum) int signum;
     case SIGTERM:
       signal(SIGHUP, SIG_IGN);
       signal(SIGTERM, SIG_IGN);
-      log_printf("Received termination signal %d\n", signum);
+      /* 10 Nov 26 dm - S.196: NOTHING HERE MAY TAKE A SEMAPHORE.  This used to log_printf() the signal, which reaches
+         log_message() and StartExclusive(ERRLOG_SEM): a SIGHUP that arrived while the session was writing the error log or an
+         audit line (an ssh drop just after BASIC logged "Forced logout", measured on the VPS) waited on its own semaphore for
+         ever, spinning, and every login after it waited behind it.  The signal is only recorded; log_termination_signal() writes
+         the line when process_events() handles EVT_TERMINATE, outside the handler. */
+      term_signal_seen = signum;
       if (my_uptr != NULL)
         my_uptr->events |= EVT_TERMINATE; /* 0393 */
       break;
+  }
+}
+
+/* ======================================================================
+   log_termination_signal()  -  The line signal_handler() may not write itself (S.196): called by process_events() when it
+   handles EVT_TERMINATE, in normal context.  Logs once per signal received; nothing when the event came from elsewhere
+   (LOGOUT, sd -stop's raise_event).                                                                                       */
+
+void log_termination_signal() {
+  int signum = term_signal_seen;
+
+  if (signum != 0) {
+    term_signal_seen = 0;
+    log_printf("Received termination signal %d\n", signum);
   }
 }
 

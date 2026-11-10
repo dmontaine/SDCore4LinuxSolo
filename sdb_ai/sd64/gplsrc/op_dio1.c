@@ -50,6 +50,7 @@
  *           files are still not here.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: this file is Core's text without the S.63 OS-access test on OPENPATH,
  *           the S.64 edit gates and the S.65 remote files.  OPENTEMP makes nothing (see op_opentemp()) until Solo has an OS-access switch.
+ * 09 Nov 26 dm  S.125: open_file()'s open_dict starts FALSE (-Wmaybe-uninitialized); it is read only when the name is mapped, which sets it.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -624,7 +625,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   DESCRIPTOR* fvar_descr;
   DESCRIPTOR* dict_descr;
   DESCRIPTOR* filename_descr;
-  bool open_dict;
+  bool open_dict = FALSE;
   char voc_name[MAX_ID_LEN + 1];
   char mapped_name[MAX_PATHNAME_LEN + 1];
   char pathname[MAX_PATHNAME_LEN + 1];

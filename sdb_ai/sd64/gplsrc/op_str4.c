@@ -23,6 +23,9 @@
  * 27 Oct 26 dm  S.87 batch 13: op_md5() (MD5()) is gone, with the OpenSSL include only it used; its opcode is an op_illegal row (write DIGEST(s, 0, 'MD5')).
  * 12 Oct 26 dm  MATCHES and MATCHFIELD set INMAT() to the number of the template that matched (1.2-0, 315)
  * 15 Oct 26 dm  $MODE COUNT.OVERLAP and INDEX.OVERLAP: count() and op_index() find overlapping occurrences (QM4 gaps Q-16)
+ * 09 Nov 26 dm  S.125: locals of op_matbuild(), op_matparse() and op_trimx() start at NULL / 0 / FALSE (-Wmaybe-uninitialized); the paths that
+ *               leave them unset end in k_error() with a message that does not begin '!', so it never returns.
+ * 10 Nov 26 dm  S.125, found by AddressSanitizer: match_template() compared a quoted literal past the end of a shorter string.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -312,7 +315,7 @@ void op_matbuild() {
 
   STRING_CHUNK *delim_str;
 
-  ARRAY_HEADER *a_hdr;
+  ARRAY_HEADER *a_hdr = NULL;
   int32_t num_elements;
   int32_t indx;
   ARRAY_CHUNK *a_chunk;
@@ -609,7 +612,7 @@ void op_matparse() {
   int16_t no_delimiters; /* No of delimiters */
 
   DESCRIPTOR *array_descr; /* Target array */
-  ARRAY_HEADER *a_hdr;
+  ARRAY_HEADER *a_hdr = NULL;
   int lo_index;
   int32_t hi_index; /* Index of last element */
   int32_t indx;     /* Current target element number */
@@ -622,8 +625,8 @@ void op_matparse() {
   STRING_CHUNK *tgt_str;
   u_int16_t last_char = 256;
 
-  int rows;
-  int cols;
+  int rows = 0;
+  int cols = 0;
 
   register char c;
   int16_t i;
@@ -1244,10 +1247,10 @@ void op_trimx() {
   bool front_of_string;
   bool skip_count;
 
-  bool skip_leading;
-  bool skip_trailing;
+  bool skip_leading = FALSE;
+  bool skip_trailing = FALSE;
   bool skip_all;
-  bool compress;
+  bool compress = FALSE;
 
   char c;
 
@@ -1643,6 +1646,19 @@ Private void matches(bool matchfield) {
 }
 
 /* ======================================================================
+   match_literal()  -  Match n bytes of literal text at *string, which is
+                       moved over them and never past the end of the string.
+                       Returns FALSE if the match (or, with neg, the lack
+                       of one) fails.                                     */
+
+Private bool match_literal(char *literal, char **string, int n, bool neg) {
+  if ((strncmp(literal, *string, n) == 0) == neg)
+    return FALSE;
+  *string += strnlen(*string, n);
+  return TRUE;
+}
+
+/* ======================================================================
    match_template()  -  Match string against template                     */
 
 bool match_template(char *string,
@@ -1685,13 +1701,8 @@ bool match_template(char *string,
           n = --template_string - start;
           if (n == 0)
             return FALSE;
-          /* without enclosing the !memcmp() in parens, the 
-           * compiler complains about potential ambiguity.
-           * -gwb 22Feb20
-           */
-          if ((!memcmp(start, string, n)) == not )
+          if (!match_literal(start, &string, n, not ))
             return FALSE;
-          string += n;
           break;
 
         case 'A': /* nA  Alphabetic match */
@@ -1804,7 +1815,7 @@ bool match_template(char *string,
             case '\0': /* String longer than template */
               n = --template_string - start;
               if (n) { /* We have found a trailing unquoted literal */
-                if ((memcmp(start, string, n) == 0) != not )
+                if ((strncmp(start, string, n) == 0) != not )
                   return TRUE;
               }
               return FALSE;
@@ -1908,9 +1919,8 @@ bool match_template(char *string,
             default:
               /* We have found an unquoted literal */
               n = --template_string - start;
-              if ((memcmp(start, string, n) == 0) == not )
+              if (!match_literal(start, &string, n, not ))
                 return FALSE;
-              string += n;
               break;
           }
           break;
@@ -1918,12 +1928,11 @@ bool match_template(char *string,
         default:
           /* We have found an unquoted literal */
           n = --template_string - start;
-          if ((memcmp(start, string, n) == 0) == not )
+          if (!match_literal(start, &string, n, not ))
             return FALSE;
-          string += n;
           break;
       }
-    } else if (memcmp(template_string, "...", 3) == 0) { /* ... same as 0X */
+    } else if (strncmp(template_string, "...", 3) == 0) { /* ... same as 0X */
       template_string += 3;
       if (not )
         return FALSE;
@@ -1948,14 +1957,15 @@ bool match_template(char *string,
           return FALSE;
         n = p - template_string;
         if (n) {
-          if ((memcmp(template_string, string, n) == 0) == not )
+          if (!match_literal(template_string, &string, n, not ))
             return FALSE;
-          string += n;
         }
         template_string += n + 1;
       } else { /* Unquoted literal. Treat as single character */
-        if ((*(template_string++) == *(string++)) == not )
+        if ((*(template_string++) == *string) == not )
           return FALSE;
+        if (*string != '\0')
+          string++;
       }
     }
   }

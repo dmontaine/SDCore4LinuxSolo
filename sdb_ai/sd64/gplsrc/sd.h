@@ -35,6 +35,7 @@
  * 29 Sep 26 SD Core for Linux Solo - GetHomePath(), GetDefaultSysdir().
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the prototypes of netfiles.c (S.65) and of the
  *               OS-access and edit gates of op_sh.c (S.63, S.64), which Solo does not carry.
+ * 10 Nov 26 dm  S.196: log_termination_signal() (linuxio.c).
  * END-HISTORY
  * 
 */
@@ -540,6 +541,7 @@ void freescrn(SCREEN_IMAGE * image);
 void break_key(void);
 int16_t keyin(int timeout);
 bool keyready(void);
+void log_termination_signal(void); /* S.196: the SIGHUP/SIGTERM line, written by process_events(), never by the handler */
 int32_t type_ahead_count(void);
 bool write_socket(char * str, int bytes, bool flush);
 bool to_outbuf(char * str, int bytes);

@@ -25,6 +25,7 @@
  *           under a second spelling (sandbox-akcase.py).  A record added again
  *           after a size change also keeps its stored spelling now, instead of
  *           taking the writer's.
+ * 09 Nov 26 dm  S.125: fptr, new_big_rec_head and load_change start at NULL / 0 (-Wmaybe-uninitialized); the early exits never used them.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -52,7 +53,7 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
   int32_t base_size; /* Bytes required excluding big_rec chain */
   int16_t pad_bytes;
   int32_t grp;
-  FILE_ENTRY* fptr;              /* File table entry */
+  FILE_ENTRY* fptr = NULL;       /* File table entry */
   int32_t group;                /* Group number */
   int16_t group_bytes;         /* Group size in bytes */
   int16_t lock_slot = 0;       /* Lock table index */
@@ -63,7 +64,7 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
   int16_t used_bytes;          /* Number of bytes used in this group buffer */
   int16_t rec_size;            /* Size of current record */
   int32_t old_big_rec_head = 0; /* Head of old big record chain */
-  int32_t new_big_rec_head;     /* Head of new big record chain */
+  int32_t new_big_rec_head = 0; /* Head of new big record chain */
   int32_t ogrp;
   char* data_ptr; /* Data */
   char* p;
@@ -77,7 +78,7 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
   DH_RECORD* orec_ptr;
   int16_t orec_bytes;
   bool big_rec;         /* Is this a big record? */
-  int32_t load_change; /* Change in file load for this write */
+  int32_t load_change = 0; /* Change in file load for this write */
   STRING_CHUNK* str;
   bool ak;
   bool jnl;
