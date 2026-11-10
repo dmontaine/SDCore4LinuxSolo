@@ -57,6 +57,7 @@
  *               switches identity: see the case.
  * 29 Sep 26 dm  K_SET_LANGUAGE (38) removed: SD is English only.  Key 38 is
  *               retired, not reused; calling it is an illegal key.
+ * 10 Nov 26 S.117: K_EDIT_OK and K_EDIT_KIND answer for Core's editors (Solo has no edit gates).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -606,6 +607,31 @@ void op_kernel() {
       result.data.value = 0;
       if (k_get_c_string(descr, path_ok_name, MAX_PATHNAME_LEN) > 0)
         result.data.value = os_path_ok_for_account(path_ok_name) ? 1 : 0;
+    } break;
+
+    /* 10 Nov 26 S.117: Core's editors ask these.  Solo has no edit gates, so K_EDIT_OK is always yes (the VOC rule is !voc_refusal at the save) and K_EDIT_KIND only
+       names the kind of file by its last component: 1 VOC, 2 dictionary (.dic), 3 program file (bp or .bp), 0 anything else. */
+    case K_EDIT_OK:
+      result.data.value = 1;
+      break;
+
+    case K_EDIT_KIND: {
+      char edit_kname[MAX_PATHNAME_LEN + 1];
+      char *edit_leaf;
+      int edit_llen;
+
+      result.data.value = 0;
+      if (k_get_c_string(descr, edit_kname, MAX_PATHNAME_LEN) > 0) {
+        edit_leaf = strrchr(edit_kname, '/');
+        edit_leaf = (edit_leaf != NULL) ? edit_leaf + 1 : edit_kname;
+        edit_llen = (int)strlen(edit_leaf);
+        if (strcasecmp(edit_leaf, "voc") == 0)
+          result.data.value = 1;
+        else if ((edit_llen > 4) && (strcasecmp(edit_leaf + edit_llen - 4, ".dic") == 0))
+          result.data.value = 2;
+        else if ((strcasecmp(edit_leaf, "bp") == 0) || ((edit_llen > 3) && (strcasecmp(edit_leaf + edit_llen - 3, ".bp") == 0)))
+          result.data.value = 3;
+      }
     } break;
 
     /* 24 Oct 26 dm - Solo carry 19 (SD Core's S.64 case, VOC only): an OS pathname about to be written to (OSCOPY, !IOSCOPY); see keys.h.  An empty or unreadable

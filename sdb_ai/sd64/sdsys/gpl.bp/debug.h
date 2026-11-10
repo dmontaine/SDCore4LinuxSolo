@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 1 Nov 26 dm  S.98 H1: the styles and the two stops of the new display are at the end of the common block, so no earlier variable moves.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -73,6 +74,7 @@ $define MAX.DATA.AREA.LINES   15
 
                    program.id(INITIAL.PROGRAMS),    ;* Id (compile time)
                    program.name(INITIAL.PROGRAMS),  ;* Program name
+                   program.src(INITIAL.PROGRAMS),   ;* The pathname of the program's source record (1 Nov 26: the AI's wall asks where the source it would send comes from)
                    head(INITIAL.PROGRAMS),
                    lines(INITIAL.PROGRAMS),
                    symbols(INITIAL.PROGRAMS),
@@ -101,7 +103,16 @@ $define MAX.DATA.AREA.LINES   15
 
                    ai.ok,                       ;* 24 Oct 26: the AI command is available (the AI is usable for the account and the display is full screen); set once, in initialise
 
-                   dbg.store                    ;* 31 Oct 26 (W.11 F10b): the phantom debugger's private store, a directory file made by !pdbg_store (PDEBUG and PDBG open it; DEBUG uses it)
+                   dbg.store,                   ;* 31 Oct 26 (W.11 F10b): the phantom debugger's private store, a directory file made by !pdbg_store (PDEBUG and PDBG open it; DEBUG uses it)
+
+                   data.attr,                   ;* 1 Nov 26 (S.98 H1): the styles of the messages, of the Autos pane and its title, of the status line and of the line numbers
+                   auto.attr,
+                   head.attr,
+                   rev.attr,
+                   num.attr,
+                   auto.here,                   ;* ...and the stops the Autos pane keys on, as program index:line: this one and the one before (0 when there is none)
+                   auto.prev,
+                   alt.able                     ;* 2 Nov 26 (S.98 H3): the terminal has an alternate screen (smcup and rmcup); set once, in initialise. Without one a full-screen debugger takes the main screen for the length of a stop
 
 * Event codes (additive)
 
