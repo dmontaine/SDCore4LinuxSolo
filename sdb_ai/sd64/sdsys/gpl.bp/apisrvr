@@ -1463,7 +1463,7 @@ vb.scram.first:
                         scram.gserver = ''
                      end
                   end else
-                     void kernel(K$AUDIT, 'api note user=' : scram.audit.name : ' - $global does not share this account''s salt, so the global password cannot log in under this name')
+                     void kernel(K$AUDIT, 'api note user=' : scram.audit.name : " - $global does not share this account's salt, so the global password cannot log in under this name")
                   end
                end
                scram.cred = ''
