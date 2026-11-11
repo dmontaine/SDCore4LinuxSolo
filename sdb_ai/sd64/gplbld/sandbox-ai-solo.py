@@ -337,7 +337,8 @@ def sec_verb():
     last = rq[-1] if rq else (None, {}, None)
     body = last[2] or {}
     size = len(q) + len(sysx)
-    row("V4a the preview names the provider, the model and the size, then shows the fixed sentence and the text, then asks", msg(11628, "anthropic", MODEL, size) in out and sysx in out and q in out
+    # 11 Nov 26 (S.117, Core's S.175): SD's fixed sentence is sent and counted in the size (row V4c reads it in the request) and is NOT shown in the preview
+    row("V4a the preview names the provider, the model and the size (the fixed sentence counted), shows the text and NOT the fixed sentence, then asks", msg(11628, "anthropic", MODEL, size) in out and sysx not in out and q in out
         and any(ln.startswith(msg(11629)) for ln in out), repr(out[:8]))
     row("V4b the answer is printed as text, with the token line (11634) and no failure line", fakemodel.PLAIN_TEXT in out and msg(11634, 11, 7, "anthropic") in out
         and not any(ln.startswith("The AI did not answer") for ln in out), repr(out[-6:]))

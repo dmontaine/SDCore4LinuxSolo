@@ -755,13 +755,13 @@ explain.fixed:
    body = k : ' is not changed from this page.'
    body<-1> = ''
    if pstat<i> = 'unknown' then
-      call $tk_wrap('SD does not know this name, and SD will not start, and no new session will, while the file holds it. Take the line out of ' : conf.path : ' by hand, as root, or correct its spelling.', 100, pieces)
+      call $tk_wrap('SD does not know this name, and SD will not start, and no new session will, while the file holds it. Take the line out of ' : conf.path : ' by hand, or correct its spelling.', 100, pieces)
       body<-1> = pieces
    end else
       call $tk_wrap('Why: ' : pwhy<i>, 100, pieces)
       body<-1> = pieces
       body<-1> = ''
-      call $tk_wrap('To change it, as root, put the line ' : k : '=<value> in the [sd] section of ' : conf.path : ' (the default is ' : (if pdef<i> = '' then 'none' else pdef<i>) : ').', 100, pieces)
+      call $tk_wrap('To change it, put the line ' : k : '=<value> in the [sd] section of ' : conf.path : ' (the default is ' : (if pdef<i> = '' then 'none' else pdef<i>) : ').', 100, pieces)
       body<-1> = pieces
       begin case
          case peff<i> = 'restart'

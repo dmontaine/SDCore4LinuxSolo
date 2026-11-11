@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 11 Nov 26 dm  Solo (S.117): three texts of the boxes said SDSYS and the root helper, which Solo has not got.  The rest of the page is SD Core's.
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the archive list takes the extra rows,
 *               every box and text is as wide as the window, and the manifest lists as many accounts as the box has rows. The rows, widths, hit tests and the [?] button are counted from the
 *               pane rectangles; the "... and N more accounts" line stands on the box's last row and counts from the rows the box has (8 accounts fit at 140 by 43).
@@ -505,8 +506,8 @@ do.backup.all:
    sent = 'backup.account all'
    typed = ''
    el = ''
-   el<-1> = 'Every account is packed into one archive in ' : bdir : ', named SD-host-all-date-time.zip. SDSYS is not backed up and no password or credential is in it.'
-   el<-1> = 'Everyone else must be logged out, and LOGIN refuses new sessions while it runs. The packing is done through the root helper.'
+   el<-1> = 'The account is packed into one archive in ' : bdir : '. No password or credential is in it.'     ;* Solo, 11 Nov 26: one account, no SDSYS, no root helper
+   el<-1> = 'Every other session must be signed off, and new sessions are refused while it runs.'
    gosub confirm.and.run
    return
 
@@ -598,7 +599,7 @@ do.directory:
    sent = 'set.backup.directory ' : nd
    typed = ''
    el = ''
-   el<-1> = 'Backups and restores will use this directory from now on. The verb makes it if it can, proves SDSYS can put a file in it, and saves the one line BACKUPDIR in sd.conf through the root helper.'
+   el<-1> = 'Backups and restores will use this directory from now on. The verb makes it if it can, proves a file can be put in it, and saves the one line BACKUPDIR in sd.conf.'
    gosub confirm.and.run
    return
 

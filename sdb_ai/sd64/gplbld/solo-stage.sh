@@ -219,7 +219,24 @@ strip_retired_conf() {
     fi
   done
 }
-if [ "$upgrade" -eq 1 ]; then strip_retired_conf "$H/sd.conf"; fi
+# SCREENTHEME (11 Nov 26, S.117; SD Core's installsdcore.sh SCREENTHEME block, S.172).  The delivered look of the full-screen
+# pages is "paper" (dark text on light gray), and the shipped sd.conf says so.  A KEPT sd.conf (an upgrade, or --reload-data)
+# is from before that line: with no SCREENTHEME line at all it gets SCREENTHEME=paper in its [sd] section, once.  A file that
+# already has a SCREENTHEME line is left exactly as it is: that line is the user's choice (Solo never delivered another
+# value, so there is nothing to convert, where SD Core changes its own delivered "blue").  A file with no [sd] section is
+# left alone and said so.
+default_screentheme() {
+  local conf="$1"
+  [ -f "$conf" ] || return 0
+  if grep -q '^SCREENTHEME=' "$conf"; then return 0; fi
+  if ! grep -q '^\[sd\]' "$conf"; then
+    echo "$conf has no [sd] section: SCREENTHEME was not added (the full-screen pages use the plain look)."
+    return 0
+  fi
+  sed -i '0,/^\[sd\]/s//[sd]\nSCREENTHEME=paper/' "$conf" || fail "adding SCREENTHEME=paper to $conf"
+  echo "Added SCREENTHEME=paper to $conf (the kept file did not have it; set it to night, mono, blue or classic to change the look)."
+}
+if [ "$upgrade" -eq 1 ]; then strip_retired_conf "$H/sd.conf"; default_screentheme "$H/sd.conf"; fi
 
 mkdir -p "$H"
 cd "$sd64"
@@ -545,6 +562,7 @@ if [ -n "$reloaddir" ]; then
     cp "$H/sd.conf" "$H/sd.conf.default" || fail "keeping the default sd.conf"
     cp "$reloaddir/sd.conf" "$H/sd.conf" && chmod 600 "$H/sd.conf" || fail "copying the saved sd.conf"
     strip_retired_conf "$H/sd.conf"
+    default_screentheme "$H/sd.conf"
     if "$SD" -start > "$H/.reload-start.log" 2>&1; then
       reload_conf="reloaded"
     else

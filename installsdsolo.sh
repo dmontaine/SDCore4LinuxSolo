@@ -752,6 +752,23 @@ install_packages() {
   else
     refuse_unsupported
   fi
+  install_gpm
+}
+# 11 Nov 26 (S.117; SD Core's installer, S.94): gpm, the console mouse daemon, so that the full-screen pages have a mouse
+# on a bare Linux console (SD talks to /dev/gpmctl itself).  It has a call of its own after the required packages, and
+# ITS FAILURE IS A WARNING, NOT THE END OF THE INSTALL (SD Core's owner, 7 Nov 2026: in a container "gpm couldn't be
+# installed and the installation failed ... a gpm installation failure doesn't kill the install").  SD runs without it:
+# there is then no mouse on a bare console.  The installer neither enables nor starts gpm.service; the package does
+# what the distribution's package does.
+install_gpm() {
+  if [ "$is_debian" -eq 1 ]; then
+    if ! sudo apt-get -y install gpm; then
+      sudo apt-get -y remove gpm > /dev/null 2>&1 || true
+      warn "gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo apt-get install gpm"
+    fi
+  elif [ "$is_fedora" -eq 1 ]; then
+    sudo dnf -y install gpm || warn "gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo dnf install gpm"
+  fi
 }
 say
 if [ "$skip_pkgs" -eq 1 ]; then
