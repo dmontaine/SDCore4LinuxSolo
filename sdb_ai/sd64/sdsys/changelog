@@ -22,6 +22,30 @@ Next release - in progress
                          AKREAD, AKWRITE, AKDELETE, CLEAR.AK, AKENABLE and AKMAP are still refused on a remote file. A path, a quote,
                          PATHNAME, LPTR, FORCE and NO.QUERY are never passed to a verb run on the server.
 
+11 Nov 26  THE AI PAGE HAS ONE SETUP DIALOG FOR THE KEY AND THE MODEL, THE MODEL IS CHOSEN FROM THE PROVIDER'S OWN LIST, AND GOOGLE
+           IS A PROVIDER WITH A DEFAULT MODEL FOR EVERY NAMED ONE (carried from SD Core for Linux's work of 1 and 8 Nov 2026; the
+           owner, 11 Nov 2026: "Carry Core's dialog").
+
+             What        On tool.ai (after ADMIN), S opens one setup dialog for the provider under the cursor, the same every time:
+                         the Key, a password field shown as * (a key already set shows as twelve stars that keep it); the Model,
+                         a list of the provider's own model names fetched with the key, the one in use chosen; Other name, for
+                         a model no list holds. Save sets what you chose. K and M are gone. Google is the fourth named
+                         provider (its OpenAI-compatible address), and Anthropic, OpenAI, Google and DeepSeek each come with
+                         a starting model, so a provider and its key are enough; the page marks it (default). At the prompt:
+                         set.ai models PROVIDER lists the provider's names; set.ai model PROVIDER NAME says when the provider
+                         does not list the name, and names the one that differs only in capitals; set.ai model PROVIDER -
+                         goes back to the default. When a provider refuses a request, its own words now follow the HTTP
+                         status ("Model Not Exist"), with any copy of the key taken out.
+             Why it      A model name typed by hand was the commonest reason for a bare "HTTP 400"; the list shows what
+             matters     the provider really offers.
+             Does not    Keep the key out of SD when it is typed in the dialog: it passes through your SD session and is handed
+                         to the AI helper in a file in a directory only you can enter ($aikey in your Solo directory, mode 0700),
+                         which is removed at once; it is never on a command line, on the screen or in the audit trail. Typed at
+                         the prompt (set.ai key PROVIDER) it still goes straight to the helper's own prompt and never touches SD.
+                         Turn anything on: the AI is off until you choose a provider, give it a key and set.ai gate on. The
+                         default models and Google's details were read from the providers' pages and have not been tried with
+                         a real key.
+
 11 Nov 26  FEDORA IS NO LONGER SUPPORTED. THIS RELEASE INSTALLS ON DEBIAN AND UBUNTU ONLY (carried from SD Core for Linux's
            change of 2 Nov 2026; the owner, 11 Nov 2026: "Yes, Debian and Ubuntu only").
 
@@ -67,8 +91,8 @@ Next release - in progress
              matters     follow-up is answered in the light of what was asked before.
              Does not    Turn anything on: the AI is still off until you choose a provider, a model and a key and set.ai gate on. A
                          standing text that names SD's own code or build is refused and never sent. The helper adds nothing by itself:
-                         SD puts the text in the request. Not carried from SD Core: the list of a provider's models, the single key
-                         and model form, and the Google provider.
+                         SD puts the text in the request. (The list of a provider's models, the setup dialog and the Google provider
+                         came the same day, in the entry above.)
 
 11 Nov 26  THE FULL-SCREEN PAGES OF SD CORE FOR LINUX ARE IN SOLO (carried from SD Core for Linux's work of 28 Oct to 11 Nov 2026).
 

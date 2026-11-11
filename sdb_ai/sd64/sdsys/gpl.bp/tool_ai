@@ -15,6 +15,12 @@
 * 11 Nov 26 dm  Carried from SD Core (S.160, 7 Nov 26, 74cf7001; the box's wording as Core has it since 8 Nov): T (and Provider > Standing text) opens the standing text -
 *               the text sent first with every AI request - in a box with an editor: Save, Shipped default, Cancel; SET.AI CONTEXT keeps it.  T is not on the key row.
 *               NOT carried: Core's S.209 (the page following a resize while the box is open), which needs Core's $tk_layout page; Solo's page has a fixed layout.
+* 11 Nov 26 dm  Carried from SD Core (owner, 11 Nov 2026: "Carry Core's dialog"): GOOGLE IS A ROW and every named provider has a DEFAULT model (Core e1061f73): five
+*               provider rows, so the Provider box is one row taller and the Account box one row shorter (it has one account; five rows are shown); the table, the summary and
+*               the detail show the model that will be asked, a default marked (default).  S IS THE SETUP DIALOG (Core S.170 / S.171, 2cced06c and d208d412): the key in a
+*               password entry (a key already set shows as stars that keep it), the model chosen from the provider's own list (asked with the key when the dialog opens,
+*               and again as soon as a new key is taken), Other name for a model no list holds.  The key is handed to the helper by file (SET.AI KEY p HANDOVER, in
+*               $aikey of the Solo tree, a directory of mode 0700).  K and M are gone.  SET.AI KEY p at the prompt still keeps a key out of SD altogether.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -24,20 +30,21 @@
 *   For the administrator only (it is refused, before anything is read, for anyone else).  A full-screen page, in the toolkit's frame (140 columns by 43
 *   lines at least), with two boxes:
 *
-*     Provider   Anthropic, OpenAI, DeepSeek and Custom, one to a row, with a check box on the provider in use (none marked: the AI is off), its address, its model and
-*                whether its key is set.  The three named providers come with their connection details; the model and the key are the administrator's.  Custom is the fourth choice,
-*                where the administrator fills in everything.  The row under the cursor is described in full below.
+*     Provider   Anthropic, OpenAI, Google, DeepSeek and Custom, one to a row, with a check box on the provider in use (none marked: the AI is off), its address, its model and
+*                whether its key is set.  The four named providers come with their connection details and a default model; the key is the administrator's, and so is any other
+*                model (S).  Custom is the fifth choice, where the administrator fills in everything.  The row under the cursor is described in full below.
 *     Account    The one Solo account, with the state of its ai gate (set.ai gate on | off): only while the gate is on can anything be sent to the provider.
 *
-*   Keys: Up and Down move, F6 or Left and Right change box, Enter selects or deselects the provider (Provider) or turns the gate on or off (Account), M the model, K the key, X clears the key,
+*   Keys: Up and Down move, F6 or Left and Right change box, Enter selects or deselects the provider (Provider) or turns the gate on or off (Account), S the setup dialog (the key and the model, the model chosen from the provider's own list), X clears the key,
 *   C fills in Custom, D removes it, A the file of certificate authorities, L a limit, T the standing text sent with every request, F5 reads the machine again, F1 or ? or a click on a [?] explains the
 *   box, Ctrl-Q leaves.
 *
-*   THE PAGE WRITES NOTHING ITSELF AND KNOWS NO KEY.  What it shows it reads from the AI helper (KERNEL(K$AI.STATUS): the connection details, the models, whether a key is set,
+*   THE PAGE KEEPS NO SETTING ITSELF.  What it shows it reads from the AI helper (KERNEL(K$AI.STATUS): the connection details, the models, whether a key is set,
 *   the gate, the limits - never a key).  Every change is a SET.AI sentence shown with its effect in a box answered
 *   Run or Cancel (Cancel is what Enter chooses) and run by $tk_runx; selecting a provider, turning the gate on, a certificate file and Custom ask for a
-*   name to be typed, as turning on any switch that reaches beyond SD does.  THE KEY IS NOT TYPED HERE: the page gives the terminal to SET.AI KEY, whose prompt is the AI
-*   helper's own and shows nothing, then takes the screen again.  Nothing is turned on by opening the page.
+*   name to be typed, as turning on any switch that reaches beyond SD does.  THE KEY IS TYPED IN THE SETUP DIALOG (S), in a password entry, and handed to the helper
+*   at once through a hand-over file (SET.AI KEY p HANDOVER), so it passes through this session; it is never shown, never on a command line and never in the audit
+*   trail.  SET.AI KEY p at the prompt keeps a key out of SD altogether.  Nothing is turned on by opening the page.
 *
 * END-DESCRIPTION
 *
@@ -68,8 +75,8 @@ $include tk.h
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
-   call $tk_keys('add', keys, 'm', 'model', 'model', 'Provider', 1)
-   call $tk_keys('add', keys, 'k', 'key', 'key', 'Provider', 1)
+   * Core S.170 / S.171: S is the one setup dialog (the key and the model); K and M are gone
+   call $tk_keys('add', keys, 's', 'setup', 'setup', 'Provider', 1)
    call $tk_keys('add', keys, 'x', 'clear key', 'clearkey', 'Provider', 1)
    call $tk_keys('add', keys, 'c', 'custom', 'custom', 'Provider', 1)
    call $tk_keys('add', keys, 'd', 'drop custom', 'dropcustom', 'Provider', 1)
@@ -82,8 +89,7 @@ $include tk.h
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc opens the menu bar, as on every page
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'change', '&Setting', '&Change the setting', '', '')
-   call $tk_keys('menu', keys, 'model', '&Provider', '&Model', '', '')
-   call $tk_keys('menu', keys, 'key', '&Provider', '&Key', '', '')
+   call $tk_keys('menu', keys, 'setup', '&Provider', '&Key and model (setup)', '', '')
    call $tk_keys('menu', keys, 'clearkey', '&Provider', 'C&lear the key', '', '')
    call $tk_keys('menu', keys, 'custom', '&Provider', 'C&ustom provider', '', '')
    call $tk_keys('menu', keys, 'dropcustom', '&Provider', '&Drop the custom provider', '', '')
@@ -96,17 +102,18 @@ $include tk.h
    call $tk_keys('ai', keys, 'refresh', '', '', '', '')  ;* the AI line is offered only refresh: no change of a setting is proposed by it
    call $tk_aipage('init', ctx, keys, '', '', aout)
 
-   provs = 'anthropic' : @fm : 'openai' : @fm : 'deepseek' : @fm : 'custom'
+   provs = 'anthropic' : @fm : 'openai' : @fm : 'google' : @fm : 'deepseek' : @fm : 'custom'
+   nprov = dcount(provs, @fm)                                  ;* the rows of the Provider box; the last is Custom
    lnames = 'requests-hour' : @fm : 'tokens-day' : @fm : 'timeout' : @fm : 'bytes-request' : @fm : 'bytes-reply' : @fm : 'max-tokens'
    pnames = 'Provider' : @fm : 'Account'
 
-   VISA = 6                                                    ;* account rows on the screen
+   VISA = 5                                                    ;* account rows on the screen (Solo has one; 6 until Google's provider row took one, 11 Nov 26)
    pane = 1
    pi = 1                                                      ;* the provider row under the cursor
    ci = 1                                                      ;* the account row under the cursor
    ta = 0                                                      ;* the account rows scrolled off the top
    gen = 0
-   msg = 'Enter selects the provider with the check box; M sets its model and K its key'
+   msg = 'Enter selects the provider with the check box; S sets up its key and model'
    done = 0
 
    gosub read.all
@@ -163,12 +170,12 @@ read.all:
       if not(status()) and hj{'t'} = 'status' then helper.ok = 1
    end
    sel = ''
-   pnm = '' ; purl = '' ; pfmt = '' ; paut = '' ; pver = '' ; pmax = '' ; pmod = '' ; pkey = ''
+   pnm = '' ; purl = '' ; pfmt = '' ; paut = '' ; pver = '' ; pmax = '' ; pmod = '' ; pdef = '' ; pkey = ''
    ca = ''
    lim = ''
    if helper.ok then
       sel = hj{'provider'}
-      for i = 1 to 4
+      for i = 1 to nprov
          p = provs<i>
          pnm<i> = hj{'providers/' : p : '/name'}
          purl<i> = hj{'providers/' : p : '/url'}
@@ -176,7 +183,8 @@ read.all:
          paut<i> = hj{'providers/' : p : '/auth'}
          pver<i> = hj{'providers/' : p : '/version'}
          pmax<i> = hj{'providers/' : p : '/maxparam'}
-         pmod<i> = hj{'providers/' : p : '/model'}
+         pmod<i> = hj{'providers/' : p : '/model'}                 ;* the model set, or null
+         pdef<i> = hj{'providers/' : p : '/default'}               ;* the provider's starting model (null for Custom): used while pmod is null
          pkey<i> = (if hj{'providers/' : p : '/key'} then 1 else 0)
       next i
       ca = hj{'ca-file'}
@@ -203,9 +211,9 @@ draw.all:
    cw = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw,chh
-   screen box at 1,1 size 138,9 title 'AI provider'
-   screen box at 1,10 size 138,13 title 'The row under the cursor'
-   screen box at 1,23 size 138,10 title 'May this account use the AI?'
+   screen box at 1,1 size 138,10 title 'AI provider'                          ;* 9 rows until Google's row (11 Nov 26); the Account box gave the row up
+   screen box at 1,11 size 138,13 title 'The row under the cursor'
+   screen box at 1,24 size 138,9 title 'May this account use the AI?'
    screen box at 1,33 size 138,6 title 'What this means'
    gosub draw.providers
    gosub draw.detail
@@ -215,7 +223,7 @@ draw.all:
 
 draw.providers:
    screen text '    ' : fmt('Provider', '14L') : fmt('Address', '56L') : fmt('Model', '28L') : 'Key' at 3,2 attr 'header' width 134
-   for r = 1 to 4
+   for r = 1 to nprov
       s = ''
       if helper.ok then
          nm.s = pnm<r>
@@ -223,9 +231,8 @@ draw.providers:
          url.s = purl<r>
          if url.s = '' then url.s = '(not filled in)'
          if len(url.s) > 54 then url.s = url.s[1, 52] : '..'
-         mod.s = pmod<r>
-         if mod.s = '' then mod.s = '(not set)'
-         s = '[' : (if provs<r> = sel then 'x' else ' ') : '] ' : fmt(nm.s, '14L') : fmt(url.s, '56L') : fmt(mod.s[1, 26], '28L') : (if pkey<r> then 'set' else 'not set')
+         gosub model.text
+         s = '[' : (if provs<r> = sel then 'x' else ' ') : '] ' : fmt(nm.s, '14L') : fmt(url.s, '56L') : fmt(mod.s[1, 27], '28L') : (if pkey<r> then 'set' else 'not set')
       end
       screen text s at 3,2 + r attr (if r = pi then (if pane = 1 then 'highlight' else 'bold') else 'normal') width 134
    next r
@@ -233,16 +240,26 @@ draw.providers:
       s = 'The AI helper is not running, or it is not installed: nothing here can be read or changed.'
    end else
       if sel = '' then
-         s = 'The AI is OFF: no provider is selected.  Check a provider, give it a model and a key, and turn the ai gate on.'
+         s = 'The AI is OFF: no provider is selected.  Check a provider, give it its key (the model has a default), and turn the ai gate on.'
       end else
          lpid = sel
          gosub locate.prov
          k = lpr
-         s = 'In use: ' : pnm<k> : ', model ' : (if pmod<k> = '' then '(not set)' else pmod<k>) : ', key ' : (if pkey<k> then 'set' else 'not set')
-         if pmod<k> = '' or not(pkey<k>) then s := '.  It cannot be used until both are set'
+         r = k
+         gosub model.text
+         s = 'In use: ' : pnm<k> : ', model ' : mod.s : ', key ' : (if pkey<k> then 'set' else 'not set')
+         nomod = (pmod<k> = '' and pdef<k> = '')
+         begin case
+            case nomod and not(pkey<k>)
+               s := '.  It cannot be used until both are set'
+            case nomod
+               s := '.  It cannot be used until a model is set'
+            case not(pkey<k>)
+               s := '.  It cannot be used until the key is set'
+         end case
       end
    end
-   screen text s at 3,8 attr 'bold' width 134
+   screen text s at 3,9 attr 'bold' width 134
    call $tk_help('mark', 134, 2, 0, 0)
    return
 
@@ -269,8 +286,15 @@ draw.detail:
          lines<-1> = fmt('Version header', '19L') : (if pver<r> = '' then '(none)' else pver<r>)
          lines<-1> = fmt('Answer limit field', '19L') : pmax<r>
       end
-      lines<-1> = fmt('Model', '19L') : (if pmod<r> = '' then '(not set - press M)' else pmod<r>)
-      lines<-1> = fmt('Key', '19L') : (if pkey<r> then 'set (kept for the AI helper only; this page never shows it)' else 'not set - press K')
+      begin case
+         case pmod<r> # ''
+            lines<-1> = fmt('Model', '19L') : pmod<r> : (if pdef<r> = '' then '' else '  (yours; the default is ' : pdef<r> : ')')
+         case pdef<r> # ''
+            lines<-1> = fmt('Model', '19L') : pdef<r> : '  (the default that comes with SD; press S to choose another)'
+         case 1
+            lines<-1> = fmt('Model', '19L') : '(not set - press S)'
+      end case
+      lines<-1> = fmt('Key', '19L') : (if pkey<r> then 'set (kept for the AI helper only; this page never shows it)' else 'not set - press S')
       lines<-1> = ''
       lines<-1> = 'Certificate authorities: ' : (if ca = '' then 'the system store' else ca)
       s = ''
@@ -281,12 +305,12 @@ draw.detail:
    end
    gosub wrap.lines
    for r = 1 to 11
-      screen text fmt(lines<r>, '134L') at 3,10 + r width 134
+      screen text fmt(lines<r>, '134L') at 3,11 + r width 134
    next r
    return
 
 draw.accounts:
-   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at 3,24 attr 'header' width 134      ;* (one row in Solo)
+   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at 3,25 attr 'header' width 134      ;* (one row in Solo)
    if ci <= ta then ta = ci - 1
    if ci > ta + VISA then ta = ci - VISA
    if ta < 0 then ta = 0
@@ -296,7 +320,7 @@ draw.accounts:
       if k <= an then
          s = fmt(anm<k>, '24L') : fmt(auser<k>, '24L') : (if ast<k> = 1 then 'ON ' else 'off') : (if asusp<k> then '   (suspended)' else '')
       end
-      screen text s at 3,24 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 134
+      screen text s at 3,25 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 134
    next r
    if ast = 1 then
       s = 'The gate is ON: this account can send text to the provider.  Enter turns the gate off.'
@@ -304,14 +328,14 @@ draw.accounts:
       s = 'The gate is off (as delivered): nothing can be sent to the provider.  Enter turns the gate on.'
    end
    screen text s at 3,31 attr 'bold' width 134
-   call $tk_help('mark', 134, 24, 0, 0)
+   call $tk_help('mark', 134, 25, 0, 0)
    return
 
 * In plain sentences
 draw.effect:
    lines = ''
-   lines<-1> = 'One provider and one model serve the account.  The AI is off as delivered: it needs a provider, a model, a key and the ai gate turned on.'
-   lines<-1> = "The key is typed at the AI helper's own prompt and kept for the helper only; it does not pass through SD and this page never shows it.  What an account sends leaves this machine for the provider checked above, over https with the certificate checked."
+   lines<-1> = 'One provider and one model serve the account.  The AI is off as delivered: it needs a provider, its key (a default model comes with each named provider) and the ai gate turned on.'
+   lines<-1> = "S sets up the provider under the cursor: the key (shown as *) and the model, chosen from the provider's own list; the key is kept for the AI helper only and this page never shows it (set.ai key at the prompt keeps it out of SD altogether).  What the account sends leaves this machine for the provider checked above, over https with the certificate checked."
    if pane = 1 then
       p = provs<pi>
       if p = sel then
@@ -342,10 +366,20 @@ wrap.lines:
    lines = wrapped
    return
 
-* The row of the provider whose id is in lpid (1 when it is none of the four)
+* A row of the Provider box: the model it will ask, for the table and the summary.  In: r.  Out: mod.s - the model set, else the provider's default with (default)
+* after it, else (not set)
+model.text:
+   mod.s = pmod<r>
+   if mod.s = '' then
+      mod.s = pdef<r>
+      if mod.s = '' then mod.s = '(not set)' else mod.s := ' (default)'
+   end
+   return
+
+* The row of the provider whose id is in lpid (1 when it is none of them)
 locate.prov:
    lpr = 1
-   for lp2 = 1 to 4
+   for lp2 = 1 to nprov
       if provs<lp2> = lpid then lpr = lp2
    next lp2
    return
@@ -366,7 +400,7 @@ on.key:
             gosub redraw
          end
       case nm = 'down'
-         if pane = 1 and pi < 4 then
+         if pane = 1 and pi < nprov then
             pi += 1
             gosub redraw
          end
@@ -407,7 +441,7 @@ on.key:
          done = 1
       case nm = 't'
          if helper.ok then gosub do.context else msg = sysmsg(11607)
-      case nm = 'm' or nm = 'k' or nm = 'x' or nm = 'c' or nm = 'd' or nm = 'a' or nm = 'l'
+      case nm = 's' or nm = 'x' or nm = 'c' or nm = 'd' or nm = 'a' or nm = 'l'
          if pane # 1 then
             msg = 'Move to the Provider box (Tab) for that key'
          end else
@@ -415,10 +449,8 @@ on.key:
                msg = sysmsg(11607)                                ;* The AI helper could not be reached
             end else
                begin case
-                  case nm = 'm'
-                     gosub do.model
-                  case nm = 'k'
-                     gosub do.key
+                  case nm = 's'
+                     gosub do.setup
                   case nm = 'x'
                      gosub do.clearkey
                   case nm = 'c'
@@ -458,7 +490,7 @@ on.mouse:
       return
    end
    call $tk_help('hit', mev, 134, 2, hit.prov)
-   call $tk_help('hit', mev, 134, 24, hit.acc)
+   call $tk_help('hit', mev, 134, 25, hit.acc)
    if hit.prov or hit.acc then
       pane = (if hit.prov then 1 else 2)
       gosub redraw
@@ -469,12 +501,12 @@ on.mouse:
       mx = mev<3>
       my = mev<4>
       begin case
-         case mx >= 2 and mx <= 137 and my >= 3 and my <= 6
+         case mx >= 2 and mx <= 137 and my >= 3 and my <= 2 + nprov
             pi = my - 2
             pane = 1
             gosub redraw
-         case mx >= 2 and mx <= 137 and my >= 25 and my <= 24 + VISA
-            if ta + my - 24 <= an then ci = ta + my - 24
+         case mx >= 2 and mx <= 137 and my >= 26 and my <= 25 + VISA
+            if ta + my - 25 <= an then ci = ta + my - 25
             pane = 2
             gosub redraw
       end case
@@ -535,8 +567,9 @@ select.provider:
       el<-1> = 'From now on, while the ai gate is on, ' : nm.s : ' will be used.'
       host = field(purl<pi>, '/', 3)
       if host # '' then el<-1> = 'The text they send leaves this machine for ' : host : ' over https.'
-      if pmod<pi> = '' then el<-1> = 'No model is set for it yet, so it cannot be used until you press M.'
-      if not(pkey<pi>) then el<-1> = 'No key is set for it yet, so it cannot be used until you press K.'
+      if pmod<pi> = '' and pdef<pi> = '' then el<-1> = 'No model is set for it yet, so it cannot be used until you press S.'
+      if pmod<pi> = '' and pdef<pi> # '' then el<-1> = 'It will ask its default model, ' : pdef<pi> : ' (S chooses another).'
+      if not(pkey<pi>) then el<-1> = 'No key is set for it yet, so it cannot be used until you press S.'
       if p = 'custom' and purl<pi> = '' then el<-1> = 'Custom is not filled in yet: press C first (the helper refuses it until then).'
    end
    el<-1> = 'It takes effect at once.'
@@ -571,60 +604,312 @@ toggle.gate:
    gosub confirm.and.run
    return
 
-* M: the model for the provider under the cursor (a dash clears it)
-do.model:
+* S (Core S.170 / S.171; the owner, 8 Nov 26: first "a single dialog with the key field displaying asterisks", then: "There should be only S for a setup dialog that looks the
+* same no matter if the model and key has been selected previously.  If there are already values they should be displayed.  The model should be selected from a list.  The key
+* in a password type field."  Warned that the key then passes through SD, he chose this over the helper's own prompt; carried to Solo on his "Carry Core's dialog", 11 Nov 26.)
+* ONE DIALOG, ALWAYS THE SAME: the Key (a password entry: a key already set shows as SU.KEEP, the stars that mean "keep it"), the Model (a LIST of the provider's own model
+* names, the one in use chosen), Other name (an entry for a model no list holds: a Custom server that gives no list), three message rows, Save and Cancel.  The list is asked for
+* when the dialog opens if a key is set, and again as soon as a new key is taken (leaving the Key entry, or Enter in it): the key goes to the helper first (SET.AI KEY p HANDOVER,
+* through a file in a directory of mode 0700 in the Solo tree, removed at once; never a command line or the audit trail), then the list is asked WITH it.  Save sets the model
+* chosen when it differs from the one in use.  The model now set that the list does not hold is said, and the listed one that differs only in case is chosen.
+do.setup:
    p = provs<pi>
+   if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return
    nm.s = pnm<pi>
    if nm.s = '' then nm.s = 'Custom'
    cur = pmod<pi>
-   screen ask 'Model name for ' : nm.s : ' (a dash clears it)' width 60 value cur title 'AI model' returning mv else return
-   mv = trim(mv)
-   vw = mv
-   vmax = 80
-   gosub valid.word
-   if not(vw.ok) then
-      msg = 'A model name has 1 to 80 letters, digits and . _ : / @ + , - and nothing else'
+   if cur = '' then cur = pdef<pi>
+   host = field(purl<pi>, '/', 3)
+   if host = '' then
+      msg = nm.s : ' has no address yet: fill it in first (press C)'
       return
    end
-   sent = 'set.ai model ' : p : ' ' : mv
-   typed = ''
-   el = ''
-   if mv = '-' then
-      el<-1> = 'The model for ' : nm.s : ' will be cleared.  The AI cannot be used with it until a model is set.'
-   end else
-      el<-1> = 'Every account that uses ' : nm.s : ' will ask model ' : mv : ' from now on.'
-      el<-1> = 'The provider charges for that model; the limits shown on this page cap what accounts can send.'
+   su.keep = '************'
+   call $sl_scr('get', scr)
+   su.sw = scr<SL.S.W> + 0
+   su.sh = scr<SL.S.H> + 0
+   su.bw = 100
+   su.bh = 28
+   if su.sw < su.bw + 2 or su.sh < su.bh + 2 then
+      msg = 'the window is too small for the setup dialog: nothing was changed'
+      return
    end
-   gosub confirm.and.run
+   su.bx = int((su.sw - su.bw) / 2)
+   su.by = int((su.sh - su.bh) / 2)
+   su.lw = 14
+   su.mw = su.bw - 4
+   key.done = 0
+   lm.ok = 0 ; lm.n = 0 ; lm.list = '' ; lm.why = ''
+   if pkey<pi> then gosub fetch.models
+   gosub setup.items
+   su.title = 'AI setup: ' : nm.s
+   if pkey<pi> then
+      su.kini = su.keep
+      su.khint = 'A key is set.  Leave the stars to keep it, or replace them with a new key.'
+   end else
+      su.kini = ''
+      su.khint = 'Type or paste the key, then press Tab: the list of models is fetched with it.'
+   end
+   su.hint = ('The key is sent only to ' : host : ' over https.  Tab moves, Enter saves, Esc cancels.')[1, su.mw]
+   su.tw = su.bw - su.lw - 4
+   screen form title su.title at su.bx,su.by size su.bw,su.bh returning sf
+   screen label sf, 'lk', 'Key' at 2,2 width su.lw - 2
+   screen entry sf, 'key' at 2 + su.lw,2 width 70 value su.kini mask maxlen 600
+   screen label sf, 'lk2', su.khint at 2 + su.lw,3 width su.tw
+   screen label sf, 'lm', 'Model' at 2,5 width su.lw - 2
+   screen list sf, 'model', su.items at 2 + su.lw,5 size 70,12 value su.val
+   screen label sf, 'lo', 'Other name' at 2,18 width su.lw - 2
+   screen entry sf, 'other' at 2 + su.lw,18 width 50 value '' maxlen 80
+   screen label sf, 'lo2', 'Only for a model the list does not hold (a Custom server that gives no list).' at 2 + su.lw,19 width su.tw
+   for j = 1 to 3
+      screen label sf, 'm' : j, '' at 2,20 + j width su.mw
+   next j
+   screen button sf, 'ok', '&Save' at 2,su.bh - 3 default
+   screen button sf, 'cancel', sysmsg(11249) at 14,su.bh - 3 cancel
+   screen label sf, 'hint', su.hint at 2,su.bh - 2 width su.mw
+   su.say = su.note
+   gosub setup.say
+   su.done = 0
+   loop
+      screen wait sf returning su.ev then                     ;* su.ev, NOT ev: names fold case
+         begin case
+            case su.ev<1> = 'focus'
+               if su.ev<3> = 'key' then gosub setup.takekey   ;* the Key entry was left: a new key in it goes to the helper and the list is asked with it
+            case su.ev<1> = 'button' and su.ev<2> = 'ok'
+               gosub setup.takekey                            ;* Enter in the Key entry presses Save: take a new key first
+               if not(su.fetched) then gosub setup.save        ;* a list that has only just come is shown to choose from, not saved over
+            case su.ev<1> = 'button'
+               exit
+         end case
+      end else
+         exit                                                 ;* Esc, Cancel, an input that ended
+      end
+      if su.done then exit
+   repeat
+   kv = ''
+   screen hide sf
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   if su.done then
+      msg = (if key.done then 'The key for ' : nm.s : ' is set' else 'The key is unchanged')
+      if mv # cur then                                         ;* cur is the model in use (the one set, else the default)
+         call $tk_runx(allow.set, 'set.ai model ' : p : ' ' : mv, out, st, err)
+         if err # '' then
+            msg := '; the model was not set: ' : err
+         end else
+            msg := '; ' : trim(change(out, @fm, ' '))[1, 100]
+         end
+      end else
+         msg := '; the model stays ' : mv
+      end
+   end else
+      msg = (if key.done then 'the key is set; the model was not changed' else 'nothing was changed')
+   end
+   gosub read.all
+   gosub draw.all
    return
 
-* K: the key.  The terminal is given to SET.AI KEY, whose prompt is the helper's own and shows nothing; nothing typed there reaches SD, this page or the audit trail
-do.key:
-   p = provs<pi>
-   if index(' anthropic openai deepseek custom ', ' ' : p : ' ', 1) = 0 then return
-   nm.s = pnm<pi>
-   if nm.s = '' then nm.s = 'Custom'
-   sent = 'set.ai key ' : p
-   el = ''
-   el<-1> = "The terminal is given to the AI helper's own prompt.  Type the key (nothing is shown) and press Enter.  Then you come back to this page."
-   el<-1> = 'The key is kept for the helper only.  It does not pass through SD, this page or the audit trail.'
-   host = field(purl<pi>, '/', 3)
-   if host # '' then
-      el<-1> = 'It is sent only to ' : host : ' over https, with the certificate checked.'
+* The dialog's model list from lm.* (su.items, values), the entry to start on (su.val) and what the message rows say (su.note): the model in use chosen; one the list does not hold
+* said, with the listed one that differs only in case chosen; no list yet (no key) or none from the provider said in the list's one row.
+setup.items:
+   su.items = ''
+   su.val = 1
+   su.note = ''
+   if lm.ok and lm.n > 0 then
+      su.items = change(lm.list, @fm, @vm)
+      found = 0
+      near = 0
+      for i = 1 to lm.n
+         if lm.list<i> = cur then
+            su.val = i
+            found = 1
+         end
+         if near = 0 and downcase(lm.list<i>) = downcase(cur) then near = i
+      next i
+      begin case
+         case found
+            su.note = nm.s : ' lists ' : lm.n : ' models; the one in use, ' : cur : ', is chosen.'
+         case near
+            su.val = near
+            su.note = 'The model now set, ' : cur : ', is not in ' : nm.s : "'s list (model names are case-sensitive).  " : lm.list<near> : ' is chosen: Save to use it.'
+         case cur # ''
+            su.note = 'The model now set, ' : cur : ', is not in ' : nm.s : "'s list.  Choose one and Save."
+         case 1
+            su.note = nm.s : ' lists ' : lm.n : ' models.  Choose one and Save.'
+      end case
    end else
-      el<-1> = nm.s : ' has no address yet: the key is kept, but nothing can use it until the address is filled in (press C).'
+      if pkey<pi> or key.done then
+         su.items = '(no list from ' : nm.s : ')'
+         su.note = nm.s : ' gave no list of models' : (if lm.why # '' then ': ' : lm.why else '') : '.  Type the model under Other name.'
+      end else
+         su.items = '(set the key first: the list comes from ' : nm.s : ')'
+         su.note = 'No key is set for ' : nm.s : ' yet.  Type or paste it, then press Tab.'
+      end
    end
-   call $tk_confirm(sent, el, '', res, cmsg)
-   if res # 'run' then
-      msg = cmsg
+   return
+
+* The message rows of the dialog: su.say, wrapped
+setup.say:
+   call $tk_wrap(su.say, su.mw, pieces)
+   for j = 1 to 3
+      screen set sf, 'm' : j text pieces<j>[1, su.mw]
+   next j
+   return
+
+* A new key in the Key entry (anything but the keep-stars or nothing) goes to the helper, then the list is asked with it and shown.  su.fetched is 1 when that happened.  The
+* entry shows the keep-stars again afterwards; kv is cleared on every path.
+setup.takekey:
+   su.fetched = 0
+   screen get sf, 'key' returning kv
+   kv = trim(kv)
+   if kv = su.keep or kv = '' then
+      kv = ''
       return
    end
-   call $tk_close(ctx)
-   execute sent
-   crt
-   crt sysmsg(11865) :                                         ;* Press Enter to return
-   input junk
-   gosub reopen
+   if kv[1, len(su.keep)] = su.keep then kv = kv[len(su.keep) + 1, 9999]    ;* typed after the stars without clearing them
+   gosub key.word
+   if not(kw.ok) then
+      kv = ''
+      su.say = 'A key is 8 to 512 characters with no space and nothing outside plain ASCII.  Nothing was set.'
+      gosub setup.say
+      screen focus sf, 'key' else null
+      return
+   end
+   gosub hand.key                                             ;* kv is cleared there, whatever happens
+   if hk.err # '' then
+      su.say = 'The key was not set: ' : hk.err
+      gosub setup.say
+      screen focus sf, 'key' else null
+      return
+   end
+   key.done = 1
+   screen set sf, 'key' value su.keep
+   gosub fetch.models
+   gosub setup.items
+   screen set sf, 'model' items su.items
+   screen set sf, 'model' value su.val
+   su.say = 'The key for ' : nm.s : ' is set.  ' : su.note
+   gosub setup.say
+   if lm.ok and lm.n > 0 then
+      screen focus sf, 'model' else null
+   end
+   su.fetched = 1
+   return
+
+* Save: the model from Other name when it is filled in (checked against the list when there is one), else the one chosen in the list.  su.done 1 and mv when it may be set.
+setup.save:
+   su.done = 0
+   if not(pkey<pi>) and not(key.done) then
+      su.say = 'No key is set for ' : nm.s : ': type or paste it first.'
+      gosub setup.say
+      screen focus sf, 'key' else null
+      return
+   end
+   screen get sf, 'other' returning ov
+   ov = trim(ov)
+   if ov # '' then
+      vw = ov
+      vmax = 80
+      gosub valid.word
+      if not(vw.ok) then
+         su.say = 'A model name has 1 to 80 letters, digits and . _ : / @ + , - and nothing else.'
+         gosub setup.say
+         screen focus sf, 'other' else null
+         return
+      end
+      if lm.ok and lm.n > 0 then
+         found = 0
+         near = ''
+         for i = 1 to lm.n
+            if lm.list<i> = ov then found = 1
+            if near = '' and downcase(lm.list<i>) = downcase(ov) then near = lm.list<i>
+         next i
+         if not(found) then
+            su.say = nm.s : ' does not list a model named ' : ov : '.' : (if near # '' then '  It lists ' : near : ' (model names are case-sensitive).' else '  Choose one from the list.')
+            gosub setup.say
+            screen focus sf, 'other' else null
+            return
+         end
+      end
+      mv = ov
+   end else
+      if not(lm.ok and lm.n > 0) then
+         su.say = 'There is no list to choose from: type the model under Other name.'
+         gosub setup.say
+         screen focus sf, 'other' else null
+         return
+      end
+      screen get sf, 'model' returning li
+      li = li + 0
+      if li < 1 or li > lm.n then li = 1
+      mv = lm.list<li>
+   end
+   su.done = 1
+   return
+
+* kw.ok 1 when kv is a word the helper takes as a key: 8 to 512 characters from ! to ~
+key.word:
+   kw.ok = (len(kv) >= 8 and len(kv) <= 512)
+   if kw.ok then
+      for kw.i = 1 to len(kv)
+         kw.c = seq(kv[kw.i, 1])
+         if kw.c < 33 or kw.c > 126 then
+            kw.ok = 0
+            exit
+         end
+      next kw.i
+   end
+   return
+
+* The key in kv to the helper, through the hand-over file SET.AI KEY p HANDOVER reads and removes.  The directory ($aikey in the Solo tree, @sdsys) is made 0700 (the Solo
+* user's alone) before the file is written in it, and the file is removed here as well, whatever SET.AI did.  kv is cleared.  hk.err is null when the helper has the key,
+* otherwise what went wrong.
+hand.key:
+   hk.err = ''
+   hdir = @sdsys : @ds : '$aikey'
+   hf = hdir : @ds : 'key'
+   os.execute "umask 077; mkdir -p '" : hdir : "' && chmod 700 '" : hdir : "' && rm -f '" : hf : "'"
+   openseq hf to kf else
+      if status() then
+         hk.err = 'the hand-over file could not be made'
+         kv = ''
+         if not(unassigned(kf)) then close kf
+         return
+      end
+   end
+   writeseq kv to kf else hk.err = 'the hand-over file could not be written'
+   close kf
+   kv = ''
+   if hk.err = '' then
+      call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)
+      if err # '' then
+         hk.err = err
+      end else
+         if st # 0 then hk.err = trim(change(out, @fm, ' '))[1, 100]
+      end
+   end
+   os.execute "rm -f '" : hf : "'"
+   return
+
+* The provider's list of model names (p), asked through SET.AI MODELS: lm.ok 1 with lm.list (one to a field) and lm.n; lm.ok 0 when there is none (lm.why says why)
+fetch.models:
+   lm.ok = 0 ; lm.list = '' ; lm.n = 0 ; lm.why = ''
+   call $tk_runx(allow.set, 'set.ai models ' : p, out, st, err)
+   if err # '' then
+      lm.why = err
+      return
+   end
+   if st # 0 then
+      lm.why = trim(change(out, @fm, ' '))[1, 120]
+      return
+   end
+   lm.ok = 1
+   for i = 1 to dcount(out, @fm)
+      if out<i>[1, 2] = '  ' and trim(out<i>) # '' then
+         lm.n += 1
+         lm.list<lm.n> = trim(out<i>)
+      end
+   next i
    return
 
 * T (Core S.160; the owner, 7 Nov 26: "a standard text that will be included with every AI query describing where the default agent help text is located along any other
@@ -755,21 +1040,6 @@ context.check:
    next cx.i
    return
 
-* Take the screen again after the terminal was given away; the window may have changed
-reopen:
-   call $tk_open('tool.ai', 'admin', ctx, err)
-   if err # '' then
-      display err
-      done = 1
-      return
-   end
-   gen += 1
-   ctx<TK.C.GEN> = gen
-   gosub read.all
-   gosub draw.all
-   msg = 'back from the key prompt: the key shows as set when it was accepted'
-   return
-
 * X: remove the key of the provider under the cursor
 do.clearkey:
    p = provs<pi>
@@ -782,7 +1052,7 @@ do.clearkey:
    sent = 'set.ai key ' : p : ' clear'
    typed = ''
    el = ''
-   el<-1> = 'The key for ' : nm.s : ' will be removed from the AI helper.  The AI cannot be used with it until a key is set again (press K).'
+   el<-1> = 'The key for ' : nm.s : ' will be removed from the AI helper.  The AI cannot be used with it until a key is set again (press S).'
    gosub confirm.and.run
    return
 
@@ -792,12 +1062,12 @@ do.custom:
       msg = 'C fills in the Custom row: move the cursor to it first'
       return
    end
-   v1 = (if purl<4> = '' then '' else pnm<4>)
-   v2 = purl<4>
-   v3 = pfmt<4>
-   v4 = paut<4>
-   v5 = pver<4>
-   v6 = pmax<4>
+   v1 = (if purl<nprov> = '' then '' else pnm<nprov>)
+   v2 = purl<nprov>
+   v3 = pfmt<nprov>
+   v4 = paut<nprov>
+   v5 = pver<nprov>
+   v6 = pmax<nprov>
    screen ask 'Name (letters, digits and . _ : / @ + , - only)' width 40 value v1 title 'Custom AI connection  1 of 6' returning v1 else return
    screen ask 'Address: https only, no query string' width 100 value v2 title 'Custom AI connection  2 of 6' returning v2 else return
    screen ask 'Request layout: anthropic or openai' width 12 value v3 title 'Custom AI connection  3 of 6' returning v3 else return
@@ -822,7 +1092,7 @@ do.custom:
    typed = 'custom'
    el = ''
    el<-1> = 'Custom will go to ' : field(v2, '/', 3) : ' over https, with the certificate checked, and the key is sent only to that address.'
-   el<-1> = 'The helper checks the address again.  It is not used until you check Custom, set a model and a key.'
+   el<-1> = 'The helper checks the address again.  It is not used until you check Custom and set its key and model (S).'
    gosub confirm.and.run
    return
 

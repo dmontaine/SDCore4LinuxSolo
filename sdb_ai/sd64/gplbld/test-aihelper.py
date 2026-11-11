@@ -83,6 +83,7 @@ class Env:
         with open(SHIPPED) as f:
             text = f.read()
         for old, new in (("https://api.anthropic.com/v1/messages", base + "/v1/messages"), ("https://api.openai.com/v1/chat/completions", base + "/v1/chat/completions"),
+                         ("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", base + "/v1beta/openai/chat/completions"),
                          ("https://api.deepseek.com/chat/completions", base + "/chat/completions")):
             assert old in text, old
             text = text.replace(old, new)
@@ -91,6 +92,10 @@ class Env:
         self.logs = []
         self.gate_yes = True
         self.real_peer_uid = mod.peer_uid
+
+    def table_model(self, name):
+        """The default model the shipped table gives a provider (read from this env's copy of the file)."""
+        return self.mod.read_providers(self.providers)[name]["model"]
 
     def gate(self, yes):
         """The setting gate=yes (the next conf() writes it) or no gate line at all."""
@@ -154,10 +159,13 @@ def rows(env, fm):
     say("\n--- the shipped table and the connection rules")
     try:
         table = mod.read_providers(SHIPPED)
-        row("the shipped gplbld/ai-providers is read: Anthropic, OpenAI and DeepSeek, every URL https, the formats and token parameters as planned",
-            set(table) == {"anthropic", "openai", "deepseek"} and table["anthropic"]["format"] == "anthropic" and table["anthropic"]["auth"] == "x-api-key"
+        row("the shipped gplbld/ai-providers is read: Anthropic, OpenAI, Google and DeepSeek, every URL https, the formats and token parameters as planned",
+            set(table) == {"anthropic", "openai", "google", "deepseek"} and table["anthropic"]["format"] == "anthropic" and table["anthropic"]["auth"] == "x-api-key"
             and table["openai"]["maxparam"] == "max_completion_tokens" and table["deepseek"]["format"] == "openai" and table["deepseek"]["url"] == "https://api.deepseek.com/chat/completions"
+            and table["google"]["format"] == "openai" and table["google"]["auth"] == "bearer" and table["google"]["url"] == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
             and all(p["url"].startswith("https://") for p in table.values()), repr(table))
+        row("every shipped provider has a default model, a plain model name",
+            all(p.get("model") and mod.MODEL_RE.match(p["model"]) for p in table.values()), repr({n: p.get("model") for n, p in table.items()}))
     except mod.Refuse as e:
         row("the shipped table is read", False, "%s %s" % (e.code, e.msg))
     good = {"name": "Mine", "url": "https://llm.example.org:8443/v1/chat/completions", "format": "openai", "auth": "bearer", "maxparam": "max_tokens"}
@@ -226,8 +234,13 @@ def rows(env, fm):
     r = env.ask()
     row("no provider selected (the delivered state): disabled", r.get("code") == "disabled", repr(r))
     env.conf(provider="anthropic")
+    n0 = len(fm.log)
     r = env.ask()
-    row("a provider with no model: nomodel", r.get("code") == "nomodel", repr(r))
+    row("a named provider with no model set asks its DEFAULT model (the shipped table's), not nomodel",
+        r.get("t") == "ok" and len(fm.log) > n0 and json.loads(fm.log[n0]["body"])["model"] == env.table_model("anthropic"), repr((r, env.table_model("anthropic"))))
+    env.conf(provider="custom", custom__name="My LLM", custom__url="https://127.0.0.1:%d/v1/chat/completions" % fm.port, custom__format="openai", custom__auth="bearer", custom__maxparam="max_tokens")
+    r = env.ask()
+    row("Custom has no default model: with none set it is nomodel", r.get("code") == "nomodel", repr(r))
     env.conf(provider="anthropic", model__anthropic=M)
     os.remove(os.path.join(env.state, "keys", "anthropic"))
     r = env.ask()
@@ -410,10 +423,14 @@ def rows(env, fm):
     env.gate(True)
     env.conf(provider="openai", model__openai=M)
     r = env.ask(op="status")
-    ok = r["t"] == "status" and r["provider"] == "openai" and r["model"] == M and r["key"] is True and r["gate"] is True and set(r.get("providers", {})) == {"anthropic", "openai", "deepseek", "custom"} \
+    ok = r["t"] == "status" and r["provider"] == "openai" and r["model"] == M and r["key"] is True and r["gate"] is True and set(r.get("providers", {})) == {"anthropic", "openai", "google", "deepseek", "custom"} \
         and r["providers"]["openai"]["key"] is True and r["providers"]["anthropic"]["key"] is True \
         and r["providers"]["openai"]["maxparam"] == "max_completion_tokens" and r["limits"]["tokens-day"] == 100000 and r["ca-file"] == env.ca
-    row("status for the user's own process: the provider, the model, a key is set, the gate is on, the four rows with their details and keys, the limits and the ca-file", ok, repr(r)[:300])
+    row("status for the user's own process: the provider, the model, a key is set, the gate is on, the five rows with their details and keys, the limits and the ca-file", ok, repr(r)[:300])
+    pv = r.get("providers", {})
+    row("...and each named row carries its default model beside the one set (model: what was set, default: the table's), Custom has no default",
+        all(pv.get(n, {}).get("default") == env.table_model(n) for n in ("anthropic", "openai", "google", "deepseek")) and pv.get("custom", {}).get("default") == ""
+        and pv["openai"]["model"] == M and pv["anthropic"]["model"] == "", repr({n: (v.get("model"), v.get("default")) for n, v in pv.items()}))
     row("no status reply holds the key", KEY not in json.dumps(r), "")
     env.gate(False)
     env.conf(provider="openai", model__openai=M)
@@ -637,8 +654,9 @@ def rows_ctl(env, fm):
             return r.returncode, r.stdout, r.stderr
 
         rc, out, err = run("show")
-        row("show with nothing set: exit 0, says the AI is off and the gate is off, and lists the four rows with their details", rc == 0 and "none (the AI is off)" in out and "gate: off" in out and out.count("[ ]") == 4
-            and ("https://127.0.0.1:%d/v1/messages" % fm.port) in out and "(not set)" in out, repr((rc, out[:400], err)))
+        row("show with nothing set: exit 0, says the AI is off and the gate is off, and lists the five rows with their details, a named provider showing its default model and Custom (not set)",
+            rc == 0 and "none (the AI is off)" in out and "gate: off" in out and out.count("[ ]") == 5
+            and ("https://127.0.0.1:%d/v1/messages" % fm.port) in out and "claude-sonnet-5-5 (default)" in out and "(not set)" in out, repr((rc, out[:600], err)))
         rc, out, err = run("gate", "on")
         row("gate on: ok, and ai.conf holds gate=yes, mode 0600", rc == 0 and out.strip() == "ok" and "gate=yes" in conf_text(env).splitlines() and stat.S_IMODE(os.stat(os.path.join(env.state, "ai.conf")).st_mode) == 0o600, repr((rc, out, err)))
         rc, out, err = run("show")
@@ -659,7 +677,7 @@ def rows_ctl(env, fm):
         row("show now: openai is [x] with its model, key set, and the key is not printed", rc == 0 and "[x] openai" in out and "model: gpt-test" in out and "key: set" in out and KEY not in out, repr(out))
         rc, out, err = run("show", "--json")
         j = json.loads(out)
-        row("show --json is the helper's status: provider openai, the four providers with details and keys", j.get("provider") == "openai" and j["providers"]["openai"]["key"] is True and set(j["providers"]) == {"anthropic", "openai", "deepseek", "custom"}, repr(out)[:200])
+        row("show --json is the helper's status: provider openai, the five providers with details and keys", j.get("provider") == "openai" and j["providers"]["openai"]["key"] is True and set(j["providers"]) == {"anthropic", "openai", "google", "deepseek", "custom"}, repr(out)[:200])
         rc, out, err = run("custom", "My LLM", "https://llm.example.org/v1/chat/completions", "openai", "bearer", "-", "max_tokens")
         row("custom with - for the version: ok", rc == 0 and out.strip() == "ok" and "custom.url=https://llm.example.org/v1/chat/completions" in conf_text(env), repr((rc, out, err)))
         rc, out, err = run("custom", "My LLM", "http://llm.example.org/v1", "openai", "bearer", "-", "max_tokens")
@@ -789,6 +807,91 @@ def rows_context(env, fm):
         p.wait(timeout=10)
 
 
+def rows_models(env, fm):
+    """11 Nov 26, carried from SD Core's S.170: the provider's list of models (op models; Solo: the user's own, a stranger refused), and a refusal that carries the
+    provider's own words."""
+    say("\n--- the list of models and the provider's own words (carried from SD Core S.170)")
+    env.reset_counters()
+    env.stranger(False)
+    env.gate(True)
+    env.conf(provider="deepseek")
+    for f in os.listdir(os.path.join(env.state, "keys")):           # an earlier section's keys must not answer for "no key" below
+        os.remove(os.path.join(env.state, "keys", f))
+    env.key("deepseek")
+    env.key("anthropic")
+    fm.models = list(fakemodel.MODELS)
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"deepseek"}\n')
+    got = fm.log[n0] if len(fm.log) > n0 else {}
+    want = sorted(["fake-large", "fake-small", "claude-test", "claude-test-model", "deepseek-v4-pro", "gemini-fake"])
+    row("models for deepseek: the provider's names, sorted; Google's models/ prefix taken off; a name with spaces left out",
+        r.get("t") == "models" and r.get("provider") == "deepseek" and r.get("models") == want, repr(r))
+    row("...ONE GET to <base>/models with the key as a bearer token, and no body: nothing of anybody's text goes",
+        len(fm.log) - n0 == 1 and got.get("method") == "GET" and got.get("path") == "/models" and got["headers"].get("authorization") == "Bearer " + KEY and got.get("body") == b"",
+        repr({k: v for k, v in got.items() if k != "headers"}))
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"anthropic"}\n')
+    got = fm.log[n0] if len(fm.log) > n0 else {}
+    row("models for anthropic (not the selected provider): GET /v1/models?limit=1000 with x-api-key and anthropic-version; the same list",
+        r.get("t") == "models" and r.get("models") == want and got.get("path") == "/v1/models?limit=1000" and got.get("headers", {}).get("x-api-key") == KEY
+        and got.get("headers", {}).get("anthropic-version"), repr((r, got.get("path"))))
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models"}\n')
+    row("models with no provider named asks the selected one (deepseek)", r.get("t") == "models" and r.get("provider") == "deepseek" and len(fm.log) > n0 and fm.log[n0]["path"] == "/models", repr(r))
+    env.stranger(True)
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"deepseek"}\n')
+    row("a caller that is not the helper's own user is refused (nogate) and nothing is sent", r.get("code") == "nogate" and len(fm.log) == n0, repr(r))
+    env.stranger(False)
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"openai"}\n')
+    row("a provider with no key: nokey, and nothing is sent", r.get("code") == "nokey" and len(fm.log) == n0, repr(r))
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"martian"}\n')
+    row("a provider that is none of the five: badreq", r.get("code") == "badreq", repr(r))
+    fm.models = None
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"deepseek"}\n')
+    row("a provider that answers 404 (no list): nolist, saying to type the name", r.get("code") == "nolist" and "type" in r.get("msg", ""), repr(r))
+    fm.models = list(fakemodel.MODELS)
+    base = "https://127.0.0.1:%d" % fm.port
+    env.conf(provider="custom", **{"custom.name": "Mine", "custom.url": base + "/generate", "custom.format": "openai", "custom.auth": "bearer", "custom.maxparam": "max_tokens"})
+    env.key("custom")
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"custom"}\n')
+    row("Custom whose address does not end in /chat/completions or /messages: nolist and NOTHING is sent (the list's address cannot be known)", r.get("code") == "nolist" and len(fm.log) == n0, repr(r))
+    # the provider's own words
+    env.conf(provider="deepseek", model__deepseek="Deepseek-V4-Pro")
+    env.reset_counters()
+    r = env.ask("[[err400]]")
+    row("a 400 carries the provider's words: 'the provider refused the request (HTTP 400): Model Not Exist'", r.get("code") == "refused" and r.get("msg") == "the provider refused the request (HTTP 400): Model Not Exist", repr(r))
+    r = env.ask("[[err400key]]")
+    row("words that repeat the key: the key is replaced by <key>, the escape sequence is gone, and the reply holds no key",
+        r.get("code") == "refused" and "<key>" in r.get("msg", "") and KEY not in json.dumps(r) and "\x1b" not in r.get("msg", ""), repr(r))
+    r = env.ask("[[err401]]")
+    row("a 401 says the key was not accepted and NOT the provider's words (a provider may quote part of the key there)",
+        r.get("msg") == "the provider did not accept the key", repr(r))
+    r = env.ask("[[err500]]")
+    row("a 500 (after its one retry) carries the words too: busy ... (HTTP 500): server error", r.get("code") == "busy" and r.get("msg", "").endswith("(HTTP 500): server error"), repr(r))
+    # the client
+    ctl = os.path.join(HERE, "sd-ai-ctl")
+    runner = os.path.join(HERE, "ai-runner.py")
+    sock = os.path.join(env.tmp, "sock-models")
+    p = subprocess.Popen([sys.executable, runner, "--socket", sock, "--state", env.state, "--providers", env.providers,
+                          "--helper", env.helper_path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    try:
+        if p.stdout.readline().strip() != "ready":
+            row("the test runner started", False, "")
+            return
+        q = subprocess.run([sys.executable, ctl, "--socket", sock, "models", "deepseek"], capture_output=True, text=True, timeout=60)
+        lines = q.stdout.splitlines()
+        row("sd-ai-ctl models deepseek: exit 0, 'models: 6', then one name to a line, indented two spaces", q.returncode == 0 and lines[:1] == ["models: 6"] and [l[2:] for l in lines[1:]] == want
+            and all(l.startswith("  ") for l in lines[1:]), repr((q.returncode, q.stdout, q.stderr)))
+        q = subprocess.run([sys.executable, ctl, "--socket", sock, "models", "openai"], capture_output=True, text=True, timeout=60)
+        row("sd-ai-ctl models openai (no key): exit 1, error: nokey: ...", q.returncode == 1 and q.stdout.startswith("error: nokey:"), repr((q.returncode, q.stdout)))
+    finally:
+        p.terminate()
+        p.wait(timeout=10)
+
+
 MUTANTS = [
     ("the gate is not asked", '        if not gate_on(conf):\n            return {"t": "err", "code": "nogate", "msg": "the AI is not turned on for this account"}, "-"\n', "        pass\n"),
     ("any gate word opens it", '    return conf.get("gate", "") == "yes"', '    return conf.get("gate", "") != ""'),
@@ -830,6 +933,17 @@ MUTANTS += [
     ("an empty value does not put the default back", "        try:\n            os.remove(path)\n        except FileNotFoundError:\n            pass\n        return {\"t\": \"ok\", \"context\": \"default\"}",
      "        return {\"t\": \"ok\", \"context\": \"default\"}"),
     ("the kept standing text is readable by the group", "    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)", "    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o640)"),
+]
+M_S170 = len(MUTANTS)           # 11 Nov 26 (carried from SD Core S.170: the list of models, the provider's words): --selftest --from=M_S170
+MUTANTS += [
+    ("the key is not taken out of the provider's words", '        msg = msg.replace(key, "<key>")', "        pass"),
+    ("the provider's words are not made plain", '    msg, _ = hygiene(msg)\n    msg = " ".join', '    msg = " ".join'),
+    ("the provider's words are given for a 401 too", '    if status in (401, 403):\n        raise Refuse("refused", "the provider did not accept the key")\n    words',
+     '    words'),
+    ("Google's models/ prefix is kept", '            m = m[len("models/"):]', "            pass"),
+    ("a name the helper would refuse is listed", "        if MODEL_RE.match(m):\n            out.add(m)", "        out.add(m)"),
+    ("an unknown Custom address is guessed", "    return None\n\n\ndef list_models", '    return path.rstrip("/") + "/models"\n\n\ndef list_models'),
+    ("the starting model is not used", '    return name, p, conf.get("model." + name, "") or p.get("model", "")', '    return name, p, conf.get("model." + name, "")'),
 ]
 
 
@@ -893,6 +1007,7 @@ def main():
         rows_settings(env, fm)
         rows_ctl(env, fm)
         rows_context(env, fm)
+        rows_models(env, fm)
     finally:
         if fm:
             fm.stop()

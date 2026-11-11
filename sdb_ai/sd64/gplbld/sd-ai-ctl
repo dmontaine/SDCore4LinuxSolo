@@ -5,8 +5,9 @@
 #
 #   sd-ai-ctl [--socket PATH] show [--json]
 #   sd-ai-ctl [--socket PATH] gate on | off                   (whether the AI may be used at all; off as delivered)
-#   sd-ai-ctl [--socket PATH] provider anthropic | openai | deepseek | custom | none
-#   sd-ai-ctl [--socket PATH] model PROVIDER NAME            (NAME - clears it)
+#   sd-ai-ctl [--socket PATH] provider anthropic | openai | google | deepseek | custom | none
+#   sd-ai-ctl [--socket PATH] model PROVIDER NAME            (NAME - clears it: the provider's starting model is used again)
+#   sd-ai-ctl [--socket PATH] models PROVIDER                 (the provider's own list of model names, one to a line; it spends the key)
 #   sd-ai-ctl [--socket PATH] custom NAME URL FORMAT AUTH VERSION MAXPARAM      (VERSION - for none; FORMAT anthropic | openai; AUTH bearer | x-api-key)
 #   sd-ai-ctl [--socket PATH] custom-clear
 #   sd-ai-ctl [--socket PATH] ca PATH                         (PATH - for the system store)
@@ -15,11 +16,14 @@
 #   sd-ai-ctl [--socket PATH] key-clear PROVIDER
 #   sd-ai-ctl [--socket PATH] context HEX | -                 (the standing text sent with every request, hexadecimal ASCII; - the shipped default)
 #
-# THE KEY IS NEVER AN ARGUMENT (an argument is in the process list and the shell's history) and never printed.  SD's set.ai.key verb runs this program
-# with the terminal handed to it, so the key is typed here and never passes through SD.  Exit 0 done, 1 the helper refused (its code and words are
-# printed), 2 the helper could not be reached or the command line is wrong.
+# THE KEY IS NEVER AN ARGUMENT (an argument is in the process list and the shell's history) and never printed.  SD's SET.AI KEY p runs this program
+# with the terminal handed to it, so a key typed at that prompt never passes through SD; SET.AI KEY p HANDOVER (the AI page's setup dialog, Core S.170)
+# feeds the key the page took in its password field to this program's stdin from a hand-over file, which SET.AI removes whatever happens.  Exit 0 done,
+# 1 the helper refused (its code and words are printed), 2 the helper could not be reached or the command line is wrong.
 #
 # START-HISTORY:
+# 11 Nov 26 dm  Carried from SD Core: google is a provider, show names a provider's starting model ("(default)") while none is set (e1061f73); models
+#               PROVIDER, the provider's own list of model names ("models: N", then one name to a line, indented) (S.170, 2cced06c).
 # 11 Nov 26 dm  Carried from SD Core (S.160, 7 Nov, 74cf7001): context HEX | - (the standing text); show says whose it is and its length.
 # 23 Oct 26 dm  Solo carry 15: the socket is the user's ($XDG_RUNTIME_DIR/sd-solo-ai.sock), and `gate on|off` is the account gate.
 # 23 Oct 26 dm  (Core) New.
@@ -32,12 +36,12 @@ import socket
 import sys
 
 DEFAULT_SOCKET = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid(), "sd-solo-ai.sock")      # --socket PATH names another; so does SD_AI_SOCKET (the tests; the product never sets either)
-PROVIDERS = ("anthropic", "openai", "deepseek", "custom")
+PROVIDERS = ("anthropic", "openai", "google", "deepseek", "custom")
 
 
 def usage():
     sys.stderr.write("usage: sd-ai-ctl [--socket PATH] show [--json] | gate on|off | provider NAME|none | model PROVIDER NAME|- | custom NAME URL FORMAT AUTH VERSION|- MAXPARAM |\n"
-                     "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER | context HEX|-\n")
+                     "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER | context HEX|- | models PROVIDER\n")
     return 2
 
 
@@ -74,7 +78,7 @@ def show(reply, as_json):
         p = reply["providers"][n]
         print("  [%s] %-9s %-10s %s  (%s, %s%s, size field %s)" % ("x" if reply.get("provider") == n else " ", n, p["name"], p["url"] or "(not set)", p["format"] or "-", p["auth"] or "-",
               (", version " + p["version"]) if p["version"] else "", p["maxparam"] or "-"))
-        print("      model: %s   key: %s" % (p["model"] or "(not set)", "set" if p["key"] else "(not set)"))
+        print("      model: %s   key: %s" % (p["model"] or (("%s (default)" % p["default"]) if p.get("default") else "(not set)"), "set" if p["key"] else "(not set)"))
     print("  ca-file: %s" % (reply.get("ca-file") or "(the system store)"))
     print("  limits: " + ", ".join("%s=%s" % (k, v) for k, v in sorted(reply.get("limits", {}).items())))
     print("  standing text: %s, %d characters" % ({"own": "the administrator's", "default": "the shipped default", "none": "none", "bad": "unusable (none is sent)"}
@@ -106,6 +110,8 @@ def main(argv):
         req = {"v": 1, "op": "set", "what": "ca", "value": "" if rest[0] == "-" else rest[0]}
     elif cmd == "limit" and len(rest) == 2:
         req = {"v": 1, "op": "set", "what": "limit", "name": rest[0], "value": rest[1]}
+    elif cmd == "models" and len(rest) == 1:
+        req = {"v": 1, "op": "models", "provider": rest[0]}          # Core S.170: the provider's own list, one name to a line
     elif cmd == "key-clear" and len(rest) == 1:
         req = {"v": 1, "op": "keyclear", "provider": rest[0]}
     elif cmd == "context" and len(rest) == 1:
@@ -140,6 +146,10 @@ def main(argv):
         return 1
     if cmd == "show":
         show(reply, rest == ["--json"])
+    elif cmd == "models":
+        print("models: %d" % len(reply.get("models", [])))
+        for m in reply.get("models", []):
+            print("  " + m)
     elif cmd == "key":
         print("The key for %s is set." % rest[0])
     elif cmd == "key-clear":

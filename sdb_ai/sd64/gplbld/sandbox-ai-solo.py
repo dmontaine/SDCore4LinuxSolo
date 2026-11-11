@@ -25,9 +25,10 @@
 #           the GATE OFF (V12): 11625 before the preview, nothing sent
 #   P1-P4   an INTERNAL probe calling K$AI.START itself: the audit line names the real program; the helper refuses with the gate off (P2); no helper -> ERR nohelper; a program that is
 #           not $internal cannot compile a KERNEL call
-#   T0-T22  the page, driven on a 140 by 43 pseudo-terminal: the boxes, the four providers, Enter on a provider (Cancel, a wrong name, the right one), M, K (the helper's prompt, the key
-#           in no byte of the terminal), X, C, D, L, A, the Account box (the gate: Enter asks for the word ai before it turns the gate ON, none to turn it OFF), the helper not running,
-#           a window that is too small
+#   T0-T22  the page, driven on a 140 by 43 pseudo-terminal: the boxes, the five providers with their starting models, Enter on a provider (Cancel, a wrong name, the right one),
+#           S, THE SETUP DIALOG (11 Nov 26, carried from SD Core S.170 / S.171; T5-T9: K and M gone, the key a masked entry handed to the helper by the hand-over file and in no
+#           other file of the sandbox (T6f), the list of models from the fake, the keep-stars, Other name checked against the list, Esc, SET.AI MODEL's warning and SET.AI MODELS),
+#           X, C, D, L, A, the Account box (the gate: Enter asks for the word ai before it turns the gate ON, none to turn it OFF), the helper not running, a window that is too small
 #   C0-C8, T30-T38  (11 Nov 26, carried from SD Core's S.160) the standing text: set.ai context hex | - (an ordinary session refused, the helper's file mode 0600, the audit line
 #           with the size and no text, a text that names SD's own code refused, a word that is not hexadecimal); the ai verb sends it FIRST in the system text and shows none of it,
 #           its size counted; a kept text that names the code sends nothing; the shipped default; and the page's T box (Esc, Save and Run, Shipped default)
@@ -200,10 +201,16 @@ def setup_ai(mutant):
     text = open(os.path.join(HERE, "ai-providers")).read()
     for old, new in (("https://api.anthropic.com/v1/messages", "https://127.0.0.1:%d/v1/messages" % fm.port),
                      ("https://api.openai.com/v1/chat/completions", "https://127.0.0.1:%d/v1/chat/completions" % fm.port),
+                     ("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://127.0.0.1:%d/v1beta/openai/chat/completions" % fm.port),
                      ("https://api.deepseek.com/chat/completions", "https://127.0.0.1:%d/chat/completions" % fm.port)):
+        if old not in text:
+            bail("the shipped ai-providers has no %s: the suite cannot point it at the fake" % old)
         text = text.replace(old, new)
     put(providers, text)
-    STATE.update(fm=fm, pki=pki, providers=providers, ca=os.path.join(pki, "ca.crt"), port=fm.port)
+    defaults = re.findall(r"^model=(.*)$", text, re.M)                  # 11 Nov 26: the starting models, in the file's order (anthropic, openai, google, deepseek)
+    if len(defaults) != 4:
+        bail("the shipped ai-providers does not give four starting models: %r" % defaults)
+    STATE.update(fm=fm, pki=pki, providers=providers, ca=os.path.join(pki, "ca.crt"), port=fm.port, defaults=defaults)
     # the programs of the tree (a sandbox used for an earlier mutant starts from the tree's again), then the mutant's one change
     for n in ("setai", "ai", "tool_ai"):
         shutil.copyfile(os.path.join(TREE, "sdsys", "gpl.bp", n), os.path.join(sysdir(), "gpl.bp", n))
@@ -243,8 +250,8 @@ def sec_setai():
     row("A0 an ORDINARY session is refused (2001) and nothing changes: no ai.conf line, no audit line", has(out, r"Command requires administrator privileges") and not settings()
         and "set.ai" not in audit_new(a0), repr((out[-3:], conf())))
     out = adm("set.ai")
-    row("A1 the reading form, nothing set: the AI is off, the gate is off, four rows with the shipped addresses (the fake's here), none checked, no model, no key",
-        has(out, r"^AI provider in use: none \(the AI is off\)") and has(out, r"^\s+gate: off$") and sum(1 for l in out if l.startswith("  [ ] ")) == 4
+    row("A1 the reading form, nothing set: the AI is off, the gate is off, five rows with the shipped addresses (the fake's here), none checked, no key",
+        has(out, r"^AI provider in use: none \(the AI is off\)") and has(out, r"^\s+gate: off$") and sum(1 for l in out if l.startswith("  [ ] ")) == 5
         and has(out, r"https://127\.0\.0\.1:%d/v1/messages" % STATE["port"]), repr(out[:8]))
     a1 = audit_off()
     out = adm("set.ai gate on")
@@ -326,7 +333,8 @@ def sec_verb():
         and not any(ln.startswith("This will be sent to") for ln in out), repr(out[-4:]))
     adm("set.ai gate on")
     out, n, aud = ask(["ai hello", "y"], "V2", fm)
-    row("V2 a provider and no model: 11626 (anthropic, model), no preview, nothing sent", msg(11626, "anthropic", "model") in out and n == 0 and not req_lines(aud), repr(out[-4:]))
+    row("V2 a named provider with no model set has its starting model (11 Nov 26), so what is missing is the key: 11626 (anthropic, key), not (anthropic, model); no preview, nothing sent",
+        msg(11626, "anthropic", "key") in out and msg(11626, "anthropic", "model") not in out and n == 0 and not req_lines(aud), repr(out[-4:]))
     adm("set.ai model anthropic " + MODEL)
     out, n, aud = ask(["ai hello", "y"], "V3", fm)
     row("V3 a model and no key: 11626 (anthropic, key), no preview, nothing sent", msg(11626, "anthropic", "key") in out and n == 0 and not req_lines(aud), repr(out[-4:]))
@@ -455,6 +463,28 @@ def cell(h, r):
     return h.line(r)[3:138].rstrip()
 
 
+def key_copies(own):
+    """11 Nov 26: every file under the sandbox that holds the test key, but the helper's own key file (own).  The key typed in the setup dialog passes through SD's
+    session; this says it is not LEFT anywhere: the hand-over directory, the tree, the audit trail, the error log, the helper's state.  A file that cannot be read is named."""
+    hits = []
+    needle = KEY.encode()
+    for root, dirs, files in os.walk(box()):
+        for f in files:
+            p = os.path.join(root, f)
+            if os.path.islink(p) or os.path.abspath(p) == os.path.abspath(own):
+                continue
+            try:
+                stt = os.stat(p)
+                if not (stt.st_mode & 0o170000) == 0o100000 or stt.st_size > 64 * 1024 * 1024:     # regular files only (the helper's socket is not one)
+                    continue
+                with open(p, "rb") as fh:
+                    if needle in fh.read():
+                        hits.append(p)
+            except OSError as e:
+                hits.append("%s (unreadable: %s)" % (p, e.__class__.__name__))
+    return hits
+
+
 def f6(h):
     """F6, the key that changes box on every page (the linux terminal's sequence, typed, so that the suite does not depend on the key map of the home suite's H)."""
     h.typed("\x1b[17~", idle=0.8)
@@ -468,8 +498,9 @@ def page(cols=140, rows=43):
 
 def sec_page():
     say("\n=== TOOL.AI ===")
-    adm("set.ai provider none", "set.ai gate off", "set.ai model anthropic -", "set.ai custom clear")
-    for p in ("anthropic", "openai", "deepseek", "custom"):
+    # the list of models is a real request to the fake provider, whose certificate only the test CA vouches for (11 Nov 26)
+    adm("set.ai provider none", "set.ai gate off", "set.ai model anthropic -", "set.ai custom clear", "set.ai ca " + STATE["ca"])
+    for p in ("anthropic", "openai", "google", "deepseek", "custom"):
         try:
             os.remove(keyfile(p))
         except OSError:
@@ -487,13 +518,17 @@ def sec_page():
         len(re.findall(r"tool start app=tool\.ai$", audit_new(a_open) or "", re.M)) == 1 and not any(l.startswith(("model.", "custom.", "gate")) for l in settings())
         and "provider=anthropic" not in settings(), repr((audit_new(a_open), conf())))
     row("T1a the four boxes", all(w in T for w in ("AI provider", "The row under the cursor", "May this account use the AI?", "What this means")), T[:400])
-    urls = ("https://127.0.0.1:%d/v1/messages" % port, "https://127.0.0.1:%d/v1/chat/completions" % port, "https://127.0.0.1:%d/chat/completions" % port)
-    names = ("Anthropic", "OpenAI", "DeepSeek")
-    ok = all(re.match(r"^\[ \] %s\s+%s\s+\(not set\)\s+not set$" % (re.escape(nm), re.escape(u)), cell(h, 3 + i)) for i, (nm, u) in enumerate(zip(names, urls)))
-    row("T1b the three named providers are filled in with their shipped address, no model and no key, none checked", ok, repr([cell(h, r) for r in range(3, 7)]))
-    row("T1c the fourth row is Custom, not filled in, nothing checked", re.match(r"^\[ \] Custom\s+\(not filled in\)\s+\(not set\)\s+not set$", cell(h, 6)) is not None, repr(cell(h, 6)))
-    row("T1d the summary says the AI is off (no provider is selected)", h.line(8)[3:].startswith("The AI is OFF: no provider is selected."), repr(h.line(8)[3:80]))
-    row("T2 a [?] at the end of the Provider box and of the Account box", h.line(2)[134:137] == "[?]" and h.line(24)[134:137] == "[?]", repr((h.line(2)[130:139], h.line(24)[130:139])))
+    urls = ("https://127.0.0.1:%d/v1/messages" % port, "https://127.0.0.1:%d/v1/chat/completions" % port, "https://127.0.0.1:%d/v1beta/openai/chat/completions" % port,
+            "https://127.0.0.1:%d/chat/completions" % port)
+    names = ("Anthropic", "OpenAI", "Google", "DeepSeek")
+    ok = all(re.match(r"^\[ \] %s\s+%s\s+%s \(default\)\s+not set$" % (re.escape(nm), re.escape(u), re.escape(d)), cell(h, 3 + i))
+             for i, (nm, u, d) in enumerate(zip(names, urls, STATE["defaults"])))
+    row("T1b the four named providers (Google among them, 11 Nov 26) are filled in with their shipped address and their starting model marked (default), no key, none checked",
+        ok, repr([cell(h, r) for r in range(3, 8)]))
+    row("T1c the fifth row is Custom, not filled in, no model, nothing checked", re.match(r"^\[ \] Custom\s+\(not filled in\)\s+\(not set\)\s+not set$", cell(h, 7)) is not None, repr(cell(h, 7)))
+    row("T1d the summary says the AI is off (no provider is selected) and that the model has a default", h.line(9)[3:].startswith("The AI is OFF: no provider is selected.")
+        and "the model has a default" in h.line(9), repr(h.line(9)[3:140]))
+    row("T2 a [?] at the end of the Provider box and of the Account box", h.line(2)[134:137] == "[?]" and h.line(25)[134:137] == "[?]", repr((h.line(2)[130:139], h.line(25)[130:139])))
     row("T1e the row under the cursor is described: the Anthropic request layout, the x-api-key header and the version header",
         all(w in h.text() for w in ("anthropic  (the Messages API)", "x-api-key: <key>", "2023-06-01", "max_tokens")), h.text()[1500:2600])
 
@@ -501,8 +536,8 @@ def sec_page():
     a0 = audit_off()
     h.key("enter", idle=1.4)
     T = h.text()
-    row("T3a Enter shows the command and its effect, and warns that no model and no key are set", "set.ai provider anthropic" in T and "Anthropic will be used" in T and "No model is set for it yet" in T
-        and "No key is set for it yet" in T, T[-900:])
+    row("T3a Enter shows the command and its effect: it will ask its default model, and no key is set", "set.ai provider anthropic" in T and "Anthropic will be used" in T
+        and ("It will ask its default model, " + STATE["defaults"][0]) in re.sub(r"\s+", " ", T) and "No key is set for it yet" in T, T[-900:])
     h.key("esc", idle=1.0)
     row("T3b Esc is Cancel: nothing was run (the status line says so), ai.conf holds no provider, no audit line", "nothing was run" in st(h) and "provider=anthropic" not in settings()
         and "set.ai" not in audit_new(a0), repr((st(h), conf())))
@@ -519,51 +554,103 @@ def sec_page():
     row("T4c the right name runs it: Anthropic is checked, ai.conf holds provider=anthropic, the audit trail has one 'set.ai provider=anthropic', and the page says what the verb said",
         h.line(3)[3:6] == "[x]" and "provider=anthropic" in settings() and len(re.findall(r"set\.ai provider=anthropic$", new, re.M)) == 1 and msg(11611, "anthropic") in st(h),
         repr((h.line(3)[3:20], conf(), new[-200:], st(h))))
-    row("T4d the summary says what is missing: no model and no key yet", "In use: Anthropic, model (not set), key not set.  It cannot be used until both are set" in h.line(8), repr(h.line(8)[3:130]))
+    row("T4d the summary says what is missing: the key (the model is the default)", ("In use: Anthropic, model %s (default), key not set.  It cannot be used until the key is set" % STATE["defaults"][0]) in h.line(9),
+        repr(h.line(9)[3:130]))
 
-    say("\n--- M: the model")
-    h.typed("m", idle=1.2)
-    row("T5a M asks for the model name of the row under the cursor", "Model name for Anthropic" in h.text(), h.text()[-500:])
-    h.typed(MODEL + "\r", idle=1.5)
-    T = h.text()
-    row("T5b the sentence and its effect are shown before anything runs", "set.ai model anthropic " + MODEL in T and "will ask model " + MODEL in T, T[-700:])
-    h.typed("r", idle=2.0)
-    row("T5c Run: ai.conf holds the model, the row shows it, the verb's own words are on the status line", ("model.anthropic=" + MODEL) in settings() and MODEL in h.line(3)
-        and msg(11613, "anthropic", MODEL) in st(h), repr((conf(), h.line(3)[3:100], st(h))))
-    a1 = audit_off()
-    before = list(conf())
-    h.typed("m", idle=1.0)
-    h.typed("a;b\r", idle=1.5)
-    row("T6 a model name with a semicolon is refused by the page (words), nothing is run, nothing is audited", "A model name has 1 to 80 letters" in st(h) and conf() == before and "set.ai" not in audit_new(a1),
-        repr((st(h), audit_new(a1))))
-    h.key("down", idle=0.6)
-    h.typed("m", idle=1.0)
-    h.typed("GPT-Test:1\r", idle=1.5)
-    h.typed("r", idle=2.0)
-    row("T7 capitals and a colon in a model name go through $tk_runx (the OpenAI row)", "model.openai=GPT-Test:1" in settings() and "GPT-Test:1" in h.line(4), repr((conf(), h.line(4)[3:100], st(h))))
-    h.key("up", idle=0.6)
-
-    say("\n--- K: the key")
-    a2 = audit_off()
-    h.typed("k", idle=1.4)
-    T = h.text()
-    row("T8a K shows set.ai key anthropic and says the key does not pass through SD", "set.ai key anthropic" in T and "does not pass through SD" in T, T[-800:])
-    h.typed("r", idle=2.5)
-    scr = h.text()
-    row("T8b the terminal is the helper's: its prompt 'Key for anthropic (not shown):' is on the screen and the page is not", "Key for anthropic (not shown):" in scr and "What this means" not in scr, scr[-400:])
-    h.typed(KEY[:6], idle=0.7)
-    row("T8c what is typed at the prompt is not shown", KEY[:6] not in h.text(), h.text()[-300:])
-    h.typed(KEY[6:] + "\r", idle=3.0)
-    scr = h.text()
-    row("T8d SD says the key is set (11615) and waits for Enter before it takes the screen again", msg(11615, "anthropic") in scr and KEY not in scr, scr[-400:])
-    h.key("enter", idle=2.5)
-    new = audit_new(a2)
+    # ------------------------------------------------------------------------------------------ S, the one setup dialog
+    # 11 Nov 26, carried from SD Core's S.170 / S.171 (the owner, 8 Nov: "There should be only S for a setup dialog that looks the same no matter if the model and key has been
+    # selected previously.  If there are already values they should be displayed.  The model should be selected from a list.  The key in a password type field."; to Solo,
+    # 11 Nov: "Carry Core's dialog").  K and M are gone.  Core's rows T5-T9 of sandbox-tool-ai.py, with Solo's rows and the hand-over directory in the Solo tree.
+    say("\n--- S: the one setup dialog (carried from SD Core S.170 / S.171)")
+    hdir = os.path.join(sysdir(), "$aikey")
     kp = keyfile("anthropic")
+    fl = lambda: [l for l in h.text().split("\n") if any(w in l for w in ("AI setup", "Key", "Model", "Other", "list", "set", "fake", "claude", "Save"))]
+    gone = lambda: "AI setup:" not in h.text()
+    for k_ in ("m", "k"):
+        h.typed(k_, idle=1.0)
+    row("T5 K and M do nothing any more: no dialog and no Run box opens, the old prompts are gone", gone() and "Model name for" not in h.text() and "set.ai key anthropic" not in h.text(), repr(st(h)))
+    a1 = audit_off()
+    h.typed("s", idle=1.5)
+    T = h.text()
+    row("T5a S on a provider with NO key: 'AI setup: Anthropic' with an EMPTY Key entry, the Model list saying the key comes first, Other name, Save and Cancel",
+        "AI setup: Anthropic" in T and "set the key first" in T and "Other name" in T and "Save" in T and "No key is set for Anthropic yet" in re.sub(r"\s+", " ", T) and "*****" not in T, repr(fl()))
+    h.typed("\r", idle=1.5)
+    row("T5b Save with no key is refused in the dialog, which stays; nothing is run", "AI setup: Anthropic" in h.text() and "type or paste it first" in re.sub(r"\s+", " ", h.text())
+        and "set.ai" not in (audit_new(a1) or ""), repr(fl()))
+    h.typed(KEY, idle=0.8)
+    T = h.text()
+    row("T6a the key typed into the Key entry is shown as * and not as itself", KEY not in T and ("*" * 10) in T, repr(fl()))
+    a2 = audit_off()
+    h.key("tab", idle=4.0)
+    T = h.text()
+    TS = re.sub(r"\s+", " ", T)
+    new = audit_new(a2) or ""
+    row("T6b Tab out of the Key entry hands the key over and fills the Model list from the provider WITH it; the dialog stays and says the key is set",
+        "AI setup: Anthropic" in T and "fake-small" in T and "deepseek-v4-pro" in T and "The key for Anthropic is set" in TS and "set the key first" not in T, repr(fl()))
+    row("T6c the key file is the helper's (0600, the key); the audit trail has 'set.ai key set provider=anthropic from=page' and no key; the hand-over file is gone, its directory 0700",
+        os.path.exists(kp) and open(kp).read().strip() == KEY and (os.stat(kp).st_mode & 0o777) == 0o600 and re.search(r"set\.ai key set provider=anthropic from=page$", new, re.M) is not None
+        and KEY not in new and not os.path.exists(os.path.join(hdir, "key")) and os.path.isdir(hdir) and (os.stat(hdir).st_mode & 0o777) == 0o700, repr((os.path.exists(kp), new[-200:])))
+    row("T6d the model in use (the default, " + STATE["defaults"][0] + ") is not in the fake's list, and the dialog says so", ("The model now set, " + STATE["defaults"][0] + ", is not in") in TS, repr(fl()))
+    copies = key_copies(kp)
+    row("T6f THE KEY IS LEFT NOWHERE BUT THE HELPER'S OWN FILE: no other file under the sandbox (the tree, its $aikey, the audit trail, the error log, the helper's state) holds it",
+        copies == [] and os.path.exists(kp), repr(copies))
+    # the list is sorted: claude-test, claude-test-model, deepseek-v4-pro, fake-large, fake-small, gemini-fake; the first is chosen; Tab Tab reaches Save
+    h.key("tab", idle=0.5)
+    h.key("tab", idle=0.5)
+    h.key("enter", idle=3.0)
+    row("T6e Save: the dialog is gone, ai.conf holds model.anthropic=claude-test (the entry chosen), and the page says the key is set and the model is now claude-test",
+        gone() and ("model.anthropic=" + MODEL) in settings() and "The key for Anthropic is set" in st(h) and ("now " + MODEL) in st(h), repr((st(h), conf())))
     row("T9a back on the page: the row shows the key set, the summary no longer says it cannot be used", re.search(r"claude-test\s+set$", cell(h, 3)) is not None
-        and "In use: Anthropic, model claude-test, key set" in h.line(8) and "cannot be used" not in h.line(8), repr((cell(h, 3), cell(h, 8))))
-    row("T9b the key file is the helper's: mode 0600, holds the key; the audit trail has 'set.ai key set provider=anthropic' and no key", os.path.exists(kp) and open(kp).read().strip() == KEY
-        and (os.stat(kp).st_mode & 0o777) == 0o600 and re.search(r"set\.ai key set provider=anthropic$", new, re.M) is not None and KEY not in new, repr((os.path.exists(kp), new[-200:])))
+        and "In use: Anthropic, model claude-test, key set" in h.line(9) and "cannot be used" not in h.line(9), repr((cell(h, 3), cell(h, 9))))
     row("T9c the key sentinel is in NO byte the terminal received, and on no screen line", KEY.encode() not in h.s.raw and KEY not in h.text(), "")
+    # the SAME dialog with values already set: the keep-stars, the list with the model in use chosen
+    h.typed("s", idle=3.0)
+    T = h.text()
+    row("T7a S again: the same dialog, the Key entry shows the keep-stars (twelve *), the list is there at once and says the model in use, claude-test, is chosen",
+        "AI setup: Anthropic" in T and "************" in T and "fake-small" in T and "the one in use, claude-test, is chosen" in re.sub(r"\s+", " ", T), repr(fl()))
+    h.key("tab", idle=0.5)
+    for _ in range(4):
+        h.key("down", idle=0.3)
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.key("enter", idle=3.0)
+    row("T7b four rows down the list (fake-small) and Save, the keep-stars left alone: the model is fake-small and the key is unchanged",
+        gone() and "model.anthropic=fake-small" in settings() and "The key is unchanged" in st(h) and open(kp).read().strip() == KEY, repr((st(h), conf())))
+    # Other name: checked against the list
+    a5 = audit_off()
+    before = list(conf())
+    h.typed("s", idle=3.0)
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.typed("Claude-Test", idle=0.5)
+    h.key("enter", idle=1.5)
+    TL = h.text().split("\n")
+    TS = re.sub(r"\s+", " ", h.text())
+    row("T7c Other name Claude-Test (the case wrong) is refused IN the dialog, which names claude-test; nothing changed",
+        "AI setup:" in h.text() and any("does not list a model named Claude-Test" in l for l in TL) and "claude-test" in TS and "case-sensitive" in TS
+        and conf() == before and "set.ai model" not in (audit_new(a5) or ""), repr(fl()))
+    h.typed("\x15a;b", idle=0.5)
+    h.key("enter", idle=1.5)
+    row("T7d Other name with a semicolon is refused by the dialog's own word check", "A model name has 1 to 80 letters" in re.sub(r"\s+", " ", h.text()) and conf() == before, repr(fl()))
+    h.key("esc", idle=1.2)
+    row("T7e Esc closes the dialog: nothing was changed", gone() and "nothing was changed" in st(h) and conf() == before, repr(st(h)))
+    # a model set with the wrong capitals, from the prompt (SD Core's owner's Deepseek-V4-Pro); SET.AI MODEL itself warns, the dialog says so and chooses the listed one
+    out = adm("set.ai model anthropic Claude-Test")
+    row("T8 SET.AI MODEL with a name the provider does not list sets it and says so (14016) with the listed one that differs only in case (14018)",
+        msg(11613, "anthropic", "Claude-Test") in out and msg(14016, "anthropic", "Claude-Test") in out and msg(14018, MODEL) in out, repr(out[-4:]))
+    out = adm("set.ai models anthropic")
+    row("T8c SET.AI MODELS lists the provider's names (14017 and one indented name to a line)",
+        msg(14017, "anthropic", 6) in out and "  fake-small" in out and "  gemini-fake" in out, repr(out[-8:]))
+    h.key("f5", idle=1.5)
+    h.typed("s", idle=3.0)
+    TS = re.sub(r"\s+", " ", h.text())
+    row("T8a a model set with the wrong capitals (Claude-Test): S says it is not in the list (case-sensitive) and chooses claude-test",
+        "The model now set, Claude-Test, is not in Anthropic's list (model names are case-sensitive)" in TS and "claude-test is chosen" in TS, repr(fl()))
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.key("enter", idle=3.0)
+    row("T8b Save puts claude-test in its place", gone() and ("model.anthropic=" + MODEL) in settings(), repr((st(h), conf())))
     h.typed("x", idle=1.2)
     T = h.text()
     row("T9d X shows set.ai key anthropic clear", "set.ai key anthropic clear" in T and "will be removed from the AI helper" in T, T[-600:])
@@ -571,7 +658,7 @@ def sec_page():
     row("T9e Run removes it: the key file is gone, the row says not set", not os.path.exists(kp) and cell(h, 3).endswith("not set") and msg(11616, "anthropic") in st(h), repr((os.path.exists(kp), cell(h, 3), st(h))))
 
     say("\n--- C: Custom")
-    for _ in range(3):
+    for _ in range(4):                          # Custom is the fifth row since Google's (11 Nov 26)
         h.key("down", idle=0.5)
     h.typed("x", idle=0.9)
     row("T10a X on a row with no key says so and runs nothing", "No key is set for Custom" in st(h), repr(st(h)))
@@ -591,25 +678,25 @@ def sec_page():
     h.typed("custom\r", idle=2.0)
     new = audit_new(a3)
     row("T11b with the word custom typed it runs: the row shows MyLLM and the address, ai.conf holds the connection, the audit line has the host and not the address",
-        "MyLLM" in h.line(6) and ("custom.url=" + url) in settings() and re.search(r"set\.ai custom name=MyLLM host=127\.0\.0\.1:%d$" % port, new, re.M) is not None and "/v1/chat/completions" not in new,
-        repr((h.line(6)[3:110], new[-200:])))
+        "MyLLM" in h.line(7) and ("custom.url=" + url) in settings() and re.search(r"set\.ai custom name=MyLLM host=127\.0\.0\.1:%d$" % port, new, re.M) is not None and "/v1/chat/completions" not in new,
+        repr((h.line(7)[3:110], new[-200:])))
     h.key("enter", idle=1.2)
     h.typed("r", idle=1.2)
     h.typed("custom\r", idle=2.0)
-    marks = [h.line(r)[3:6] for r in range(3, 7)]
-    row("T12 selecting Custom moves the check box: exactly one [x], on the Custom row, and ai.conf says provider=custom", marks == ["[ ]", "[ ]", "[ ]", "[x]"] and "provider=custom" in settings(), repr((marks, conf())))
+    marks = [h.line(r)[3:6] for r in range(3, 8)]
+    row("T12 selecting Custom moves the check box: exactly one [x], on the Custom row, and ai.conf says provider=custom", marks == ["[ ]", "[ ]", "[ ]", "[ ]", "[x]"] and "provider=custom" in settings(), repr((marks, conf())))
     h.typed("d", idle=1.0)
     h.typed("r", idle=2.0)
     row("T13a D while Custom is in use: the helper refuses and the page shows its words; the connection stays", "The AI helper refused" in st(h) and any(l.startswith("custom.url=") for l in conf()), repr((st(h), conf())))
     h.key("enter", idle=1.2)
     h.typed("r", idle=2.0)
-    marks = [h.line(r)[3:6] for r in range(3, 7)]
-    row("T13b Enter on the provider in use unchecks it: no [x] anywhere, the summary says the AI is off, ai.conf has an empty provider", marks == ["[ ]"] * 4 and h.line(8)[3:].startswith("The AI is OFF")
-        and "provider=" in settings(), repr((marks, h.line(8)[3:60], conf())))
+    marks = [h.line(r)[3:6] for r in range(3, 8)]
+    row("T13b Enter on the provider in use unchecks it: no [x] anywhere, the summary says the AI is off, ai.conf has an empty provider", marks == ["[ ]"] * 5 and h.line(9)[3:].startswith("The AI is OFF")
+        and "provider=" in settings(), repr((marks, h.line(9)[3:60], conf())))
     h.typed("d", idle=1.0)
     h.typed("r", idle=2.0)
-    row("T14 D now works: no custom.* line is left and the row is not filled in again", not any(l.startswith("custom.") for l in conf()) and "(not filled in)" in h.line(6) and msg(11618) in st(h),
-        repr((conf(), h.line(6)[3:80], st(h))))
+    row("T14 D now works: no custom.* line is left and the row is not filled in again", not any(l.startswith("custom.") for l in conf()) and "(not filled in)" in h.line(7) and msg(11618) in st(h),
+        repr((conf(), h.line(7)[3:80], st(h))))
 
     say("\n--- L and A")
     h.typed("l", idle=1.0)
@@ -638,8 +725,8 @@ def sec_page():
     row("T17a0 Tab does NOT change box (11 Nov 26, S.117: F6 does, on every page): the status line still names Provider", st(h).startswith("[Provider]"), repr(st(h)))
     f6(h)
     row("T17a F6 moves to the Account box (the status line names it)", st(h).startswith("[Account]"), repr(st(h)))
-    r25 = cell(h, 25)
-    row("T17b one row, the account and the Linux user, the gate off", re.match(r"^this account\s+%s\s+off$" % re.escape(os.environ.get("USER", "")), r25) is not None, repr(r25))
+    r26 = cell(h, 26)
+    row("T17b one row, the account and the Linux user, the gate off", re.match(r"^this account\s+%s\s+off$" % re.escape(os.environ.get("USER", "")), r26) is not None, repr(r26))
     row("T17c the summary says the gate is off (as delivered) and what Enter does", h.line(31)[3:].startswith("The gate is off (as delivered): nothing can be sent to the provider.  Enter turns the gate on."), repr(h.line(31)[3:120]))
     a0 = audit_off()
     h.key("enter", idle=1.4)
@@ -647,20 +734,20 @@ def sec_page():
     row("T18a Enter shows set.ai gate on and the effect, including that Solo runs the helper as you", "set.ai gate on" in T and "will be able to send text to Anthropic" in T and "Solo runs the AI helper as you" in T, T[-900:])
     h.typed("r", idle=1.2)
     h.typed("nope\r", idle=1.6)
-    row("T18b a wrong word runs nothing: no gate line in ai.conf and the row is off", not any(l.startswith("gate") for l in conf()) and "off" in h.line(25)[3:], repr((conf(), h.line(25)[3:80])))
+    row("T18b a wrong word runs nothing: no gate line in ai.conf and the row is off", not any(l.startswith("gate") for l in conf()) and "off" in h.line(26)[3:], repr((conf(), h.line(26)[3:80])))
     h.key("enter", idle=1.2)
     h.typed("r", idle=1.2)
     h.typed("ai\r", idle=2.5)
     new = audit_new(a0)
     row("T18 the word ai typed: gate=yes is in ai.conf, the row says ON, the summary says so, the audit trail has 'set.ai gate=on'",
-        "gate=yes" in settings() and re.search(r"this account\s+%s\s+ON$" % re.escape(os.environ.get("USER", "")), cell(h, 25)) is not None
-        and h.line(31)[3:].startswith("The gate is ON") and len(re.findall(r"set\.ai gate=on$", new, re.M)) == 1, repr((conf(), cell(h, 25), cell(h, 31), new[-200:])))
+        "gate=yes" in settings() and re.search(r"this account\s+%s\s+ON$" % re.escape(os.environ.get("USER", "")), cell(h, 26)) is not None
+        and h.line(31)[3:].startswith("The gate is ON") and len(re.findall(r"set\.ai gate=on$", new, re.M)) == 1, repr((conf(), cell(h, 26), cell(h, 31), new[-200:])))
     h.key("enter", idle=1.2)
     T = h.text()
     row("T19a Enter again shows set.ai gate off, and no word is asked for turning the gate OFF", "set.ai gate off" in T and "no longer be able" in T, T[-600:])
     h.typed("r", idle=2.5)
-    row("T19b Run: the gate line is gone and the row says off", not any(l.startswith("gate") for l in conf()) and "off" in h.line(25)[3:], repr((conf(), h.line(25)[3:80])))
-    h.typed("m", idle=0.9)
+    row("T19b Run: the gate line is gone and the row says off", not any(l.startswith("gate") for l in conf()) and "off" in h.line(26)[3:], repr((conf(), h.line(26)[3:80])))
+    h.typed("s", idle=0.9)
     row("T19c a Provider key in the Account box is refused in words", "Move to the Provider box" in st(h), repr(st(h)))
     h.key("ctrl-q", idle=1.5)
     h.end()
@@ -669,9 +756,10 @@ def sec_page():
     h = page()
     stop_runner()
     h.key("f5", idle=2.0)
-    row("T20a the helper is not running: the summary says so in words and the rows are blank", h.line(8)[3:].startswith("The AI helper is not running"), repr(h.line(8)[3:100]))
-    h.typed("m", idle=1.0)
-    row("T20b M then says the helper could not be reached (11607); the page is still there", msg(11607) in st(h) and "What this means" in h.text(), repr(st(h)))
+    row("T20a the helper is not running: the summary says so in words and the rows are blank", h.line(9)[3:].startswith("The AI helper is not running"), repr(h.line(9)[3:100]))
+    h.typed("s", idle=1.0)
+    row("T20b S then says the helper could not be reached (11607) and opens no dialog; the page is still there", msg(11607) in st(h) and "What this means" in h.text()
+        and "AI setup:" not in h.text(), repr(st(h)))
     h.key("enter", idle=1.0)
     row("T20c Enter on a provider says the same and opens no box", msg(11607) in st(h) and "set.ai provider" not in h.text(), repr(st(h)))
     f6(h)

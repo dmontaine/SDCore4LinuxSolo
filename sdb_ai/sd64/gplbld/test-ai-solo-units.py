@@ -218,17 +218,46 @@ def checks(s, run_print=True):
     ck("S3 the gate word: set.ai gate on|off only, through the client, audited as set.ai gate=on|off after the helper said ok, and the message is 11606",
        ordered(set_b, "case sub = 'gate' and n.words = 3", "qargs = \"'gate' '\" : gstate", "gosub run.ctl", "gosub need.ok", "'set.ai gate=' : gstate", "sysmsg(11606, gstate)"), "")
     ck("S4 every word of the sentence is checked against the allowed characters before anything is run", ordered(set_b, "okc = ", "for i = 2 to n.words", "sysmsg(11622", "begin case"), "")
-    ck("S5 THE KEY NEVER PASSES THROUGH SD: SET.AI KEY hands the terminal to the client (os.execute with no capturing), the verb reads back only the listing", ordered(set_b, "sub = 'key' and n.words = 3", "os.execute \"'\" : ctl : \"' 'key' '\"", "check.key")
+    ck("S5 a key typed at the prompt never passes through SD: SET.AI KEY p hands the terminal to the client (os.execute with no capturing), the verb reads back only the listing", ordered(set_b, "sub = 'key' and n.words = 3", "os.execute \"'\" : ctl : \"' 'key' '\"", "check.key")
        and "capturing" not in set_b[set_b.find("sub = 'key' and n.words = 3"):set_b.find("sub = 'custom' and n.words = 3")], "")
+    # 11 Nov 26 (carried from SD Core S.170): the page's key reaches the helper by a hand-over file; the sentence never holds it
+    hb = set_b[set_b.find("case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'handover'"):set_b.find("case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'clear'")]
+    ck("S6 set.ai key p handover: the file is FIXED ($aikey/key in the tree, not a word of the sentence); it is the client's standard input, nothing is captured, the file is dropped "
+       "on every path, and what happened is read back from the helper",
+       ordered(hb, "hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'", "gosub drop.handover", "stop sysmsg(11610",
+               "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "gosub drop.handover", "gosub check.key", "if not(key.found) then")
+       and "capturing" not in hb and "drop.handover: os.execute \"rm -f '\" : hand.f : \"'\" return" in re.sub(r"\s+", " ", set_b), hb[:120])
+    ck("S7 set.ai models p lists through the client; set.ai model warns (14016, 14018) only after the model was set; run.ctl does not take a helper's refusal for an unreachable helper",
+       "qargs = \"'models' '\" : prov : \"'\"" in set_b and ordered(set_b, "case sub = 'model' and n.words = 4", "gosub need.ok", "sysmsg(11613", "gosub list.models", "sysmsg(14016", "sysmsg(14018")
+       and "trim(out<1>)[1, 7] # 'error: '" in set_b, "")
     ck("P1 the page is the administrator's (the toolkit's 'admin' profile), runs only SET.AI through $tk_runx, never modify.account, never $tk_gates and never $tk_run",
-       "$tk_open('tool.ai', 'admin'" in page and "allow.set = 'set.ai'" in page and "modify.account" not in page and "$tk_gates" not in page and "call $tk_run(" not in page and page.count("call $tk_runx(") == 1, "")
+       "$tk_open('tool.ai', 'admin'" in page and "allow.set = 'set.ai'" in page and "modify.account" not in page and "$tk_gates" not in page and "call $tk_run(" not in page and page.count("call $tk_runx(allow.set, ") == page.count("call $tk_runx("), "")
     ck("P2 every change goes through $tk_confirm before it runs, and turning the gate ON asks for the word ai to be typed, OFF asks for none",
        ordered(page, "confirm.and.run:", "call $tk_confirm(sent, el, typed, res, cmsg)", "if res = 'run' then", "call $tk_runx(allow.set, sent, out, st, err)")
        and ordered(page, "toggle.gate:", "sent = 'set.ai gate '", "typed = ''", "typed = 'ai'", "gosub confirm.and.run"), "")
     ck("P3 the page says what Solo's helper cannot promise: the ON confirmation names that Solo runs the helper as the user", "Solo runs the AI helper as you" in page, "")
     ck("P4 the Account box is one row, read from the helper's status (no register, no $tk_gates), and the gate shows off when the helper cannot be reached",
        "read.accounts:" in page and "an = 1" in page and "if hj{'gate'} then ast = 1" in page and "openpath @sdsys:@ds:'accounts'" not in page, "")
-    ck("P5 the key is typed at the helper's prompt: the page gives the terminal to SET.AI KEY (execute sent) and takes the screen again", ordered(page, "do.key:", "call $tk_confirm(sent, el, '', res, cmsg)", "call $tk_close(ctx)", "execute sent", "gosub reopen"), "")
+    # 11 Nov 26 (carried from SD Core S.170 / S.171): S is the one setup dialog; the key is a masked entry and goes to the helper by the hand-over file, never in a sentence
+    pz = re.sub(r"\s+", " ", page)
+    sk = pz[pz.find("do.setup:"):pz.find("setup.items:")]
+    hk = pz[pz.find("hand.key:"):pz.find("fetch.models:")]
+    tk = pz[pz.find("setup.takekey:"):pz.find("setup.save:")]
+    ck("P5 S is the one setup dialog, for the fixed five providers only; K and M are gone (no do.key, no do.model, no 'k' or 'm' key)",
+       sk.startswith("do.setup: p = provs<pi> if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return") and "do.key:" not in pz and "do.model:" not in pz
+       and "call $tk_keys('add', keys, 's', 'setup', 'setup', 'Provider', 1)" in pz and "'k', 'key'" not in pz and "'m', 'model'" not in pz, sk[:160])
+    ck("P7 the dialog: the list asked first when a key is set, the Key a MASKED entry, the model a list, Other name, Save and Cancel, then the wait on su.ev (not ev)",
+       ordered(sk, "if pkey<pi> then gosub fetch.models", "gosub setup.items", "screen form title su.title", "screen entry sf, 'key' at 2 + su.lw,2 width 70 value su.kini mask maxlen 600",
+               "screen list sf, 'model', su.items", "screen entry sf, 'other'", "screen button sf, 'ok', '&Save'", "screen button sf, 'cancel', sysmsg(11249)", "screen wait sf returning su.ev then")
+       and "gosub setup.takekey if not(su.fetched) then gosub setup.save" in sk, sk[:200])
+    ck("P8 the key goes to the helper through the hand-over file: a 0700 directory, the file written, closed and the variable cleared BEFORE SET.AI is told 'handover', the file removed after; "
+       "no sentence, audit line or display holds kv",
+       ordered(hk, "hdir = @sdsys : @ds : '$aikey'", "hf = hdir : @ds : 'key'", "umask 077; mkdir -p", "openseq hf to kf", "writeseq kv to kf", "close kf kv = ''",
+               "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)", "os.execute \"rm -f '\" : hf : \"'\"")
+       and not re.search(r"(sent|K\$AUDIT|display|crt|msg|su\.say)[^\n]{0,80}\bkv\b", page.replace("kv = ''", "")), hk[:200])
+    ck("P9 a new key is taken BEFORE the list is asked again with it, and the entry shows the keep-stars afterwards",
+       ordered(tk, "screen get sf, 'key' returning kv", "gosub key.word", "gosub hand.key", "key.done = 1", "screen set sf, 'key' value su.keep", "gosub fetch.models", "gosub setup.items",
+               "screen set sf, 'model' items su.items"), tk[:200])
     ck("P6 tk_runx is the toolkit's wider $tk_run: capitals and : / @ + , - are allowed in a word and nothing else", "A-Z" in strip_bas(s["tk_runx"]) or "ABCDEFGHIJKLMNOPQRSTUVWXYZ" in strip_bas(s["tk_runx"]), "")
 
     # ------------------------------------------------------------------------------------------------ the VOC and the words
@@ -267,6 +296,16 @@ MUTANTS = [
     ("the page runs modify.account", "tool_ai", "allow.set = 'set.ai'", "allow.set = 'set.ai modify.account'", "P1"),
     ("the key is captured by SD", "setai", "         os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "         os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\" capturing junk", "S5"),
     ("the gate word is not audited", "setai", "         void kernel(K$AUDIT, 'set.ai gate=' : gstate)\n", "", "S3"),
+    # 11 Nov 26 (carried from SD Core S.170 / S.171)
+    ("the hand-over file is kept", "setai", "drop.handover:\n   os.execute \"rm -f '\" : hand.f : \"'\"\n", "drop.handover:\n", "S6"),
+    ("the hand-over is captured", "setai", "\"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "\"' < '\" : hand.f : \"' 2>&1\" capturing junk", "S6"),
+    ("the model's warning is given before the model is set", "setai", "            gosub list.models\n            if ml.ok and ml.n > 0 then\n               gosub find.model",
+     "            if ml.ok and ml.n > 0 then\n               gosub find.model", "S7"),
+    ("the key is put in the sentence", "tool_ai", "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)", "call $tk_runx(allow.set, 'set.ai key ' : p : ' ' : kv, out, st, err)", "P8"),
+    ("the key entry is not masked", "tool_ai", "value su.kini mask maxlen 600", "value su.kini maxlen 600", "P7"),
+    ("the list is not asked again with a new key", "tool_ai", "   screen set sf, 'key' value su.keep\n   gosub fetch.models\n", "   screen set sf, 'key' value su.keep\n", "P9"),
+    ("K comes back", "tool_ai", "   call $tk_keys('add', keys, 's', 'setup', 'setup', 'Provider', 1)\n",
+     "   call $tk_keys('add', keys, 's', 'setup', 'setup', 'Provider', 1)\n   call $tk_keys('add', keys, 'k', 'key', 'key', 'Provider', 1)\n", "P5"),
     ("11625 sends the person to a Core command", "msgs", None, None, "W3"),
 ]
 
