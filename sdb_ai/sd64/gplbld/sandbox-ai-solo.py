@@ -566,6 +566,7 @@ def sec_page():
     kp = keyfile("anthropic")
     fl = lambda: [l for l in h.text().split("\n") if any(w in l for w in ("AI setup", "Key", "Model", "Other", "list", "set", "fake", "claude", "Save"))]
     gone = lambda: "AI setup:" not in h.text()
+    key_before = set(key_copies(kp))          # the files that hold the test key's TEXT before the dialog runs: the suite's own sources in <dir>/tree (measured 11 Nov 26)
     for k_ in ("m", "k"):
         h.typed(k_, idle=1.0)
     row("T5 K and M do nothing any more: no dialog and no Run box opens, the old prompts are gone", gone() and "Model name for" not in h.text() and "set.ai key anthropic" not in h.text(), repr(st(h)))
@@ -591,9 +592,11 @@ def sec_page():
         os.path.exists(kp) and open(kp).read().strip() == KEY and (os.stat(kp).st_mode & 0o777) == 0o600 and re.search(r"set\.ai key set provider=anthropic from=page$", new, re.M) is not None
         and KEY not in new and not os.path.exists(os.path.join(hdir, "key")) and os.path.isdir(hdir) and (os.stat(hdir).st_mode & 0o777) == 0o700, repr((os.path.exists(kp), new[-200:])))
     row("T6d the model in use (the default, " + STATE["defaults"][0] + ") is not in the fake's list, and the dialog says so", ("The model now set, " + STATE["defaults"][0] + ", is not in") in TS, repr(fl()))
-    copies = key_copies(kp)
-    row("T6f THE KEY IS LEFT NOWHERE BUT THE HELPER'S OWN FILE: no other file under the sandbox (the tree, its $aikey, the audit trail, the error log, the helper's state) holds it",
-        copies == [] and os.path.exists(kp), repr(copies))
+    copies = [p for p in key_copies(kp) if p not in key_before]
+    outside = [p for p in key_before if not p.startswith(os.path.join(box(), "tree") + os.sep)]
+    row("T6f THE KEY IS LEFT NOWHERE BUT THE HELPER'S OWN FILE: after the dialog no file under the sandbox (the Solo tree, its $aikey, the audit trail, the error log, the helper's state) "
+        "holds it that did not before, and before it only the suite's own sources in <dir>/tree did (%d files)" % len(key_before),
+        copies == [] and outside == [] and os.path.exists(kp), repr((copies, outside)))
     # the list is sorted: claude-test, claude-test-model, deepseek-v4-pro, fake-large, fake-small, gemini-fake; the first is chosen; Tab Tab reaches Save
     h.key("tab", idle=0.5)
     h.key("tab", idle=0.5)
