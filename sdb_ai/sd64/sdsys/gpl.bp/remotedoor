@@ -1,0 +1,147 @@
+* REMOTEDOOR
+* REMOTE.API and REMOTE.SSH verbs of SD Core for Linux Solo: whether this computer answers the SD API, and ssh, and for whom.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 11 Nov 26 dm  New in Solo (S.117, the carry of SD Core's full-screen work; the owner, 11 Nov 2026: "Yes, carry them", then "Yes, that shape" for the Remote
+*               servers page).  SD Core has two programs of these names over its root helper, a system socket unit and the firewall.  Solo has none of the
+*               three: its doors are the user's own systemd units, written by tools/solo-service.sh, so this one program serves both verbs over that script.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    REMOTE.API {OFF | LOCAL | OPEN}        the SD API, port 4249
+*    REMOTE.SSH {OFF | LOCAL | OPEN}        Solo's own ssh server, port 4251
+*
+*       OFF     there is no listener at all
+*       LOCAL   the listener answers on 127.0.0.1 only: this computer
+*       OPEN    it answers on every address: other computers can connect.  ON is taken as OPEN (SD Core's word).
+*
+*    With no keyword it reports the setting and changes nothing.
+*
+*    THE REPORT IS WHAT IS INSTALLED, NOT WHAT WAS ASKED.  "solo-service.sh status" prints "api mode" and "ssh mode" (read from the installed socket unit's
+*    ListenStream line) and what systemd says of each socket; this program prints those.  After a change the report is asked again, so the last lines are the
+*    machine's answer.  A CHANGE SUCCEEDS ONLY ON THE SCRIPT'S OWN LINE "SOLO API LISTENER <mode>" or "SOLO SSH LISTENER <mode>", never on its exit status alone.
+*
+*    NO FIREWALL IS TOUCHED AND NO SUDO IS RUN: these are user units.  When OPEN is asked and a firewall is running, the script prints the one command an
+*    administrator of the computer would run to let the port through, and this program shows it.
+*
+*    WHAT REACHES THE COMMAND LINE: the script's path and the Solo folder, which are this SD's own (@sdsys), refused if either holds a single quote; the door,
+*    which is this program's word (api or ssh); and the mode, one of three words of this program.  Nothing a person typed is put on the command line.
+*
+*    ADMINISTRATOR ONLY (ADMIN first): it changes what the computer offers the network.  A change is audited:  remote.api mode=open status=ok | refused.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program remote.door
+$catalog $remotedoor
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   prompt ''
+   @system.return.code = -ER$ARGS
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   words = trim(downcase(@sentence))
+   verb = field(words, ' ', 1)
+   begin case
+      case verb = 'remote.api'
+         door = 'api' ; dname = 'The API' ; port = 4249 ; anchor = 'SOLO API LISTENER '
+      case verb = 'remote.ssh'
+         door = 'ssh' ; dname = 'ssh' ; port = 4251 ; anchor = 'SOLO SSH LISTENER '
+      case 1
+         stop sysmsg(14971, 'remote.api')                         ;* the program was reached by another word: say how it is used
+   end case
+
+   nw = dcount(words, ' ')
+   want = ''
+   if nw > 2 then stop sysmsg(14971, verb)                        ;* %1 off | local | open
+   if nw = 2 then
+      want = field(words, ' ', 2)
+      if want = 'on' then want = 'open'
+      if want # 'off' and want # 'local' and want # 'open' then stop sysmsg(14971, verb)
+   end
+
+   script = @sdsys : @ds : 'tools' : @ds : 'solo-service.sh'
+   if index(script, "'", 1) then stop sysmsg(14966, 'the Solo folder has a single quote in its name')
+   if not(ospath(script, OS$EXISTS)) then stop sysmsg(14966, script : ' is not there')
+
+   if want # '' then
+      out = ''
+      os.execute "bash '" : script : "' " : door : " '" : @sdsys : "' " : want : " 2>&1" capturing out
+      done = @false
+      lastl = ''
+      hints = ''
+      for i = 1 to dcount(out, @fm)
+         ln = trim(out<i>)
+         if ln # '' then lastl = ln
+         if ln = anchor : want then done = @true
+         if index(ln, 'sudo ', 1) or index(ln, 'firewall', 1) or index(ln, 'ufw', 1) then hints<-1> = ln
+      next i
+      if not(done) then
+         void kernel(K$AUDIT, verb : ' mode=' : want : ' status=refused')
+         @system.return.code = -ER$FAILED
+         if lastl = '' then lastl = 'the service script gave no answer'
+         display sysmsg(14967, dname, lastl)                      ;* %1 was not changed: %2
+         gosub report
+         stop
+      end
+      void kernel(K$AUDIT, verb : ' mode=' : want : ' status=ok')
+      for i = 1 to dcount(hints, @fm)
+         display hints<i>
+      next i
+   end
+
+   gosub report
+   if rep.ok then @system.return.code = 0 else @system.return.code = -ER$FAILED
+   stop
+
+* What is installed, in the script's words: the mode line and systemd's word for the socket.  Out: rep.ok.
+report:
+   rep.ok = @false
+   out = ''
+   os.execute "bash '" : script : "' status 2>&1" capturing out
+   mode = ''
+   sock = ''
+   lastl = ''
+   for i = 1 to dcount(out, @fm)
+      ln = trim(out<i>)
+      if ln # '' then lastl = ln
+      key = trim(field(ln, ':', 1))
+      val = trim(field(ln, ':', 2))
+      if key = door : ' mode' then mode = val
+      if key = door : ' socket' then sock = field(val, ' ', 1)
+   next i
+   begin case
+      case mode = 'off'
+         display sysmsg(14970, dname)                             ;* %1 is off: SD has no listener for it
+         rep.ok = @true
+      case mode = 'local'
+         display sysmsg(14969, dname, port)                       ;* %1 is local: only this computer can connect (port %2)
+         rep.ok = @true
+      case mode = 'open'
+         display sysmsg(14968, dname, port)                       ;* %1 is open: other computers can connect (port %2)
+         rep.ok = @true
+      case 1
+         if lastl = '' then lastl = 'the service script gave no answer'
+         display sysmsg(14966, lastl)                             ;* The setting could not be read: %1
+         return
+   end case
+   if mode # 'off' and sock # 'active' then
+      display sysmsg(14965, (if sock = '' then 'nothing' else sock))   ;* ...but its listener is not running (systemd says %1)
+      rep.ok = @false
+   end
+   return
+
+end
+
+* END-CODE

@@ -3,9 +3,16 @@
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh install HOME_DIR [--api off|local|open] [--ssh off|local|open]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh ssh HOME_DIR off|local|open [--print]
+#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh api HOME_DIR off|local|open [--print]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh daemon HOME_DIR [--print]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh remove
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh status
+#
+# "api" (11 Nov 2026, S.117: the owner's "Yes, that shape" for Solo's Remote servers page) changes the API listener AFTER the install, as "ssh" does for ssh: it
+# writes or removes ONLY the two API units and leaves the daemon and ssh alone.  Until then the API's mode could be changed only by running install again.  The
+# unit texts are the install's own (api_socket_text, api_template_text: one copy, used by both), --print shows them and touches nothing, and a pair that names
+# another tree is refused, as for ssh.  Its last line on success is "SOLO API LISTENER <mode>".  "status" also prints "api mode" and "ssh mode" (off, local or
+# open), read from the installed socket unit's ListenStream line: what is installed, not what was asked for.
 #
 # "daemon" (25 Oct 2026, the daemon's restart carried from SD Core's sd-lnxd.service) writes ONLY the two daemon units, sd-solo.service and sd-solo-lnxd.service, and
 # reloads systemd; it starts, stops and enables nothing.  An upgrade runs it, because the upgrade keeps the units it finds and an install from before this release would
@@ -76,6 +83,78 @@ SOCKET="sd-solo-api.socket"
 TEMPLATE="sd-solo-api@.service"
 SSH_SOCKET="sd-solo-ssh.socket"
 SSH_TEMPLATE="sd-solo-ssh@.service"
+
+# ---- the API units.  The texts are functions so that install and "api" write the same two files (11 Nov 2026).
+api_port() {
+  local p=4249
+  if [ -n "${SDSOLO_TEST_API_PORT:-}" ]; then
+    p="$SDSOLO_TEST_API_PORT"
+    case "$p" in ''|*[!0-9]*) refuse "SDSOLO_TEST_API_PORT must be a number (got '$p')" ;; esac
+    [ "$p" -ge 1024 ] && [ "$p" -le 65535 ] || refuse "SDSOLO_TEST_API_PORT must be 1024-65535"
+    printf '\033[0;33m*** SDSOLO_TEST_API_PORT IS SET: the API port is %s, NOT 4249 (a test hook) ***\033[0m\n' "$p" >&2
+  fi
+  echo "$p"
+}
+api_socket_text() {   # api_socket_text MODE PORT
+  local listen
+  if [ "$1" = "open" ]; then listen="0.0.0.0:$2"; else listen="127.0.0.1:$2"; fi
+  cat <<UNIT
+[Unit]
+Description=SD Core for Linux Solo (API listener, $1)
+
+[Socket]
+ListenStream=$listen
+Accept=true
+
+[Install]
+WantedBy=sockets.target
+UNIT
+}
+api_template_text() {   # api_template_text TREE
+  cat <<UNIT
+[Unit]
+Description=SD Core for Linux Solo (one API connection)
+Requires=$DAEMON
+After=$DAEMON
+
+[Service]
+UMask=0077
+ExecStart=$1/bin/sd-solo -n -q
+StandardInput=socket
+UNIT
+}
+# api_apply TREE MODE: off removes the two units; local or open writes them and starts the socket.  The unit names are one pair per user, not per tree
+# (see ssh_apply), so a pair that names another tree is refused.  A connection already accepted is its own service instance and is not ended by this.
+api_apply() {
+  local tree="$1" mode="$2" port other s
+  if [ -f "$UNITDIR/$TEMPLATE" ] && ! grep -qF -e "ExecStart=$tree/bin/sd-solo " "$UNITDIR/$TEMPLATE"; then
+    other="$(sed -n -e 's#^ExecStart=\(.*\)/bin/sd-solo .*#\1#p' "$UNITDIR/$TEMPLATE" | head -1)"
+    refuse "the API units installed for this user belong to another Solo tree (${other:-unknown}); doing this for $tree would replace or remove them"
+  fi
+  systemctl --user disable --now "$SOCKET" >/dev/null 2>&1 || true
+  rm -f "$UNITDIR/$SOCKET" "$UNITDIR/$TEMPLATE"
+  if [ "$mode" = "off" ]; then
+    systemctl --user daemon-reload || fail "daemon-reload"
+    return 0
+  fi
+  port="$(api_port)" || exit $?
+  mkdir -p "$UNITDIR" || fail "mkdir $UNITDIR"
+  api_socket_text "$mode" "$port" > "$UNITDIR/$SOCKET" || fail "writing $UNITDIR/$SOCKET"
+  api_template_text "$tree" > "$UNITDIR/$TEMPLATE" || fail "writing $UNITDIR/$TEMPLATE"
+  systemctl --user daemon-reload || fail "daemon-reload"
+  systemctl --user enable --now "$SOCKET" 2>&1 | tail -2
+  s="$(systemctl --user is-active "$SOCKET" 2>&1)"
+  [ "$s" = "active" ] || { systemctl --user status "$SOCKET" --no-pager 2>&1 | tail -12; fail "$SOCKET is '$s', not active"; }
+}
+# unit_mode FILE: off when the socket unit is not installed, else local or open by its ListenStream line, else unknown.  What is installed, not what was asked.
+unit_mode() {
+  [ -f "$1" ] || { echo off; return 0; }
+  case "$(sed -n 's/^ListenStream=//p' "$1" | head -1)" in
+    127.0.0.1:*) echo local ;;
+    0.0.0.0:*)   echo open ;;
+    *)           echo unknown ;;
+  esac
+}
 
 # ---- the ssh units (LSOLO 29).  Defined before the systemd checks because "ssh ... --print"
 # needs no systemd at all.
@@ -299,6 +378,21 @@ if [ "${1:-}" = "ssh" ] && [ "$#" -eq 4 ] && [ "$4" = "--print" ]; then
   exit 0
 fi
 
+# "api TREE MODE --print": the two API units on stdout, nothing written, no systemctl.
+if [ "${1:-}" = "api" ] && [ "$#" -eq 4 ] && [ "$4" = "--print" ]; then
+  ssh_check_tree "$2"
+  case "$3" in
+    local|open) ;;
+    off) echo "(api off: neither unit exists)"; exit 0 ;;
+    *) refuse "the api mode must be off, local or open (got '$3')" ;;
+  esac
+  port="$(api_port)" || exit $?
+  echo "# $SOCKET"; api_socket_text "$3" "$port"
+  echo
+  echo "# $TEMPLATE"; api_template_text "$2"
+  exit 0
+fi
+
 # "ai TREE --print": the AI helper's two units on stdout, nothing written, no systemctl (what the free test reads).
 if [ "${1:-}" = "ai" ] && [ "$#" -eq 3 ] && [ "$3" = "--print" ]; then
   ssh_check_tree "$2"
@@ -325,7 +419,7 @@ systemctl --user is-system-running >/dev/null 2>&1 || {
 
 cmd="${1:-}"
 case "$cmd" in
-  install|remove|status|ssh|ai|daemon) shift ;;
+  install|remove|status|ssh|api|ai|daemon) shift ;;
   *) refuse "usage: bash $0 install HOME_DIR [--api off|local|open] [--ssh off|local|open] | ssh HOME_DIR off|local|open [--print] | ai HOME_DIR [--print] | daemon HOME_DIR [--print] | remove | status" ;;
 esac
 
@@ -350,6 +444,25 @@ if [ "$cmd" = "ssh" ]; then
     fi
   fi
   echo "SOLO SSH LISTENER $2"
+  exit 0
+fi
+
+if [ "$cmd" = "api" ]; then
+  [ "$#" -eq 2 ] || refuse "usage: bash $0 api HOME_DIR off|local|open [--print]"
+  ssh_check_tree "$1"
+  case "$2" in off|local|open) ;; *) refuse "the api mode must be off, local or open (got '$2')" ;; esac
+  api_apply "$1" "$2"
+  # "open" behind a running firewall reaches nobody until the port is allowed: no sudo here, so the one command is printed, as for ssh
+  if [ "$2" = "open" ]; then
+    if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
+      echo "firewalld is running: allow TCP $(api_port) or nothing outside this computer reaches it:"
+      echo "    sudo firewall-cmd --permanent --add-port=$(api_port)/tcp && sudo firewall-cmd --reload"
+    elif command -v ufw >/dev/null 2>&1; then
+      echo "if ufw is active, allow TCP $(api_port) or nothing outside this computer reaches it:"
+      echo "    sudo ufw allow $(api_port)/tcp"
+    fi
+  fi
+  echo "SOLO API LISTENER $2"
   exit 0
 fi
 
@@ -378,7 +491,9 @@ if [ "$cmd" = "status" ]; then
   echo "sdlnxd         : $(systemctl --user is-active "$LNXD" 2>&1)"
   echo "api socket     : $(systemctl --user is-active "$SOCKET" 2>&1)"
   echo "ssh socket     : $(systemctl --user is-active "$SSH_SOCKET" 2>&1)"
-  echo "ai socket      : $(systemctl --user is-active "$AI_SOCKET" 2>&1)"
+  echo "api mode       : $(unit_mode "$UNITDIR/$SOCKET")"
+  echo "ssh mode       : $(unit_mode "$UNITDIR/$SSH_SOCKET")"
+  echo "ai socket     : $(systemctl --user is-active "$AI_SOCKET" 2>&1)"
   echo "linger         : $(linger_state)"
   exit 0
 fi
@@ -447,29 +562,8 @@ daemon_write "$H"
 systemctl --user disable --now "$SOCKET" >/dev/null 2>&1 || true
 rm -f "$UNITDIR/$SOCKET" "$UNITDIR/$TEMPLATE"
 if [ "$api" != "off" ]; then
-  if [ "$api" = "open" ]; then listen="0.0.0.0:$port"; else listen="127.0.0.1:$port"; fi
-  cat > "$UNITDIR/$SOCKET" <<UNIT
-[Unit]
-Description=SD Core for Linux Solo (API listener, $api)
-
-[Socket]
-ListenStream=$listen
-Accept=true
-
-[Install]
-WantedBy=sockets.target
-UNIT
-  cat > "$UNITDIR/$TEMPLATE" <<UNIT
-[Unit]
-Description=SD Core for Linux Solo (one API connection)
-Requires=$DAEMON
-After=$DAEMON
-
-[Service]
-UMask=0077
-ExecStart=$H/bin/sd-solo -n -q
-StandardInput=socket
-UNIT
+  api_socket_text "$api" "$port" > "$UNITDIR/$SOCKET" || fail "writing $UNITDIR/$SOCKET"
+  api_template_text "$H" > "$UNITDIR/$TEMPLATE" || fail "writing $UNITDIR/$TEMPLATE"
 fi
 
 systemctl --user daemon-reload || fail "daemon-reload"
