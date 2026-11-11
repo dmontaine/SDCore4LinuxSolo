@@ -142,13 +142,18 @@ def setup_line(mutant):
         ai.compile_prog(n)
 
 
-def configure(provider=True, model=True, key=True, gate=True):
-    """provider, model, key and gate through the verb / the key file, as the administrator would; any of them left out is cleared.  SOLO: the gate is the helper's setting (set.ai gate on|off, off
-    as delivered), not a group of the helper's caller; the helper looks at it at every request, so no restart is needed."""
-    cmds = ["set.ai ca " + ai.STATE["ca"], "set.ai limit requests-hour 1000", "set.ai provider anthropic" if provider else "set.ai provider none",
-            ("set.ai model anthropic " + MODEL) if model else "set.ai model anthropic -", "set.ai gate on" if gate else "set.ai gate off"]
+def configure(provider=True, model=True, key=True, gate=True, custom=False):
+    """provider, model, key and gate through the verb / the key file, as the administrator would; any of them left out is cleared.  A named provider has a DEFAULT model (1 Nov 26, Core), so a
+    model left out is the default and the line is still drawn; custom=True makes the provider Custom, which has none: a provider and a key and no model.  SOLO: the gate is the helper's setting
+    (set.ai gate on|off, off as delivered), not a group of the helper's caller; the helper looks at it at every request, so no restart is needed."""
+    cmds = ["set.ai ca " + ai.STATE["ca"], "set.ai limit requests-hour 1000"]
+    if custom:
+        cmds += ["set.ai custom MyLLM https://127.0.0.1:9/v1/chat/completions openai bearer - max_tokens", "set.ai provider custom", "set.ai model custom -"]
+    else:
+        cmds += ["set.ai provider anthropic" if provider else "set.ai provider none", ("set.ai model anthropic " + MODEL) if model else "set.ai model anthropic -"]
+    cmds += ["set.ai gate on" if gate else "set.ai gate off"]
     adm(*cmds)
-    kp = ai.keyfile("anthropic")
+    kp = ai.keyfile("custom" if custom else "anthropic")
     if key:
         os.makedirs(os.path.dirname(kp), mode=0o700, exist_ok=True)
         put(kp, KEY + "\n")
@@ -190,7 +195,7 @@ def reply(text, wait=4.0):
 
 def sec_off():
     say("\n--- the line is not drawn when the AI is off")
-    for rid, label, kw in (("L0a", "no provider", dict(provider=False)), ("L0b", "a provider and no model", dict(model=False)), ("L0c", "no key", dict(key=False))):
+    for rid, label, kw in (("L0a", "no provider", dict(provider=False)), ("L0b", "a provider and no model (Custom, which has no default model)", dict(custom=True)), ("L0c", "no key", dict(key=False))):
         configure(**kw)
         h = home()
         arow(rid, "%s: no AI row, the old hint is on the row above the status line" % label, "AI>" not in line_row(h) and "arrows move" in line_row(h) and h.home(), repr(line_row(h)[:80]))
@@ -198,6 +203,11 @@ def sec_off():
         arow(rid + "t", "...and Back-tab from the first tile goes to the last tile (Sign out), not to a line that is not there", "Sign out" in h.focus(), repr(h.focus()))
         h.key("ctrl-q", idle=1.5)
         h.end()
+    configure(model=False)
+    h = home()
+    arow("L0f", "a named provider with no model of the administrator's, a key and the gate: its default model stands, so the AI row IS drawn", "AI>" in line_row(h), repr(line_row(h)[:80]))
+    h.key("ctrl-q", idle=1.5)
+    h.end()
     configure(gate=False)
     h = home()
     arow("L0d", "everything set and the gate OFF (as delivered; Core: the account is not in the helper's group): no AI row, the hint is there",
