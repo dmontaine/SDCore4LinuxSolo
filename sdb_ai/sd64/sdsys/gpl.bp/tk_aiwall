@@ -4,6 +4,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 11 Nov 26 dm  SOLO, a deviation from SD Core's file forced by Solo's layout: a path inside the Solo folder's user_accounts or group_accounts is the
+*               account's own and is not "inside @sdsys" for the origin test.  Found by sandbox-ai-apps-solo.py: the IDE, SED and the debugger refused
+*               every record of the user's account ("This text is part of SD itself").
 * 1 Nov 26 dm   New.  The owner's rule of 1 Nov 2026 (CLAUDE.md, "THE AI BOUNDARY"): the AI field never reaches the C and GPL.BP code or any other system information, for every provider,
 *               and even the administrator asks no system-development questions inside SD.  Before this nothing told $tk_ai where a text came from, so an administrator who had a record of
 *               the system's own gpl.bp open in the IDE or SED sent it to the provider on "Explain the selection".
@@ -85,8 +88,13 @@ check.origin:
 
    * the places that are SD's own: a path inside any of them, or equal to one
    places = @sdsys : @fm : '/var/lib/sd-ai' : @fm : '/usr/local/lib/sd-ai' : @fm : '/run/sd-ai' : @fm : '/run/sd' : @fm : '/etc/sd.conf'
+   * 11 Nov 26 (Solo): the Solo folder IS @sdsys and the account lives inside it (user_accounts and group_accounts beside SD's own files: config.c, the
+   *   shipped sd.conf), so "inside @sdsys" alone refused every record of the user's own account to the AI.  A path the kernel places inside one of those
+   *   two directories is the account's, not SD's; K$PATH.IN resolves links and "..", so a link or pointer there that leads into SD's own files is placed
+   *   where it leads and is still refused.  Every other place, and the build tree test below, is SD Core's rule unchanged.
+   in.acct = kernel(K$PATH.IN, @sdsys : @ds : 'user_accounts' : @fm : pth) or kernel(K$PATH.IN, @sdsys : @ds : 'group_accounts' : @fm : pth)
    for i = 1 to dcount(places, @fm)
-      if places<i> # '' then
+      if places<i> # '' and not(i = 1 and in.acct) then
          if kernel(K$PATH.IN, places<i> : @fm : pth) then
             why = 'system'
             return
