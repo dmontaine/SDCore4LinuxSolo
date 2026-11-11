@@ -110,6 +110,9 @@ set -euo pipefail
 
 REPO_URL="https://github.com/dmontaine/SDCore4LinuxSolo"
 REPO_BRANCH="main"
+# 11 Nov 26 dm  S.216 (SD Core's installsdcore.sh DOCS_URL): the documentation repository whose User/markdown pages the AI line draws on (DOCS-CORPUS block below);
+#            the same branch name as the source's.
+DOCS_URL="https://github.com/dmontaine/SDCore4LinuxSoloDocs"
 CLONE_DIR="$HOME/.sdsolotmp"
 # TEST HOOK, NOT A FEATURE: SDSOLO_REPO_URL replaces the source repository, so an
 # installer change can be tested from a local clone before it is pushed.  It is
@@ -145,6 +148,12 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2
            exit 1; }
 
 [ "$(id -u)" -ne 0 ] || refuse "run this as your own user, not root: SD Core for Linux Solo never runs as root"
+
+# 11 Nov 26 dm  S.216 (SD Core's installsdcore.sh installer_dir, 24 Oct 26): WHERE THE INSTALLER LIVES, for the files that travel beside it in a release package (the changes
+#            document and the pdf folder: the CHANGES-DOC and MANUALS-PDF blocks below).  Empty when the script was not run from a file (curl | bash), so nothing is looked
+#            for in whatever directory the shell is in.
+installer_dir=""
+if [ -f "${BASH_SOURCE[0]:-}" ]; then installer_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || installer_dir=""; fi
 
 # ---------------------------------------------------------------- options
 HOME_DIR="$HOME/SDCoreSolo"
@@ -875,6 +884,149 @@ fi
 { printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; } > "$HOME_DIR/.sdcore-install"
 chmod 600 "$HOME_DIR/.sdcore-install"
 fi
+
+# ---------------------------------------------------------------- documentation that travels with the install (S.216)
+# 11 Nov 26 dm  S.216, gaps 26-28 of the Core-Solo parity report (SD Core's installsdcore.sh AGENTPACK, DOCS-CORPUS, CHANGES-DOC and MANUALS-PDF blocks).  They run here, after the
+#            stage has laid the tree out and in the fresh install and the upgrade alike, and BEFORE the daemon the stage left running is stopped below (the manuals go in through
+#            SD's own docs.install).  Solo has no shared account and no sdsys user, so every destination is in the install directory: agent-pack/, docs/user and pdf/ (the
+#            directories gpl.bp/tk_aidocs and the pdf verb read).  NONE OF THEM STOPS THE INSTALL: no pack, a half pack, a pack for another version, no network to the
+#            documentation, no files beside the installer, a failed copy each print a note or a warning and go on.  The files are 644 and the directories 755 (the install directory
+#            itself is the user's, 700 from umask 077); nothing is group- or other-writable.  test-install-agentpack.sh, test-install-aidocs.sh, test-install-changesdoc.sh and
+#            test-install-manuals.sh (gplbld) run these blocks under the installer's set options.
+#
+# THE AI GUIDE AND KNOWLEDGE PACK: sdb_ai/sd64/agent-pack/{guide,pack} of the download, to <home>/agent-pack.  TEXT ONLY, for the person to copy to the machine where an AI agent
+#            runs; nothing here is read by SD itself.  The skill, the templates, the recipe and the generator are NOT installed.  Skipped with a note when the download holds no
+#            complete pack, or when its manifest is for another version than the one installed (a pack that describes version X on a machine running Y is worse than none).  A
+#            missing revstamp.h or manifest must not stop the install under set -e: hence the "|| x=''" on each read.  An upgrade replaces the old pack whole.
+# AGENTPACK-BEGIN
+if [ -f "$SRC/agent-pack/guide/sd-basic-guide.md" ] && [ -f "$SRC/agent-pack/pack/manifest.json" ] && [ -f "$SRC/agent-pack/pack/core.md" ]; then
+    pack_stamp=$(sed -n '/"rev_stamp"/{s/^[^:]*: *"\([^"]*\)".*/\1/p;q}' "$SRC/agent-pack/pack/manifest.json") || pack_stamp=""
+    tree_stamp=$(sed -n '/^\$define SD\.REV\.STAMP/{s/^[^"]*"\([^"]*\)".*/\1/p;q}' "$HOME_DIR/gpl.bp/revstamp.h" 2>/dev/null) || tree_stamp=""
+    if [ -n "$pack_stamp" ] && [ "$pack_stamp" = "$tree_stamp" ]; then
+        rm -rf "$HOME_DIR/agent-pack"
+        if mkdir -p "$HOME_DIR/agent-pack" && cp -R "$SRC/agent-pack/guide" "$SRC/agent-pack/pack" "$HOME_DIR/agent-pack/"; then
+            say "Installed the AI guide and knowledge pack (version ${pack_stamp}): $HOME_DIR/agent-pack"
+        else
+            rm -rf "$HOME_DIR/agent-pack"
+            warn "The AI guide and knowledge pack could not be copied into $HOME_DIR/agent-pack, so none was installed."
+        fi
+    else
+        say "Note: the AI knowledge pack in the download is for version '${pack_stamp:-?}' and this is '${tree_stamp:-?}', so it was not installed."
+    fi
+else
+    say "Note: the download holds no complete AI guide and knowledge pack (agent-pack/), so none was installed."
+fi
+# AGENTPACK-END
+# The pack is text, not programs: files 644, directories 755 (the copy above was made under umask 077).  Nobody but the user can write it, and that is the point: an agent
+#            is told to trust this text, so a file anyone else could edit would be a way to plant instructions for the user's agent.
+# AGENTPACK-MODE-BEGIN
+if [ -d "$HOME_DIR/agent-pack" ]; then
+    find "$HOME_DIR/agent-pack" -type d -exec chmod 755 {} +
+    find "$HOME_DIR/agent-pack" -type f -exec chmod 644 {} +
+fi
+# AGENTPACK-MODE-END
+#
+# THE DOCUMENTATION THE AI LINE DRAWS ON: the markdown of the User document, from the documentation repository (branch REPO_BRANCH), to <home>/docs/user.  gpl.bp/tk_aidocs
+#            (the same program as SD Core's) picks a few sections of them for a request and the preview shows them before anything is sent; it reads docs/user (and docs/admin,
+#            which Solo's documentation has no pages for, so there is none and it is left out).  SKIPPED WITH A NOTE, NEVER AN ERROR: no network to the documentation, no
+#            clone, a clone without User/markdown, no mktemp or a failed copy leaves the AI line working as it did, without passages; an older install's docs are replaced only
+#            when the new ones are complete.
+# DOCS-CORPUS-BEGIN
+docs_tmp=$(mktemp -d 2>/dev/null) || docs_tmp=""
+docs_from=""
+if [ -n "$docs_tmp" ] && GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "$REPO_BRANCH" --depth 1 "$DOCS_URL" "$docs_tmp/docs" >/dev/null 2>&1 \
+   && [ -d "$docs_tmp/docs/User/markdown" ]; then
+    docs_from="$docs_tmp/docs"
+fi
+if [ -n "$docs_from" ]; then
+    rm -rf "$HOME_DIR/docs"
+    if mkdir -p "$HOME_DIR/docs/user" && cp "$docs_from"/User/markdown/*.md "$HOME_DIR/docs/user/"; then
+        chmod 755 "$HOME_DIR/docs" "$HOME_DIR/docs/user"
+        find "$HOME_DIR/docs/user" -type f -exec chmod 644 {} +
+        say "Installed the documentation the AI line draws on: $HOME_DIR/docs"
+    else
+        rm -rf "$HOME_DIR/docs"
+        warn "The documentation for the AI line could not be copied into $HOME_DIR/docs, so it will answer without passages of it."
+    fi
+else
+    say "Note: the documentation could not be fetched from ${DOCS_URL}, so the AI line will answer without passages of it."
+fi
+if [ -n "$docs_tmp" ]; then rm -rf "$docs_tmp"; fi
+# DOCS-CORPUS-END
+#
+# THE CHANGES DOCUMENT TRAVELS WITH THE INSTALLER AND IS COPIED INTO THE PDF DIRECTORY (SD Core's CHANGES-DOC block; owner, 24 Oct 2026: "included with the installer as an
+#            additional document and upon installation also copied into the 'shared' directory" - Solo has no shared account, so the directory is <home>/pdf, the one the pdf
+#            verb reads).  A release package holds, beside this script, the document in three forms named sd-core-solo-for-linux-<version>-changes.pdf / .html / .md (lower
+#            case, the names docs.install takes).  Each regular file of that name is put in <home>/pdf, mode 644.  A file that is a link, or whose name is not plain lower case,
+#            is left.  Nothing is needed for the install to go on: no files (a clone from GitHub has none), no pdf directory, a failed copy each print a note.
+# CHANGES-DOC-BEGIN
+changes_copied=0
+changes_seen=0
+if [ -n "$installer_dir" ] && [ -d "$HOME_DIR/pdf" ]; then
+    for changes_f in "$installer_dir"/sd-core-solo-for-linux-*-changes.pdf "$installer_dir"/sd-core-solo-for-linux-*-changes.html "$installer_dir"/sd-core-solo-for-linux-*-changes.md; do
+        [ -f "$changes_f" ] && [ ! -L "$changes_f" ] || continue
+        changes_b=$(basename "$changes_f")
+        # docs.install takes only a name of a-z 0-9 dot dash underscore, not starting with a dot, up to 80 characters
+        if ! [[ "$changes_b" =~ ^[a-z0-9][a-z0-9._-]{0,79}$ ]]; then
+            say "Note: ${changes_b} was not copied: the name must be lower case letters, digits and . _ - (rename it and run:  docs.install <directory>)."
+            continue
+        fi
+        changes_seen=$((changes_seen+1))
+        if install -m 644 "$changes_f" "$HOME_DIR/pdf/${changes_b}"; then
+            changes_copied=$((changes_copied+1))
+        else
+            warn "WARNING: ${changes_b} was not copied into $HOME_DIR/pdf."
+        fi
+    done
+    if [ "$changes_copied" -gt 0 ]; then
+        say "Copied the changes document (${changes_copied} files) into:  $HOME_DIR/pdf"
+    elif [ "$changes_seen" -gt 0 ]; then
+        say "The changes document could not be copied into $HOME_DIR/pdf (see the warnings above)."
+    else
+        say "No changes document beside the installer, so none was copied."
+    fi
+else
+    say "No changes document was copied (not run from a release package, or no pdf directory)."
+fi
+# CHANGES-DOC-END
+#
+# THE DOCUMENTATION PDFS TRAVEL WITH THE INSTALLER TOO (SD Core's MANUALS-PDF block; owner, 3 Nov 2026: "Yes, installer copies them").  A release package holds, beside this
+#            script, a folder pdf/ with the per-chapter PDFs of the documentation (the names the help pages' Documentation buttons open).  They are put in <home>/pdf by SD's own
+#            docs.install, which judges every file (a lower case plain name, contents beginning %PDF-, a regular file), writes the audit line and makes the copies 644.  The verb
+#            is run through the internal door, which is admitted only against a fresh marker file (ruling 13), written here immediately before the one session and removed
+#            after it, as the stage script does for each of its steps; the stage's daemon is still running.  The result is judged file by file on <home>/pdf, not on sd's exit
+#            code.  Nothing here stops the install: no folder (a clone from GitHub has none), no pdf directory or a refusal each print a note or a warning that says what to run.
+# MANUALS-PDF-BEGIN
+manuals_n=0
+manuals_ok=0
+if [ -n "$installer_dir" ] && [ -d "$installer_dir/pdf" ] && [ ! -L "$installer_dir/pdf" ]; then
+    for manuals_f in "$installer_dir"/pdf/*.pdf; do
+        if [ -f "$manuals_f" ] && [ ! -L "$manuals_f" ]; then manuals_n=$((manuals_n+1)); fi
+    done
+fi
+if [ "$manuals_n" -eq 0 ]; then
+    say "No documentation PDFs beside the installer (the pdf folder of a release package), so none were installed."
+    say "  In an administrator session:  docs.install <directory of PDFs>"
+elif [ -d "$HOME_DIR/pdf" ]; then
+    printf 'installsdsolo pid=%s %s\n' "$$" "$(date -Is)" > "$HOME_DIR/\$internal"
+    "$HOME_DIR/bin/sd-solo" -internal docs.install "$installer_dir/pdf" < /dev/null || true
+    rm -f "$HOME_DIR/\$internal"
+    for manuals_f in "$installer_dir"/pdf/*.pdf; do
+        [ -f "$manuals_f" ] && [ ! -L "$manuals_f" ] || continue
+        if cmp -s "$manuals_f" "$HOME_DIR/pdf/$(basename "$manuals_f")"; then
+            manuals_ok=$((manuals_ok+1))
+        fi
+    done
+    if [ "$manuals_ok" -eq "$manuals_n" ]; then
+        say "Installed the documentation PDFs (${manuals_ok}) into:  $HOME_DIR/pdf"
+    else
+        warn "WARNING: ${manuals_ok} of ${manuals_n} documentation PDFs were installed (docs.install says why above)."
+        say "  In an administrator session:  docs.install ${installer_dir}/pdf"
+    fi
+else
+    say "The documentation PDFs were not installed: there is no pdf directory in $HOME_DIR."
+fi
+# MANUALS-PDF-END
 
 # The stage leaves its own daemon running; the service takes over below.
 "$HOME_DIR/bin/sd-solo" -stop >/dev/null 2>&1 || true
