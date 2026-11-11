@@ -13,16 +13,29 @@
 # from what the screen said; "nothing was sent" from the fake's request log and the audit file.
 #
 #   I0-I1   the IDE, AI off: the menu bar as ever, no AI> row;  AI on: the AI menu before Help and the AI> row
-#   I3-I7   Enter in the AI entry shows EVERYTHING that will be sent, Cancel the default; Send makes ONE request and the kernel's one audit line; the edit is a diff; Reject leaves the
-#           buffer; Accept changes the buffer (not the disk) and one Ctrl-Z takes it back
+#   I3-I7   Enter in the AI entry shows the preview (the text being worked on and the request; SD's own instruction is sent and not shown), Cancel the default; Send makes ONE request
+#           and the kernel's one audit line; the edit is a diff; Reject leaves the buffer; Accept changes the buffer (not the disk) and one Ctrl-Z takes it back
 #   I9      an edit set that does not fit is ignored whole and said so
-#   S0-S9   SED: Tools has the two AI items only with the AI on; Ask: the request on the message row, the preview, Cancel, Send, the diff, Reject, Accept (buffer, not disk), ONE Ctrl-Z;
-#           Explain the selection with no mark says so, with a mark previews the selected text; the command typed with its request
+#   S0-S7   the verb SED, which is the IDE's editor by itself: no Tools menu and no files pane; AI off: no AI menu, no AI> row; AI on: the AI menu and the AI> row; the preview, Cancel,
+#           Send, the diff, Accept (buffer, not disk), ONE Ctrl-Z, and Ctrl-S writes what was accepted
 #   C0-C7   CED: F2 does nothing with the AI off; on, a menu of three; the preview shows the record as indented JSON; the diff; Accept changes the record (not the disk); Ctrl-S saves;
 #           an edit that would leave invalid JSON is ignored; the AI's last change is undone from the menu; explain the selected element
-#   D0-D4   the debugger: ai is not a command with the AI off; on, ai shows the program, the stack and the source round the stop in the preview; Send answers in words; the popup goes and
-#           the debugger's screen is whole and still works; the SECOND stop of the program has the command too (the setting is in the debugger's common)
-# NOT HELD: the end of the input during the wait, a record over 24000 bytes, SED's split window, the debugger in line mode and in a phantom, a real provider.
+#   D0-D4   the debugger: ai is not a command with the AI off; on, ai shows the request in the preview (the program, the stack and the source round the stop are sent: D2 reads them where
+#           they arrive); Send answers in words; the popup goes and the debugger's screen is whole and still works; the SECOND stop of the program has the command too
+# NOT HELD: the end of the input during the wait, a record over 24000 bytes, the debugger in line mode and in a phantom, a real provider, Follow up in these apps (Core's C8, D5).
+#
+# START-HISTORY:
+# 24 Oct 26 dm  New (Solo carry 17; the debugger rows with carry 18).
+# 11 Nov 26 dm  Brought to the carry of 10 Nov from SD Core.  THE PROGRAM gpl.bp/sed IS GONE (Core's S.184 stage 7: the verb SED runs the IDE as the editor by itself), so the suite
+#               stopped with FileNotFoundError before its first row.  REMOVED: the old SED rows S0-S9 (SED's own Tools menu with Ask the AI... and Explain the selection, the request typed
+#               on SED's message row, Explain with and without a mark, Esc . as the mark) and the mutant sed-saves: the program they drove does not exist.  In their place S0-S7 start the
+#               IDE as `SED bp <record>` and ask through the IDE's AI entry, as Core's sandbox-ide-alone.py starts it.  KEYS: the boxes change with F6 (Tab indents in the editor, Core's
+#               S.176), so focus_entry and the way back to the editor press F6.  PREVIEWS (Core's S.175): SD's own instruction ("who is using IDE / CED / debugger") is sent and NOT
+#               shown, so I3, C2 and D1 want it absent from the preview; I4 and D2 still read it where it arrives.  The debugger's screen is Core's S.98 H1 one: D3 reads the command
+#               line on row 39 and the key row on row 42, D3b looks for the answer from the echo of the command on (both as Core's sandbox-ai-apps.py).  CED's AI code moved from
+#               ced_edit to ced_core: the mutant ced-invalid-accepted is made there; the mutant ced-saves is REMOVED (its one-line change called save.record, which is ced_edit's and
+#               not ced_core's; C4b still holds that Accept does not write).  The mutants were NOT run on 11 Nov 26.
+# END-HISTORY
 import importlib.util
 import os
 import re
@@ -53,15 +66,13 @@ OK_REC = "zzaio" + RUN                   # crt 'hello' / x = 1 / crt 'bye' / end
 ERR_REC = "zzaie" + RUN                  # crt "one" / x = = 1 / end
 CED_REC = "zzaic" + RUN                  # {"name":"widget","size":3,"tags":["a","b"]}
 BODY = ["   crt 'hello'", "   x = 1", "   crt 'bye'", "end"]
-PROGS = ("sl_form", "tk_ai", "ide", "sed", "ced_edit", "debug")
+PROGS = ("sl_form", "tk_ai", "ide", "ced_core", "ced_edit", "debug")       # 11 Nov 26: no sed (the verb runs ide); ced_core holds CED's AI code now
 DBG_PROG = "zzaid" + RUN                 # x = 5 / y = 'abc' / debug / crt 'AFTER-DEBUG' / debug / crt 'AFTER-TWO' / end   (compiled DEBUGGING; two stops)
 FAILED_IDS = []
 DOWN, RIGHT, TAB, RET, ESC = "\x1b[B", "\x1b[C", "\t", "\r", "\x1b"      # a Solo session is not in application cursor-key mode: the keys are ESC [ B / C (sandbox-home-solo.py KEYS), not ESC O B / C as in Core's harness
 F10, F2, F7 = "\x1b[21~", "\x1bOQ", "\x1b[18~"
-CTRL_Z = "\x1a"
-TOOLS = RIGHT * 5                        # SED: F10 opens File; Tools is the sixth title
-AI_MENU = RIGHT * 5                      # the IDE: F10 opens File; the AI menu is the sixth title (File Go Search Build View AI Help)
-ASK_KEY, EXPLAIN_KEY = "a", "p"          # SED's Tools: Ask the &AI...  and  Ex&plain the selection
+F6 = "\x1b[17~"                          # 11 Nov 26: the next box (Core's S.176); Tab indents in the IDE's editor
+CTRL_Z, CTRL_S = "\x1a", "\x13"
 
 
 def arow(rid, name, ok, detail=""):
@@ -79,12 +90,11 @@ STATE = {}
 MUTANTS = {
     # name: (program of the sandbox, old text, new text, the row ids that must fail and no others)
     "ide-edit-by-enter": ("tk_ai", "         dflt = 2                                         ;* a change to a text is never accepted by Enter alone", "         dflt = 1", ["I6"]),
-    "sed-saves": ("sed", "   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", "   gosub save.record\n   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", ["S5", "S8"]),
-    "ced-saves": ("ced_edit", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", ["C4"]),
-    "ced-invalid-accepted": ("ced_edit", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", ["C6", "C7"]),
+    # (11 Nov 26: sed-saves and ced-saves are gone, see the history; ced-invalid-accepted is made in ced_core, where CED's AI code is now)
+    "ced-invalid-accepted": ("ced_core", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", ["C6", "C7"]),
     "dbg-no-source": ("debug", "   for ai.q = ai.first to ai.last\n", "   for ai.q = ai.first to ai.first - 1\n", ["D2"]),   # (D2 reads the request at the fake; D1's preview shows only the first eight lines of the page)
 }
-MUTANT_SECTIONS = {"ide-edit-by-enter": "ide", "sed-saves": "sed", "ced-saves": "ced", "ced-invalid-accepted": "ced", "dbg-no-source": "dbg"}
+MUTANT_SECTIONS = {"ide-edit-by-enter": "ide", "ced-invalid-accepted": "ced", "dbg-no-source": "dbg"}
 
 
 class Sess(H):
@@ -168,15 +178,30 @@ def setup_apps(mutant):
 
 
 def ide_has_ai(h):
-    return re.search(r"File\s+Go\s+Search\s+Build\s+View\s+AI\s+Help", h.text()) is not None and "AI>" in h.text()
+    # 11 Nov 26: the bar is File Edit Go Search Build View Tools AI Help (Edit since Core's S.180, Tools since its S.75 DV10; started as SED there is no Tools)
+    return re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+(Tools\s+)?AI\s+Help", h.lines()[0]) is not None and "AI>" in h.text()
+
+
+def status_rows(h):
+    """The status line is above the foot's border and the key row; the rows from the fifth from the bottom on are read so that a foot of another height still shows it."""
+    return h.lines()[-5:]
 
 
 def focus_entry(h):
+    """The AI entry is a stop of the F6 ring; the status line names the box that has the focus ([AI])."""
     for _ in range(6):
-        if "[AI]" in h.lines()[-1] or any("[AI]" in l for l in h.lines()[-3:]):
+        if any("[AI]" in l for l in status_rows(h)):
             return True
-        h.keys(TAB)
-    return any("[AI]" in l for l in h.lines()[-3:])
+        h.keys(F6)
+    return any("[AI]" in l for l in status_rows(h))
+
+
+def focus_editor(h):
+    for _ in range(6):
+        if any("[Edit" in l for l in status_rows(h)):
+            return True
+        h.keys(F6)
+    return any("[Edit" in l for l in status_rows(h))
 
 
 def sec_ide_off():
@@ -184,7 +209,8 @@ def sec_ide_off():
     ll.configure(provider=False)
     h = Sess("IDE bp %s" % OK_REC)
     L = h.lines()
-    arow("I0", "no provider: the menu bar is File Go Search Build View Help as ever and there is no AI> row", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Help", L[0]) is not None and "AI>" not in h.text(), repr(L[0][:80]))
+    arow("I0", "no provider: the menu bar is File Edit Go Search Build View (Tools) Help with no AI menu, and there is no AI> row", re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+(Tools\s+)?Help", L[0]) is not None
+         and "AI" not in L[0] and "AI>" not in h.text(), repr(L[0][:80]))
     h.end()
     ll.configure()
 
@@ -198,8 +224,8 @@ def sec_ide():
     n0, a0 = len(fm.log), ai.audit_off()
     h.keys("make the greeting longer [[edit_ok]]")
     T = "\n".join(h.keys(RET))
-    arow("I3", "Enter shows EVERYTHING that will be sent (provider, the instruction naming the IDE, the record's lines, the request), Send and Cancel, and sends nothing",
-         "This will be sent to anthropic" in T and "who is using IDE" in T and "crt 'hello'" in T and "make the greeting longer [[edit_ok]]" in T and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1200:])
+    arow("I3", "Enter shows the preview (the provider, the record's lines, the request; NOT SD's own instruction, Core's S.175), Send and Cancel, and sends nothing",
+         "This will be sent to anthropic" in T and "who is using IDE" not in T and "crt 'hello'" in T and "make the greeting longer [[edit_ok]]" in T and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1200:])
     h.keys(RET)
     arow("I3c", "Enter on the default button is Cancel: nothing was sent (the fake and the audit file agree)", len(fm.log) == n0 and not ai.req_lines(ai.audit_new(a0)), "")
     h.end()
@@ -224,10 +250,7 @@ def sec_ide():
     time.sleep(1.0)
     h.s.settle(0.6)
     arow("I7a", "Accept: the editor shows the new line and the disk does not have it", "crt 'hello world'" in h.text() and "hello world" not in rec(OK_REC), h.text()[-500:])
-    for _ in range(6):
-        if any("[Editor]" in l or "[Edit" in l for l in h.lines()[-3:]):
-            break
-        h.keys(TAB)
+    focus_editor(h)                      # F6 round the ring back to the editor (11 Nov 26: it was Tab)
     h.keys(CTRL_Z)
     time.sleep(0.8)
     h.s.settle(0.5)
@@ -243,35 +266,36 @@ def sec_ide():
 
 
 def sed_ask(h, request):
-    h.keys(F10, TOOLS)
-    h.keys(ASK_KEY)
+    """11 Nov 26: SED is the IDE's editor by itself, so the request goes into the IDE's AI entry (F6 to it), and Enter shows the preview."""
+    focus_entry(h)
     h.keys(request)
     return "\n".join(h.keys(RET))
 
 
-def tools_has(h, text):
-    h.keys(F10, TOOLS)
-    T = h.text()
-    h.keys(ESC)
-    return text in T
-
-
 def sec_sed():
-    say("\n--- SED")
+    say("\n--- the verb SED: the IDE's editor by itself")
     fm = ai.STATE["fm"]
     ll.configure(provider=False)
     h = Sess("SED bp %s" % OK_REC)
-    arow("S0", "no provider: the Tools menu has no Ask the AI and no Explain the selection", tools_has(h, "Compile") and not tools_has(h, "Ask the AI") and not tools_has(h, "Explain the selecti"), "")
+    L = h.lines()
+    arow("S0", "no provider: SED brings up the IDE's menu bar with the record in the editor, no Tools menu, no AI menu and no AI> row", re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+Help", L[0]) is not None
+         and "Tools" not in L[0] and "AI" not in L[0] and "crt 'hello'" in h.text() and "AI>" not in h.text(), repr(L[0][:90]))
     h.end()
     ll.configure()
     h = Sess("SED bp %s" % OK_REC)
-    arow("S1", "the Tools menu lists Ask the AI... and Explain the selection", tools_has(h, "Ask the AI...") and tools_has(h, "Explain the selecti"), h.text()[:300])
+    L = h.lines()
+    arow("S1", "the AI on: the AI menu is before Help (still no Tools menu) and there is an AI> row under the editor", re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+AI\s+Help", L[0]) is not None
+         and "AI>" in h.text() and "crt 'hello'" in h.text(), repr(L[0][:90]))
+    arow("S1b", "there is no files pane: the list of the account's files is not on the screen", not any(l[:30].strip("| ").startswith("bp.out") for l in L), "\n".join(l[:30] for l in L[:8]))
     n0, a0 = len(fm.log), ai.audit_off()
     T = sed_ask(h, "make the greeting longer [[edit_ok]]")
-    arow("S2", "Enter on the request shows EVERYTHING that will be sent (the provider, the instruction naming SED, the record's lines, the request), Send and Cancel, and sends nothing",
-         "This will be sent to anthropic" in T and "who is using SED" in T and "crt 'hello'" in T and "x = 1" in T and "make the greeting longer [[edit_ok]]" in T and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1500:])
+    arow("S2", "Enter on the request shows the preview (the provider, the record's lines, the request; not SD's own instruction), Send and Cancel, and sends nothing",
+         "This will be sent to anthropic" in T and "who is using" not in T and "crt 'hello'" in T and "x = 1" in T and "make the greeting longer [[edit_ok]]" in T and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1500:])
     h.keys(RET)
     arow("S3", "Enter on the default button is Cancel: nothing was sent", len(fm.log) == n0 and not ai.req_lines(ai.audit_new(a0)), "")
+    h.end()                              # a new session: the AI entry still holds the request's text
+    h = Sess("SED bp %s" % OK_REC)
+    n0, a0 = len(fm.log), ai.audit_off()
     sed_ask(h, "make the greeting longer [[edit_ok]]")
     h.keys("s")
     T = wait_popup(h)
@@ -283,37 +307,35 @@ def sec_sed():
     arow("S4b", "the answer is a popup: what the AI said and the diff with Accept and Reject", "I made the greeting longer." in T and "- crt 'hello'" in T and "+ crt 'hello world'" in T and "[ Accept ]" in T and "[ Reject ]" in T, T[-900:])
     h.keys(RET)
     arow("S4c", "Enter alone is Reject: the buffer is as it was and so is the disk", "hello world" not in h.text() and "hello world" not in rec(OK_REC), "")
-    sed_ask(h, "make the greeting longer [[edit_ok]]")
+    h.end()
+    h = Sess("SED bp %s" % OK_REC)
+    sed_ask(h, "longer [[edit_ok]]")
     h.keys("s")
     wait_popup(h)
     h.keys("a")
     time.sleep(1.0)
     h.s.settle(0.6)
     arow("S5", "Accept: the buffer shows the new line, the disk does not have it", "crt 'hello world'" in h.text() and "hello world" not in rec(OK_REC), h.text()[-600:])
-    h.keys(RIGHT)
+    focus_editor(h)
     h.keys(CTRL_Z)
     time.sleep(0.8)
+    h.s.settle(0.5)
     arow("S6", "ONE Ctrl-Z takes the change back: the old line is in the buffer", "crt 'hello world'" not in h.text() and "crt 'hello'" in h.text(), h.text()[-500:])
-    sed_ask(h, "x [[edit_dup]]")
-    h.keys("s")
-    T = wait_popup(h)
-    arow("S9", "edit_dup: a set that does not fit is ignored whole and said so, no Accept button", ai.msg(11660, "old text found more than once") in T and "[ Accept ]" not in T and "[ Close ]" in T, T[-700:])
-    h.keys(RET)
     h.end()
     h = Sess("SED bp %s" % OK_REC)
-    n0 = len(fm.log)
-    h.keys(F10, TOOLS)
-    h.keys(EXPLAIN_KEY)
-    arow("S7", "Explain the selection with no mark: the message row says to set one (11671) and nothing is sent", ai.msg(11671)[:30] in h.text() and len(fm.log) == n0, h.text()[-300:])
-    h.keys(RET)
-    h.keys("\x1b.")
-    h.keys(DOWN)
-    h.keys(F10, TOOLS)
-    h.keys(EXPLAIN_KEY)
-    T = h.text()
-    arow("S8", "with a mark and the cursor a line down: the preview shows the selected text and its size and sends nothing", ai.msg(11669, 1).split("1")[0][:20] in T and "crt 'hello'" in T and len(fm.log) == n0, T[-900:])
-    h.keys(RET)
+    sed_ask(h, "longer [[edit_ok]]")
+    h.keys("s")
+    wait_popup(h)
+    h.keys("a")
+    time.sleep(1.0)
+    h.s.settle(0.6)
+    focus_editor(h)
+    h.keys(CTRL_S)
+    time.sleep(1.0)
+    h.s.settle(0.5)
+    arow("S7", "Ctrl-S in the editor writes what was accepted: the disk now has the new line (the person's save, not the AI's)", "crt 'hello world'" in rec(OK_REC), rec(OK_REC)[-200:])
     h.end()
+    make_records()                       # the record as it was, for whatever runs next
 
 
 def ced_ask(h, request):
@@ -339,7 +361,7 @@ def sec_ced():
     h.keys(ESC)
     n0 = len(fm.log)
     T = ced_ask(h, "raise the size [[ced_ok]]")
-    arow("C2", "Ask: the preview shows the record as indented JSON, one element to a line, and the request; Send and Cancel; nothing sent", "This will be sent to anthropic" in T and "who is using CED" in T
+    arow("C2", "Ask: the preview shows the record as indented JSON, one element to a line, and the request; Send and Cancel; nothing sent", "This will be sent to anthropic" in T and "who is using CED" not in T
          and '"size": 3' in T and '"name": "widget"' in T and "raise the size [[ced_ok]]" in T and len(fm.log) == n0, T[-1400:])
     h.keys("s")
     T = wait_popup(h)
@@ -395,8 +417,8 @@ def sec_dbg():
     h = Sess("RUN bp %s" % DBG_PROG, term="xterm")
     n0, a0 = len(fm.log), ai.audit_off()
     T = "\n".join(h.keys("ai what is y [[sayonly]]", RET))
-    arow("D1", "ai: the preview names the program and line, the source round the stop and the request; nothing sent yet", "This will be sent to anthropic" in T and "who is using debugger" in T
-         and DBG_PROG in T and "debug" in T and "what is y [[sayonly]]" in T and len(fm.log) == n0, T[-1400:])
+    arow("D1", "ai: the preview shows the request and NOT SD's instruction (the program, line and source are sent: D2 reads the request); nothing sent yet",
+         "This will be sent to anthropic" in T and "who is using debugger" not in T and "what is y [[sayonly]]" in T and len(fm.log) == n0, T[-1400:])
     h.keys("s")
     T = wait_popup(h)
     rq = requests()
@@ -408,9 +430,11 @@ def sec_dbg():
     time.sleep(0.6)
     h.s.settle(0.6)
     L = h.lines()
-    arow("D3", "the popup is gone and the debugger's screen is whole: the source with its line numbers, the command line on the last row", any(re.match(r"^\s*3:\s+debug", l) for l in L) and L[-1].startswith(">"), "\n".join(L[:6] + L[-4:]))
+    arow("D3", "the popup is gone and the debugger's screen is whole: the source with its line numbers, the command line on row 39, the key row at the foot", any(re.match(r"^[ *>]\s*3:\s+debug", l) for l in L)
+         and L[39].startswith(">") and L[42].startswith("F1 help"), "\n".join(L[:6] + L[38:43]))
     L = h.keys("/x", RET)
-    arow("D3b", "...and it goes on working: /x shows the variable", any("5" in l for l in L[-9:-1]), "\n".join(L[-9:]))
+    ix = max([i for i, l in enumerate(L) if "/x" in l] or [-1])         # the answer is looked for from the echo of the command on, wherever the display puts it (Core's row)
+    arow("D3b", "...and it goes on working: /x shows the variable", ix >= 0 and any("5" in l for l in L[ix:]), "\n".join(l for l in L if l.strip()))
     h.keys("r", RET)
     time.sleep(1.5)
     h.s.settle(0.6)

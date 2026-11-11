@@ -20,6 +20,10 @@
 #               by the wall messages: the text of the pack's msg:2001, msg:11008 and msg:11029 is what a session that has not typed
 #               `admin` is told by `config`, a `copy` into the VOC and `catalog ... global` (msg:11028 is not driven: `deletef` and
 #               `syncgcat` print it and neither is run here).
+# 11 Nov 26 dm  The null-case floor for shipped VOC records is 8, not 20.  Solo's newvoc held 27 records that are neither verbs nor
+#               keywords when the floor was set (F 8, PA 2, PH 2, Q 2, R 10, S 2, X 1); carry 22 area 1 (15767b9: SD Core's S.87
+#               removals, the R records and others) left 11 (F 7, PA 1, Q 1, S 1, X 1), and the pack quotes every one of them.  The
+#               row "each group compared as many records as the pack has chunks" still holds the comparison itself.
 # END-HISTORY
 #
 # WHAT IT RUNS.  The sandbox's sduser account is built from sdsys/newvoc, and its dictionaries are written by write_install_dicts
@@ -255,7 +259,7 @@ def main():
                 n_dict += 1
     say("sandbox-pack-examples: the pack gives %d verbs, %d shipped VOC records (+ %d of SDSYS's own) and %d shipped dictionary items to compare" % (
         n_verb, n_voc, n_vocsys, n_dict))
-    row("the pack has something to compare (>= 90 verbs, >= 20 VOC records, >= 40 dictionary items)", n_verb >= 90 and n_voc >= 20 and n_dict >= 40,
+    row("the pack has something to compare (>= 90 verbs, >= 8 VOC records, >= 40 dictionary items)", n_verb >= 90 and n_voc >= 8 and n_dict >= 40,
         "%d / %d / %d" % (n_verb, n_voc, n_dict))
 
     # the scratch directory file, written with the bytes the pack quotes

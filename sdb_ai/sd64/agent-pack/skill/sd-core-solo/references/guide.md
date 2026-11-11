@@ -29,7 +29,7 @@ zzz 1
 ```
 
 ```error
-Unrecognised statement
+Unrecognized statement
 ```
 
 A program with no `program`, `subroutine` or `function` line is a program, and `end` closes it:
@@ -444,7 +444,7 @@ crt 'one ' :
 ```
 
 ```error
-Unrecognised statement
+Unrecognized statement
 ```
 
 [unverified] **A loop on `input` must test for the end of input** or it never ends when the input does: `if x = '' and status() = ER$EOF then exit` (the constant needs `$include syscom err.h`). A program run from a script has a pipe for input, so this matters.
@@ -859,12 +859,10 @@ voc write refused, status 3035
 
 ```tcl run
 sh echo hi
-! echo hi
 sh echo alpha-beta | grep alpha
 ```
 
 ```output
-sduser is not permitted to use the operating system shell
 sduser is not permitted to use the operating system shell
 sduser is not permitted to use the operating system shell
 ```
@@ -887,7 +885,7 @@ program gopen
    openseq '/etc/hostname' to f then crt 'opened outside' else crt 'outside refused, status ' : status()
    openseq 'gopen.txt' to g else create g else stop 'cannot create'
    crt 'a file inside the account is fine'
-   closeseq g
+   close g
    deleteseq 'gopen.txt' else crt 'not deleted'
    x = dir('/etc')
    crt 'dir outside: ' : dcount(x, @fm) : ' entries, status ' : status()
@@ -902,14 +900,14 @@ dir outside: 0 entries, status 3035
 
 **When the user has turned a switch on** the same statements run with the rights of the Linux user who owns the installation, and SD never runs as root. That is not a permission to use them for anything else: use them only for what the user asked, and the more they can reach, the more reason to run an agent on a computer of its own (the recipe in `agent-pack/recipe/`). [unverified] A change is seen by the next sign-on, never by a session already running. The one filter is on the verbs: with `sh` on, `sh` and `!` refuse a command with a shell metacharacter in it (`;` `|` `&` `$` `` ` `` `<` `>`) and say `Error 2 executing operating system command`; that is a sanitizer, so that a pasted record id cannot become a second command. `os.execute` runs the string as written. You cannot read the switches from an ordinary session (`set.os.access` needs `admin`): try the statement, and a refusal tells you.
 
-The compiler also keeps a set of names for programs that SD itself ships. The restricted statements are "Unrecognised statement", the `$internal` directive is refused, and an internal-only function is read as a matrix, with an error about a `dim` you never wrote, reported at the last line of the program. **If a function you are sure exists gives that message, it exists and you may not call it.**
+The compiler also keeps a set of names for programs that SD itself ships. The restricted statements are "Unrecognized statement", the `$internal` directive is refused, and an internal-only function is read as a matrix, with an error about a `dim` you never wrote, reported at the last line of the program. **If a function you are sure exists gives that message, it exists and you may not call it.**
 
 ```basic frag fail
 breakpoint 'x'
 ```
 
 ```error
-Unrecognised statement
+Unrecognized statement
 ```
 
 ```basic fail
@@ -920,7 +918,7 @@ end
 ```
 
 ```error
-Unrecognised compiler directive
+Unrecognized compiler directive
 ```
 
 ```basic frag fail
@@ -1087,7 +1085,7 @@ crt sysmsg(2001)
 ```
 
 ```output
-gone deleted from the global catalogue
+gone deleted from the global catalog
 Command requires administrator privileges
 ```
 

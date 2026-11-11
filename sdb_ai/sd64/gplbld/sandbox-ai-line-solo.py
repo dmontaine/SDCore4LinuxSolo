@@ -12,6 +12,10 @@
 #
 # START-HISTORY:
 # 23 Oct 26 dm  New (Solo carry 16).
+# 11 Nov 26 dm  Brought to the pages carried from SD Core on 10 Nov, after Core's sandbox-ai-line.py.  L1: the hint says "press F6" (S.176).  L4: the ring is F6 / Shift-F6
+#               (L4a F6 from the first tile, L4d Tab from Sign out goes round the tiles and NOT to the line, L4e Shift-F6, new L4e2 F6 in the line gives the focus back).
+#               L5a / L5b: the preview shows the person's request and not SD's own text (S.175: the fixed instruction and the page's actions are sent, counted in the
+#               size, and not shown).  L11: the fake's fenced reply names the IDE (fakemodel.py, as Core's: the Record editor tile `ced` went with S.88 g-P1).
 # END-HISTORY
 #
 # WHAT RUNS.  The real helper (gplbld/sd-ai, served by ai-runner.py: Solo's, which runs as the user and has no gate group) and the fake provider (gplbld/fakemodel.py, TLS with a
@@ -32,7 +36,7 @@
 # the status line [Home] at 40), the tiles of the holder's page are Editor, IDE, Record editor (group My tools), Terminal, Keys (group Everyone), Sign out in the header.
 #
 #   L0-L3  the line is NOT DRAWN when the AI is off: no provider, no model, no key, the gate off, no helper; the old hint is there instead; with everything set the line replaces the hint
-#   L4     the Tab ring: Back-tab from the first tile, Tab from Sign out, Esc, a click
+#   L4     the F6 ring: F6 from the first tile, Tab from Sign out round the tiles only, Esc, Shift-F6, F6 back, a click
 #   L5-L6  Enter shows everything that will leave the machine (the fixed instruction, the list of the page's actions, what the page says, the request) and the provider and model;
 #          Cancel is the default; Enter on it sends nothing (the fake and the audit file agree)
 #   L7     Send: ONE request at the fake with the key, the instruction, the actions of THIS page and the typed request as the last line; ONE audit line from the kernel
@@ -75,6 +79,7 @@ for _n in ("say", "has", "put", "bail", "dump", "plain", "adm", "H"):
 import fakemodel  # noqa: E402
 
 say, bail, has, put, dump, plain, adm, H = sh.say, sh.bail, sh.has, sh.put, sh.dump, sh.plain, sh.adm, sh.H
+sh.KEYS["shift-f6"] = "\x1b[17;2~"      # 11 Nov 26 (Core's S.176): Shift-F6 in xterm's modifier form, as Core's suite sends it: the box keys are F6 / Shift-F6
 KEY = ai.KEY
 MODEL = ai.MODEL
 FAILED_IDS = []
@@ -209,32 +214,35 @@ def sec_off():
     configure()
     h = home()
     arow("L1", "everything set and the gate on: the AI row replaces the hint, with the dim sentence that says how to reach it",
-         line_row(h).lstrip().startswith("AI>") and "Ask the AI: press Tab" in line_row(h) and "arrows move" not in line_row(h), repr(line_row(h)[:100]))
+         line_row(h).lstrip().startswith("AI>") and "Ask the AI: press F6" in line_row(h) and "arrows move" not in line_row(h), repr(line_row(h)[:100]))
     h.key("ctrl-q", idle=1.5)
     h.end()
 
 
 def sec_ring():
-    say("\n--- the Tab ring")
+    say("\n--- the F6 ring (Core's S.176: the tiles and the line; Tab goes round the tiles only)")
     h = home()
     first = h.focus()
-    h.key("btab", idle=0.8)
-    arow("L4a", "Back-tab from the first tile gives the focus to the AI line: no tile has it, the row shows the label bold and the status line says how to use it",
+    h.key("f6", idle=0.8)
+    arow("L4a", "F6 from the first tile gives the focus to the AI line: no tile has it, the row shows the label bold and the status line says how to use it",
          h.focus() == [] and msg(11638) in h.line(40) and "AI>" in line_row(h), repr((h.focus(), h.line(40)[:90])))
     h.typed("abc", idle=0.5)
     arow("L4b", "what is typed is in the line", "abc" in line_row(h), repr(line_row(h)[:60]))
     h.key("esc", idle=0.8)
     arow("L4c", "Esc gives the focus back to the tile it came from (the first tile again; the typed text is kept in the line)", h.focus() != [] and "abc" in line_row(h), repr((h.focus(), line_row(h)[:60])))
-    for _ in range(12):                        # SOLO: Sign out is the one header tile and the last of the ring (Core also has Switch account before it)
+    for _ in range(40):                        # SOLO: Sign out is the one header tile and the last of the ring; the ring grows with every tile, the loop ends at Sign out
         h.key("tab", idle=0.3)
         if "Sign out" in h.focus():
             break
     h.key("tab", idle=0.8)
-    arow("L4d", "Tab from Sign out (the last tile) gives the focus to the AI line", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
-    h.key("tab", idle=0.8)
-    arow("L4e", "Tab in the line goes on round the ring to the first tile", h.focus() == first, repr((h.focus(), first)))
-    h.key("esc", idle=0.5)
-    h.click(40, 39, idle=1.0)
+    arow("L4d", "Tab from Sign out (the last tile) goes round the tiles to the first one, NOT to the AI line", h.focus() == first and msg(11638) not in h.line(40),
+         repr((h.focus(), first, h.line(40)[:80])))
+    h.key("shift-f6", idle=0.8)
+    arow("L4e", "Shift-F6 gives the focus to the AI line too", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
+    h.key("f6", idle=0.8)
+    arow("L4e2", "F6 in the line gives the focus back to the tile it came from (the first), and is not typed into the line", h.focus() == first and "abc" in line_row(h)
+         and "abc\x1b" not in line_row(h), repr((h.focus(), first, line_row(h)[:60])))
+    h.click(40, 39, idle=1.0)                  # (no Esc first: on the top page Esc opens the menu bar, and the click would only close it - Core's note)
     arow("L4f", "a click on the AI row gives it the focus", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
     h.key("ctrl-q", idle=1.5)
     h.end()
@@ -246,10 +254,12 @@ def sec_preview():
     n0, a0 = len(fm().log), ai.audit_off()
     ask(h, "open the ide [[act_ide]]")
     T = h.text()
-    arow("L5a", "Enter shows the preview: the provider, the model and the size, the fixed instruction, the page's actions and the request, and nothing has been sent",
-         msg(11628, "anthropic", MODEL, "").split("%")[0][:30] in T and "You help a person who is using home" in T and "ide:IDE" in T and "open the ide [[act_ide]]" in T
-         and "Send" in T and "Cancel" in T and len(fm().log) == n0, T[-1200:])
-    arow("L5b", "the preview lists the page's actions with what each does, and says what the page tells about itself", "terminal:Terminal" in T and "keys:Keys" in T and "the home screen of the SD database system" in T, T[-900:])
+    # Core's S.175 (the owner, 8 Nov 26: "it is showing the standard prefix text, it is not supposed to"): SD's own text is sent but not shown
+    arow("L5a", "Enter shows the preview: the provider, the model and the size, and the request, and nothing has been sent",
+         msg(11628, "anthropic", MODEL, "").split("%")[0][:30] in T and "open the ide [[act_ide]]" in T and "Send" in T and "Cancel" in T and len(fm().log) == n0, T[-1200:])
+    arow("L5b", "the preview does NOT show SD's own text: no fixed instruction, no list of the page's actions, nothing of what the page says about itself",
+         "You help a person who is using home" not in T and "ide:IDE" not in T and "terminal:Terminal" not in T and "the home screen of the SD database system" not in T
+         and "The fixed instruction" not in T, T[-900:])
     h.key("enter", idle=1.5)
     arow("L6", "Enter on the default button is Cancel: nothing was sent (the fake's log and the audit file agree) and the status line says so",
          len(fm().log) == n0 and not ai.req_lines(ai.audit_new(a0)) and msg(11630) in h.line(40) and h.home(), repr((len(fm().log) - n0, h.line(40)[:80])))
@@ -339,7 +349,7 @@ def sec_proposals():
     h.end()
     # the forms the reply may take
     h, T = reply("fence [[fenced]]")
-    arow("L11", "an object inside a code fence with words round it is read: the Record editor is proposed", "From a fence." in T and msg(11647, "Record editor - fields of a record") in T, T[-700:])
+    arow("L11", "an object inside a code fence with words round it is read: the IDE is proposed (the Record editor until its tile went, S.88 g-P1)", "From a fence." in T and msg(11647, "IDE - programs and files") in T, T[-700:])
     h.key("esc", idle=1.5)
     arow("L11b", "Esc on the popup is Reject: the home screen, nothing started", h.home(), repr(h.text()[:100]))
     h.key("ctrl-q", idle=1.5)

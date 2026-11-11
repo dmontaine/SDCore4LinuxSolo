@@ -20,6 +20,7 @@
 #
 # START-HISTORY:
 # 23 Oct 26 dm  New.
+# 11 Nov 26 dm  [[fenced]] names the action ide, as SD Core's fake does: the Record editor tile (ced) is gone from the home screen (S.88 g-P1).
 # END-HISTORY
 
 import http.server
@@ -47,7 +48,7 @@ JSON_REPLIES = {
     "cmd_tab": '{"say": "Odd command.", "action": "none", "arg": "", "command": "list\\tfiles"}',
     "cmd_long": '{"say": "A long one.", "action": "none", "arg": "", "command": "' + "x" * 300 + '"}',
     "both": '{"say": "Either.", "action": "keys", "arg": "", "command": "list.files"}',
-    "fenced": 'Sure.\n```json\n{"say": "From a fence.", "action": "ced", "arg": "", "command": ""}\n```\nHope that helps.',
+    "fenced": 'Sure.\n```json\n{"say": "From a fence.", "action": "ide", "arg": "", "command": ""}\n```\nHope that helps.',
     "notjson": "I would start the editor, I think.",
     "sayonly": '{"say": "Nothing to do here, but this is the home screen.", "action": "none", "arg": "", "command": ""}',
     "argbad": '{"say": "With an argument.", "action": "ide", "arg": "x;rm -rf /", "command": ""}',

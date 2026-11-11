@@ -27,8 +27,15 @@
 #   S5   a refresh keeps the cursor on the same user, not the same row, when a lower numbered session signs on above it; the list is read again without a key
 #   S6   unlock: Esc runs nothing; Run releases ONE lock and the holder stays signed on; an id that is a keyword or has a space is refused before the box; a file lock is released
 #   S7   inhibit.login: on and off through the box; the file; a new ordinary session is refused while it is on; the audit lines
-#   S8   the mouse, F5, F1, Tab; a window under 140 by 43 gets no page; the page ends when its input ends
-# NOT HELD: a lock whose holder has no session (a sandbox cannot make one), a real install, the help text itself (sandbox-docs.py).
+#   S8   the mouse, F5, F1, F6 and Shift-F6 (Tab changes no box); a window under 140 by 43 gets no page; the page ends when its input ends
+# NOT HELD: a lock whose holder has no session (a sandbox cannot make one), a real install, the help text itself (sandbox-docs.py), the focus marks [*] / [-] of Core's S8c1-S8c2.
+#
+# START-HISTORY:
+# 24 Oct 26 dm  New (Solo carry 20).
+# 11 Nov 26 dm  The page is the one carried from SD Core on 10 Nov, where F6 and Shift-F6 change the list and Tab does not (Core's S.176).  focus() pressed Tab to reach the locks
+#               list, so every row that needed the cursor on a lock read the sessions list's explanation instead (S2a S2b S2c S6a-S6h), and S8c pressed Tab.  focus() presses F6;
+#               S8c0 (Tab does NOT change the list), S8c00 (Shift-F6), S8c01 and S8c (F6) are Core's rows.
+# END-HISTORY
 import getpass
 import importlib.util
 import os
@@ -55,6 +62,7 @@ def _load(name, fname):
 sh = _load("sandbox_home_solo_for_toolsessions", "sandbox-home-solo.py")
 say, row, bail, has, dump, H = sh.say, sh.row, sh.bail, sh.has, sh.dump, sh.H
 ME = getpass.getuser()
+SHIFT_F6 = "\x1b[17;2~"         # 11 Nov 26: Shift-F6 in xterm's modifier form, as Core's suite sends it
 
 
 class G:
@@ -331,7 +339,7 @@ class Page:
 
     def focus(self, pane):
         if self.pane() != pane:
-            self.key("tab", 0.8)
+            self.key("f6", 0.8)                    # 11 Nov 26: F6 is the box key of every page (Core's S.176); two stops, the sandbox's page has no AI line
 
     def to_session(self, uid):
         """Cursor to the session of this user number; the list is read every 3 seconds, so a session that signed on a moment ago may take that long to show."""
@@ -614,8 +622,15 @@ def section_s8(p):
     if L:
         p.h.click(20, L[0]["row"])
         arow("S8b", "a click on a lock row puts the cursor there and the focus on the locks list", p.pane() == "Locks" and ("User %d" % L[0]["uid"]) in p.detail(), repr((p.pane(), p.detail()[:120])))
+    # 11 Nov 26, Core's S.176 rows: Tab moves no box; F6 and Shift-F6 do
     p.key("tab", 0.8)
-    arow("S8c", "Tab changes the list", p.pane() == "Sessions", p.pane())
+    arow("S8c0", "Tab does NOT change the list (the focus stays on the locks list)", p.pane() == "Locks", p.pane())
+    p.h.typed(SHIFT_F6, idle=0.8)
+    arow("S8c00", "Shift-F6 changes the list (to the sessions list: two boxes, no AI line here)", p.pane() == "Sessions", p.pane())
+    p.key("f6", 0.8)
+    arow("S8c01", "F6 changes it back (to the locks list)", p.pane() == "Locks", p.pane())
+    p.key("f6", 0.8)
+    arow("S8c", "F6 changes the list", p.pane() == "Sessions", p.pane())
     p.key("f5", 1.5)
     arow("S8d", "F5 reads again and says so", "asked the system again" in st(p.h), st(p.h))
     p.h.click(135, 2)

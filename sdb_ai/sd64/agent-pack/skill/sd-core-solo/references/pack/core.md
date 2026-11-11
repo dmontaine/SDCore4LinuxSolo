@@ -67,8 +67,8 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 
 - **`admin`** | **`admin off`**
 - **`analyse.index`** *file* {*index* {**`statistics`**} {**`detail`**}} {**`lptr`** {*n*}} {**`no.page`**}
-- **`analyze.file`** — the same verb as **`analyse.file`**
 - **`build.index`** *file* *field* … | **`all`**
+- **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`clear.select`** {*list.no*}
 - **`compile.dict`** — the same verb as **`cd`**
 - **`copy from`** {**`dict`**} *src* {**`to`** {**`dict`**} *tgt*} {*id* …} {**`(options`**}
@@ -81,13 +81,13 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`disable.index`** *file* *index* … | **`all`**
 - **`display`** *text*
 - **`ed`** {**`dict`**} *file* {*id* …}
+- **`format`** {*file*} {*record*} {**`case`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
-- **`generate`** {**`dict`**} *file* *record* …
 - **`home`**  —  the home screen: tiles for the account's tools, a terminal and sign out
+- **`ide`** {*file* *record*}
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
 - **`off`**
-- **`profiler on`** {**`user`** *n*} {*event* …} | **`off`** {**`user`** *n*} | {**`display`**} {**`user`** *n*}
 - **`run`** {*file*} *record* {*arguments*}
 - **`scan`** {**`dict`**} *file* {*selection*} {*id* …} {**`all`**} {**`no.case`**} {**`all.match`** | **`no.match`**} {**`strings`** *file* *record*} **`for`** *"text"* …
 - **`search`** {**`dict`**} *file* {*selection*}
