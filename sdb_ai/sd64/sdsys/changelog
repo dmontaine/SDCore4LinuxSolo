@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  A REFUSED REMOTE DELETE.FILE NO LONGER LEAVES THE CLIENT'S FILE NUMBER DEAD (carried from SD Core for Linux, 8 Nov 2026).
+
+             What        - A DELETE.FILE sent through the API (file administration, request 70) that the verb refused - the
+                           file open in another session, say - left the file on the disk but the file number dead. The number
+                           now stays good, and the status is the verb's (-3021, no exclusive access), which DELETE.FILE
+                           already returns when the data or dictionary part is open.
+             Does NOT    - Change a delete that works (the number is forgotten, as before).
+
 11 Nov 26  THE API REQUEST THAT INSTALLS THE MASTER'S SSH KEY IS NOW NUMBER 72; NUMBER 49 ASKS THE SERVER'S REVISION, AS IN SD CORE.
 
              What        - Solo had used API request 49 for the master's ssh key since 1.1 (add, remove and list a key
