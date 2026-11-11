@@ -17,6 +17,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 * 
 * START-HISTORY:
+* 11 Nov 26 SD Core for Linux Solo - SD_REV_STAMP LS2.0-0 (owner, 11 Nov 2026: "Yes, LS2.0-0 now"; before the release is
+*           cut, as SD Core for Linux moved to L2.0-0 on 2 Nov 2026; all four versions are 2.0-0 when released).
 * 02 Oct 26 SD Core for Linux Solo - SD_REV_STAMP LS1.1-3 (owner, 2 Oct 2026: "version should be
 *           1.1-3 on both full and solo"); pairs with L1.1-3 and the Windows W1.1-3 / WS1.1-3.
 * 30 Sep 26 SD Core for Linux Solo - SD_REV_STAMP LS1.1-2 (owner, 30 Sep 2026):
@@ -96,7 +98,7 @@
 $define MAJOR.REV      1
 $define MINOR.REV      0
 $define BUILD          2
-$define SD.REV.STAMP   "LS1.1-3"
+$define SD.REV.STAMP   "LS2.0-0"
 
 $define SD.COPYRIGHT.YEAR "2007"
 

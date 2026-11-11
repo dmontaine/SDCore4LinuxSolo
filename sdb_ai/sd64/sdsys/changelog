@@ -1156,7 +1156,7 @@ Next release - in progress
            own copies of these tools and of ED have the same fixes from 18
            and 19 October.
 
-18 Oct 26  SD CORE SOLO TAKES THE STABLE PART OF SD CORE 1.2-0.  Solo had
+18 Oct 26  SD CORE SOLO TAKES THE STABLE PART OF SD CORE 2.0-0.  Solo had
            been SD Core's 1.1-3 plus its own changes.  SD Core has since
            added a great deal to the language, the query processor, the file
            system and the terminal, and the part of that work that does not
