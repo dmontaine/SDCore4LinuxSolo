@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 11 Nov 26 dm  Carried from SD Core (its change of 25 Oct 26, commit 3d3890e3, the index tree fix only): update_internal_node() hands the parent the node's
+ *               new maximum key when the LAST child of an internal node that has others is removed (the NULL key it handed up was read as "remove this
+ *               child", so a live subtree went missing from every lookup), and relink_term_neighbours() points the neighbours of a terminal node that
+ *               replaces its single-child parent at its new node number.  The right justified total order (AK_V2) of the same Core commit is NOT carried.
  * 07 Nov 26 dm  S.159 (Kimi review): delete_ak() tests the index map with & (it was &&, under a pragma that silenced the warning) after a range
  *               check of the number, and clears the bit rather than flipping it.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote-file refusals.
@@ -133,6 +137,8 @@ Private bool update_internal_node(DH_FILE *dh_file,
                                   char *id3,
                                   int16_t id3_len,
                                   int32_t offset3);
+
+Private bool relink_term_neighbours(DH_FILE *dh_file, int16_t subfile, DH_TERM_NODE *term, int32_t new_home);
 
 Private STRING_CHUNK *ak_read_record(DH_FILE *dh_file, int16_t subfile, DH_RECORD *rec_ptr);
 
@@ -3419,6 +3425,52 @@ exit_compare:
 }
 
 /* ======================================================================
+   relink_term_neighbours()  -  Point the two neighbours of a terminal node at its new node number
+
+   25 Oct 26  update_internal_node() copies the only child of an internal node over the internal node and gives the child's node number back.  When the child is a
+   terminal node it keeps its own left and right links, but the terminal nodes on either side still held the number that was given back, so the chain of terminal
+   nodes (SELECTINDEX, the index scans) led into the free list.  `term` is the node as it will be written under new_home.                                          */
+
+Private bool relink_term_neighbours(DH_FILE *dh_file, int16_t subfile, DH_TERM_NODE *term, int32_t new_home) {
+  bool status = FALSE;
+  DH_TERM_NODE *nb = NULL;
+  int32_t nb_num;
+
+  if ((term->left == 0) && (term->right == 0))
+    return TRUE;
+
+  nb = (DH_TERM_NODE *)k_alloc(57, DH_AK_NODE_SIZE);
+  if (nb == NULL) {
+    dh_err = DHE_NO_MEM;
+    return FALSE;
+  }
+
+  if (term->left != 0) {
+    nb_num = GetAKFwdLink(dh_file, term->left);
+    if (!dh_read_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+    nb->right = SetAKFwdLink(dh_file, new_home);
+    if (!dh_write_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+  }
+
+  if (term->right != 0) {
+    nb_num = GetAKFwdLink(dh_file, term->right);
+    if (!dh_read_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+    nb->left = SetAKFwdLink(dh_file, new_home);
+    if (!dh_write_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+  }
+
+  status = TRUE;
+
+exit_relink_term_neighbours:
+  k_free(nb);
+  return status;
+}
+
+/* ======================================================================
    update_internal_node()  -  Replace an internal key child pointer       */
 
 Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... */
@@ -3460,6 +3512,7 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
   /* -------------------- */
   char *pkey;       /* Parent key */
   int16_t pkey_len; /* Parent key length */
+  char max_key[256]; /* The node's new maximum key when its last child is removed (keys are at most 255 bytes) */
   bool update_parent;
   int32_t node_num;
   int16_t i;
@@ -3723,6 +3776,20 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
 
   node_ptr->node.int_node.child_count += num_child - 1;
 
+  /* 25 Oct 26  A child was removed and it was this node's LAST: the node's maximum key is now the key of its new last child.  pkey was NULL for a removal, and
+     the call to the parent below reads a NULL key as "remove this node", so every deletion of a rightmost child took a node that still had children out of its
+     parent (and so out of every lookup by key).  Taken here, before the single-child case below overwrites the buffer.  A node with no child left (it cannot
+     happen: a node with one child is replaced by it) keeps the NULL and is removed from its parent as before.                                                    */
+  if ((num_child == 0) && update_parent && (node_ptr->node.int_node.child_count > 0)) {
+    n = node_ptr->node.int_node.child_count - 1;
+    p = node_ptr->node.int_node.keys;
+    for (j = 0; j < n; j++)
+      p += node_ptr->node.int_node.key_len[j];
+    pkey_len = node_ptr->node.int_node.key_len[n];
+    memcpy(max_key, p, pkey_len);
+    pkey = max_key;
+  }
+
   /* Check if we can compress the tree */
 
   /* !!!! Could also do something to merge adjacent internal nodes */
@@ -3733,6 +3800,11 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
 
     node_num = GetAKFwdLink(dh_file, node_ptr->node.int_node.child[0]);
     if (!dh_read_group(dh_file, subfile, node_num, node_ptr->node.buff, DH_AK_NODE_SIZE)) {
+      goto exit_update_internal_node;
+    }
+
+    /* 25 Oct 26  A terminal node moves to this node's number: its neighbours must be told (see relink_term_neighbours()). */
+    if ((node_ptr->node.term_node.node_type == AK_TERM_NODE) && !relink_term_neighbours(dh_file, subfile, &(node_ptr->node.term_node), node_ptr->node_num)) {
       goto exit_update_internal_node;
     }
 
