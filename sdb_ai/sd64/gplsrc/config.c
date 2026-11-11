@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, 9 Nov 26, the owner: US spelling in everything SD prints): "Unrecognized configuration parameter", "Global catalog missing or corrupt".
  * 11 Nov 26 dm  GRPSIZE defaults to 4 (it was 1; the shipped sd.conf said 2, now 4), as in SD Core for Linux since 25 Oct 26.  An sd.conf that names GRPSIZE keeps it.
  * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
  * 19 Oct 26 dm  NETWAIT and NETREPLY are held in 32 bit fields (config.h): 65541 in sd.conf wrapped to 5 in the 16 bit field BEFORE rangecheck, so SD started with a 5 second wait instead of
@@ -333,7 +334,7 @@ struct CONFIG* read_config(char* errmsg) {
       else if (sscanf(rec, "YEARBASE=%d", &n) == 1)
         pcfg.yearbase = n;
       else {
-        sprintf(errmsg, "Unrecognised configuration parameter '%s'", rec);
+        sprintf(errmsg, "Unrecognized configuration parameter '%s'", rec);
         goto exit_read_config;
       }
     }
@@ -433,7 +434,7 @@ struct CONFIG* read_config(char* errmsg) {
       goto exit_read_config;
   }
   if (access(path, 0)) {
-    sprintf(errmsg, "Global catalogue missing or corrupt.");
+    sprintf(errmsg, "Global catalog missing or corrupt.");
     goto exit_read_config;
   }
 

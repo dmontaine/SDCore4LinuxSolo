@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry S.216 gap 13 (SD Core S.88 phase 2): K_SHOW_SAFE (151), another session's text made safe to print by the kernel's one rule (show_ts_safe()), for PSTAT,
+ *               PROFILER DISPLAY and HSM USER n, which print the $IPC records S<n>, F<n> and H<n> that any SD user can write.  Gap 4: the comment at K_AUTOLOGOUT -2 (the code was carried).
  * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): kernel(K$AUTOLOGOUT, -2) returns the inactivity clock
  *           (keyin_idle_ms()) instead of the period, for the IDE's countdown.
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone with the KEEP.SELECT statement and OPTION CLEAR.SELECT; the number stays reserved.
@@ -602,6 +604,20 @@ void op_kernel() {
       result.data.value = (my_uptr->flags & USR_NET) != 0;
       break;
 
+    /* 28 Oct 26 dm - S.88 phase 2 (carried to Solo 11 Nov 26): K_SHOW_SAFE, the text with every byte of the one rule as '?' (show_ts_safe(), op_lock.c), chunk by chunk,
+       the same length.  No copy of the rule here: the BASIC readers of $IPC (PSTAT, PROFILER, HSM) ask this.                                                      */
+    case K_SHOW_SAFE: {
+      STRING_CHUNK* safe_chunk;
+
+      k_get_string(descr);
+      InitDescr(&result, STRING);
+      result.data.str.saddr = NULL;
+      ts_init(&(result.data.str.saddr), 128);
+      for (safe_chunk = descr->data.str.saddr; safe_chunk != NULL; safe_chunk = safe_chunk->next)
+        show_ts_safe(safe_chunk->data, (int)(safe_chunk->bytes));
+      (void)ts_terminate();
+    } break;
+
     /* May THIS ACCOUNT open this pathname?  An $internal program is exempt from the gate itself (it has to be, to do its work), so one
        that opens a file for the user asks here first.                                                                                */
     case K_PATH_OK: {
@@ -1168,6 +1184,7 @@ void op_kernel() {
       GetInt(descr);
       if (descr->data.value >= 0)
         autologout = descr->data.value;
+      /* 28 Oct 26 dm - S.88 review of L2: an argument of -2 gives the inactivity clock instead of the period (read only; keyin_idle_ms(), linuxio.c) */
       result.data.value = (descr->data.value == -2) ? keyin_idle_ms() : autologout;
       break;
 

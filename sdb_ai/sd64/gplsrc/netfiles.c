@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, the owner: US spelling in everything SD prints): "... not in the global catalog".
  * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946) and its D1 (7fd83ad3), the owner's decision of 11 Nov 26 ("the whole purpose of the global admin password is that a
  *               server can administer solo"): net_admin, net_create_file, net_fcontrol, net_write_seqkey (requests 68 to 71) and net_index_query (NF$INDEXQ), with SD Core's refactor
  *               of net_change_op into net_change_result.  NETG_ADMIN asks steps 1 and 3 of net_gate (read-mode, transaction): Solo has no S.64 edit gate (the deviation of carry 9).  The
@@ -449,7 +450,7 @@ Private bool net_call_core(int op, const char* a, int alen, const char* b, int b
   /* The program is looked for first so that a tree that has not catalogued it says so, rather than stopping the process with "cannot
      find program".  load_object() finds it in its list after the first time. */
   if (load_object("$netfile", FALSE) == NULL) {
-    net_set_message(MSG_HANDLER, "the program $netfile is not in the global catalogue", "", "");
+    net_set_message(MSG_HANDLER, "the program $netfile is not in the global catalog", "", "");
     return FALSE;
   }
 
