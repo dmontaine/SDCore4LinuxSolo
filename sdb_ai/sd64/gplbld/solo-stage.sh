@@ -273,7 +273,7 @@ cp -R gplbld/microcfg "$H/microcfg"
 # levels above this tree's sd64; it is copied when it is there (an installed tree
 # built from a clone always has it).
 mkdir -p "$H/tools"
-cp gplbld/solo-service.sh gplbld/solo-ssh.sh gplbld/solo-sshguard.py "$H/tools/"   # sshguard: the ssh lockout, LSOLO 29
+cp gplbld/solo-service.sh gplbld/solo-ssh.sh gplbld/solo-sshguard.py gplbld/solo-mcp.py "$H/tools/"   # sshguard: the ssh lockout, LSOLO 29; solo-mcp.py: the MCP launcher, S.211 (11 Nov 26; nothing runs it unless an MCP client starts it)
 # 23 Oct 26 - LSOLO 66 (Solo carry 15, S.69 step 2): the AI helper, its client and the table of the three shipped providers.  They run as the user (the user unit
 # sd-solo-ai.socket, solo-service.sh); the settings and keys the helper keeps are in <home>/ai, which the helper makes (mode 0700) on its first change.
 cp gplbld/sd-ai gplbld/sd-ai-ctl gplbld/ai-providers "$H/tools/"

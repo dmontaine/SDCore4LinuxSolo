@@ -450,6 +450,12 @@
       *   a group or other account is entered by several people, any of whom could rename the directory, so the words are refused there (11771).  Not a gate: nothing is
       *   loaded at sign-on; the editor reads the field when it writes a copy, so RECOVERY-OFF stops new copies at once.  No upgrade walk: existing accounts stay off.
       $define ACC$RECOVERY     19    ;* the editors keep a recovery copy of unsaved text (yes/no; blank = no)
+      * 11 Nov 26 dm - FIELDS 20 AND 21, SOLO ONLY (S.211; the owner, 11 Nov: "i will let you make the decisions on the mcp server"): whether an AI agent's MCP client may use the
+      *   account through the MCP launcher (tools/solo-mcp.py), and whether it may also run a sentence of its own.  yes/no each; BLANK MEANS NO (delivered off; the administrator turns
+      *   them on with SET.MCP ON and SET.MCP WRITE ON).  mcp_call reads both at EVERY call, so SET.MCP OFF stops a running agent at its next call.  SD Core for Linux has no MCP door
+      *   (dropped 21 Oct 26) and must not use fields 20 and 21 for anything else without moving these.
+      $define ACC$MCP          20    ;* an MCP agent may use the account through the launcher (yes/no; blank = no)
+      $define ACC$MCP.WRITE    21    ;* the same agent may also run a sentence of its own, sd_run (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *
