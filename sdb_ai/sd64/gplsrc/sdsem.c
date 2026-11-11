@@ -22,6 +22,9 @@
  * 14 Sep 26 dm  SEM_UNDO on lock and unlock, and release_owned_semaphores()
  *               for the fatal-signal path (W.0, owner's ruling of 14 Sep 26).
  * 25 Oct 26 dm  W.11 F1 (carried): the semaphores are made 0600, not 0666.
+ * 11 Nov 26 dm  Carried from SD Core (S.177, 8 Nov 26, commit 2e0d2a97): LockSemaphore retries only while the semaphore is busy
+ *               (EAGAIN, EINTR); a removed set (EINVAL, EIDRM) ends the process with a syslog line (semaphores_gone) instead of
+ *               spinning for ever.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -34,6 +37,7 @@
 #include "sd.h"
 #include <sys/sem.h>
 #include <sched.h>
+#include <syslog.h>
 
 /* ======================================================================
    get_semaphores()  -  Get inter-process semaphores                      */
@@ -115,12 +119,39 @@ void delete_semaphores() {
    unlock in another: measured 14 Sep, no semaphore is held across a fork
    (op_kernel.c ends its section before the phantom fork; bind_sysseg locks and
    unlocks SHORT_CODE in the one process). */
+/* 8 Nov 26 dm - S.177 (carried from SD Core 11 Nov 26).  The loop below retried
+   on EVERY error.  Only EAGAIN (another process holds it; IPC_NOWAIT) and EINTR
+   can clear by waiting.  When SD is stopped while a session still runs,
+   stop_sd() removes the set and the next semop() fails with EINVAL or EIDRM for
+   ever: on SD Core four sessions spun at 84-92% CPU for 8-10 hours, unkillable
+   by SIGTERM.  With its semaphores and shared memory gone the process cannot go
+   on and cannot clean up through anything that locks, so it says why and ends
+   at once (_exit: no exit handler may take a lock).  semaphores_gone() never
+   returns. */
+
+static bool semaphore_busy(int err) {
+  return (err == EAGAIN) || (err == EINTR);
+}
+
+static void semaphores_gone(int semno, int err) {
+  char msg[160];
+
+  snprintf(msg, sizeof(msg),
+           "SD process %d ended: its semaphores were removed (semaphore %d, errno %d) - SD was stopped while it ran",
+           (int)getpid(), semno, err);
+  syslog(LOG_ERR, "%s", msg);
+  fprintf(stderr, "\r\n%s\r\n", msg);
+  _exit(3);
+}
+
 void LockSemaphore(int semno) {
 // rev 0.9.0
   static struct sembuf sem_lock = {0, -1, IPC_NOWAIT | SEM_UNDO};
   sem_lock.sem_num = semno;
   while (semop(semid, &sem_lock, 1)) {
-// rev 0.9.0     
+    if (!semaphore_busy(errno))
+      semaphores_gone(semno, errno);
+// rev 0.9.0
   	RelinquishTimeslice;
   }
 }

@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Carried from SD Core (S.177, 8 Nov 26, commit 2e0d2a97): stop_sd_ex(kill_survivors) - "sd-solo -stop" and "-restart" end with SIGKILL
+ *               any process still attached to SD's segment ten seconds after SIGTERM (end_attached_survivors, by the key in /proc/<pid>/maps)
+ *               before the segment and the semaphores are removed; the wait is wait_detached().  bind_sysseg()'s failure path keeps plain stop_sd().
  * 25 Oct 26 dm  W.11 daemon restart (carried): start_sd(with_daemon).  The fork of sdlnxd is start_lnxd(), which "sd-solo -start -nodaemon" leaves out because
  *               the user unit sd-solo-lnxd.service starts (and restarts) it.  A child whose exec fails now ends (_exit(1)) instead of returning to the caller.
  * 25 Oct 26 dm  W.11 F1 (carried): the shared segment is made 0600 (create_shared_segment()), not 0666.
@@ -42,6 +45,7 @@
 
 #include <signal.h>
 #include <time.h>
+#include <ctype.h>
 /* 20240126 mab add syslog */
 #include <syslog.h>
 
@@ -515,6 +519,83 @@ bool start_sd(bool with_daemon) {
    stop_sd()                                                              */
 
 bool stop_sd() {
+  return stop_sd_ex(FALSE);
+}
+
+/* 8 Nov 26 dm - S.177 (carried from SD Core 11 Nov 26).  stop_sd() sends
+   SIGTERM, waits ten seconds and removes the segment and the semaphores whether
+   or not everyone has gone.  A session that has had a SIGHUP ignores SIGTERM
+   (signal_handler, linuxio.c) and leaves only on its next event check; one that
+   never gets there outlived the stop and then had no semaphores (sdsem.c,
+   S.177).  So an explicit "-stop" or "-restart" (kill_survivors TRUE) ends,
+   with SIGKILL, every process that is STILL ATTACHED TO SD'S OWN SEGMENT after
+   the wait, and only those: the test is the segment's key in /proc/<pid>/maps,
+   read at the moment of the kill, so a pid that left and was reused by
+   something else cannot be hit, and nothing that is not part of SD is touched.
+   The failure path of bind_sysseg() calls plain stop_sd(), which does not do
+   this. */
+
+/* Wait up to secs seconds for every process to detach from the segment. */
+
+static void wait_detached(int shmid, int secs) {
+  struct shmid_ds shm;
+
+  for (; secs; secs--) {
+    if (shmctl(shmid, IPC_STAT, &shm))
+      break; /* Error getting data */
+    if (shm.shm_nattch == 0)
+      break; /* Everyone has gone */
+    sleep(1);
+  }
+}
+
+static int end_attached_survivors(void) {
+  DIR* dir;
+  struct dirent* de;
+  char path[64];
+  char line[512];
+  char tag[24];
+  FILE* fp;
+  pid_t pid;
+  pid_t self = getpid();
+  int ended = 0;
+  bool attached;
+
+  snprintf(tag, sizeof(tag), "/SYSV%08x", (unsigned int)SD_SHM_KEY);
+
+  if ((dir = opendir("/proc")) == NULL)
+    return 0;
+
+  while ((de = readdir(dir)) != NULL) {
+    if (!isdigit((unsigned char)de->d_name[0]))
+      continue;
+    pid = (pid_t)atol(de->d_name);
+    if ((pid <= 1) || (pid == self))
+      continue;
+
+    snprintf(path, sizeof(path), "/proc/%d/maps", (int)pid);
+    if ((fp = fopen(path, "r")) == NULL)
+      continue; /* gone, or not ours to read */
+    attached = FALSE;
+    while (fgets(line, sizeof(line), fp) != NULL) {
+      if (strstr(line, tag) != NULL) {
+        attached = TRUE;
+        break;
+      }
+    }
+    fclose(fp);
+
+    if (attached && (kill(pid, SIGKILL) == 0)) {
+      syslog(LOG_WARNING, "sd -stop: process %d was still attached after SIGTERM and was ended with SIGKILL", (int)pid);
+      ended++;
+    }
+  }
+
+  closedir(dir);
+  return ended;
+}
+
+bool stop_sd_ex(bool kill_survivors) {
   int shmid;
   struct shmid_ds shm;
   int16_t i;
@@ -557,12 +638,14 @@ bool stop_sd() {
         sysseg = NULL;
       }
 
-      for (i = 10; i; i--) {
-        if (shmctl(shmid, IPC_STAT, &shm))
-          break; /* Error getting data */
-        if (shm.shm_nattch == 0)
-          break; /* Everyone has gone */
-        sleep(1);
+      wait_detached(shmid, 10);
+
+      if (kill_survivors && !shmctl(shmid, IPC_STAT, &shm) && shm.shm_nattch) {
+        int ended = end_attached_survivors();
+        if (ended) {
+          printf("%d process(es) still attached after ten seconds were ended with SIGKILL\n", ended);
+          wait_detached(shmid, 5);
+        }
       }
     }
   }
