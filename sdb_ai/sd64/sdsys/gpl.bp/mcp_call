@@ -33,7 +33,7 @@
 *       mcp call agent=<name> tool=<tool> target=<file and id, or the first 120 characters of the sentence> status=<ok|refused|error>
 *
 *    THE TOOLS (the launcher offers them as sd_files, sd_describe, sd_read, sd_query and sd_run):
-*       files                                   the account's files (LIST.FILES)
+*       files                                   the account's files (the VOC entries of type F, with the name of each file's data part)
 *       describe  file                          the dictionary items of a file
 *       read      file id                       one record, a field to a line, value marks shown as ]
 *       query     file fields where sort limit  a LIST built from words checked against the file's dictionary; no free text reaches the query processor
@@ -213,7 +213,7 @@ refuse.word:
 * ---- FILES -----------------------------------------------------------------------------------------------------------------------
 do.files:
    target = 'files'
-   execute 'LIST.FILES' capturing out
+   execute 'LIST VOC WITH F1 = "F" F1 DATA.NAME' capturing out
    return
 
 * ---- DESCRIBE file ---------------------------------------------------------------------------------------------------------------

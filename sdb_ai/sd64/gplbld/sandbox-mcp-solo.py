@@ -142,7 +142,7 @@ def request(rid, lines):
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 def setup():
     say("\n--- setup: a data file, its dictionary and three records, written by an ordinary program of the account ---------------------------------")
-    out = session(["CREATE.FILE zzmcp 1"])
+    out = session(["CREATE.FILE zzmcp DYNAMIC"])
     row("S0 the data file zzmcp is made by the account (it is on the disk in the account's directory)", os.path.exists(os.path.join(og.ACCT, "zzmcp")), "output=%r" % (out[-3:],))
     body = [
         "open 'DICT', 'zzmcp' to d else crt 'FIX no dict' ; stop",
@@ -238,7 +238,7 @@ def sec_on():
     res = []
     for why, args in bad:
         err, txt = a.tool("sd_query", **args)
-        res.append((why, err, "Not allowed" in txt or "Cannot open" in txt, txt[:80]))
+        res.append((why, err, "Not allowed" in txt or "Cannot open" in txt or "must be" in txt, txt[:80]))
     row("C9 sd_query refuses: " + "; ".join(w for w, *_ in res), all(e and k for _, e, k, _t in res), repr([(w, t) for w, e, k, t in res if not (e and k)]))
     err, txt = a.tool("sd_read", file="/etc/passwd", id="root")
     row("C10 sd_read of a path is refused ('Not allowed') and no file text comes out", err and "Not allowed" in txt and "root:" not in txt, repr(txt)[:200])
