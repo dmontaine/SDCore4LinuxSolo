@@ -15,7 +15,7 @@ WHAT IT MEASURES.  Every row runs the REAL script and prints the command line an
   CONFIG rows  - setup writes a config sshd -t accepts, with the Linux password through PAM (keys
                  optional), StrictModes, a forced command and no forwarding; setup twice keeps the host key; the key file is
                  0600 in a 0700 directory; a group-writable tree is WARNED about by name.
-  KEYS rows    - key-add/key-list/key-remove, the refusals, API request 49's add/list/remove
+  KEYS rows    - key-add/key-list/key-remove, the refusals, API request 72's add/list/remove
                  with its cap of four, the PORT answer and the NOSSH refusal.
   MIGRATE rows - both spellings of the old forced command move to the new file after a
                  backup; a plain key and ANOTHER tree's line stay; running it twice moves nothing.
@@ -199,7 +199,7 @@ def suite(tools, work):
     row("KEYS", "key-add refuses a file that is not a key, a key with a quote, and two lines",
         all(r[1] for r in refusals) and open(ak).read() == "", ["  %s: %s" % (r[0], r[2]) for r in refusals])
 
-    # API request 49: the hook names a scratch key file
+    # API request 72: the hook names a scratch key file
     api_ak = os.path.join(work, "api_keys")
     env = {"SDSOLO_AUTHORIZED_KEYS": api_ak}
     res = []

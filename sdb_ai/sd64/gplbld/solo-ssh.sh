@@ -27,7 +27,7 @@
 # "unix_chkpwd: password check failed"), the owner's correct one was ACCEPTED and the forced command
 # ran as him, and the key exchange (mlkem768x25519-sha256) and cipher (chacha20-poly1305) were
 # agreed BEFORE the password was sent, so it never travels in clear text.  A key in the key file is
-# an extra way in, not a requirement (request 49's key, and anyone who prefers one).  sd-solo then
+# an extra way in, not a requirement (request 72's key, and anyone who prefers one).  sd-solo then
 # asks the SD account password, as it does for every session.  The PAM session step logs two
 # harmless refusals for a process that is not root (pam_unix "setuid failed", pam_systemd
 # "CreateSession ... PermissionDenied"); neither stops the login.
@@ -244,7 +244,7 @@ CONFIG
   exit 0
 fi
 
-# ---- api-add / api-remove / api-list: what API request 49 runs (LSOLO 19).
+# ---- api-add / api-remove / api-list: what API request 72 runs (LSOLO 19; it was 49 until 11 Nov 26).
 # The master installs its public key through the API; APISRVR (a global session only)
 # calls these with the key in a file and reads the answer from stdout as KEY=value
 # lines, so nothing the master sent is ever placed in a command line.  A refusal is

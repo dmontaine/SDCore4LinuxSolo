@@ -38,14 +38,17 @@
 * 11 Nov 26 SD Core for Linux Solo (Solo carry: the client library of 15 Oct 26, SD Core 5f12ad5d, e6f3da12, d6a86a79, 400500c8 and
 *           the later forms of the same handlers) - requests 50 to 69: vb.getvar, vb.system, vb.trans, vb.rtrans, vb.txn, vb.evaluate,
 *           vb.evalconv, vb.iconv, vb.oconv, vb.iconvs, vb.oconvs, the sequential files vb.openseq to vb.weofseq (closed by vb.close),
-*           vb.writeseqkey and vb.writeuseqkey, with SD Core's numbers (the wire protocol is shared).  REQUEST 49 IS NOT CARRIED:
-*           in SD Core it is QMRevision (SrvrRevision), here it has been SrvrSshKey since 30 Sep 26 (LSOLO 19, agreed with Windows
-*           Solo); there is no vb.revision, and SDRevision against this server reaches vb.sshkey, is refused, and answers 0.0-0.  The
+*           vb.writeseqkey and vb.writeuseqkey, with SD Core's numbers (the wire protocol is shared).  Request 49 is SD Core's
+*           QMRevision here too, and the ssh key moved to 72: see the next entry.  The
 *           Solo mappings of SD Core's later gates: the edit gate S.64 (K$EDIT.OK, K$EDIT.OS.OK, check.edit) is Solo's VOC rule,
 *           !voc_refusal - vb.writeseqkey asks check.voc.edit as WRITE does, and vb.openseq opens a VOC-named file read only when
 *           !voc_refusal refuses a change to it; the OS gate is the account's OS switch (SET.OS.ACCESS), which K$PATH.OK answers here
 *           as in SD Core.  And SD Core's fix of 15 Oct 26: vb.call returns after refusing a subroutine that is not flagged $sdcall
 *           (SDCLIENT 2, an SDNet session, or a $ name): it was refused in the reply but still ran.
+* 11 Nov 26 SD Core for Linux Solo - REQUEST 49 IS QMREVISION (vb.revision, SD Core's handler) AND THE SSH KEY IS REQUEST 72 (owner, 11 Nov 26,
+*           "Go with option 1"): SD Core gave 49 to QMRevision on 15 Oct 26, Solo had given it to SrvrSshKey on 30 Sep 26, and the client
+*           library's SDRevision therefore reached the ssh-key handler of a Solo server.  Solo follows the template; 72 is the next number
+*           after SD Core's 71 and is marked reserved for Solo in SD Core's dispatch list.  The handler is unchanged and still global only.
 * 28 Oct 26 dm  S.87: QMEvaluate and QMEvalConv refuse a C item with message 11342, whose text no longer lists C (the type list in vb.evaluate is DASI).
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
@@ -444,7 +447,7 @@ loop
    vb.mark.mapping,   ;*  46   Enable/disable mark mapping
    vb.scram.first,    ;*  47   SCRAM client-first
    vb.scram.final,    ;*  48   SCRAM client-final
-   vb.sshkey,         ;*  49   Manage the ssh keys of the master (global session only).  SD Core's 49 is QMRevision: see 11 Nov 26
+   vb.revision,       ;*  49   Server revision (QMRevision), SD Core's handler.  Was Solo's ssh key until 11 Nov 26: now 72
    vb.getvar,         ;*  50   Value of an @-variable (QMGetVar)    sheet 195    11 Nov 26: 50 to 69 are SD Core's 15 Oct 26 numbers
    vb.system,         ;*  51   SYSTEM() (QMSystem)                  sheet 499
    vb.trans,          ;*  52   TRANS(), marks lowered (QMTrans)     sheet 499
@@ -467,6 +470,7 @@ loop
    vb.writeuseqkey,   ;*  69   The same, keeping the update lock (QMWriteuSeqKey) - global session only
    vb.fileadmin,      ;*  70   A verb run on the server for the session: analyse, configure, index, create, delete (S.73 item 3) - global session only
    vb.fcontrol,       ;*  71   FCONTROL(file, key, value) (S.73 item 3) - global session only
+   vb.sshkey,         ;*  72   Manage the ssh keys of the master (global session only).  Solo's own; was 49 until 11 Nov 26
    vb.illegal.action
 
    st = status()
@@ -2231,7 +2235,16 @@ vb.mark.mapping:
                                                                      return
 
 * ======================================================================
-* SrvrSshKey  -  request 49, the master's ssh key (LSOLO 19)
+* Revision of the server (QMRevision), SD Core's handler.   Request 49 since 11 Nov 26
+* In:
+* Out: the revision, in the form SYSTEM(1012) gives it
+
+vb.revision:
+response = system(1012)
+return
+
+* ======================================================================
+* SrvrSshKey  -  request 72 (was 49 until 11 Nov 26), the master's ssh key (LSOLO 19)
 *
 * In:  verb, FM, argument.  ADD key | REMOVE fingerprint | LIST.
 * Out: ADD    user FM host FM key fingerprint FM ADDED|PRESENT FM sshd host-key fingerprint FM port

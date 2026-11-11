@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify-solo-sshkey.sh - API request 49: the master installs its ssh key (LSOLO 19).
+# verify-solo-sshkey.sh - API request 72 (49 until 11 Nov 26): the master installs its ssh key (LSOLO 19).
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-sshkey.sh HOME_DIR ACCOUNT_PW_FILE GLOBAL_PW_FILE
 #
@@ -31,7 +31,7 @@ GOOD="$(head -1 "$PWF")"; GLOBALPW="$(head -1 "$GLF")"
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
 [ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
-[ -f "$H/\$cred/\$global" ] || refuse "$H is standalone - request 49 needs managed mode"
+[ -f "$H/\$cred/\$global" ] || refuse "$H is standalone - request 72 needs managed mode"
 [ -f "$H/tools/solo-ssh.sh" ] || refuse "$H/tools/solo-ssh.sh is missing - the tree predates LSOLO 19"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SVC="$here/solo-service.sh"; PROBE="$here/scram-probe.py"
@@ -62,7 +62,7 @@ trap cleanup EXIT
 echo "verify-solo-sshkey inputs:"
 echo "  tree       : $H  (managed)"
 echo "  binary     : $SD  ($(stat -c '%y' "$SD" | cut -c1-19))"
-echo "  key file used by request 49: $AK (scratch; the tree's own sshd/authorized_keys and ~/.ssh are not touched)"
+echo "  key file used by request 72: $AK (scratch; the tree's own sshd/authorized_keys and ~/.ssh are not touched)"
 echo "  API        : 127.0.0.1:$PORT (SDSOLO_TEST_API_PORT=$PORT; the product's port is 4249)   Solo's sshd config on 127.0.0.1:$SSHPORT"
 echo "  running as : $(id -un) (uid $(id -u))"
 

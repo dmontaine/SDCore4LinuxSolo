@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  THE API REQUEST THAT INSTALLS THE MASTER'S SSH KEY IS NOW NUMBER 72; NUMBER 49 ASKS THE SERVER'S REVISION, AS IN SD CORE.
+
+             What        - Solo had used API request 49 for the master's ssh key since 1.1 (add, remove and list a key
+                           on a managed Solo). SD Core uses 49 to ask a server for its revision (SDRevision in the client
+                           library), so the client library's SDRevision reached Solo's ssh-key request instead. The ssh-key
+                           request is now 72 and 49 answers the server's revision, so a client sees the same numbers on
+                           SD Core and on Solo.
+             Not changed - what the ssh-key request does, its answer, and its rule that only a session signed in with
+                           the global password may use it.
+             Note        - a program of your own that sent request 49 to install a key must now send 72.
+
 11 Nov 26  AN SD CORE SERVER CAN ADMINISTER THE FILES OF A MANAGED SOLO, AND SOLO CAN ADMINISTER FILES ON A SERVER (carried from SD
            Core for Linux's QMNet tiers C and D and its index queries of 21 Oct 2026).
 

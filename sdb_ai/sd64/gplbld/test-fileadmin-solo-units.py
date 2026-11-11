@@ -138,9 +138,10 @@ def checks(srcs):
        0 < i_aud < i_err < i_go and 0 < i_msg < i_go, (i_aud, i_err, i_msg, i_go))
     d = dispatch(api)
     # 11 Nov 2026: 50 to 67 are the client library carry's handlers (SD Core's numbers), merged with this carry the same day.
-    ck("S3 the dispatch list: 49 is vb.sshkey (Solo's own), 50 to 67 are the client library's handlers in SD Core's order, 68 vb.writeseqkey, 69 vb.writeuseqkey, 70 vb.fileadmin, 71 vb.fcontrol, and nothing after them but the default",
-       len(d) == 73 and d[49] == "vb.sshkey" and d[50:68] == CLIENT_50_67 and d[68:72] == ["vb.writeseqkey", "vb.writeuseqkey", "vb.fileadmin", "vb.fcontrol"]
-       and d[72] == "vb.illegal.action", "%d entries; %r" % (len(d), d[48:]))
+    # 11 Nov 2026 (owner, "Go with option 1"): 49 is SD Core's vb.revision and the ssh key is 72, Solo's own, after SD Core's 71.
+    ck("S3 the dispatch list: 49 is vb.revision (SD Core's), 50 to 67 are the client library's handlers in SD Core's order, 68 vb.writeseqkey, 69 vb.writeuseqkey, 70 vb.fileadmin, 71 vb.fcontrol, 72 vb.sshkey (Solo's own), and nothing after them but the default",
+       len(d) == 74 and d[49] == "vb.revision" and d[50:68] == CLIENT_50_67 and d[68:72] == ["vb.writeseqkey", "vb.writeuseqkey", "vb.fileadmin", "vb.fcontrol"]
+       and d[72] == "vb.sshkey" and d[73] == "vb.illegal.action" and d.count("vb.sshkey") == 1, "%d entries; %r" % (len(d), d[48:]))
     sf = block(api, "vb.scram.final:", "scram.check.proof - does")
     ck("S4 K$GLOBAL.SESSION is set ONCE in apisrvr, in vb.scram.final, only when the proof matched $global (scram.via = 'global') and only after K$ADMINISTRATOR took",
        api.count("kernel(K$GLOBAL.SESSION, 1)") == 1 and 0 < at(sf, "if scram.via = 'global' then") < at(sf, "if kernel(K$ADMINISTRATOR, 1) then") < at(sf, "void kernel(K$GLOBAL.SESSION, 1)"),

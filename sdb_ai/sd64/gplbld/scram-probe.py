@@ -106,7 +106,7 @@ REQ_QUIT = 1
 REQ_GETERROR = 2
 REQ_ACCOUNT = 3
 REQ_EXECUTE = 21
-REQ_SSHKEY = 49      # LSOLO 19: SrvrSshKey, verb FM argument
+REQ_SSHKEY = 72      # LSOLO 19: SrvrSshKey, verb FM argument (49 until 11 Nov 26; 49 is now QMRevision, as in SD Core)
 FM = "�"        # the server's field mark (byte 0xFE) as this client decodes it
 REQ_LOGIN = 24
 REQ_SCRAM_FIRST = 47
@@ -455,7 +455,7 @@ def after_login(sock, a):
     for item in a.sshkey:
         verb, _, arg = item.partition("=")
         body = verb.encode("utf-8") + (b"\xfe" + arg.encode("utf-8") if arg != "" else b"")
-        say("> request 49 %s%s" % (verb, " <argument of %d bytes>" % len(arg) if arg else ""))
+        say("> request %d %s%s" % (REQ_SSHKEY, verb, " <argument of %d bytes>" % len(arg) if arg else ""))
         err, _, out = request(sock, REQ_SSHKEY, body)
         say("  (server_error %d)" % err)
         if err != 0:
@@ -567,7 +567,7 @@ def main(argv):
     mode.add_argument("--replay", action="store_true",
                       help="replay a captured client-final on a new connection (must be refused)")
     ap.add_argument("--sshkey", action="append", default=[], metavar="VERB[=ARGUMENT]",
-                    help="LSOLO 19: send request 49 (ADD=<public key line>, REMOVE=<SHA256:...>, "
+                    help="LSOLO 19: send request 72, the ssh key (ADD=<public key line>, REMOVE=<SHA256:...>, "
                          "LIST) after login; may be given more than once, runs before COMMANDs")
     ap.add_argument("commands", nargs="*")
     a = ap.parse_args(argv)

@@ -653,8 +653,8 @@ def main():
         if ok != 1:
             bail("no API session; nothing below can run")
         r1 = call("SDRevision")
-        row("A2: connected it is client, a value mark, server - and the server part is 0.0-0, because Solo's request 49 is SrvrSshKey "
-            "(LSOLO 19), not SD Core's QMRevision (the conflict reported with this carry; not a decision)", r1 == rev + VM + b"0.0-0", s(r1))
+        row("A2: connected it is client, a value mark, server - the server part is this build's revision: request 49 is SD Core's "
+            "QMRevision on Solo too since 11 Nov 26 (the ssh key moved to 72)", r1 == rev + VM + rev, s(r1))
         sy = call("SDSystem", 1012)
         row("A3: SDSystem(1012) is the server revision, this build's", sy == rev, s(sy))
 
