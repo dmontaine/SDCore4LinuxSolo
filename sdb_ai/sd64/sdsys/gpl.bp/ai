@@ -4,6 +4,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 11 Nov 26 dm  Carried from SD Core (S.160, 7 Nov 26, 74cf7001): the standing text the helper's status now carries goes first in the system text, after the wall's
+*               screen (a text that names SD's own code stops the request, 14013); it is not shown in the preview and its size is counted.  This replaces the
+*               "NOT carried" of the entry below: Solo's helper has the text now.
 * 11 Nov 26 dm  Solo (S.117): two of SD Core's changes that had not been carried.  A question about SD's own code or build is refused before the preview, by the
 *               same screen every AI line uses ($tk_aiwall; Core 1 Nov, S.97 stage 0); and the preview shows the person's question only, not SD's fixed sentence,
 *               whose size is still counted (Core 8 Nov, S.175).  NOT carried: the administrator's standing text (Core S.160), which Solo's helper has not got.
@@ -93,8 +96,31 @@ $include err.h
 
 *  The preview
    system.text = 'You are answering a question typed at the terminal of SD Core for Linux, a multivalue database. Answer briefly, in plain text without markup.'
+*  11 Nov 26 (Core S.160): the standing text (the administrator's, or the shipped default), first, put to the same screen as the question; not shown in the preview (its size
+*  is counted)
+   ctext = st{'context'}
+   if ctext # '' then
+      ok.c = ''
+      for i = 1 to len(ctext)
+         sq = seq(ctext[i, 1])
+         if sq = 10 or (sq >= 32 and sq <= 126) then ok.c := ctext[i, 1]
+      next i
+      ctext = trimb(trimf(ok.c))
+   end
+   if ctext # '' then
+      call $tk_aiwall('request', ctext, why)
+      if why # '' then
+         void kernel(K$AUDIT, 'ai refused why=context app=ai name=' : why)
+         @system.return.code = -ER$FAILED
+         stop sysmsg(14013, why)                                                ;* The standing text names SD's own code or build (%1) ...
+      end
+   end
+   fixed.text = system.text
+   c.send = ''
+   if ctext # '' then c.send = 'Standing information from the administrator of this SD system:' : char(10) : ctext : char(10) : char(10)
+   system.text = c.send : fixed.text
    display sysmsg(11628, prov, model, len(question) + len(system.text))
-*  SD's own fixed sentence is sent and counted in the size, and not shown: the preview is the person's question
+*  SD's own text - the standing text and the fixed sentence - is sent and counted in the size, and not shown: the preview is the person's question
    display question
    crt sysmsg(11629) : ' ' :
    input ans

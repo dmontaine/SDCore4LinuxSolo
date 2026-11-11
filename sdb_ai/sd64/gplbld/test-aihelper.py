@@ -18,7 +18,8 @@
 # shape, a refusal, a redirect that is NOT followed); the reply cut to ASCII; an oversize reply and request; the clamp of maxtokens; the hourly and
 # daily limits; the certificate of another name and one no CA vouches for, and the system store refusing the test CA unless ca-file names it;
 # a timeout; `status` (the gate, the details for the user's own processes, nothing for a stranger); the settings and keys (any process of the user, a
-# stranger refused); and the canaries - a string in the environment and in a decoy file never reaches the
+# stranger refused); (11 Nov 26, carried from SD Core) a follow-up's history in both formats, its shape refused otherwise and counted in the size, and the
+# standing text (the default, the user's own, mode 0600, what is refused, a stranger told nothing, sd-ai-ctl context); and the canaries - a string in the environment and in a decoy file never reaches the
 # provider, and the key is in no reply and no log line.  NOT HELD: a real provider (witness-ai-live.sh is the owner's), systemd's user socket,
 # OpenAI's own endpoint.
 import importlib.machinery
@@ -335,6 +336,35 @@ def rows(env, fm):
     n0 = len(fm.log)
     r = env.ask("hello", maxtokens=999999)
     row("maxtokens is clamped to the limit (1024): the provider is asked for 1024", r["t"] == "ok" and json.loads(fm.log[n0]["body"])["max_tokens"] == 1024, repr(r))
+
+    say("\n--- a follow-up (carried from SD Core 11 Nov 26): the earlier exchanges the person chose to carry")
+    env.reset_counters()
+    hist = [{"q": "first question", "a": "first answer"}, {"q": "second question", "a": ""}]
+    for name, path in (("anthropic", "/v1/messages"), ("openai", "/v1/chat/completions")):
+        env.conf(**{"provider": name, "model__" + name: M})
+        env.key(name)
+        n0 = len(fm.log)
+        r = env.ask("third question", system="Be brief.", history=hist)
+        body = json.loads(fm.log[n0]["body"]) if len(fm.log) > n0 else {}
+        msgs = [m for m in body.get("messages", []) if m.get("role") != "system"]
+        row("%s: the history goes as the user's and the assistant's messages, oldest first, BEFORE the request (an empty answer is sent as '(no answer)'), and the system text stays where the format puts it" % name,
+            r["t"] == "ok" and msgs == [{"role": "user", "content": "first question"}, {"role": "assistant", "content": "first answer"}, {"role": "user", "content": "second question"},
+                                        {"role": "assistant", "content": "(no answer)"}, {"role": "user", "content": "third question"}]
+            and ((body.get("system") or [{}])[0].get("text") == "Be brief." if name == "anthropic" else body["messages"][0] == {"role": "system", "content": "Be brief."}),
+            repr((r, body.get("messages"))))
+    env.conf(provider="anthropic", model__anthropic=M)
+    env.key("anthropic")
+    n0 = len(fm.log)
+    r = env.ask("hello")
+    row("an ordinary request carries no history: one message", r["t"] == "ok" and len(json.loads(fm.log[n0]["body"])["messages"]) == 1, repr(r))
+    for what, h in (("four exchanges (the most is 3)", [{"q": "q", "a": "a"}] * 4), ("an exchange with another key", [{"q": "q", "a": "a", "x": "y"}]),
+                    ("an exchange whose question is empty", [{"q": " ", "a": "a"}]), ("an answer that is not text", [{"q": "q", "a": 3}]), ("a history that is not a list", {"q": "q", "a": "a"})):
+        n0 = len(fm.log)
+        r = env.ask("hello", history=h)
+        row("a history of %s is badreq and nothing is sent" % what, r.get("code") == "badreq" and len(fm.log) == n0, repr(r))
+    n0 = len(fm.log)
+    r = env.ask("hello", history=[{"q": "q", "a": "x" * 70000}])
+    row("the history counts towards the request's byte limit: a small request with a 70,000 byte answer in its history is toobig, and nothing is sent", r.get("code") == "toobig" and len(fm.log) == n0, repr(r)[:200])
 
     say("\n--- limits")
     env.reset_counters()
@@ -654,6 +684,111 @@ def rows_ctl(env, fm):
         p.wait(timeout=10)
 
 
+def rows_context(env, fm):
+    """The standing text (carried from SD Core S.160, 11 Nov 26).  The shipped default beside the providers file, the user's own in the state directory, who is told it,
+    what is refused.  Solo: the one user sets it and is told it (a stranger learns nothing); the kept file is mode 0600."""
+    say("\n--- the standing text (Core S.160)")
+    M = "claude-test-model"
+    shipped = os.path.join(HERE, "ai-context")
+    dflt = os.path.join(os.path.dirname(env.providers), "ai-context")
+    own = os.path.join(env.state, "context")
+    for p in (dflt, own):
+        if os.path.lexists(p):
+            os.remove(p)
+    env.gate(True)
+    env.stranger(False)
+    env.conf(provider="openai", model__openai=M)
+    env.key("openai")
+    r = env.ask(op="status")
+    row("no default file and no text of the administrator's: status says context-from none and an empty text", r.get("context") == "" and r.get("context-from") == "none", repr(r)[:200])
+    shutil.copyfile(shipped, dflt)
+    with open(shipped) as f:
+        stext = f.read().rstrip("\n")
+    r = env.ask(op="status")
+    row("the shipped gplbld/ai-context beside the providers file: the status carries it whole, context-from default  [%d bytes]" % len(stext),
+        r.get("context") == stext and r.get("context-from") == "default" and len(stext) > 200, repr(r)[:200])
+    row("the shipped text is printable ASCII and line feeds, at most 4000 characters, says it is Solo and names no place Solo does not install",
+        env.mod.CONTEXT_RE.match(stext) is not None and len(stext) <= 4000 and "SD Core for Linux Solo" in stext and "/usr/local/sdsys" not in stext, "")
+    env.gate(False)
+    env.conf(provider="openai", model__openai=M)
+    r = env.ask(op="status")
+    row("with the gate off the status still carries the text (the administrator's page shows and edits it before the gate is turned on)",
+        r.get("gate") is False and r.get("context") == stext, repr(r)[:200])
+    env.gate(True)
+    env.conf(provider="openai", model__openai=M)
+    env.stranger(True)
+    r = env.ask(op="status")
+    row("a stranger (another uid) is not given the text", "context" not in r and r.get("code") == "nogate", repr(r)[:200])
+    mine = "Line one of ours.\nLine two: use lower case."
+    r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": mine}).encode() + b"\n")
+    row("a stranger may not set it: nogate, no file made", r.get("code") == "nogate" and not os.path.exists(own), repr(r))
+    env.stranger(False)
+    r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": mine + "\n\n"}).encode() + b"\n")
+    st = os.stat(own) if os.path.exists(own) else None
+    row("the user sets it: ok own, the file holds the text with ONE closing line feed, mode 0600, no temporary file left",
+        r.get("context") == "own" and st is not None and open(own).read() == mine + "\n" and stat.S_IMODE(st.st_mode) == 0o600 and not os.path.exists(own + ".new"), repr(r))
+    r = env.ask(op="status")
+    row("...and the status now carries that text, context-from own", r.get("context") == mine and r.get("context-from") == "own", repr(r)[:200])
+    for bad, what in (("x" * 4001, "4001 characters"), ("tab\there", "a tab"), ("café", "a byte that is not ASCII"), ("bell\x07", "a control character"), (5, "a number")):
+        r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": bad}).encode() + b"\n")
+        row("a text with %s is badreq and the kept text is unchanged" % what, r.get("code") == "badreq" and open(own).read() == mine + "\n", repr(r)[:150])
+    r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": "y" * 4000}).encode() + b"\n")
+    row("exactly 4000 characters is kept", r.get("context") == "own" and open(own).read() == "y" * 4000 + "\n", repr(r)[:150])
+    with open(own, "w") as f:
+        f.write("ok\x01not\n")
+    r = env.ask(op="status")
+    row("a kept file that has become unusable (a control byte) gives context-from bad and NO text - not the default it replaced", r.get("context") == "" and r.get("context-from") == "bad", repr(r)[:200])
+    os.remove(own)
+    os.symlink(dflt, own)
+    r = env.ask(op="status")
+    row("a kept file that is a symbolic link is not followed: context-from bad", r.get("context-from") == "bad" and r.get("context") == "", repr(r)[:200])
+    os.remove(own)
+    with open(own, "w") as f:
+        f.write(mine + "\n")
+    r = env.ask(raw=b'{"v":1,"op":"set","what":"context","value":""}\n')
+    r2 = env.ask(op="status")
+    row("an empty value removes the user's text and the shipped default is given again", r.get("context") == "default" and not os.path.exists(own)
+        and r2.get("context-from") == "default" and r2.get("context") == stext, repr((r, r2.get("context-from"))))
+    r = env.ask(raw=b'{"v":1,"op":"set","what":"context","value":""}\n')
+    row("removing it again when there is none is still ok", r.get("context") == "default", repr(r))
+    env.reset_counters()
+    n0 = len(fm.log)
+    r = env.ask("Q", system="SYS")
+    body = fm.log[n0]["body"] if len(fm.log) > n0 else b""
+    body = body.decode("utf-8", "replace") if isinstance(body, bytes) else body
+    row("the helper adds nothing itself: what SD sends as the system text reaches the provider as it was sent (SD puts the standing text in it)",
+        r.get("t") == "ok" and "SYS" in body and "SD Core for Linux Solo" not in body, body[:200])
+    # the client
+    ctl = os.path.join(HERE, "sd-ai-ctl")
+    runner = os.path.join(HERE, "ai-runner.py")
+    sock = os.path.join(env.tmp, "sock-ctx")
+    p = subprocess.Popen([sys.executable, runner, "--socket", sock, "--state", env.state, "--providers", env.providers,
+                          "--helper", env.helper_path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    try:
+        if p.stdout.readline().strip() != "ready":
+            row("the test runner started", False, "")
+            return
+
+        def run(*a):
+            q = subprocess.run([sys.executable, ctl, "--socket", sock] + list(a), capture_output=True, text=True, timeout=60)
+            return q.returncode, q.stdout, q.stderr
+
+        hx = mine.encode("ascii").hex().upper()
+        rc, out, err = run("context", hx)
+        row("sd-ai-ctl context HEX (upper case, as SD's MX0C gives it): ok, and the file holds the decoded text", rc == 0 and out.strip() == "ok" and open(own).read() == mine + "\n", repr((rc, out, err)))
+        rc, out, err = run("show")
+        row("show says the standing text is the administrator's and its length", rc == 0 and "standing text: the administrator's, %d characters" % len(mine) in out, repr(out[-200:]))
+        rc, out, err = run("context", "zz")
+        row("a word that is not hexadecimal: exit 2 and a sentence, the kept text unchanged", rc == 2 and "hexadecimal" in err and open(own).read() == mine + "\n", repr((rc, err)))
+        rc, out, err = run("context", "c3a9")
+        row("hexadecimal of a byte that is not ASCII: exit 2, unchanged", rc == 2 and open(own).read() == mine + "\n", repr((rc, out, err)))
+        rc, out, err = run("context", "-")
+        row("context - : ok, the user's text is gone and show names the shipped default", rc == 0 and not os.path.exists(own) and "the shipped default" in run("show")[1], repr((rc, out, err)))
+    finally:
+        p.terminate()
+        p.wait(timeout=10)
+
+
 MUTANTS = [
     ("the gate is not asked", '        if not gate_on(conf):\n            return {"t": "err", "code": "nogate", "msg": "the AI is not turned on for this account"}, "-"\n', "        pass\n"),
     ("any gate word opens it", '    return conf.get("gate", "") == "yes"', '    return conf.get("gate", "") != ""'),
@@ -674,7 +809,7 @@ MUTANTS = [
     ("maxtokens is not clamped", "        maxtokens = max(1, min(maxtokens, limits[\"max-tokens\"]))\n", "        pass\n"),
     ("a redirect is treated as an answer to parse", "        if 300 <= status < 400:\n", "        if False:\n"),
     ("the model name is not checked", "        if not MODEL_RE.match(model):\n", "        if False:\n"),
-    ("the request size is not checked", "        if len(prompt.encode(\"utf-8\")) + len(system.encode(\"utf-8\")) > limits[\"bytes-request\"]:", "        if False:"),
+    ("the request size is not checked", "        if len(prompt.encode(\"utf-8\")) + len(system.encode(\"utf-8\")) + hbytes > limits[\"bytes-request\"]:", "        if False:"),
     ("a refusal by the model is not recognised (anthropic)", '            if j.get("stop_reason") == "refusal":', '            if False:'),
     ("a setting is not checked as a whole before it is written", "        selected(new, table)", "        pass  #"),
     ("a key file is made readable by others", 'tmp = os.path.join(d, "." + name + ".new")\n    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)',
@@ -683,6 +818,18 @@ MUTANTS = [
     ("the range of a limit is not checked when it is set", "        for k in LIMITS:\n            int_setting(new, k)\n        write_conf(state, new)", "        write_conf(state, new)"),
     ("a ca-file that is not there is accepted", " or not os.path.isfile(v) or not os.access(v, os.R_OK)", ""),
     ("a damaged ai.conf is skipped over", '                    raise Refuse("badconf", "%s line %d has no =" % (os.path.basename(path), n))', "                    continue"),
+]
+M_CARRY11 = len(MUTANTS)        # 11 Nov 26 (carried from SD Core: a follow-up's history, the standing text): --selftest --from=27
+MUTANTS += [
+    ("the history is dropped", "    msgs = []\n    for q, a in history:", "    msgs = []\n    for q, a in []:"),
+    ("the history is not counted in the size", "        hbytes = sum(len(q.encode(\"utf-8\")) + len(a.encode(\"utf-8\")) for q, a in history)", "        hbytes = 0"),
+    ("any length of history is taken", "    if not isinstance(h, list) or len(h) > HISTORY_MAX:", "    if not isinstance(h, list):"),
+    ("any standing text is kept", "    if len(v) > CONTEXT_MAX or not CONTEXT_RE.match(v):\n        raise Refuse", "    if False:\n        raise Refuse"),
+    ("a bad kept text falls back to the default", '            return "", "bad"\n        return text, whose', '            continue\n        return text, whose'),
+    ("a link is followed to the kept text", "            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)", "            fd = os.open(path, os.O_RDONLY)"),
+    ("an empty value does not put the default back", "        try:\n            os.remove(path)\n        except FileNotFoundError:\n            pass\n        return {\"t\": \"ok\", \"context\": \"default\"}",
+     "        return {\"t\": \"ok\", \"context\": \"default\"}"),
+    ("the kept standing text is readable by the group", "    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)", "    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o640)"),
 ]
 
 
@@ -745,6 +892,7 @@ def main():
         rows(env, fm)
         rows_settings(env, fm)
         rows_ctl(env, fm)
+        rows_context(env, fm)
     finally:
         if fm:
             fm.stop()

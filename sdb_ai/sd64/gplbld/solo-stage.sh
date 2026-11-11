@@ -279,6 +279,9 @@ cp gplbld/solo-service.sh gplbld/solo-ssh.sh gplbld/solo-sshguard.py "$H/tools/"
 cp gplbld/sd-ai gplbld/sd-ai-ctl gplbld/ai-providers "$H/tools/"
 chmod 0755 "$H/tools/sd-ai" "$H/tools/sd-ai-ctl"
 chmod 0644 "$H/tools/ai-providers"
+# 11 Nov 26 (carried from SD Core, S.160): the shipped standing text, beside the providers table where the helper looks for it; the administrator's own is <home>/ai/context.
+cp gplbld/ai-context "$H/tools/ai-context"
+chmod 0644 "$H/tools/ai-context"
 # 02 Oct 26 - LSOLO 20 (S.50): BACKUP.ACCOUNT / RESTORE.ACCOUNT's archive tool, in
 # bin beside sd, which runs it: the helpers name <sysdir>/bin/sd-accarchive and
 # start_sd() runs "sd-accarchive swap" to put a waiting restore in place.

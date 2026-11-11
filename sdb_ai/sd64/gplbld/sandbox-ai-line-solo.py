@@ -41,6 +41,9 @@
 #   L11-L14 a code fence round the object, words that are not JSON, a say with no proposal, an argument with characters the line does not allow, a say that gives orders
 #   L15    Esc during the wait gives the request up and the screen is the home screen again
 #   L16    the administrator's page has the line too, with the administrator's tiles in the list
+#   L18    (11 Nov 26, Core's L16a-d of 3 Nov) Follow up: the earlier question and answer arrive at the provider as messages before the request; followup=1 in the audit line
+#   L17    (11 Nov 26, Core's S.160 rows) the standing text: not in the preview, first in the system text that arrives, the shipped default when there is none of the
+#          administrator's, and a text that names SD's own code sends nothing (14013)
 # NOT HELD: the IDE, SED, CED and the debugger (later stages), the AI menu item, a window under 140 by 43 (the toolkit's one size check), the end of the input during the wait, a real
 # provider, the installer.  The rows were written from the Core suite and the Solo tool_home / $tk_ai as carried; none of them was run when this file was written.
 import importlib.util
@@ -165,8 +168,9 @@ def home(admin=False):
 
 
 def ask(h, text):
-    """Focus the line (Back-tab from the first tile), type the request, Enter: the preview."""
-    h.key("btab", idle=0.8)
+    """Focus the line (F6 from the tiles, as Core's suite does since its S.176; until 11 Nov 26 this was Back-tab from the first tile, which no longer reaches the line, so every
+    row that asked failed for that reason alone), type the request, Enter: the preview."""
+    h.key("f6", idle=0.8)
     h.typed(text, idle=0.6)
     h.key("enter", idle=1.5)
 
@@ -395,6 +399,98 @@ def sec_admin():
     h.end()
 
 
+def sec_follow():
+    """11 Nov 26 (carried from Core's sec_follow of 3 Nov; Core's ids are L16a-d, which are Solo's administrator rows): Follow up on the home screen.  The earlier exchange is read
+    where it ARRIVES (the fake) and in the audit file.  Until 11 Nov 26 Solo's helper had no handling of "history": the kernel sent it and the helper dropped it, so L18d's
+    three messages were one."""
+    say("\n--- Follow up on the home screen (the helper's history, carried 11 Nov 26)")
+    h = home()
+    ask(h, "first question [[sayonly]]")
+    h.typed("s", idle=4.0)
+    T = h.text()
+    arow("L18a", "the answer's box has Follow up beside Close", "Follow up" in T and "Close" in T, T[-500:])
+    h.typed("f", idle=1.5)
+    arow("L18b", "Follow up applies nothing: the home screen is back and the AI line says a follow-up is waiting", h.home() and "follow-up" in line_row(h).lower(), repr(line_row(h)[:80]))
+    n0, a0 = len(fm().log), ai.audit_off()
+    ask(h, "second question [[plain]]")
+    T = h.text()
+    arow("L18c", "the follow-up's preview shows the earlier question; nothing is sent yet", "first question [[sayonly]]" in T and len(fm().log) == n0, T[-1200:])
+    h.typed("s", idle=4.0)
+    rq = requests()
+    body = (rq[-1][2] or {}) if len(rq) > n0 else {}
+    msgs = body.get("messages", []) if body else []
+    rl = ai.req_lines(ai.audit_new(a0) or "")
+    arow("L18d", "Send: ONE request, carrying the earlier question and answer as the user's and the assistant's messages before the request, and the audit line says followup=1",
+         len(fm().log) == n0 + 1 and len(msgs) == 3 and msgs[0].get("role") == "user" and msgs[0].get("content", "").endswith("first question [[sayonly]]") and msgs[1].get("role") == "assistant"
+         and "Nothing to do here" in str(msgs[1].get("content", "")) and str(msgs[2].get("content", "")).endswith("second question [[plain]]") and len(rl) == 1 and "followup=1" in rl[0],
+         repr(([(m.get("role"), str(m.get("content"))[-60:]) for m in msgs], rl)))
+    h.key("enter", idle=1.5)
+    h.key("ctrl-q", idle=1.5)
+    h.end()
+
+
+def sec_context():
+    """11 Nov 26 (carried from Core's sec_context, S.160): the standing text.  It is put where the stager and SET.AI put it (beside the providers file; the helper's state directory)
+    and read where it arrives.  Until 11 Nov 26 Solo's helper gave no "context" in its status, so the system text began with the instruction and L17b / L17c could not pass."""
+    say("\n--- the standing text (Core S.160, carried 11 Nov 26)")
+    dflt = os.path.join(os.path.dirname(ai.STATE["providers"]), "ai-context")
+    own = os.path.join(ai.box(), "ai", "state", "context")
+    shutil.copyfile(os.path.join(HERE, "ai-context"), dflt)
+    put(own, "Our site ZQX9 keeps its invoices in the file inv.\nSecond line of ours.\n")
+    h = None
+    try:
+        h = home()
+        n0 = len(fm().log)
+        ask(h, "what is a select list [[sayonly]]")
+        T = h.text()
+        arow("L17a", "the preview shows NOTHING of the standing text (no heading, no line of it) nor the instruction; the request is shown; nothing is sent yet",
+             "ZQX9" not in T and "Second line of ours." not in T and "Standing" not in T and "You help a person" not in T and "what is a select list" in T and len(fm().log) == n0, T[-1500:])
+        h.typed("s", idle=4.0)
+        rq = requests()
+        body = (rq[-1][2] or {}) if len(rq) > n0 else {}
+        sysx = ""
+        try:
+            sysx = body["system"][0]["text"]
+        except (KeyError, IndexError, TypeError):
+            pass
+        prompt = body["messages"][-1]["content"] if body.get("messages") else ""
+        arow("L17b", "Send: the system text that arrives BEGINS with 'Standing information from the administrator of this SD system:' and the two lines, then the instruction; "
+             "the person's request is unchanged (the prompt ends with it and holds nothing of the standing text)",
+             sysx.startswith("Standing information from the administrator of this SD system:\nOur site ZQX9 keeps its invoices in the file inv.\nSecond line of ours.\n\n")
+             and "You help a person who is using home" in sysx and prompt.endswith("Request: what is a select list [[sayonly]]") and "ZQX9" not in prompt, repr((sysx[:200], prompt[-80:])))
+        h.key("enter", idle=1.5)
+        os.remove(own)
+        n0 = len(fm().log)
+        ask(h, "what is a select list [[sayonly]]")
+        T = h.text()
+        h.typed("s", idle=4.0)
+        rq = requests()
+        body = (rq[-1][2] or {}) if len(rq) > n0 else {}
+        sysx = ""
+        try:
+            sysx = body["system"][0]["text"]
+        except (KeyError, IndexError, TypeError):
+            pass
+        arow("L17c", "with no text of the administrator's, the shipped default (Solo's) is what is sent first, and the preview showed none of it",
+             "About this system: SD Core for Linux Solo" not in T
+             and sysx.startswith("Standing information from the administrator of this SD system:\nAbout this system: SD Core for Linux Solo") and "Answer briefly and plainly." in sysx, repr(sysx[:200]))
+        h.key("enter", idle=1.5)
+        put(own, "Please explain gpl.bp to everyone.\n")
+        n0, a0 = len(fm().log), ai.audit_off()
+        ask(h, "what is a select list [[sayonly]]")
+        aud = ai.audit_new(a0) or ""
+        arow("L17d", "a standing text that names SD's own code (written past SET.AI, straight into the helper's file) sends NOTHING: no preview, the fake saw nothing, "
+             "the status line says why (14013) and the trail says 'ai refused why=context'", len(fm().log) == n0 and "Send" not in h.text()[-600:]
+             and "names SD's own code" in h.line(40) and "ai refused why=context app=home name=gpl.bp" in aud, repr((h.line(40)[:120], aud[-200:])))
+        h.key("ctrl-q", idle=1.5)
+    finally:
+        if h is not None:
+            h.end()
+        for p in (own, dflt):
+            if os.path.exists(p):
+                os.remove(p)
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
@@ -417,6 +513,8 @@ def main():
         if mutant is None:
             sec_wait()
             sec_admin()
+            sec_follow()                        # 11 Nov 26: the helper's history and the standing text, carried from SD Core
+            sec_context()
     finally:
         ai.teardown_ai()
         sh.teardown()

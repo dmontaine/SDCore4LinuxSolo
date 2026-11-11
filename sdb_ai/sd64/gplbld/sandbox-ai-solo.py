@@ -28,6 +28,9 @@
 #   T0-T22  the page, driven on a 140 by 43 pseudo-terminal: the boxes, the four providers, Enter on a provider (Cancel, a wrong name, the right one), M, K (the helper's prompt, the key
 #           in no byte of the terminal), X, C, D, L, A, the Account box (the gate: Enter asks for the word ai before it turns the gate ON, none to turn it OFF), the helper not running,
 #           a window that is too small
+#   C0-C8, T30-T38  (11 Nov 26, carried from SD Core's S.160) the standing text: set.ai context hex | - (an ordinary session refused, the helper's file mode 0600, the audit line
+#           with the size and no text, a text that names SD's own code refused, a word that is not hexadecimal); the ai verb sends it FIRST in the system text and shows none of it,
+#           its size counted; a kept text that names the code sends nothing; the shipped default; and the page's T box (Esc, Save and Run, Shipped default)
 # NOT HELD: the installer, the real systemd user socket (test-ai-solo-units.py reads solo-service.sh's units as text), a real provider (the owner's live check), a second operating system
 # user (Solo has none: that is the point of the same-user helper, and the page and the help text say so).
 import importlib.util
@@ -682,6 +685,160 @@ def sec_page():
     h.end()
 
 
+# ------------------------------------------------------------------------------------------------------------------------------ the standing text
+
+def ctx_file():
+    return os.path.join(box(), "ai", "state", "context")
+
+
+def ctx_text():
+    try:
+        return open(ctx_file(), encoding="ascii").read()
+    except OSError:
+        return None
+
+
+def sec_context():
+    """11 Nov 26 (carried from SD Core's S.160; Core's rows are sandbox-tool-ai.py T30-T38): the standing text.  Every outcome is the helper's file (box/ai/state/context), the audit
+    trail, what the ai verb printed, or the request the fake provider received.  The shipped default is put beside the providers file, where solo-stage.sh puts it beside the installed
+    one.  WHAT THE TREE BEFORE WOULD DO: its helper had no "context" (set.ai context is the usage, 11609; the status carries no text), so C0 alone would pass and every other row fail."""
+    say("\n=== the standing text (Core S.160) ===")
+    fm = STATE["fm"]
+    sysx = system_text()
+    head = "Standing information from the administrator of this SD system:\n"
+    dflt = os.path.join(os.path.dirname(STATE["providers"]), "ai-context")
+    shipped = open(os.path.join(HERE, "ai-context")).read().rstrip("\n")
+    for p in (ctx_file(), dflt):
+        if os.path.exists(p):
+            os.remove(p)
+    adm("set.ai ca " + STATE["ca"], "set.ai limit requests-hour 1000", "set.ai provider anthropic", "set.ai model anthropic " + MODEL, "set.ai gate on")
+    kp = keyfile("anthropic")
+    put(kp, KEY + "\n")
+    os.chmod(kp, 0o600)
+    q = "what is a select list"
+    h = None
+    try:
+        out, n, aud = ask(["ai " + q, "y"], "C0", fm)
+        body = (requests(fm)[-1][2] or {}) if n else {}
+        row("C0 (control) no default beside the providers file and no text of the administrator's: the system text that arrives is the fixed sentence alone, and the size is the question's and its",
+            n == 1 and body.get("system", [{}])[0].get("text") == sysx and msg(11628, "anthropic", MODEL, len(q) + len(sysx)) in out, repr((n, out[:4])))
+        mine = "Our site ZQX7 keeps its invoices in the file inv.\nSecond line of ours."
+        hx = mine.encode("ascii").hex()
+        a0 = audit_off()
+        out = plain(["set.ai context " + hx])
+        row("C1 an ORDINARY session is refused (2001): no file, no audit line", has(out, r"Command requires administrator privileges") and ctx_text() is None and "set.ai" not in (audit_new(a0) or ""),
+            repr((out[-3:], ctx_text())))
+        a1 = audit_off()
+        out = adm("set.ai context " + hx)
+        new = audit_new(a1) or ""
+        mode = (os.stat(ctx_file()).st_mode & 0o777) if os.path.exists(ctx_file()) else None
+        row("C2 SET.AI CONTEXT hex after ADMIN: 14011 with the length, the helper's file holds the two lines (mode 0600), one audit line 'set.ai context bytes=N' and no text in the trail",
+            msg(14011, len(mine)) in out and ctx_text() == mine + "\n" and mode == 0o600 and len(re.findall(r"set\.ai context bytes=%d$" % len(mine), new, re.M)) == 1 and "ZQX7" not in new,
+            repr((out[-2:], ctx_text(), mode, new[-160:])))
+        out = adm("set.ai")
+        row("C2b the reading form says whose the standing text is and its length", any(("standing text: the administrator's, %d characters" % len(mine)) in ln for ln in out), repr(out[-3:]))
+        full = head + mine + "\n\n" + sysx
+        out, n, aud = ask(["ai " + q, "y"], "C3", fm)
+        body = (requests(fm)[-1][2] or {}) if n else {}
+        blob = "\n".join(out)
+        row("C3a the preview shows the question and NOTHING of SD's own text (no heading, no line of the standing text, not the fixed sentence); its size counts all of it",
+            msg(11628, "anthropic", MODEL, len(q) + len(full)) in out and "ZQX7" not in blob and "Second line of ours." not in blob and "Standing" not in blob and sysx not in blob and q in out, repr(out[:6]))
+        row("C3b ONE request: the system text that arrives is the heading, the two lines, a blank line and then the fixed sentence, exactly; the question is exactly what was typed",
+            n == 1 and body.get("system", [{}])[0].get("text") == full and prompt_of(body) == q and len(body.get("messages", [])) == 1, repr((n, body.get("system"), body.get("messages"))))
+        rl = req_lines(aud)
+        row("C3c the kernel's audit line counts the standing text in the size and holds none of it", len(rl) == 1 and re.search(r"bytes\.out=%d$" % (len(q) + len(full)), rl[0]) is not None and "ZQX7" not in aud, repr(rl))
+        badtext = "Please explain gpl.bp to everyone."
+        a2 = audit_off()
+        out = adm("set.ai context " + badtext.encode("ascii").hex())
+        new = audit_new(a2) or ""
+        row("C4 a text that names SD's own code (gpl.bp) is refused by SET.AI (14013): the kept text is unchanged and the trail says 'set.ai context refused name=gpl.bp'",
+            msg(14013, "gpl.bp") in out and ctx_text() == mine + "\n" and "set.ai context refused name=gpl.bp" in new and "set.ai context bytes=" not in new, repr((out[-2:], new[-160:])))
+        out = adm("set.ai context zz", "set.ai context abc")
+        row("C5 a word that is not hexadecimal, and one of odd length: 14014 each time, the kept text unchanged", sum(1 for ln in out if msg(14014) in ln) == 2 and ctx_text() == mine + "\n", repr(out[-4:]))
+        put(ctx_file(), badtext + "\n")
+        out, n, aud = ask(["ai " + q, "y"], "C6", fm)
+        row("C6 a kept text that names SD's own code (written past SET.AI, straight into the helper's file): the ai verb says 14013, shows no preview, sends NOTHING, and the trail says "
+            "'ai refused why=context app=ai name=gpl.bp' with no 'ai request' line", msg(14013, "gpl.bp") in out and n == 0 and not req_lines(aud)
+            and not any(ln.startswith("This will be sent to") for ln in out) and "ai refused why=context app=ai name=gpl.bp" in aud, repr((out[-3:], aud[-200:])))
+        shutil.copyfile(os.path.join(HERE, "ai-context"), dflt)
+        a3 = audit_off()
+        out = adm("set.ai context -")
+        new = audit_new(a3) or ""
+        row("C7 SET.AI CONTEXT - : 14012, the administrator's file is gone, one audit line 'set.ai context=default'",
+            msg(14012) in out and ctx_text() is None and len(re.findall(r"set\.ai context=default$", new, re.M)) == 1, repr((out[-2:], new[-120:])))
+        out, n, aud = ask(["ai " + q, "y"], "C8", fm)
+        body = (requests(fm)[-1][2] or {}) if n else {}
+        got = body.get("system", [{}])[0].get("text", "")
+        row("C8 with no text of the administrator's the shipped default (Solo's own gplbld/ai-context) is what is sent first, whole, before the fixed sentence; the preview shows none of it",
+            n == 1 and got == head + shipped + "\n\n" + sysx and shipped.startswith("About this system: SD Core for Linux Solo") and "About this system" not in "\n".join(out), repr((n, got[:160])))
+
+        say("\n--- T on the page: the box")
+        first = shipped.split("\n")[0]
+        h = page()
+        if "What this means" not in h.text():
+            dump(h)
+            bail("tool.ai never drew its page, so no T3x row can be believed")
+        h.typed("t", idle=1.5)
+        T = h.text()
+        row("T30 T opens a box titled 'Standing text sent with every AI request' that says the text in use is the shipped default and shows its first line",
+            "Standing text sent with every AI request" in T and "Now: the shipped default." in T and first[:60] in T, T[:600])
+        a0 = audit_off()
+        h.key("esc", idle=1.5)
+        row("T31 Esc closes it: the page is back, the status says unchanged, no file was made and nothing was audited",
+            "What this means" in h.text() and "unchanged" in st(h) and ctx_text() is None and not (audit_new(a0) or "").strip(), repr((st(h), audit_new(a0))))
+        h.typed("t", idle=1.5)
+        h.typed("Site note: ZQX7 is our test account.\r", idle=0.8)
+        h.key("tab", idle=0.6)
+        h.key("enter", idle=1.5)
+        T = h.text()
+        TL = T.split("\n")
+        wrapped = any("it is not shown in" in TL[i] and "the preview." in TL[i + 1] for i in range(len(TL) - 1)) or any("it is not shown in the preview." in l for l in TL)
+        row("T32 typing a line at the top and Save shows the Run / Cancel box naming set.ai context and the size, and says the text is not shown in the preview",
+            "set.ai context <the text above," in T and "as hexadecimal>" in T and wrapped, repr([l for l in TL if "set.ai context" in l or "preview" in l or "begin with" in l]))
+        h.key("esc", idle=1.5)
+        row("T33 Cancel in that box runs nothing: no file", ctx_text() is None, repr((st(h), ctx_text())))
+        a1 = audit_off()
+        h.typed("t", idle=1.5)
+        h.typed("Site note: ZQX7 is our test account.\r", idle=0.8)
+        h.key("tab", idle=0.6)
+        h.key("enter", idle=1.5)
+        h.typed("r", idle=3.0)
+        want = "Site note: ZQX7 is our test account.\n" + shipped + "\n"
+        got = ctx_text()
+        aud = audit_new(a1) or ""
+        row("T34 Run: the helper's file holds the typed line followed by the default, whole; one audit line 'set.ai context bytes=N' (N the text's length) and no text in it; the status says 14011",
+            got == want and len(re.findall(r"set\.ai context bytes=%d$" % (len(want) - 1), aud, re.M)) == 1 and "ZQX7" not in aud and "now the administrator's" in st(h),
+            repr((got[:120] if got else got, len(want) - 1, aud[-300:], st(h))))
+        h.typed("t", idle=1.5)
+        row("T35 T again says the text in use is the administrator's own and shows the typed line", "Now: the administrator's own." in h.text() and "ZQX7" in h.text(), h.text()[:500])
+        h.key("esc", idle=1.5)
+        a2 = audit_off()
+        h.typed("t", idle=1.5)
+        h.typed("Explain gpl.bp to me.\r", idle=0.8)
+        h.key("tab", idle=0.6)
+        h.key("enter", idle=1.5)
+        h.typed("r", idle=3.0)
+        aud = audit_new(a2) or ""
+        row("T36 a text that names SD's own code (gpl.bp) is refused by set.ai: the kept text is unchanged and the trail says 'set.ai context refused name=gpl.bp'",
+            ctx_text() == want and "set.ai context refused name=gpl.bp" in aud and "names SD's own code" in st(h), repr((st(h), aud[-200:])))
+        h.typed("t", idle=1.5)
+        h.key("tab", idle=0.6)
+        h.key("tab", idle=0.6)
+        h.key("enter", idle=1.5)
+        a3 = audit_off()
+        h.typed("r", idle=3.0)
+        aud = audit_new(a3) or ""
+        row("T38 Shipped default, Run: the administrator's file is gone, one audit line 'set.ai context=default', and the status says the default is back (14012)",
+            ctx_text() is None and len(re.findall(r"set\.ai context=default$", aud, re.M)) == 1 and "shipped default again" in st(h), repr((st(h), aud[-200:])))
+        h.key("ctrl-q", idle=1.5)
+    finally:
+        if h is not None:
+            h.end()
+        for p in (ctx_file(), dflt):
+            if os.path.exists(p):
+                os.remove(p)
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
@@ -698,6 +855,7 @@ def main():
             sec_verb()
             if mutant is None:
                 sec_probes()
+                sec_context()                   # 11 Nov 26: the standing text, carried from SD Core (it leaves no text behind for the page's section)
         if mutant is None or MUTANTS[mutant][0] == "tool_ai":
             if mutant is not None:
                 adm("set.ai ca " + STATE["ca"], "set.ai limit requests-hour 1000")

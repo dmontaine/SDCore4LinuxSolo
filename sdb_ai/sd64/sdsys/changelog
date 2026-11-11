@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  THE AI IS SENT A STANDING TEXT FIRST, AND A FOLLOW-UP QUESTION CARRIES THE EARLIER EXCHANGES (carried from SD Core for
+           Linux's S.160 of 7 Nov 2026 and its follow-up work of 3 Nov 2026).
+
+             What        Every request to the AI now begins with a short standing text that tells the AI what SD Core for Linux Solo is
+                         and where its help is. SD ships a default. After ADMIN, T on the page tool.ai (or Provider > Standing text)
+                         shows it in a box where you can edit it: Save keeps your own text, Shipped default goes back. At the prompt:
+                         set.ai context HEX (the text as hexadecimal ASCII) or set.ai context - for the default. The text is plain
+                         ASCII, 4000 characters at most, kept in your Solo directory (ai/context, mode 0600). The preview you answer
+                         before anything is sent shows your question only; its size counts the standing text.
+                         A follow-up question (the Follow up button after an AI answer) now reaches the AI with up to three earlier
+                         questions and answers; until now Solo's AI helper dropped them and the AI saw the new question alone.
+             Why it      The AI answers for SD, not for another multivalue product, without you having to say so each time, and a
+             matters     follow-up is answered in the light of what was asked before.
+             Does not    Turn anything on: the AI is still off until you choose a provider, a model and a key and set.ai gate on. A
+                         standing text that names SD's own code or build is refused and never sent. The helper adds nothing by itself:
+                         SD puts the text in the request. Not carried from SD Core: the list of a provider's models, the single key
+                         and model form, and the Google provider.
+
 11 Nov 26  THE FULL-SCREEN PAGES OF SD CORE FOR LINUX ARE IN SOLO (carried from SD Core for Linux's work of 28 Oct to 11 Nov 2026).
 
              What        The home screen, the IDE, the debugger's display and every full-screen page now look and answer keys the same
