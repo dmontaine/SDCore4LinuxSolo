@@ -138,9 +138,9 @@ else
 fi
 out="$(asglobal "COPY FROM BP.OUT TO GLOBAL.BP.OUT $SUB" SYNC.GLOBAL.CATALOG)"
 if printf '%s\n' "$out" | grep -q '1 record(s) copied' \
-   && printf '%s\n' "$out" | grep -qx 'sync global catalog done 1 catalogued 0 removed 0 refused' \
+   && printf '%s\n' "$out" | grep -qx 'sync global catalog done 1 cataloged 0 removed 0 refused' \
    && [ "$(incat)" -eq 1 ]; then
-  leg "4b the global session adds an object and syncs" "'1 record(s) copied', DONE 1 catalogued, *$SUB in gcat" 0 "added"
+  leg "4b the global session adds an object and syncs" "'1 record(s) copied', DONE 1 cataloged, *$SUB in gcat" 0 "added"
 else
   leg "4b the global session adds an object and syncs" "copied, DONE 1/0/0, *$SUB in gcat" 1 "$(printf '%s\n' "$out" | tail -4 | tr '\n' '|')"
 fi
@@ -151,7 +151,7 @@ else
   leg "4c sduser without ADMIN CALLs the global program" "GCALL=GLOBAL.OK" 1 "$(last "$out")"
 fi
 out="$(asglobal "DELETE GLOBAL.BP.OUT $SUB" SYNC.GLOBAL.CATALOG)"
-if printf '%s\n' "$out" | grep -qx 'sync global catalog done 0 catalogued 1 removed 0 refused' && [ "$(incat)" -eq 0 ] \
+if printf '%s\n' "$out" | grep -qx 'sync global catalog done 0 cataloged 1 removed 0 refused' && [ "$(incat)" -eq 0 ] \
    && [ ! -e "$GBP/$SUB" ]; then
   leg "4d deleted and synced, the catalogue entry is gone" "DONE 0/1/0, no *$SUB, no object" 0 "removed"
 else

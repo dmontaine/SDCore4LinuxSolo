@@ -7,6 +7,7 @@
 * 22 Oct 26 dm  New (S.75; the owner: "if defined by the admin or the system, it should be able to be turned off by the admin", then "disabling tiles should be on a
 *               per account basis, by default they are on").
 * 23 Oct 26 dm  SOLO CARRY 14 (Core 72e708e): as in Core, except that Solo has no Switch account tile, so switch is not a standard tile id.  The account is sduser (the only one).
+* 11 Nov 26 dm  S.216 (the parity report): Core's 26 Oct 26 refusal carried - the Back tile of a sub-menu cannot be turned off (message 11962, already in Solo).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -60,6 +61,7 @@ $include err.h
       stop sysmsg(11881, tile)                          ;* not a tile name
    end
    if tile = 'signout' and state = 'off' then stop sysmsg(11878)
+   if tile = 'back' and state = 'off' then stop sysmsg(11962)      ;* 26 Oct 26 (Core, review of the home work): the Back tile of a sub-menu is a way out, like Sign out; Esc and Backspace would still return, but the tile is not for the administrator to take away
 
    if who = 'sdsys' then stop sysmsg(2202)              ;* Account name is invalid
    openpath @sdsys : @ds : 'accounts' to acc.f else stop sysmsg(6003)

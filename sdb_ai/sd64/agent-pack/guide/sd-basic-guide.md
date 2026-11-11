@@ -12,7 +12,7 @@
 
 ## A1. Programs, compiling, running
 
-A program is a record in a source file, conventionally `bp`. Four TCL verbs are all you need: `basic bp name` compiles `name` into the object directory `bp.out`, `run bp name` runs it, `catalog bp name` makes it callable by its name from your account (the entry goes into a private catalogue, and `delete.catalog name` takes it back out: it says `name deleted from the private catalogue`), and `catalogued(name)` tells a program whether a name can be called. Case never matters in a name; SD folds it.
+A program is a record in a source file, conventionally `bp`. Four TCL verbs are all you need: `basic bp name` compiles `name` into the object directory `bp.out`, `run bp name` runs it, `catalog bp name` makes it callable by its name from your account (the entry goes into a private catalog, and `delete.catalog name` takes it back out: it says `name deleted from the private catalog`), and `catalogued(name)` tells a program whether a name can be called. Case never matters in a name; SD folds it.
 
 ```basic frag run
 crt 'hello'
@@ -140,7 +140,7 @@ b
 
 There is no `chr`, `ltrim`, `rtrim`, `mid` or `strlen`; use `char`, `trim(s, ' ', 'L')` and `'T'`, `s[start, length]` and `len`. There is no `left()` or `right()`: write `s[1, n]` and `s[n]` (the last n characters). The table in B6 lists what SD lacks and what to write instead.
 
-**`common` variables start as `0`, not unassigned.** `unassigned(q)` is false for them, so a lazy-initialisation test never runs; test the value.
+**`common` variables start as `0`, not unassigned.** `unassigned(q)` is false for them, so a lazy-initialization test never runs; test the value.
 
 ```basic frag run
 common /gcom/ q
@@ -323,7 +323,7 @@ stopped by the guard at pass 6
 
 ## A6. Subprograms
 
-`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be catalogued before another program can `call` it.
+`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be cataloged before another program can `call` it.
 
 ```basic id=gsub1 catalog
 subroutine gsub1(a, b)
@@ -654,7 +654,7 @@ Variable X has not been declared
 
 ## A13. Class modules and objects
 
-A class module holds state between calls. It is catalogued like any program and instantiated by its catalogue name; `->` reaches its public variables, methods and properties. **Each member ends with its own `end`, and the module ends with one more.** What the class keeps `private` is not a member at all from outside.
+A class module holds state between calls. It is cataloged like any program and instantiated by its catalog name; `->` reaches its public variables, methods and properties. **Each member ends with its own `end`, and the module ends with one more.** What the class keeps `private` is not a member at all from outside.
 
 ```basic id=gacct catalog
 class gacct
@@ -789,13 +789,13 @@ This product has **walls**. A wall is the system working: when one stops you, sa
 | the account password | every session | the user types it |
 | `admin` | the administrator commands: `config`, `listu`, `update.accounts`, `set.password admin`, `set.os.access` and the rest of the list in the user's documents; and writing the VOC | the user types the administrator password in the session; [unverified] it lasts until the session ends or `admin off` |
 | the VOC | a VOC record: `ed voc`, a program's `write` or `delete` to it, `copy` into it | `admin` |
-| the global catalogue | `catalog ... global`, and `delete.catalog` of a global entry | nothing in this product: the SD Core server's, in managed mode |
+| the global catalog | `catalog ... global`, and `delete.catalog` of a global entry | nothing in this product: the SD Core server's, in managed mode |
 | the compiler's restricted names | `breakpoint`, the `$internal` directive, `kernel()` and the like | nothing an account can do |
 | the shell switch, `sh` | the `sh` verb | the administrator: `set.os.access sh on`. **Off as delivered.** |
 | the OS switch, `os` | `os.execute`; `openseq`, `openpath`, `dir()`, `deleteseq`, `opentemp`, `digest` and `ospath` of a path outside the account; a print unit's pathname; the embedded Python; `micro` | the administrator: `set.os.access os on`. **Off as delivered.** |
 | verbs the product does not have | `create.account`, `logto`: there is one account | nothing |
 
-The refusal is in words you can match, and the pack holds each as `msg:<number>`: 2001 (`Command requires administrator privileges`), 10053 (the shell) and 10054 (`os.execute`), 11008 (the VOC), 11028 and 11029 (the global catalogue), 11180 (a pathname outside the account). What a session that has **not typed `admin`** and has both switches off, **as delivered**, sees:
+The refusal is in words you can match, and the pack holds each as `msg:<number>`: 2001 (`Command requires administrator privileges`), 10053 (the shell) and 10054 (`os.execute`), 11008 (the VOC), 11028 and 11029 (the global catalog), 11180 (a pathname outside the account). What a session that has **not typed `admin`** and has both switches off, **as delivered**, sees:
 
 ```basic run id=gshell
 program gshell
@@ -820,7 +820,7 @@ logto sdsys
 ```output
 Command requires administrator privileges
 The VOC can only be changed after admin (the administrator password)
-The global catalogue holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog
+The global catalog holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog
 Command requires administrator privileges
 create.account is not in your VOC
 logto is not in your VOC
@@ -946,7 +946,7 @@ voc sd.accounts
 3: accounts
 ```
 
-[unverified] The account's VOC is made from `newvoc`; SDSYS's own, which is never entered, is `voc_template`. A catalogued program is a verb too: after `catalog bp name`, typing `name` runs it. To see a program's own errors, compile it from a program and read the text back:
+[unverified] The account's VOC is made from `newvoc`; SDSYS's own, which is never entered, is `voc_template`. A cataloged program is a verb too: after `catalog bp name`, typing `name` runs it. To see a program's own errors, compile it from a program and read the text back:
 
 ```basic frag run
 execute 'BASIC bp gsub1' capturing out
@@ -1175,7 +1175,7 @@ This guide and its pack are for SD Core for Linux **Solo**, the single-user prod
 2. Write the source as the record `name` of the account's `bp` file. `bp` is a directory file: the record is the operating-system file `bp/name` in the account's directory, a plain text file. (This is how this guide's own programs were put in front of the compiler.)
 3. Compile with `basic bp name`. Judge on the line `Compiled 1 program(s) with no errors` **and** on there being no `WARNING` line. A message you do not know: read A14, then look up the statement.
 4. Run it against scratch files whose names cannot exist in production, with data you made. A program that writes to a production file is not a test.
-5. Never `catalog` over a name that is already catalogued and never delete a file you did not create. Both are the user's decisions.
+5. Never `catalog` over a name that is already cataloged and never delete a file you did not create. Both are the user's decisions.
 6. When a wall refuses, say which one (B2), say what you were doing, and stop. When a switch the user turned on lets something through, remember that it is not a permission for anything but the work.
 
 ---

@@ -79,7 +79,7 @@ BASIC
 o="$(sess "$ACC" 'BASIC BP zzup zzgsub zzgcall')"
 printf '%s\n' "$o" | grep -q 'Compiled 3 program(s) with no errors' || { printf '%s\n' "$o" | tail -5; refuse "the probe programs did not compile"; }
 o="$(sess "$GLB" 'COPY FROM BP.OUT TO GLOBAL.BP.OUT zzgsub' SYNC.GLOBAL.CATALOG)"
-printf '%s\n' "$o" | grep -qx 'sync global catalog done 1 catalogued 0 removed 0 refused' || { printf '%s\n' "$o" | tail -5; refuse "could not put a program in GLOBAL.BP.OUT"; }
+printf '%s\n' "$o" | grep -qx 'sync global catalog done 1 cataloged 0 removed 0 refused' || { printf '%s\n' "$o" | tail -5; refuse "could not put a program in GLOBAL.BP.OUT"; }
 o="$(sess "$ACC" 'CREATE.FILE ZZDATA DYNAMIC' 'WRITE-not-a-verb')"
 sess "$ACC" 'ED VOC ZZREC' >/dev/null 2>&1 || true
 "$H/bin/sd-solo" -stop >/dev/null 2>&1
