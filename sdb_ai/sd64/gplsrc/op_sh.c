@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Carried from SD Core (S.96 M4, 2 Nov 26, commit 4324e2a4): resolve_gate_path() (Core's resolve_name()) refuses a name that is a link
+ *               whose target does not exist (it was taken as a new name and judged inside the directory, so a write through it created a file wherever
+ *               the link pointed).
  * 06 Nov 26 dm  S.152: os_sd_accounts_open() is gone; nothing called it (found by linking with --gc-sections).
  * 24 Oct 26 dm Solo carry 19 (the owner: "check, and close it if open"): MEASURED, an ordinary session with the OS switch OFF could overwrite, append to and delete the VOC's
  *           own files (voc/%0) through OSCOPY, !IOSCOPY, OPENSEQ + WRITESEQ and DELETESEQ, past the VOC rule (ruling 14) which only watches record writes.  The OS-path
@@ -206,8 +209,14 @@ Private bool resolve_gate_path(const char *rootdir, const char *name, char *root
      may not contain ".." because there is nothing to resolve it against. */
   tail[0] = '\0';
   for (;;) {
+    struct stat lst;
+
     if (realpath(work, resolved) != NULL)
       break;
+    /* 2 Nov 26 (SD Core S.96 M4, carried 11 Nov 26): a name that is a LINK whose target is not there is not "a file about to be created": a write
+       through it creates the target wherever the link points.  It cannot be judged, so it is refused (the OS switch asks this function). */
+    if ((lstat(work, &lst) == 0) && S_ISLNK(lst.st_mode))
+      return FALSE;
     p = strrchr(work, '/');
     if (p == NULL)
       return FALSE;

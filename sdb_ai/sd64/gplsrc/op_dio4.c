@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Carried from SD Core (S.88 stage E2, 30 Oct 26, commit 36fe9456): op_dir() tells a file from a directory with S_ISREG / S_ISDIR (a socket
+ *               was listed as a file, a block device as a directory).
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on DIR() is back (op_dir()).
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.65 remote SELECT and the S.63 OS-access test on DIR();
  *               DIR() still gives STATUS() a value of its own (0, ER_FNF or ER_PERM) as Core's S.63 commit made it do.
@@ -1447,9 +1449,11 @@ void op_dir() {
           continue;
 
         strcpy(name, dp->d_name);
-        if (statbuf.st_mode & S_IFREG)
+        /* 30 Oct 26 dm - S.88 stage E2 (carried from SD Core 11 Nov 26): the file type is a FIELD of st_mode, not a set of bits: "& S_IFREG" (0100000) is
+           also set for a socket (0140000) and "& S_IFDIR" (0040000) for a block device (0060000), which were listed as a file and as a directory */
+        if (S_ISREG(statbuf.st_mode))
           mode = 'F';
-        else if (statbuf.st_mode & S_IFDIR)
+        else if (S_ISDIR(statbuf.st_mode))
           mode = 'D';
         else
           continue;

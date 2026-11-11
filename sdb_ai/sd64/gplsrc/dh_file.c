@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 11 Nov 26 dm  Carried from SD Core (S.88 A1, 30 Oct 26, commit a63c70f1): dio_open() has DIO_OVERWRITE_NOFOLLOW (O_NOFOLLOW), used by the create
+ *               that WRITESEQ makes on a first write.
  * 15 Oct 26 dm  dh_flush_header() writes back DH_HEADER_SHARED_SIZE bytes, not the whole header, so that it cannot put an
  *               old sequential id counter (WRITE ... CREATING.SEQKEY) over a newer one.
  * 10 Sep 26 dm  Parity audit: dh_flush_header() clears FILE_UPDATED only after
@@ -255,6 +257,9 @@ OSFILE dio_open(char* fn, int mode) {
       break;
     case DIO_OVERWRITE: /* Open file, creating if doesn't exist */
       open_modes = O_RDWR | O_CREAT | O_BINARY;
+      break;
+    case DIO_OVERWRITE_NOFOLLOW: /* As DIO_OVERWRITE, but a symbolic link at the end of the name is refused (ELOOP), even one that leads nowhere */
+      open_modes = O_RDWR | O_CREAT | O_NOFOLLOW | O_BINARY;
       break;
     default: /* 09 Nov 26 (S.125): a mode no caller should pass is refused, not opened with whatever open_modes held */
       errno = EINVAL;
