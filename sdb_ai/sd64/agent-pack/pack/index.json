@@ -7558,7 +7558,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 6
+"words": 7
 },
 "msg:1125": {
 "kind": "message",
@@ -11464,7 +11464,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 13
 },
 "msg:11866": {
 "kind": "message",
@@ -12990,21 +12990,21 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 18
 },
 "msg:14017": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 6
+"words": 9
 },
 "msg:14018": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 12
 },
 "msg:14019": {
 "kind": "message",
@@ -28222,7 +28222,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 98
+"words": 113
 },
 "tcl:set.backup.directory": {
 "kind": "tcl.verb",
@@ -28579,7 +28579,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 52
+"words": 67
 },
 "tcl:tool.audit": {
 "kind": "tcl.verb",

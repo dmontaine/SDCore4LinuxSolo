@@ -3307,7 +3307,7 @@ cited by: `tk_form`
 Cancel
 ```
 
-cited by: `tk_form`
+cited by: `tk_form`, `tool_ai`
 
 ### msg:1125
 > kind=message tier=reference since=- src=sdsys/messages/1125:1#8fa32ddb
@@ -8042,7 +8042,7 @@ cited by: `tool_home`
 Press Enter to return
 ```
 
-cited by: `tool_ai`, `tool_dict`, `tool_files`, `tool_home`, `tool_remote`, `tool_voc`
+cited by: `tool_dict`, `tool_files`, `tool_home`, `tool_remote`, `tool_voc`
 
 ### msg:11866
 > kind=message tier=reference since=- src=sdsys/messages/11866:1#40549194
@@ -9888,6 +9888,8 @@ cited by: `home_entry`
 %1 does not list a model named %2, so requests may be refused
 ```
 
+cited by: `setai`
+
 ### msg:14017
 > kind=message tier=reference since=- src=sdsys/messages/14017:1#98766085
 
@@ -9895,12 +9897,16 @@ cited by: `home_entry`
 %1 lists %2 models:
 ```
 
+cited by: `setai`
+
 ### msg:14018
 > kind=message tier=reference since=- src=sdsys/messages/14018:1#abb71575
 
 ```
 It lists %1 (model names are case-sensitive)
 ```
+
+cited by: `setai`
 
 ### msg:14019
 > kind=message tier=reference since=- src=sdsys/messages/14019:1#de8f17c8

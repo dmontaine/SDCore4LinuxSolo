@@ -60,7 +60,7 @@ VOC record `sdsys/newvoc/$release` (type X), the same in `newvoc` and `voc_templ
 
 ```
 X
-LS1.1-3
+LS2.0-0
 ```
 
 ### voc:entry:accounts
