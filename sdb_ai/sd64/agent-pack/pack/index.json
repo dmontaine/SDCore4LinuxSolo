@@ -12108,7 +12108,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 22
 },
 "msg:11963": {
 "kind": "message",
@@ -13726,6 +13726,76 @@
 "since": "-",
 "tier": "reference",
 "words": 10
+},
+"msg:14950": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:14951": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 29
+},
+"msg:14952": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:14953": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:14954": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 31
+},
+"msg:14955": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 19
+},
+"msg:14956": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 20
+},
+"msg:14957": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 8
+},
+"msg:14958": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 14
+},
+"msg:14959": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
 },
 "msg:14964": {
 "kind": "message",
@@ -19080,7 +19150,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 10
+"words": 11
 },
 "msg:6004": {
 "kind": "message",
@@ -25422,7 +25492,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 261
+"words": 301
 },
 "sys:keys:csv$": {
 "kind": "sys.keys",
@@ -27468,6 +27538,13 @@
 "tier": "reference",
 "words": 56
 },
+"tcl:mcp.call": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "-",
+"tier": "reference",
+"words": 67
+},
 "tcl:median": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -28265,6 +28342,13 @@
 "since": "-",
 "tier": "reference",
 "words": 41
+},
+"tcl:set.mcp": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "-",
+"tier": "reference",
+"words": 70
 },
 "tcl:set.mode": {
 "kind": "tcl.verb",

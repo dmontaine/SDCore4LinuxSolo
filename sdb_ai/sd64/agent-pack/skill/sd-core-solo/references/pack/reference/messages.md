@@ -1365,19 +1365,19 @@ Use a password different from the global password.
 cited by: `login`
 
 ### msg:11028
-> kind=message tier=reference since=- src=sdsys/messages/11028:1#7722f5b7
+> kind=message tier=reference since=- src=sdsys/messages/11028:1#99d2780c
 
 ```
-The global catalogue can only be changed by the SD Core server
+The global catalog can only be changed by the SD Core server
 ```
 
 cited by: `deletef`, `syncgcat`
 
 ### msg:11029
-> kind=message tier=reference since=- src=sdsys/messages/11029:1#206187a1
+> kind=message tier=reference since=- src=sdsys/messages/11029:1#34b91eb2
 
 ```
-The global catalogue holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog
+The global catalog holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog
 ```
 
 cited by: `catalog`, `delcat`
@@ -8874,6 +8874,8 @@ cited by: `tool_home`
 The Back tile cannot be turned off: a person must always be able to leave a sub-menu
 ```
 
+cited by: `settile`
+
 ### msg:11963
 > kind=message tier=reference since=- src=sdsys/messages/11963:1#499563a8
 
@@ -10797,6 +10799,96 @@ Error merging sort data
 Cannot open sort work file '%s' (Errno %d)
 ```
 
+### msg:14950
+> kind=message tier=reference since=- src=sdsys/messages/14950:1#b6fa40cd
+
+```
+The MCP door for %1 is %2; its write tool (sd_run) is %3
+```
+
+cited by: `setmcp`
+
+### msg:14951
+> kind=message tier=reference since=- src=sdsys/messages/14951:1#046f1217
+
+```
+set.mcp {on | off}; set.mcp write {on | off}; set.mcp alone says whether the MCP door is open and whether its write tool is
+```
+
+cited by: `setmcp`
+
+### msg:14952
+> kind=message tier=reference since=- src=sdsys/messages/14952:1#529fbf14
+
+```
+The MCP %1 for %2 was already %3; nothing changed
+```
+
+cited by: `setmcp`
+
+### msg:14953
+> kind=message tier=reference since=- src=sdsys/messages/14953:1#32142741
+
+```
+The MCP setting could not be written
+```
+
+cited by: `setmcp`
+
+### msg:14954
+> kind=message tier=reference since=- src=sdsys/messages/14954:1#ced96919
+
+```
+The MCP door is open, but no password is kept for one-shot commands, so an agent cannot sign in: the documentation says how to keep one
+```
+
+cited by: `setmcp`
+
+### msg:14955
+> kind=message tier=reference since=- src=sdsys/messages/14955:1#5b64c0f7
+
+```
+The MCP door is closed: the administrator has not turned it on (set.mcp on)
+```
+
+cited by: `mcp_call`
+
+### msg:14956
+> kind=message tier=reference since=- src=sdsys/messages/14956:1#683e68bd
+
+```
+The write tool is closed: the administrator has not turned it on (set.mcp write on)
+```
+
+cited by: `mcp_call`
+
+### msg:14957
+> kind=message tier=reference since=- src=sdsys/messages/14957:1#3fc74f8a
+
+```
+Not allowed: %1
+```
+
+cited by: `mcp_call`
+
+### msg:14958
+> kind=message tier=reference since=- src=sdsys/messages/14958:1#5a8ff384
+
+```
+Cannot open the file or find the item: %1
+```
+
+cited by: `mcp_call`
+
+### msg:14959
+> kind=message tier=reference since=- src=sdsys/messages/14959:1#1f29d987
+
+```
+The MCP request is not valid or is not there
+```
+
+cited by: `mcp_call`
+
 ### msg:14964
 > kind=message tier=reference since=- src=sdsys/messages/14964:1#81410a0f
 
@@ -11010,10 +11102,10 @@ Account %1
 cited by: `upgrade_nocase`
 
 ### msg:14990
-> kind=message tier=reference since=- src=sdsys/messages/14990:1#9b118757
+> kind=message tier=reference since=- src=sdsys/messages/14990:1#85313c64
 
 ```
-%1 private catalogue name(s) in %2 would be made lower case.
+%1 private catalog name(s) in %2 would be made lower case.
 ```
 
 cited by: `upgrade_nocase`
@@ -11028,10 +11120,10 @@ cited by: `upgrade_nocase`
 cited by: `upgrade_nocase`
 
 ### msg:14992
-> kind=message tier=reference since=- src=sdsys/messages/14992:1#c4dab48b
+> kind=message tier=reference since=- src=sdsys/messages/14992:1#016f2112
 
 ```
-%1 private catalogue name(s) in %2 were made lower case.
+%1 private catalog name(s) in %2 were made lower case.
 ```
 
 cited by: `upgrade_nocase`
@@ -11369,7 +11461,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 22 more
+cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 23 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -17285,7 +17377,7 @@ Account already exists
 Account name is invalid
 ```
 
-cited by: `setpins`, `settile`
+cited by: `setmcp`, `setpins`, `settile`
 
 ### msg:6004
 > kind=message tier=reference since=- src=sdsys/messages/6004:1#34da8e01

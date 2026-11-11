@@ -1,6 +1,48 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  AN AI AGENT'S MCP CLIENT CAN USE YOUR ACCOUNT THROUGH A DOOR THAT IS SHUT UNTIL THE ADMINISTRATOR OPENS IT (SD Core Solo only).
+
+             What        - the Model Context Protocol launcher tools/solo-mcp.py (started by an MCP client, never by SD) offers four read-only
+                           tools - sd_files, sd_describe, sd_read and sd_query - and, only if the administrator also allows it, sd_run, which
+                           runs one sentence as you could type it. Two new commands, set.mcp on|off and set.mcp write on|off (administrator
+                           only), are the two switches; BOTH ARE OFF AS DELIVERED. Every call, refused ones included, is one line in the audit
+                           trail with the agent's name (mcp call agent=... tool=... target=... status=ok|refused|error). The gate, the checks of
+                           every word (sd_query takes names and values, not a sentence, and every name must be an item of the file's dictionary)
+                           and the audit line are in SD, in the program mcp.call, and are read again at every call, so set.mcp off stops a
+                           running agent at its next call. The launcher signs in with the account's kept password, as a scheduled job does, and
+                           holds no password of its own.
+             Why         - the owner asked for an MCP server for Solo, where one person usually sits at the one console.
+             Does NOT    - Give an agent the administrator, let it change a setting of SD, or widen the account: sd_run runs in the account's
+                           own session, so while sh and os are off they stay refused. An agent that can run commands as you could run the same
+                           one-shot command itself; Getting Started page 25 says so.
+
+11 Nov 26  THE INSTALLER PUTS THE AGENT PACK, THE DOCUMENTATION FOR THE AI, THE CHANGES DOCUMENT AND THE MANUALS IN PLACE.
+
+             What        - from the source it downloads, the installer copies the guide and the knowledge pack for AI agents into the
+                           installation's agent-pack folder (only for the release being installed); it downloads the documentation pages from
+                           SDCore4LinuxSoloDocs into docs/user, where the ai verb looks for the passages it sends; and it copies the changes
+                           document and the manuals in PDF found beside the installer into the pdf folder (the manuals through docs.install).
+                           The installer now says "Tested on current versions of Debian and Ubuntu."
+             Does NOT    - Stop an install for any of these: a pack for another release, a failed page download or a missing file is a note.
+
+11 Nov 26  ANOTHER SESSION'S TEXT IS MADE SAFE TO PRINT, AND A REFUSED API LOGIN'S LAST REPLY IS NO LONGER LOST (carried from SD Core for Linux).
+
+             What        - the id of a record another session holds locked (getlocks, system(1083), the pstat dump) is shown with control
+                           characters as ?, so it cannot move your cursor or change your screen. When sd exited with the TLS relay still sending,
+                           systemd could end the relay and lose the reply of a refused login; sd now lets the relay finish (a bounded wait).
+             Does NOT    - Change what a lock id may contain.
+
+11 Nov 26  SMALL CARRIES FROM SD CORE: show ... eval, THE BACK TILE, THE BASIC CLIENT CLASS, THE SPELLING OF WHAT SD PRINTS.
+
+             What        - show ... eval compiles its expression in memory and no longer writes a temporary item into your dictionary. set.tile
+                           refuses to turn the Back tile off (message 11962). The BASIC class sdclient has getvar, revision, system, trans,
+                           rtrans, txn, evaluate, evalconv, iconv, oconv, iconvs, oconvs, openseq, readseq, readblk, writeseq, writeblk, seek and
+                           weofseq. What SD prints is in US spelling throughout (catalog, color, recognized, unrecognized, initializing,
+                           utilization), in the kernel's messages, the classic verbs, help and the guide; the line sync.global.catalog prints now
+                           says "cataloged". term default is described as 140 x 43, which it has been.
+             Does NOT    - Change what any of these commands do, apart from the first.
+
 11 Nov 26  A REFUSED SDLOGTO NO LONGER BREAKS THE API SESSION (carried from SD Core for Linux, 11 Nov 2026).
 
              What        - when a client's SDLogto was refused (no such account, an entry the account does not allow,
