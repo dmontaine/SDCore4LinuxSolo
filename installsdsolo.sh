@@ -294,6 +294,31 @@ net_preflight() {   # net_preflight HOST PORT
       SD_SKIP_NET_CHECK=1 bash $0"
 }
 # END net_preflight
+# 11 Nov 26 - DEBIAN AND UBUNTU ONLY (owner, 11 Nov 2026: "Yes, Debian and Ubuntu only"; SD Core's S.105 of
+# 2 Nov 2026).  The distribution is read HERE, before the network check, the banner, the questions, the
+# first sudo and the first change to the machine; reading /etc/os-release needs no sudo.  A machine is
+# accepted when ID or ID_LIKE names debian or ubuntu as a whole word (Debian, Ubuntu, Mint, Pop!_OS);
+# Fedora, RHEL and its clones, Arch, openSUSE, anything else and a machine with no /etc/os-release are
+# refused (refuse(): exit 2, nothing changed).  Until now Fedora had a dnf branch and every other
+# distribution was refused only in the package step, after the questions.  gplbld/test-install-distro.sh
+# runs this function on fake os-release files.
+detect_distro() {
+  local ids="" read_from
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    ids=" ${ID:-} ${ID_LIKE:-} "
+    read_from="read from /etc/os-release: ${ID:-unknown}"
+  else
+    read_from="there is no /etc/os-release to read"
+  fi
+  case "$ids" in *" debian "*|*" ubuntu "*) return 0 ;; esac
+  refuse "this distribution is not supported ($read_from).
+  This installer supports Debian and Ubuntu (and their common derivatives) only.
+  Fedora, RHEL and RHEL's clones, Arch and openSUSE are not supported.
+  Nothing has been changed."
+}
+detect_distro
 # The host is the one the installer clones from.  SDSOLO_REPO_URL (the test hook above) may name a
 # local path, which needs no network, so only an https URL is tested.
 if [[ "$REPO_URL" =~ ^https://([^/:]+)/ ]]; then net_preflight "${BASH_REMATCH[1]}" 443; fi
@@ -713,45 +738,19 @@ trap cleanup EXIT
 umask 077
 
 # ---------------------------------------------------------------- packages
-# LSOLO 33 (owner, 4 Oct 2026: "lets drop arch and opensuse and focus on debian, ubuntu and
-# fedora server versions"): Debian, Ubuntu and Fedora only; the pacman and zypper branches are gone.
-detect_distro() {
-  is_debian=0; is_fedora=0
-  if [ -f /etc/os-release ]; then
-    # shellcheck disable=SC1091
-    . /etc/os-release
-    ids=" ${ID:-} ${ID_LIKE:-} "
-    case "$ids" in *" debian "*|*" ubuntu "*) is_debian=1 ;; esac
-    # Fedora only (owner, 30 Sep 2026).  RHEL and its clones name "rhel" and also
-    # "fedora" in ID_LIKE, so they are turned away here, not matched by the fedora test.
-    case "$ids" in *" fedora "*) is_fedora=1 ;; esac
-    case "$ids" in *" rhel "*) [ "${ID:-}" = fedora ] || is_fedora=0 ;; esac
-  fi
-}
-refuse_unsupported() {   # after detect_distro, which read /etc/os-release
-  refuse "this distribution is not supported (/etc/os-release says ID=${ID:-unknown}); supported: Debian, Ubuntu (and their derivatives) and Fedora - not Arch, openSUSE, RHEL or its clones"
-}
+# LSOLO 33 (owner, 4 Oct 2026): the pacman and zypper branches are gone.
+# 11 Nov 26 - DEBIAN AND UBUNTU ONLY (owner, 11 Nov 2026: "Yes, Debian and Ubuntu only", carrying SD Core's
+#   S.105 of 2 Nov 2026).  The dnf branch is gone, and detect_distro (above, beside net_preflight) has already
+#   refused every other distribution before the banner and the first sudo, so the packages are apt-get's alone.
 install_packages() {
-  detect_distro
   local ssh_pkg=0; [ "$ssh_wanted" -eq 1 ] && ssh_pkg=1
-  if [ "$is_debian" -eq 1 ]; then
-    say "Debian or Ubuntu based: apt-get"
-    # "openssl" (the command) as well as the headers: Fedora Workstation ships without it
-    # (measured 4 Oct 2026, the tool check below refused), and a minimal Debian may too.
-    local pk="git build-essential micro lynx libsodium-dev libssl-dev openssl python3-dev"
-    [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
-    # shellcheck disable=SC2086
-    sudo apt-get -y install $pk || fail "apt-get"
-    sudo apt-get -y --ignore-missing install libcrypt-dev || true
-  elif [ "$is_fedora" -eq 1 ]; then
-    say "Fedora based: dnf"
-    local pk="git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl openssl-devel python3-devel"
-    [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
-    # shellcheck disable=SC2086
-    sudo dnf -y install $pk || fail "dnf"
-  else
-    refuse_unsupported
-  fi
+  say "Debian or Ubuntu based: apt-get"
+  # "openssl" (the command) as well as the headers: a minimal system may ship without it.
+  local pk="git build-essential micro lynx libsodium-dev libssl-dev openssl python3-dev"
+  [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
+  # shellcheck disable=SC2086
+  sudo apt-get -y install $pk || fail "apt-get"
+  sudo apt-get -y --ignore-missing install libcrypt-dev || true
   install_gpm
 }
 # 11 Nov 26 (S.117; SD Core's installer, S.94): gpm, the console mouse daemon, so that the full-screen pages have a mouse
@@ -761,19 +760,13 @@ install_packages() {
 # there is then no mouse on a bare console.  The installer neither enables nor starts gpm.service; the package does
 # what the distribution's package does.
 install_gpm() {
-  if [ "$is_debian" -eq 1 ]; then
-    if ! sudo apt-get -y install gpm; then
-      sudo apt-get -y remove gpm > /dev/null 2>&1 || true
-      warn "gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo apt-get install gpm"
-    fi
-  elif [ "$is_fedora" -eq 1 ]; then
-    sudo dnf -y install gpm || warn "gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo dnf install gpm"
+  if ! sudo apt-get -y install gpm; then
+    sudo apt-get -y remove gpm > /dev/null 2>&1 || true
+    warn "gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo apt-get install gpm"
   fi
 }
 say
 if [ "$skip_pkgs" -eq 1 ]; then
-  detect_distro
-  [ "$is_debian" -eq 1 ] || [ "$is_fedora" -eq 1 ] || refuse_unsupported
   say "Skipping package installation (--skip-packages); checking the tools instead."
 else
   say "Installing the build packages (sudo)."

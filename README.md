@@ -54,7 +54,8 @@ leaving your data and `sd.conf` where they are if you ask; a new install into th
 directory then offers to reload them (it asks for new passwords).
 
 **Requirements:** a 64-bit Linux with a systemd user manager and one of the
-Debian/Ubuntu families or Fedora (not Arch, openSUSE, RHEL or RHEL's clones); a user who can use `sudo`.
+Debian/Ubuntu families (the installer refuses any other, including Fedora, RHEL and RHEL's clones, Arch
+and openSUSE, before it changes anything); a user who can use `sudo`.
 It can be installed beside the multi-user SD Core for Linux (since 2 Oct 2026: `sd-solo` and `sd` are separate commands).
 
 ## What it is for

@@ -22,6 +22,22 @@ Next release - in progress
                          AKREAD, AKWRITE, AKDELETE, CLEAR.AK, AKENABLE and AKMAP are still refused on a remote file. A path, a quote,
                          PATHNAME, LPTR, FORCE and NO.QUERY are never passed to a verb run on the server.
 
+11 Nov 26  FEDORA IS NO LONGER SUPPORTED. THIS RELEASE INSTALLS ON DEBIAN AND UBUNTU ONLY (carried from SD Core for Linux's
+           change of 2 Nov 2026; the owner, 11 Nov 2026: "Yes, Debian and Ubuntu only").
+
+             What        installsdsolo.sh reads /etc/os-release and refuses any computer that is not Debian, Ubuntu or one of
+                         their common derivatives (such as Linux Mint), before it checks the network, asks a question, uses sudo
+                         or changes anything. Fedora is refused now, as RHEL and its clones (Rocky, Alma), Arch, openSUSE and a
+                         computer with no /etc/os-release already were - but those were refused only at the package step, after
+                         the questions. The installer's Fedora package step (dnf, and dnf for gpm) is gone. MICRO, when micro is
+                         not installed, names "sudo apt install micro" only where apt-get exists and otherwise names no command.
+             Why it      The owner's decision for this release, the same as SD Core's.
+             matters
+             Does not    Touch a computer already running Solo on Fedora: nothing there is changed or removed, but this release
+                         cannot be installed over it. Firewall rules still work with firewalld as well as ufw, because Debian and
+                         Ubuntu package firewalld too. The step that gives Solo's ssh its own PAM service where SELinux is enabled
+                         is kept: it asks whether SELinux is on, not which distribution this is.
+
 11 Nov 26  NEW HASHED FILES ARE MADE WITH 4 KB GROUPS, NOT 2 KB: FAR FEWER OF THEIR GROUPS OVERFLOW (carried from SD Core for Linux's
            change of 25 Oct 2026; the owner, 11 Nov 2026: "Yes, 4 KB like Core").
 
