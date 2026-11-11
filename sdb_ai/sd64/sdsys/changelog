@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  A REFUSED SDLOGTO NO LONGER BREAKS THE API SESSION (carried from SD Core for Linux, 11 Nov 2026).
+
+             What        - when a client's SDLogto was refused (no such account, an entry the account does not allow,
+                           a directory that cannot be read), the API server put the session back in its old account's
+                           directory but went on naming the refused account as the session's account (@PATH). Every
+                           later open of a file by its VOC name in that session then failed. The server now puts both
+                           back, so the session carries on in the account it was in.
+             Not changed - the refusal itself and its error are as before; a successful SDLogto is unchanged.
+
 11 Nov 26  A REFUSED REMOTE DELETE.FILE NO LONGER LEAVES THE CLIENT'S FILE NUMBER DEAD (carried from SD Core for Linux, 8 Nov 2026).
 
              What        - A DELETE.FILE sent through the API (file administration, request 70) that the verb refused - the

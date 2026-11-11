@@ -3978,6 +3978,8 @@ cited by: `fstatuser`
 The action of Trans is C or X; the B action (binary open) is not supported
 ```
 
+cited by: `apisrvr`
+
 ### msg:1134
 > kind=message tier=reference since=- src=sdsys/messages/1134:1#0b035df1
 
@@ -3992,12 +3994,16 @@ Unable to load '%s' object code
 Transaction mode must be 1 (start), 2 (commit), 3 (abort) or 4 (commit, non-durable), and 2 to 4 need a transaction to be running
 ```
 
+cited by: `apisrvr`
+
 ### msg:11341
 > kind=message tier=reference since=- src=sdsys/messages/11341:1#e5586612
 
 ```
 The dictionary item %1 cannot be compiled
 ```
+
+cited by: `apisrvr`
 
 ### msg:11342
 > kind=message tier=reference since=- src=sdsys/messages/11342:1#497d1164
@@ -4006,12 +4012,16 @@ The dictionary item %1 cannot be compiled
 %1 is not a dictionary item that defines data (types D and I do)
 ```
 
+cited by: `apisrvr`
+
 ### msg:11343
 > kind=message tier=reference since=- src=sdsys/messages/11343:1#8464348c
 
 ```
 A conversion that reads a file or calls a program is not allowed in this session
 ```
+
+cited by: `apisrvr`
 
 ### msg:11344
 > kind=message tier=reference since=- src=sdsys/messages/11344:1#c14ac108
@@ -4020,12 +4030,16 @@ A conversion that reads a file or calls a program is not allowed in this session
 Too many sequential files are open in this session (the limit is 1000)
 ```
 
+cited by: `apisrvr`
+
 ### msg:11345
 > kind=message tier=reference since=- src=sdsys/messages/11345:1#990d0ce0
 
 ```
 %1 is not a file this account may open
 ```
+
+cited by: `apisrvr`
 
 ### msg:11346
 > kind=message tier=reference since=- src=sdsys/messages/11346:1#330c9387
@@ -4034,6 +4048,8 @@ Too many sequential files are open in this session (the limit is 1000)
 A sequential file needs a name
 ```
 
+cited by: `apisrvr`
+
 ### msg:11347
 > kind=message tier=reference since=- src=sdsys/messages/11347:1#10d68aad
 
@@ -4041,12 +4057,16 @@ A sequential file needs a name
 The number of bytes to read is from 1 to 100000000
 ```
 
+cited by: `apisrvr`
+
 ### msg:11348
 > kind=message tier=reference since=- src=sdsys/messages/11348:1#92b73dcc
 
 ```
 WRITE ... CREATING.SEQKEY needs a hashed file
 ```
+
+cited by: `apisrvr`
 
 ### msg:11349
 > kind=message tier=reference since=- src=sdsys/messages/11349:1#79e16218
@@ -5464,12 +5484,16 @@ Account %1 does not have files-write, so it cannot be given files-admin: use fil
 Delete file %2 on server %1 and everything in it (y/<n>)?
 ```
 
+cited by: `deletef`
+
 ### msg:11528
 > kind=message tier=reference since=- src=sdsys/messages/11528:1#5cfff581
 
 ```
 %2 is not available for a file on server %1
 ```
+
+cited by: `createf`, `deletef`
 
 ### msg:11529
 > kind=message tier=reference since=- src=sdsys/messages/11529:1#2be5fa87
@@ -5478,12 +5502,16 @@ Delete file %2 on server %1 and everything in it (y/<n>)?
 The file %1 now exists on server %2, but the pointer %3 could not be written to your VOC: add it by hand, nothing was deleted
 ```
 
+cited by: `createf`
+
 ### msg:11530
 > kind=message tier=reference since=- src=sdsys/messages/11530:1#d6c4308f
 
 ```
 "%1" is not accepted here: names, numbers and the verb's keywords only (no path, no quote)
 ```
+
+cited by: `apisrvr`
 
 ### msg:11531
 > kind=message tier=reference since=- src=sdsys/messages/11531:1#dd8a497a
@@ -5492,12 +5520,16 @@ The file %1 now exists on server %2, but the pointer %3 could not be written to 
 %1 is not a remote file administration operation
 ```
 
+cited by: `apisrvr`
+
 ### msg:11532
 > kind=message tier=reference since=- src=sdsys/messages/11532:1#7a24e0f1
 
 ```
 File %1 on server %2 was deleted and the pointer %3 was removed from your VOC
 ```
+
+cited by: `deletef`
 
 ### msg:11533
 > kind=message tier=reference since=- src=sdsys/messages/11533:1#26bf71a8
@@ -5506,12 +5538,16 @@ File %1 on server %2 was deleted and the pointer %3 was removed from your VOC
 File %1 was created on server %2 and the pointer %3 was written to your VOC
 ```
 
+cited by: `createf`
+
 ### msg:11534
 > kind=message tier=reference since=- src=sdsys/messages/11534:1#23cfb3ec
 
 ```
 File %2 is not on server %1: remove the pointer %3 from your VOC (y/<n>)?
 ```
+
+cited by: `deletef`
 
 ### msg:11535
 > kind=message tier=reference since=- src=sdsys/messages/11535:1#f7d9b636
@@ -5520,12 +5556,16 @@ File %2 is not on server %1: remove the pointer %3 from your VOC (y/<n>)?
 The pointer %1 was removed from your VOC; the file %2 was not on server %3
 ```
 
+cited by: `deletef`
+
 ### msg:11536
 > kind=message tier=reference since=- src=sdsys/messages/11536:1#c058a2e7
 
 ```
 A server name is required after SERVER
 ```
+
+cited by: `createf`
 
 ### msg:11537
 > kind=message tier=reference since=- src=sdsys/messages/11537:1#e462e010
@@ -5534,6 +5574,8 @@ A server name is required after SERVER
 A file name is required after AS
 ```
 
+cited by: `createf`
+
 ### msg:11538
 > kind=message tier=reference since=- src=sdsys/messages/11538:1#210128e4
 
@@ -5541,12 +5583,16 @@ A file name is required after AS
 AS names the file on another server: give SERVER as well
 ```
 
+cited by: `createf`
+
 ### msg:11539
 > kind=message tier=reference since=- src=sdsys/messages/11539:1#65a30952
 
 ```
 The name %1 is already in your VOC: nothing was created on server %2
 ```
+
+cited by: `createf`
 
 ### msg:11540
 > kind=message tier=reference since=- src=sdsys/messages/11540:1#841b4ce7
@@ -10750,6 +10796,15 @@ Error merging sort data
 ```
 Cannot open sort work file '%s' (Errno %d)
 ```
+
+### msg:14964
+> kind=message tier=reference since=- src=sdsys/messages/14964:1#81410a0f
+
+```
+This session cannot administer files here: sign in with the global password (request %1)
+```
+
+cited by: `apisrvr`
 
 ### msg:14965
 > kind=message tier=reference since=- src=sdsys/messages/14965:1#1bebb0e8
