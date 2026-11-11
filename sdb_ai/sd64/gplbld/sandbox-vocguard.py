@@ -21,6 +21,15 @@
 #               RENAME did; getlist, savelst, dellist, sortlst, copylst, mapcat, format, fixdir, spview, generate, cd, settrig, qproc
 #               (REFORMAT, PAGESEQ), createf, como and basic did not, nor did the API server's record writes.  This suite is the proof,
 #               written before the fix and run against the tree without it (red) and the tree with it (green).
+# 11 Nov 26 dm  The suite could not run since Solo carry 22 (9 Nov 26, S.87: multifiles are gone): its fixture made the VOC-named file
+#               with "CREATE.FILE zzvgd,voc DYNAMIC", which is now refused ("Unexpected token (,)"), and the count of "Created" lines did
+#               not notice (11 of the 7 it asked for came from the other files), so the seed program stopped at "cannot open zzvgv".
+#               The file is now made as zzvgq by CREATE.FILE and moved on the disk by this script to zzvgd/voc (dictionary zzvgd.dic);
+#               the seed removes the VOC entry zzvgq.  The count of "Created" lines is exact (13).  createf's guard went with the
+#               multifile conversion (createf, 9 Nov 26), so its two part T rows are one row that says the conversion is gone, and its
+#               runtime rows say what CREATE.FILE does to a file that exists: nothing, for the VOC-named file and the control alike.
+#               Two more names the same carry removed: the verb CD (the program is run as COMPILE.DICT, the one name left for it) and
+#               the catalogued program $acomp that SET.TRIGGER was given (S.93; it is given $icomp).
 # END-HISTORY
 #
 # WHAT IT MEASURES.  An ORDINARY session (the account password, no ADMIN, as the owner of a Solo installation uses it) in the
@@ -127,7 +136,6 @@ def part_text():
         ("settrig", "voc_guard(fu)", "set.trigger fu", "SET.TRIGGER file"),
         ("qproc", "voc_guard(pageseq.f)", "readvu pageseq from pageseq.f", "PAGESEQ file"),
         ("qproc", "voc_guard(reformat.f)", "write s to reformat.f", "REFORMAT ... TO file"),
-        ("createf", "gosub guard.existing.file", "writeu voc.rec to voc.f, file.name", "CREATE.FILE on an existing file"),
         ("como", "voc_guard(alt.f)", "target.dir = fileinfo(alt.f", "COMO ON ... IN file"),
         ("basic", "voc_guard(out.f)", "delete out.f, record.name", "BASIC: the object file"),
     ]
@@ -139,11 +147,19 @@ def part_text():
     for prog, decl in (("getlist", "voc_guard"), ("savelst", "voc_guard"), ("dellist", "voc_guard"), ("sortlst", "voc_guard"),
                        ("copylst", "voc_guard"), ("mapcat", "voc_guard"), ("format", "voc_guard"), ("fixdir", "voc_guard"),
                        ("spview", "voc_refusal"), ("generate", "voc_guard"), ("cd", "voc_guard"), ("settrig", "voc_guard"),
-                       ("qproc", "voc_guard"), ("createf", "voc_guard"), ("como", "voc_guard"), ("basic", "voc_guard"),
+                       ("qproc", "voc_guard"), ("como", "voc_guard"), ("basic", "voc_guard"),
                        ("apisrvr", "voc_refusal")):
         code = code_of(prog)
         want = "deffun %s(f) calling '!%s'" % (decl, decl)
         row("T %-9s declares %s" % (prog, decl), want in code, "no line '%s'" % want)
+    # 11 Nov 26 - createf no longer has a guard because it no longer changes a file that exists (S.87: multifiles are gone).  The row
+    # holds the reason: no multifile code is left, and a part that exists is skipped (6102 / 6104) before anything is made.
+    code = code_of("createf")
+    i_data, i_dict, i_make = code.find("display sysmsg(6102)"), code.find("display sysmsg(6104)"), code.find("create.file dict.path")
+    row("T createf   has no guard because it cannot change a file that exists: no multifile code, an existing part is skipped before anything is made",
+        bool(code) and "multifile" not in code and "mfile" not in code and 0 <= i_data < i_make and 0 <= i_dict < i_make
+        and "create.data = @false" in code and "create.dict = @false" in code,
+        "multifile %s, mfile %s, 6102 at %d, 6104 at %d, first create at %d" % ("multifile" in code, "mfile" in code, i_data, i_dict, i_make))
     # the qproc subroutine and its two callers
     code = code_of("qproc")
     row("T qproc     check.reformat.target is called from the TO clause and from the Output file: prompt",
@@ -232,6 +248,7 @@ class Box:
 SEED = """   crt 'SEED START'
    open 'voc' to v else crt 'SEED no voc' ; stop
    write 'F':@fm:'zzvgd/voc':@fm:'zzvgd.dic' to v, 'zzvgv'
+   delete v, 'zzvgq'
    files = 'zzvgv':@fm:'zzvgo'
    for f = 1 to 2
       open files<f> to d else crt 'SEED cannot open ':files<f> ; stop
@@ -333,8 +350,8 @@ def dir_snapshot(path):
     return snap
 
 
-FIXTURE_VOC = ["zzvgv", "zzvgd", "zzvgo", "zzvgsrc", "zzvgsr2", "zzvgg", "zzvgh", "zzvgdir"]
-FIXTURE_ACCT = ["zzvgv", "zzvgd", "zzvgd.dic", "zzvgo", "zzvgo.dic", "zzvgsrc", "zzvgsrc.dic", "zzvgsr2", "zzvgsr2.dic",
+FIXTURE_VOC = ["zzvgv", "zzvgd", "zzvgq", "zzvgo", "zzvgsrc", "zzvgsr2", "zzvgg", "zzvgh", "zzvgdir"]
+FIXTURE_ACCT = ["zzvgv", "zzvgd", "zzvgd.dic", "zzvgq", "zzvgq.dic", "zzvgo", "zzvgo.dic", "zzvgsrc", "zzvgsrc.dic", "zzvgsr2", "zzvgsr2.dic",
                 "zzvgg", "zzvgg.dic", "zzvgh", "zzvgh.dic", "zzvgdir"]
 FIXTURE_LISTS = ["zzvgl1", "zzvgl2", "zzvgl3", "zzvgd1", "dr1", "dr2", "dr3", "zzgdrG", "zzgdrO"]   # saved lists the probes made
 
@@ -417,7 +434,7 @@ def rec_cases():
          lambda T, s: [r"1 record\(s\) copied"], gone("dr%d")),
         ("format", "FORMAT file fmN", lambda T, s: ["FORMAT %s fm%d" % (T, s)],
          lambda T, s: [], changed("fm%d")),
-        ("cd", "CD DATA file cdN", lambda T, s: ["CD DATA %s cd%d" % (T, s)],
+        ("cd", "COMPILE.DICT DATA file cdN", lambda T, s: ["COMPILE.DICT DATA %s cd%d" % (T, s)],
          lambda T, s: [r"Compiling cd%d" % s], changed("cd%d")),
         ("reformat", "REFORMAT source @RECORD TO file", lambda T, s: ["REFORMAT %s @ID @RECORD TO %s" % (SRC[s], T)],
          lambda T, s: [r"\d+ record\(s\) reformated, \d+ record\(s\) overwritten"],
@@ -470,10 +487,18 @@ def main():
         # ---- the fixture
         say("\n--- the fixture ---------------------------------------------------------------------------------------------")
         out = box.session(["CREATE.FILE zzvgo", "CREATE.FILE zzvgsrc", "CREATE.FILE zzvgsr2", "CREATE.FILE zzvgg", "CREATE.FILE zzvgh",
-                           "CREATE.FILE DATA zzvgdir DIRECTORY", "CREATE.FILE zzvgd,voc DYNAMIC"])
+                           "CREATE.FILE DATA zzvgdir DIRECTORY", "CREATE.FILE zzvgq DYNAMIC"])
         made_n = len(re.findall(r"(?m)^Created (DATA|DICT) part as", out))
-        if made_n < 7:
-            bail("the fixture files were not made (%d 'Created ... part' lines of 7+):\n%s" % (made_n, out[-500:]))
+        if made_n != 13:      # six files with a dictionary, and the directory file's data part
+            bail("the fixture files were not made (%d 'Created ... part' lines of 13):\n%s" % (made_n, out[-500:]))
+        # 11 Nov 26 - the VOC-named file: zzvgq as CREATE.FILE made it, moved to zzvgd/voc (CREATE.FILE name,part went with S.87).
+        # The seed program writes the pointer zzvgv and removes the entry zzvgq.
+        q_data, q_dict = os.path.join(box.acct, "zzvgq"), os.path.join(box.acct, "zzvgq.dic")
+        if not (os.path.isfile(os.path.join(q_data, "%0")) and os.path.isdir(q_dict)) or os.path.lexists(os.path.join(box.acct, "zzvgd")):
+            bail("zzvgq is not a dynamic file with a dictionary on the disk, or zzvgd is already there:\n" + out[-500:])
+        os.mkdir(os.path.join(box.acct, "zzvgd"), 0o700)
+        os.rename(q_data, os.path.join(box.acct, "zzvgd", "voc"))
+        os.rename(q_dict, os.path.join(box.acct, "zzvgd.dic"))
         box.bp("zzvgseed", SEED)
         box.bp("zzvgdump", DUMP)
         out = box.session(["BASIC bp zzvgseed"], admin=True)
@@ -533,12 +558,12 @@ def main():
                         worked_text and changed and not refused, detail + "  " + excerpt(text))
 
         # ---- SET.TRIGGER (a report of the state, not a record)
-        say("  settrig  (SET.TRIGGER file $acomp, then the report, then the trigger removed)")
+        say("  settrig  (SET.TRIGGER file $icomp, then the report, then the trigger removed)")
         for kind, T, admin in ((("R", "zzvgv", False), ("O", "zzvgo", False), ("A", "zzvgv", True)) if want("settrig") else ()):
-            c = ["SET.TRIGGER %s $acomp" % T, "SET.TRIGGER %s" % T, 'SET.TRIGGER %s ""' % T, "SET.TRIGGER %s" % T]
+            c = ["SET.TRIGGER %s $icomp" % T, "SET.TRIGGER %s" % T, 'SET.TRIGGER %s ""' % T, "SET.TRIGGER %s" % T]
             say("    %s > %s" % (kind, " | ".join(c)))
             text = box.session(c, admin=admin)
-            n_set = len(re.findall(r"(?m)^Trigger function: \$acomp$", text))
+            n_set = len(re.findall(r"(?m)^Trigger function: \$icomp$", text))
             refused = has_line(text, VOCMSG)
             none_after = len(re.findall(r"(?m)^File has no trigger function$", text))
             if kind == "R":
@@ -663,27 +688,27 @@ def main():
             else:
                 row("mapcat %s: %s clears and refills the file" % (kind, "the control" if kind == "O" else "ADMIN"),
                     cleared and prompt and not refused, "refusal %s; prompt %s; cleared %s  %s" % (refused, prompt, cleared, excerpt(text)))
-        # createf: the F record of the VOC-named file is rewritten (and the file moved) by a conversion to a multifile
-        for kind, T, admin in ((("R", "zzvgv", False), ("O", "zzvgo", False), ("A", "zzvgv", True)) if want("createf") else ()):
-            # the ADMIN run adds a different component: in the tree without the guard the R run has already converted the file
-            c = ["CREATE.FILE %s,%s NO.QUERY" % (T, "zzcompa" if kind == "A" else "zzcomp")]
+        # createf (11 Nov 26): the conversion to a multifile, which rewrote the F record of a file that exists and moved the file, went
+        # with S.87, and the guard with it.  What is held now: CREATE.FILE on a file that exists says both parts exist and makes
+        # nothing, name,part is refused as a token, and the VOC record and every record of the file are as they were - for the
+        # VOC-named file and for the ordinary file alike (there is no "works" case left for a control to show).
+        for kind, T in ((("R", "zzvgv"), ("O", "zzvgo")) if want("createf") else ()):
+            c = ["CREATE.FILE %s" % T, "CREATE.FILE %s,zzcomp NO.QUERY" % T]
             say("    %s > %s" % (kind, " | ".join(c)))
-            text, b, a = run_rec_case(box, c, admin)
+            text, b, a = run_rec_case(box, c, False)
             if b is None:
                 row("createf %s: the run printed two dumps" % kind, False, text[-300:])
                 continue
-            changed = b.get(("V", T)) != a.get(("V", T)) and a.get(("V", T)) is not None
-            wording = has_line(text, r'Converting to multifile named "%s,%s"' % (T, T))
-            refused = has_line(text, VOCMSG)
-            if kind == "R":
-                row("createf R: ordinary user cannot convert a VOC-named file (11008); its VOC record is unchanged",
-                    refused and not changed and not wording, "refusal %s; converted %s; wording %s  %s" % (refused, changed, wording, excerpt(text)))
-            elif kind == "O":
-                row("createf O: the control converts an ordinary file to a multifile",
-                    changed and wording and not refused, "refusal %s; converted %s; wording %s  %s" % (refused, changed, wording, excerpt(text)))
-            else:
-                row("createf A: ADMIN changes the VOC-named file's pointer (a component is added)",
-                    changed and not refused, "refusal %s; changed %s; wording %s  %s" % (refused, changed, wording, excerpt(text)))
+            mine_b = {k: v for k, v in b.items() if k[1] == T}
+            mine_a = {k: v for k, v in a.items() if k[1] == T}
+            same = bool(mine_b) and ("V", T) in mine_b and mine_b == mine_a
+            exists = has_line(text, re.escape(text_of(6102))) and has_line(text, re.escape(text_of(6104)))
+            token = has_line(text, r"Unexpected token \(,\)")
+            made = has_line(text, r"Created (DATA|DICT) part as .*") or has_line(text, r"Converting to multifile.*")
+            row("createf %s: CREATE.FILE on %s that exists makes nothing (both parts 'already exists'), name,part is an unexpected token, "
+                "and its VOC record and records are unchanged" % (kind, "the VOC-named file" if kind == "R" else "an ordinary file"),
+                same and exists and token and not made,
+                "unchanged %s; exists wording %s; token wording %s; something made %s  %s" % (same, exists, token, made, excerpt(text)))
     finally:
         say("\n--- cleanup -------------------------------------------------------------------------------------------------")
         # The VOC pointers are taken out through SD (as ADMIN: one of them is a VOC-named file's); the files themselves, which
