@@ -1654,21 +1654,6 @@ end
 * null string and LastError / LastText say what the reply was).  SD Core's (15 Oct 26, S.73 item 3), carried 11 Nov 26.  Used by indices, selectindexv, selectindexk, writeseqkey,
 * writeuseqkey, fileadmin and fcontrol.
 
-local function text.request(code, pkt, abort.text)
-   reply = ''
-   if not(context.error(CX.CONNECTED)) then
-      if message.pair(code, pkt) then
-         begin case
-            case server.error = SV$OK
-               reply = in.pkt
-            case server.error = SV$ON.ERROR
-               if not(quiet) then abort abort.text
-         end case
-      end
-   end
-   return reply
-end
-
 * ======================================================================
 
 local function context.error(expected)
