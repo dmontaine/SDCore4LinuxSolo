@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): keyin_idle_ms() (linuxio.c), the inactivity
+ *               clock that kernel(K$AUTOLOGOUT, -2) returns.
  * 06 Nov 26 dm  S.152: the prototypes of fatal, dump, k_dh_error, k_strnum_len, k_null_id, coll_json_build,
  *               coll_fill_entry, coll_value_of and is_global are gone with the functions (nothing called them).
  * 24 Oct 26 dm  Solo carry 19 (the owner's "check, and close it if open"): EDIT_NONE and EDIT_VOC and the prototypes of edit_os_path_refusal() and edit_leaf_counts() (op_sh.c), SD Core's
@@ -540,6 +542,7 @@ void tio_write(char * s);
 void freescrn(SCREEN_IMAGE * image);
 void break_key(void);
 int16_t keyin(int timeout);
+int32_t keyin_idle_ms(void); /* ms waited with nothing typed, as AUTOLOGOUT judges it (kernel(K$AUTOLOGOUT, -2)) */
 bool keyready(void);
 void log_termination_signal(void); /* S.196: the SIGHUP/SIGTERM line, written by process_events(), never by the handler */
 int32_t type_ahead_count(void);

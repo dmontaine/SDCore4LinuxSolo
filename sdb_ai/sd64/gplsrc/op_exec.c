@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 2 Nov 26 change): op_capture(): the chunk before the last is tracked as such.  `prev` was
+ *               set to every chunk in turn, so it was the LAST chunk itself; when the captured output was a lone newline the emptied only chunk was
+ *               freed while capture_head still pointed at it ("double free or corruption", the process died).
  * 27 Oct 26 dm  S.87 batch 17: $MODE STDFIL.SHARED is gone; stdfil_element(), stdfil_shared_save() and stdfil_shared_restore() are deleted.
  * 27 Oct 26 dm  S.87 batch 9: $MODE EXECUTE.CLEARLIST is gone; flag 0x80 of EXECUTE (clear list 0 after STACKLIST kept its copy) is no longer used.
  * 16 Oct 26 dm  $MODE STDFIL.SHARED (QM4 gap 225): EXECUTE saves and clears the $STDFIL common element, k_return() restores it
@@ -109,6 +112,7 @@ void op_capture() {
   /* Change all newlines to field marks */
 
   for (str = capture_head; str != NULL; str = str->next) {
+    prev = last; /* the chunk before this one (NULL for the first) */
     last = str;
     bytes = str->bytes;
     p = str->data;
@@ -117,7 +121,6 @@ void op_capture() {
       bytes -= q + 1 - p;
       p = q + 1;
     }
-    prev = str;
   }
 
   /* Remove last character if it is a field mark */

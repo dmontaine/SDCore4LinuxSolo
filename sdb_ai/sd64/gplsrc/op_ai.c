@@ -4,6 +4,10 @@
  * it under the terms of the GNU General Public License, version 3 or later.
  *
  * START-HISTORY:
+ * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 3 Nov 26 and 8 Nov 26 changes): follow-up questions - K$AI.START takes
+ *               system : FM : maxtokens : VM : n : FM : q1 : FM : a1 ... : FM : prompt, the n (1 to 3, AI_HIST_MAX) earlier exchanges the person chose to carry; they
+ *               go to the helper as "history" and count in bytes.out, and the audit line then says followup=n.  And a status reply is waited for up to AI_STATUS_MS
+ *               (8 s), not 2 s.  The socket path stays Solo's own.
  * 23 Oct 26 dm  Solo carry 15: the default socket is the user's own, /run/user/<uid>/sd-solo-ai.sock (Core: /run/sd-ai/sock); the description says who decides.
  *               Nothing else differs from Core's file (ca89081).
  * 23 Oct 26 dm  (Core) New.
@@ -53,6 +57,8 @@
 #define AI_REPLY_MAX 524288
 #define AI_DEADLINE 340 /* seconds, from the start of a request */
 #define AI_CONNECT_MS 2000
+#define AI_STATUS_MS 8000 /* the most a status reply is waited for: the helper is a new Python process per request (8 Nov 26: 2.7 s on a small VPS, past the old 2 s) */
+#define AI_HIST_MAX 3 /* earlier exchanges a follow-up may carry (the helper takes no more) */
 
 Private struct {
   int fd;
@@ -193,6 +199,10 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
   size_t pos;
   int n;
   int maxtokens = 0;
+  int nhist;
+  int i;
+  size_t hbytes;
+  char* hist[2 * AI_HIST_MAX];
   char audit[200];
 
   if (ai.active) {
@@ -234,6 +244,30 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
     maxtokens = 1;
   if (maxtokens > 100000)
     maxtokens = 100000;
+  /* A follow-up: maxtokens VM n, then n questions and n answers, each a field, before the prompt (which stays last: a mark in it moves nothing) */
+  nhist = 0;
+  hbytes = 0;
+  p = strchr(maxt, VALUE_MARK);
+  if (p != NULL) {
+    nhist = atoi(p + 1);
+    if (nhist < 1 || nhist > AI_HIST_MAX) {
+      free(arg);
+      ai_answer("ERR", "bad", result);
+      return;
+    }
+    for (i = 0; i < 2 * nhist; i++) {
+      hist[i] = prompt;
+      p = strchr(prompt, FIELD_MARK);
+      if (p == NULL) {
+        free(arg);
+        ai_answer("ERR", "bad", result);
+        return;
+      }
+      *p = '\0';
+      hbytes += strlen(hist[i]);
+      prompt = p + 1;
+    }
+  }
 
   /* THE AUDIT LINE: before anything is sent, from the kernel's own state.  It names the account and the program that called, and the size; never the text. */
   /* The audit line gives the name a person knows: a catalogued program is named $name and one run from a file by its whole path, so the $ and the directory are left off. */
@@ -242,10 +276,13 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
     pname = strrchr(pname, '/') + 1;
   if (*pname == '$')
     pname++;
-  snprintf(audit, sizeof(audit), "ai request account=%s program=%s bytes.out=%d", account(), pname, (int)(strlen(system) + strlen(prompt)));
+  if (nhist > 0)
+    snprintf(audit, sizeof(audit), "ai request account=%s program=%s bytes.out=%d followup=%d", account(), pname, (int)(strlen(system) + strlen(prompt) + hbytes), nhist);
+  else
+    snprintf(audit, sizeof(audit), "ai request account=%s program=%s bytes.out=%d", account(), pname, (int)(strlen(system) + strlen(prompt)));
   audit_message(audit);
 
-  cap = (6 * (strlen(system) + strlen(prompt))) + 256;
+  cap = (6 * (strlen(system) + strlen(prompt) + hbytes)) + 256 + (32 * nhist);
   req = (char*)malloc(cap);
   if (req == NULL) {
     free(arg);
@@ -257,6 +294,17 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
   pos = ai_json_string(req, pos, system, strlen(system));
   pos += (size_t)sprintf(req + pos, ",\"prompt\":");
   pos = ai_json_string(req, pos, prompt, strlen(prompt));
+  if (nhist > 0) {
+    pos += (size_t)sprintf(req + pos, ",\"history\":[");
+    for (i = 0; i < nhist; i++) {
+      pos += (size_t)sprintf(req + pos, "%s{\"q\":", (i == 0) ? "" : ",");
+      pos = ai_json_string(req, pos, hist[2 * i], strlen(hist[2 * i]));
+      pos += (size_t)sprintf(req + pos, ",\"a\":");
+      pos = ai_json_string(req, pos, hist[2 * i + 1], strlen(hist[2 * i + 1]));
+      req[pos++] = '}';
+    }
+    req[pos++] = ']';
+  }
   pos += (size_t)sprintf(req + pos, ",\"maxtokens\":%d}\n", maxtokens);
   free(arg);
 
@@ -371,7 +419,7 @@ Private void ai_status(DESCRIPTOR* result) {
     ai_answer("E", "nohelper", result);
     return;
   }
-  while (waited < 2000 && len < sizeof(buf) - 1) {
+  while (waited < AI_STATUS_MS && len < sizeof(buf) - 1) {
     pfd.fd = fd;
     pfd.events = POLLIN;
     pfd.revents = 0;

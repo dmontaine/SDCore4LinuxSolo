@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change S.88 phase 1, K1) - a TERM that SD has no entry for falls back to the family it
+*           belongs to (xterm for the xterm-family terminals), not always to linux.
 * 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
 *           are still the records SD shipped (!vocrmchk), saves a copy of each to sdsys/voc_removed.saved first, reports the ones it kept and audits.  Messages 11900-11904.
 * 26 Oct 26 SD Core for Linux Solo (Solo carry 21, SD Core's 26 Oct change) - UPDATE.ACCOUNTS (modes 2 and 4) updates the SDSYS account's own VOC from VOC_TEMPLATE, not NEWVOC.
@@ -198,7 +200,14 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   so the two defaults agree (the port's is 'windows').
       s = downcase(s)
       if (kernel(K$TERM.TYPE, s) # s) and (s # 'linux') then
-         s = 'linux'
+* 28 Oct 26 dm - S.88 PHASE 1, K1: A TERM THAT SD HAS NO ENTRY FOR FALLS BACK TO THE FAMILY IT BELONGS TO, NOT ALWAYS TO linux.  xterm-256color, vte*, gnome*, konsole*, tmux*, screen*,
+*   alacritty, kitty, foot, rxvt* and st* are all xterm-family terminals: they send ESC O P for F1 and ESC [ A for Up, which the shipped xterm entry (and the keys _keycode binds for every
+*   type) accept, and the linux console entry does not (F1 is ESC [ [ A there).  Falling back to linux, and then the account's paragraph typing TERM LINUX, made F1-F4 type letters on the
+*   owner's GNOME Terminal.  The console (TERM=linux) has its own entry and is not touched; anything unknown still falls back to linux, as before.
+         s2 = 'linux'
+         if s[1, 5] = 'xterm' or s[1, 3] = 'vte' or s[1, 5] = 'gnome' or s[1, 7] = 'konsole' or s[1, 4] = 'tmux' or s[1, 6] = 'screen' then s2 = 'xterm'
+         if s[1, 9] = 'alacritty' or s[1, 5] = 'kitty' or s[1, 4] = 'foot' or s[1, 4] = 'rxvt' or s = 'st' or s[1, 3] = 'st-' then s2 = 'xterm'
+         s = s2
          void kernel(K$TERM.TYPE, s)
       end
 

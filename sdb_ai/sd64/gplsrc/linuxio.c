@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 changes S.88 phase 2 S3 and the review of L2): AUTOLOGOUT measures idle time ACROSS
+ *               keyin() calls (idle_waited, idle_carry): a wait that ends by its own timeout no longer starts the inactivity clock again, so the screen
+ *               library's one-second polling cannot keep a session alive; a byte of input or an interrupt starts it again as before, and with nothing carried
+ *               the test is the old strict "period < timeout".  keyin_idle_ms() gives that clock to kernel(K$AUTOLOGOUT, -2) for the IDE's countdown.
+ *               KNOWN AND INTENDED (Core's note): a program that polls the keyboard with very short timed KEYINs counts as waiting.
  * 27 Oct 26 dm  S.87 batch 14: terminal input case inversion (INVCASE, PTERM CASE) is removed; a session starts as it always did with it off.
  * 18 Oct 26 dm init_console() starts the display at DEFAULT_WIDTH by DEFAULT_DEPTH (140 by 42, was
  *           120 by 36) instead of two literals; a tty still overrides it (read_window_size()).
@@ -122,6 +127,14 @@ Private struct termios old_tty_settings;
 Private struct termios new_tty_settings;
 Private bool tty_modes_saved = FALSE;
 Private int16_t type_ahead = -1;
+
+/* 28 Oct 26 dm - S.88 phase 2 (S3): THE INACTIVITY CLOCK OF AUTOLOGOUT.  idle_waited is the time, in milliseconds, that keyin()
+   has spent waiting with nothing typed since the last real input.  idle_carry says that the last keyin() ended because ITS
+   OWN TIMEOUT ran out: only then does the next keyin() go on counting from idle_waited.  Any other end - a byte of input, an
+   interrupt (the break key, a logout) - leaves idle_carry FALSE and the next wait starts the clock from 0, as every wait did
+   before.  The time a program spends between two waits (drawing, computing) is NOT counted: only time spent waiting is.  */
+Private int64 idle_waited = 0;
+Private bool idle_carry = FALSE;
 
 Private void signal_handler(int signum);
 Private volatile sig_atomic_t term_signal_seen = 0;   /* S.196: SIGHUP or SIGTERM received, not yet logged (log_termination_signal()) */
@@ -614,6 +627,15 @@ int32_t type_ahead_count() {
   return n;
 }
 
+/* 28 Oct 26 dm - S.88 review of L2: the inactivity clock, for kernel(K$AUTOLOGOUT, -2): how long this process has waited with nothing typed, in milliseconds, as AUTOLOGOUT
+   itself will judge it at the next keyin() - the clock runs on only while the last wait ended by its own timeout, so after a key (or an interrupt) it is 0.  Read only, and only
+   the process's own.  The IDE's countdown used to GUESS this from what it could see (a wait that took long, a change in the editor) and was late by an AI wait and by a stall. */
+int32_t keyin_idle_ms(void) {
+  int64 ms = idle_carry ? idle_waited : 0;
+
+  return (ms > 0x7FFFFFFF) ? 0x7FFFFFFF : (int32_t)ms;
+}
+
 int16_t keyin(timeout) int timeout; /* Milliseconds */
 {
   char c;
@@ -623,6 +645,7 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
   int td;
   int poll_ret;
   bool using_autologout = FALSE;
+  int64 idle_left = 0; /* ms of inactivity AUTOLOGOUT still allows */
 
   /* Disable the signal handler. Once this is done, no input can arrive
      from anywhere else. We can then safely test the ring buffer. Because
@@ -630,6 +653,11 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
      of input cannot be running simulataneously.                          */
 
   input_handler_enabled = FALSE;
+
+  /* 28 Oct 26 dm - S.88 phase 2 (S3): the inactivity clock goes on only from a wait that ended by its own timeout */
+  if (!idle_carry)
+    idle_waited = 0;
+  idle_carry = FALSE;
 
   if (type_ahead >= 0) /* 0211 */
   {
@@ -663,10 +691,29 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
       goto exit_keyin;
     }
 
-    if (autologout)
-      using_autologout = (autologout < timeout) || !timeout;
+    /* 28 Oct 26 dm - S.88 phase 2 (S3): AUTOLOGOUT is measured against the time ALREADY waited with nothing typed
+       (idle_waited), not from the start of this call.  It used to be "(autologout < timeout) || !timeout" with the
+       whole period every call, so a program that waited a second at a time (the screen library's $sl_key, the IDE,
+       the home screen, every tool page) restarted the period every second and was never logged out.  The wait now
+       ends at whichever comes first: the caller's own timeout (a plain timeout, the clock carried to the next call)
+       or the rest of the inactivity period (the logout, as before).  A wait with no timeout of its own takes the
+       rest of the period, which is the whole period unless a timed wait came before it with nothing typed.     */
+    /* 28 Oct 26 dm - S.88 phase 2 review: with nothing carried (idle_waited is 0) the test is the old strict one, so a timed
+       wait EQUAL to the AUTOLOGOUT period is a plain timeout as it always was; only a carried clock ends a wait at the
+       logout when the rest of the period equals the caller's timeout (the inactivity has then reached the whole period). */
+    if (autologout) {
+      idle_left = (int64)autologout - idle_waited;
+      if (idle_left < 1)
+        idle_left = 1;
+      if (!timeout)
+        using_autologout = TRUE;
+      else if (idle_waited == 0)
+        using_autologout = (idle_left < (int64)timeout);
+      else
+        using_autologout = (idle_left <= (int64)timeout);
+    }
     if (using_autologout)
-      timeout = autologout;
+      timeout = (int)idle_left;
 
     if (timeout) {
       gettimeofday(&tv, NULL);
@@ -720,6 +767,7 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
           t2 = (((int64)(tv.tv_sec)) * 1000) + (tv.tv_usec / 1000);
           td = t2 - t1;
           timeout -= td;
+          idle_waited += td; /* 28 Oct 26 S.88 (S3): the time waited with nothing typed */
           t1 = t2;
           if (timeout <= 0) {
             input_handler_enabled = TRUE;
@@ -729,6 +777,8 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
                                                    Process logged out */
               Sleep(3000);
               k_exit_cause = K_TERMINATE;
+            } else {
+              idle_carry = TRUE; /* 28 Oct 26 S.88 (S3): the caller's own timeout: the next wait goes on counting */
             }
 
             process.status = ER_TIMEOUT;

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): kernel(K$AUTOLOGOUT, -2) returns the inactivity clock
+ *           (keyin_idle_ms()) instead of the period, for the IDE's countdown.
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone with the KEEP.SELECT statement and OPTION CLEAR.SELECT; the number stays reserved.
  * 24 Oct 26 SD Core for Linux Solo (Solo carry 19): K_EDIT_OS_OK (126, SD Core's number and name), an OS pathname about to be written, created, deleted or copied into: asks edit_os_path_refusal()
  *           (op_sh.c; the VOC is the one kind Solo classifies).  !OSCOPY and !IOSCOPY ask it, as Core's do.
@@ -156,7 +158,7 @@ void op_kernel() {
      K$COLLATION.NAME     Set primary collation map name
      K$AK.COLLATION       Select AK collation map
      K$EXIT.STATUS        Set exit status
-     K$AUTOLOGOUT         Set/retrieve autologout period
+     K$AUTOLOGOUT         Set/retrieve autologout period (-1 reads it; -2 reads the inactivity clock in ms)
      K$MAP.DIR.IDS        Enable/disable dir file id mapping
  */
 
@@ -1166,7 +1168,7 @@ void op_kernel() {
       GetInt(descr);
       if (descr->data.value >= 0)
         autologout = descr->data.value;
-      result.data.value = autologout;
+      result.data.value = (descr->data.value == -2) ? keyin_idle_ms() : autologout;
       break;
 
     case K_MAP_DIR_IDS:
