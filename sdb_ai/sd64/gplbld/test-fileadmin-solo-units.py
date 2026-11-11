@@ -28,6 +28,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.abspath(os.path.join(HERE, os.pardir))
 SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
+
+# Requests 50 to 67 of apisrvr's dispatch: the client library carry (SD Core's numbers of 15 Oct 26), merged with this carry on 11 Nov 2026.
+CLIENT_50_67 = ["vb.getvar", "vb.system", "vb.trans", "vb.rtrans", "vb.txn", "vb.evaluate", "vb.evalconv", "vb.iconv", "vb.oconv",
+                "vb.iconvs", "vb.oconvs", "vb.openseq", "vb.readseq", "vb.readblk", "vb.writeseq", "vb.writeblk", "vb.seek", "vb.weofseq"]
 SRC = os.path.join(SD64, "gplsrc")
 
 FILES = {
@@ -133,8 +137,9 @@ def checks(srcs):
     ck("S2 a refusal is audited FIRST ('api refused request=N global=off user=...'), then answered ON ERROR with message 14964 naming the request, and nothing is dispatched (goto return.status.set)",
        0 < i_aud < i_err < i_go and 0 < i_msg < i_go, (i_aud, i_err, i_msg, i_go))
     d = dispatch(api)
-    ck("S3 the dispatch list: 49 is vb.sshkey (Solo's own), 50 to 67 are vb.illegal.action, 68 vb.writeseqkey, 69 vb.writeuseqkey, 70 vb.fileadmin, 71 vb.fcontrol, and nothing after them but the default",
-       len(d) == 73 and d[49] == "vb.sshkey" and all(x == "vb.illegal.action" for x in d[50:68]) and d[68:72] == ["vb.writeseqkey", "vb.writeuseqkey", "vb.fileadmin", "vb.fcontrol"]
+    # 11 Nov 2026: 50 to 67 are the client library carry's handlers (SD Core's numbers), merged with this carry the same day.
+    ck("S3 the dispatch list: 49 is vb.sshkey (Solo's own), 50 to 67 are the client library's handlers in SD Core's order, 68 vb.writeseqkey, 69 vb.writeuseqkey, 70 vb.fileadmin, 71 vb.fcontrol, and nothing after them but the default",
+       len(d) == 73 and d[49] == "vb.sshkey" and d[50:68] == CLIENT_50_67 and d[68:72] == ["vb.writeseqkey", "vb.writeuseqkey", "vb.fileadmin", "vb.fcontrol"]
        and d[72] == "vb.illegal.action", "%d entries; %r" % (len(d), d[48:]))
     sf = block(api, "vb.scram.final:", "scram.check.proof - does")
     ck("S4 K$GLOBAL.SESSION is set ONCE in apisrvr, in vb.scram.final, only when the proof matched $global (scram.via = 'global') and only after K$ADMINISTRATOR took",
@@ -257,7 +262,7 @@ MUTANTS = [
     ("the gate leaves 71 out", "S1", sub("apisrvr", "if action >= 68 and action <= 71 then", "if action >= 68 and action <= 70 then")),
     ("the refusal is not audited", "S2", sub("apisrvr", "void kernel(K$AUDIT, 'api refused request=' : action : ' global=off user=' : @logname)", "null")),
     ("the refusal answers OK", "S2", sub("apisrvr", "         server.error = SV$ON.ERROR\n         abort.message = sysmsg(14964, action)", "         abort.message = sysmsg(14964, action)")),
-    ("a dispatch slot is lost (70 lands on 69's handler)", "S3", sub("apisrvr", "   vb.illegal.action, ;*  67\n", "")),
+    ("a dispatch slot is lost (70 lands on 69's handler)", "S3", sub("apisrvr", "   vb.weofseq,        ;*  67   Truncate at the position (QMWeofSeq)\n", "")),
     ("the global flag is set for any proof", "S4", sub("apisrvr", "               if scram.via = 'global' then\n                  if kernel(K$ADMINISTRATOR, 1) then",
                                                        "               if 1 then\n                  if kernel(K$ADMINISTRATOR, 1) then")),
     ("the kernel sets the flag without the administrator", "S5", sub("op_kernel.c", "if ((n > 0) && (my_uptr->flags & USR_ADMIN))\n          my_uptr->flags |= USR_GLOBAL;",

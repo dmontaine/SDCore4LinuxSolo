@@ -40,6 +40,10 @@
 #   to an account-password session with 14964 and served to a global-password one; it SETS a global password in the sandbox with solo_password GLOBAL and puts $cred back byte for byte at the
 #   end, and removes its files zzh, zznew, zzdirx and programs zzfx, zzfs) and netindex-solo (sandbox-netindex-solo.py: the index query requests of an account-password session; it removes
 #   zzx and zzix).  Both run after sdnet.
+# 11 Nov 2026, the client library carried (SD Core's QMClient work of 15 Oct 26): qmclient-solo (sandbox-qmclient-solo.py: the sandbox's sdclilib.so through ctypes, signed on with
+#   SDConnect to `sd -n -q` servers it starts on a port of its own, parts A-U).  It makes the files zzcl, zzlog, zzdir, zzsq and three catalogued subroutines in sduser and removes them
+#   at the end, flips the register's OS field and puts the record back byte for byte, and in its last part (T) stops the shared sandbox, appends SDCLIENT=1 and =2 to sd.conf below a
+#   marker, and starts it again with sd.conf as built.  It runs after apifile; it takes about five minutes (part K idles 70 s).
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -49,7 +53,7 @@ mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
 # txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
-for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet fileadmin-solo netindex-solo sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
+for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile qmclient-solo crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet fileadmin-solo netindex-solo sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)
