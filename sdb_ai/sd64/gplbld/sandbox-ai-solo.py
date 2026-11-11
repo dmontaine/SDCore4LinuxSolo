@@ -452,6 +452,11 @@ def cell(h, r):
     return h.line(r)[3:138].rstrip()
 
 
+def f6(h):
+    """F6, the key that changes box on every page (the linux terminal's sequence, typed, so that the suite does not depend on the key map of the home suite's H)."""
+    h.typed("\x1b[17~", idle=0.8)
+
+
 def page(cols=140, rows=43):
     h = H(admin=True, cols=cols, rows=rows)
     h.typed("tool.ai\r", idle=3.0)
@@ -627,7 +632,9 @@ def sec_page():
     adm("set.ai provider anthropic")
     h = page()
     h.key("tab", idle=0.8)
-    row("T17a Tab moves to the Account box (the status line names it)", st(h).startswith("[Account]"), repr(st(h)))
+    row("T17a0 Tab does NOT change box (11 Nov 26, S.117: F6 does, on every page): the status line still names Provider", st(h).startswith("[Provider]"), repr(st(h)))
+    f6(h)
+    row("T17a F6 moves to the Account box (the status line names it)", st(h).startswith("[Account]"), repr(st(h)))
     r25 = cell(h, 25)
     row("T17b one row, the account and the Linux user, the gate off", re.match(r"^this account\s+%s\s+off$" % re.escape(os.environ.get("USER", "")), r25) is not None, repr(r25))
     row("T17c the summary says the gate is off (as delivered) and what Enter does", h.line(31)[3:].startswith("The gate is off (as delivered): nothing can be sent to the provider.  Enter turns the gate on."), repr(h.line(31)[3:120]))
@@ -664,7 +671,7 @@ def sec_page():
     row("T20b M then says the helper could not be reached (11607); the page is still there", msg(11607) in st(h) and "What this means" in h.text(), repr(st(h)))
     h.key("enter", idle=1.0)
     row("T20c Enter on a provider says the same and opens no box", msg(11607) in st(h) and "set.ai provider" not in h.text(), repr(st(h)))
-    h.key("tab", idle=0.8)
+    f6(h)
     h.key("enter", idle=1.0)
     row("T20d Enter in the Account box says the same and opens no box", msg(11607) in st(h) and "set.ai gate" not in h.text(), repr(st(h)))
     h.key("ctrl-q", idle=1.5)

@@ -42,7 +42,9 @@ LINUX = dict(XTERM, up=E + "[A", down=E + "[B", right=E + "[C", left=E + "[D", f
 VT100 = {"up": E + "OA", "down": E + "OB", "right": E + "OC", "left": E + "OD", "home": E + "[H", "f1": E + "OP", "f2": E + "OQ", "f3": E + "OR", "f4": E + "OS", "f5": E + "OT",
          "f6": E + "OU", "f7": E + "OV", "f8": E + "OL", "f9": E + "OW", "f10": E + "OX"}
 PLAIN = {"tab": "\t", "enter": "\r", "bs": "\x7f", "esc": E, "ctrl-a": "\x01", "ctrl-g": "\x07", "alt-s": E + "s"}
-F2, CTRL_X_S = E + "OQ", "\x18\x13"
+# 11 Nov 26 (S.117): Ctrl-S is the one save key of the IDE, and SED is the IDE's editor by itself, so both names are Ctrl-S now (they were F2 and Ctrl-X Ctrl-S).
+#   The refusal and the "Saved" line are looked for anywhere on the screen: the IDE says a refusal in a box, and its status line is not row 42 any more.
+F2, CTRL_X_S = "\x13", "\x13"
 VOC_REFUSAL = "The VOC can only be changed after admin (the administrator password)"
 
 
@@ -199,9 +201,9 @@ def sec_keys():
         say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
         bail("tool.keys never drew its screen, so no row below can be believed")
     row("the seven boxes are there: Terminal, Last keys, Keys seen, Mouse, Box drawing, Help, Styles", all(s in L for s in ("Terminal", "Last keys", "Keys seen", "Mouse", "Box drawing", "Help", "Styles")), L[:200])
-    row("the function-key row is row 42: '^L clear  ^R raw/names  ^T theme  ^Q quit'; the status line [Keys]; row 0 names the app and the user", t.line(42) == "^L clear  ^R raw/names  ^T theme  ^Q quit"
+    row("the function-key row is row 42: '^L clear  ^R raw/names  ^T theme  ^Q quit'; the status line [Keys]; row 0 names the app and the user", t.line(42) == "^L clear  ^R raw/names  ^T theme  ^K keys  ^Q quit"
         and t.line(40).startswith("[Keys]") and "tool.keys" in t.line(0) and "sduser" in t.line(0), repr((t.line(42), t.line(40), t.line(0)[-40:])))
-    for want in ("TERM (SD)   xterm", "Window      140 x 43  (layout 140 x 43)", "Colour      yes", "Theme       mono", "Keys seen   0 of 52, 0 pressed"):
+    for want in ("TERM (SD)   xterm", "Window      140 x 43  (layout 140 x 43)", "Color       yes", "Theme       mono", "Keys seen   0 of 52, 0 pressed"):
         row("Terminal box: %r" % want, want in L, "")
     t.end()
     names_row("xterm", dict(XTERM, **PLAIN))
@@ -228,7 +230,7 @@ def sec_keys():
     t.end()
     t = Term("tool.keys", term="vt100")
     t.key("\x14")
-    row("Ctrl-T on a vt100 (no colour) keeps mono and says why", "Theme       mono" in t.text() and "cannot show colour" in t.line(40), repr(t.line(40)))
+    row("Ctrl-T on a vt100 (no colour) keeps mono and says why", "Theme       mono" in t.text() and "cannot show color" in t.line(40), repr(t.line(40)))
     t.end()
     t = Term("tool.keys", cols=100, rows=30)
     row("a window of 100 by 30 is refused: 'tool.keys needs a window of at least 140 columns by 43 lines'", "tool.keys needs a window of at least 140 columns by 43 lines" in t.text() and "Last keys" not in t.text(), t.text()[-200:])
@@ -292,6 +294,12 @@ end
         "RESULT go ck=1 sl=1 se=2 en=ab" in t.text(), t.text()[-300:])
     t.end()
 
+def refusal_shown(t):
+    """Solo's VOC refusal anywhere on the screen; a box wraps it, so the lines are joined and the box's own bars and spaces taken out before the text is looked for."""
+    flat = re.sub(r"[|\s]+", " ", t.text())
+    return re.sub(r"\s+", " ", VOC_REFUSAL) in flat
+
+
 def sec_voc():
     say("\n--- SED and the IDE save into the VOC only after ADMIN (the one deliberate difference from Core), and into a user file without it")
     write_prog("zzmkv", "   open 'VOC' to v else crt 'NOVOC' ; stop\n   write 'X':@fm:'one' to v, 'zzvoc'\n   crt 'MADE'\nend\n")
@@ -311,13 +319,13 @@ def sec_voc():
     t = Term("SED VOC zzvoc")
     t.key("ABC")
     t.key(CTRL_X_S, idle=1.0)
-    row("SED, not ADMIN: Ctrl-X Ctrl-S into the VOC is refused with Solo's reason in the message line", VOC_REFUSAL in t.line(40), repr(t.line(40)))
+    row("SED (the IDE's editor), not ADMIN: Ctrl-S into the VOC is refused with Solo's reason on the screen", refusal_shown(t), t.text()[-700:])
     t.hangup()
     row("...and the VOC record on the disk is as it was ('X')", voc_first_field() == "X", repr(voc_first_field()))
     t = Term("IDE VOC zzvoc")
     t.key("ABC")
     t.key(F2, idle=1.0)
-    row("the IDE, not ADMIN: F2 into the VOC is refused with the same reason in the status line", VOC_REFUSAL in t.line(42), repr(t.line(42)))
+    row("the IDE, not ADMIN: Ctrl-S into the VOC is refused with the same reason on the screen", refusal_shown(t), t.text()[-700:])
     t.hangup()
     row("...and the VOC record is still 'X'", voc_first_field() == "X", repr(voc_first_field()))
 
@@ -329,7 +337,7 @@ def sec_voc():
     t = Term("IDE VOC zzvoc", admin=True)
     t.key("ABC")
     t.key(F2, idle=1.0)
-    row("the IDE after ADMIN: 'Saved VOC zzvoc' in the status line", "Saved VOC zzvoc" in t.line(42), repr(t.line(42)))
+    row("the IDE after ADMIN: the save is said on the screen (the word Saved with zzvoc) and no refusal is", re.search(r"(?i)saved.*zzvoc", t.text()) is not None and not refusal_shown(t), t.text()[-500:])
     t.hangup()
     row("...read from the disk", voc_first_field() == "ABCQX", repr(voc_first_field()))
 
@@ -341,7 +349,7 @@ def sec_voc():
     t = Term("IDE zzufile rec1")
     t.key("ABC")
     t.key(F2, idle=1.0)
-    saved = "Saved zzufile rec1" in t.line(42)
+    saved = re.search(r"(?i)saved.*zzufile", t.text()) is not None
     t.hangup()
     row("the IDE saves into a user file without ADMIN: 'Saved zzufile rec1' and the record is 'ABCQX'", saved and user_first_field() == "ABCQX", repr((t.line(42), user_first_field())))
 
@@ -353,7 +361,8 @@ def sec_size():
     body = secret("account.pw") + "\nBASIC bp zzsz\nRUN bp zzsz\nTERM 200,50\nRUN bp zzsz\nTERM DEFAULT\nRUN bp zzsz\nOFF\n"
     p = subprocess.run([os.path.join(SYS, "bin", "sd-solo")], input=body, capture_output=True, text=True, errors="replace", cwd=SYS, env=env, timeout=120)
     sizes = re.findall(r"^SIZE (\d+x\d+)", ANSI.sub("", p.stdout), re.M)
-    row("a session with no terminal has 140 by 42; TERM 200,50 sets 200 by 50; TERM DEFAULT gives 140 by 42 again", sizes == ["140x42", "200x50", "140x42"], repr(sizes))
+    # 11 Nov 26: 43 lines, as every full-screen page needs.  The kernel's own default was still 42 (tio.h) while TERM DEFAULT gave 43; the kernel carry of this day makes them one.
+    row("a session with no terminal has 140 by 43; TERM 200,50 sets 200 by 50; TERM DEFAULT gives 140 by 43 again", sizes == ["140x43", "200x50", "140x43"], repr(sizes))
 
 def sec_eof():
     say("\n--- the end of the input ends tool.keys (a pipe)")

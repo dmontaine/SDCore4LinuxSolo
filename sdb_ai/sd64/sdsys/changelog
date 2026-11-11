@@ -1,6 +1,35 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  THE FULL-SCREEN PAGES OF SD CORE FOR LINUX ARE IN SOLO (carried from SD Core for Linux's work of 28 Oct to 11 Nov 2026).
+
+             What        The home screen, the IDE, the debugger's display and every full-screen page now look and answer keys the same
+                         way: a menu bar on the top row (F10, or Esc when nothing is open), F1 help, F2 to find an action by name, F5 to
+                         read again, F6 and Shift-F6 to move between boxes (Tab no longer does), Ctrl-T for the next color theme, which
+                         SD keeps for you, Ctrl-K for the keys, Ctrl-Q to leave. The pages need a window of 140 columns by 43 lines and
+                         use a bigger window whole. The delivered look is "paper", dark text on light gray (SCREENTHEME in sd.conf; an
+                         upgrade adds the line to a file that has none and leaves a line you set alone).
+                         New pages for your account, each also a tile in the group Develop of the home screen: tool.files, tool.voc,
+                         tool.dict, tool.query, tool.bulk, tool.catalog and tool.test. New pages after ADMIN: tool.audit (the audit
+                         trail), tool.backups, tool.config (sd.conf, with set.config to change a tuning parameter) and tool.remote (the
+                         API and ssh doors, the SDNet servers, who is connected, the TLS identity).
+                         New commands after ADMIN: set.config parameter value changes one of fourteen tuning parameters of sd.conf,
+                         inside the range SD enforces, and keeps the file as it was as sd.conf.bak. remote.api and remote.ssh, each
+                         off, local or open, report or change whether SD listens for the API (port 4249) and for its own ssh (port
+                         4251); with no word they report and change nothing. Until now the API's setting could be changed only by
+                         installing again.
+                         SED is now the IDE's editor started by itself: the same keys, menus and colors, one record at a time. SP.VIEW
+                         shows a record in the same frame. The installer installs gpm, so the pages have a mouse on a bare Linux
+                         console; if gpm cannot be installed the install goes on without it.
+             Why it      One set of keys to learn for every page, and the everyday work on files, dictionaries, queries, programs and
+             matters     tests can be done from a page that shows the exact command before it runs it.
+             Does not    Add access. A page runs the command you could have typed, after a box that shows it, and Cancel is what Enter
+                         chooses; the administrator's pages and commands still need ADMIN. remote.api and remote.ssh change your own
+                         systemd units only: no firewall is changed and no sudo is run, and where a firewall is running "open" reaches
+                         nobody until the port is allowed (the command shows the line to run). The line "Your gates" on the development
+                         pages always says on: Solo has no edit gates. Solo has one account, so SD Core's pages for accounts, routes,
+                         the sdsys login, master files and scheduled jobs are not here.
+
 09 Nov 26  SD STAYS REACHABLE WHEN NOBODY IS SIGNED IN: THE INSTALLER TURNS LINGER ON BY DEFAULT (the owner, 9 Nov 2026: "linux and
            windows solo both need to be set up so that SD is accessible remotely even if the user is not logged in at the console",
            then "Yes, on by default").
