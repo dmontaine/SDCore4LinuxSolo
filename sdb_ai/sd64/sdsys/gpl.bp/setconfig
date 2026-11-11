@@ -1,0 +1,239 @@
+* SETCONFIG
+* SET.CONFIG verb: change one tuning parameter of sd.conf (the write half of tool.config).  SD Core for Linux Solo's own program.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 11 Nov 26 dm  New in Solo (S.117, the carry of SD Core's full-screen work: tool.config's Set ran a verb Solo had not got; the owner, 11 Nov 2026: "Yes, carry them").
+*               SD Core's program of the same name hands the write to its root helper (sd-elevate conf-set), because its sd.conf is root's file in /etc.  Solo has no
+*               root helper and its sd.conf is the user's own file in the Solo folder, so this program does the helper's part itself: the list and the ranges are read
+*               from config.table, the file is rewritten beside itself and renamed, the file as it was is kept as sd.conf.bak, and the result is read back.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SET.CONFIG parameter value       changes one parameter of sd.conf, for example  set.config cleanup 600
+*
+*   The administrator's verb (ADMIN first).  It changes ONLY the parameters that config.table marks write = yes (the ones config.c range-checks: CLEANUP DHCACHE GRPSIZE
+*   LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK NETREPLY NETWAIT NUMLOCKS RECCACHE SORTMRG USPLIT), and only to a whole number inside the range the table gives, which
+*   is the range SD itself enforces when it reads the file.  Every other parameter is changed by hand, as before; tool.config shows which are which and why.
+*
+*   THE FILE is the one this SD reads: the path in the environment variable SD_CONFIG if it is set, else sd.conf in the Solo folder (the rule of gplsrc/inipath.c,
+*   and of !acc_os_bakdir, which writes the BACKUPDIR line of the same file).  It adds no access: the file is the user's own and an editor changes it too.
+*
+*   WHAT IS CHECKED BEFORE ANYTHING IS WRITTEN: the caller is the administrator; there are exactly two words after the verb; the first has only letters and digits
+*   (it is made capital letters, as sd.conf spells it), the second only digits; the name is in config.table with write = yes; the number is inside the range; the
+*   file exists, has no single quote in its path, and has an [sd] section.  THE WRITE: the KEY= line of the [sd] section is replaced where it is (a second line of
+*   the same key in that section is dropped), or the line is added at the end of the section; every other line is kept as it was.  The new text is written to
+*   sd.conf.new beside the file, the file as it was is copied to sd.conf.bak (one generation), and the new file is renamed over it with the old file's mode.
+*   SUCCESS IS THE FILE READ BACK: exactly one KEY= line in the [sd] section, and it says the value.
+*
+*   ONE AUDIT LINE for each change asked for and checked:  set.config key=<name> value=<number> status=ok  or  status=refused.  Nothing here could be a secret.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program set.config
+$catalog $setconfig
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   prompt ''
+   @system.return.code = -ER$ARGS
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   words = trim(@sentence)
+   if dcount(words, ' ') # 3 then stop sysmsg(14973)             ;* set.config parameter value
+
+   pname = upcase(field(words, ' ', 2))
+   pval = field(words, ' ', 3)
+
+*  Only letters and digits go any further: the name up to 12, the value up to 7 digits
+   good = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+   ok = (len(pname) >= 1 and len(pname) <= 12)
+   for i = 1 to len(pname)
+      if index(good, pname[i, 1], 1) = 0 then ok = @false
+   next i
+   if not(ok) then stop sysmsg(14972)                            ;* The parameter name has only letters and digits
+   ok = (len(pval) >= 1 and len(pval) <= 7)
+   for i = 1 to len(pval)
+      if index('0123456789', pval[i, 1], 1) = 0 then ok = @false
+   next i
+   if not(ok) then stop sysmsg(11933)                            ;* The value is a whole number written with digits only
+
+   why = ''
+   effect = ''
+   gosub read.table
+   if why = '' then gosub write.conf
+
+   if why # '' then
+      st = 'refused'
+      gosub write.audit
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11934, why)                                    ;* sd.conf was not changed: %1
+   end
+
+   st = 'ok'
+   gosub write.audit
+   @system.return.code = 0
+   display sysmsg(11935, pname, pval)                            ;* %1 is now %2 in sd.conf
+   if effect = 'restart' then display sysmsg(11936)              ;* It takes effect when SD is next stopped and started
+   if effect = 'session' then display sysmsg(11937)              ;* Sessions started from now on use it
+   stop
+
+* The parameter's row of config.table: key | kind | default | min | max | effect | status | text | write | why.  Out: why (null when the change is allowed), effect.
+read.table:
+   found = @false
+   openseq @sdsys : @ds : 'config.table' readonly to tf then
+      loop
+         readseq tl from tf else exit
+         if tl[1, 1] # '#' and field(tl, '|', 1) = pname then
+            found = @true
+            t.min = field(tl, '|', 4)
+            t.max = field(tl, '|', 5)
+            effect = field(tl, '|', 6)
+            t.wr = field(tl, '|', 9)
+            t.why = field(tl, '|', 10)
+            exit
+         end
+      repeat
+      close tf
+   end else
+      if not(unassigned(tf)) then close tf                        ;* an OPENSEQ that took ELSE keeps the name locked until the variable is closed
+      why = 'the parameter table (config.table) could not be read'
+      return
+   end
+   begin case
+      case not(found)
+         why = pname : ' is not a parameter of sd.conf that SD knows'
+      case t.wr # 'yes'
+         why = pname : ' is not changed by set.config (' : t.why : '); edit sd.conf by hand'
+      case not(num(t.min)) or not(num(t.max)) or t.min = '' or t.max = ''
+         why = 'the parameter table gives no range for ' : pname
+      case pval + 0 < t.min + 0 or pval + 0 > t.max + 0
+         why = pname : ' takes a whole number from ' : t.min : ' to ' : t.max
+   end case
+   return
+
+* The file rewritten.  Out: why, null when the file reads back with the one line.
+write.conf:
+   conf = env('SD_CONFIG')
+   if conf = '' then conf = @sdsys : @ds : 'sd.conf'
+   if index(conf, "'", 1) then
+      why = conf : ' has a single quote in its name'
+      return
+   end
+   wanted = pname : '=' : pval
+   gosub read.conf
+   if why # '' then return
+   if sec.at = 0 then
+      why = conf : ' has no [sd] section, so there is nowhere to put ' : pname
+      return
+   end
+   if key.n = 1 and trim(lines<key.at>) = wanted then return      ;* it says so already: nothing is written, and that is a success
+
+*  The new text: the first line of the key replaced where it is, later ones of the section dropped, or the line added at the section's end
+   nw = ''
+   nn = 0
+   for i = 1 to nl
+      begin case
+         case i = key.at
+            nn += 1 ; nw<nn> = wanted
+         case index(drops, ' ' : i : ' ', 1) > 0
+            null
+         case 1
+            nn += 1 ; nw<nn> = lines<i>
+      end case
+      if key.at = 0 and i = sec.end then
+         nn += 1 ; nw<nn> = wanted
+      end
+   next i
+
+   tmp = conf : '.new'
+   openseq tmp overwrite to nf else
+      if status() then
+         if not(unassigned(nf)) then close nf
+         why = tmp : ' could not be made (status ' : status() : ')'
+         return
+      end
+   end
+   for i = 1 to nn
+      writeseq nw<i> to nf else
+         close nf
+         why = tmp : ' could not be written'
+         return
+      end
+   next i
+   weofseq nf
+   close nf
+
+   dq = char(34)
+   cmd = "f='" : conf : "'; cp -p -- " : dq : "$f" : dq : " " : dq : "$f.bak" : dq
+   cmd := " && chmod --reference=" : dq : "$f" : dq : " -- " : dq : "$f.new" : dq
+   cmd := " && mv -f -- " : dq : "$f.new" : dq : " " : dq : "$f" : dq : " 2>&1"
+   out = ''
+   os.execute cmd capturing out
+   stat = os.error()
+   if stat # 0 then
+      why = 'the new file could not be put in place: ' : convert(@fm, ' ', out)
+      return
+   end
+
+   gosub read.conf
+   if why # '' then return
+   if key.n # 1 or trim(lines<key.at>) # wanted then
+      why = conf : ' does not read back as written (the file as it was is ' : conf : '.bak)'
+   end
+   return
+
+* In: conf, pname.  Out: lines, nl; sec.at the line of [sd] (0 none), sec.end its last line; key.at the first KEY= line of the section (0 none), key.n how many,
+*   drops the later ones as ' n n ' ; why if the file cannot be read.
+read.conf:
+   lines = ''
+   nl = 0
+   sec.at = 0
+   sec.end = 0
+   key.at = 0
+   key.n = 0
+   drops = ' '
+   in.sd = @false
+   klen = len(pname) + 1
+   openseq conf readonly to cf then
+      loop
+         readseq cl from cf else exit
+         nl += 1
+         lines<nl> = cl
+         t = trim(cl)
+         if t[1, 1] = '[' then
+            in.sd = (upcase(t) = '[SD]' and sec.at = 0)
+            if in.sd then sec.at = nl
+         end
+         if in.sd then
+            sec.end = nl
+            if upcase(t[1, klen]) = pname : '=' then
+               key.n += 1
+               if key.at = 0 then key.at = nl else drops := nl : ' '
+            end
+         end
+      repeat
+      close cf
+   end else
+      if not(unassigned(cf)) then close cf
+      why = conf : ' could not be read'
+   end
+   return
+
+write.audit:
+   void kernel(K$AUDIT, 'set.config key=' : downcase(pname) : ' value=' : pval : ' status=' : st)
+   return
+
+end
+
+* END-CODE

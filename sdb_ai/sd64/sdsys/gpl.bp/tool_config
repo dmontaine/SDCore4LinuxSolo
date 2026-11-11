@@ -6,6 +6,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 11 Nov 26 dm  Solo (S.117): the file is this SD's own sd.conf (SD_CONFIG, else sd.conf in the Solo folder), never /etc/sd.conf, and SET.CONFIG writes it itself:
+*               Solo has no root helper.  The three texts that named /etc/sd.conf and the helper say so.  The rest of the page is SD Core's.
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the parameter list takes the extra rows, every
 *               box and text is as wide as the window, and the detail wraps at the box's width. The rows, widths, hit tests and the [?] button are counted from the pane rectangles.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
@@ -217,7 +219,7 @@ read.table:
 read.file:
    fk = '' ; fv = ''
    conf.path = env('SD_CONFIG')
-   if conf.path = '' then conf.path = '/etc/sd.conf'
+   if conf.path = '' then conf.path = @sdsys : @ds : 'sd.conf'      ;* Solo: the rule of gplsrc/inipath.c, and of SET.CONFIG
    file.err = ''
    section = ''
    openseq conf.path readonly to cf then
@@ -559,7 +561,7 @@ draw.backup:
    for r = 1 to DV
       screen text '' at tx,det.y + r width tw
    next r
-   screen text 'The directory is saved with SET.BACKUP.DIRECTORY, which proves it writable and writes the one line of sd.conf (BACKUPDIR) through the root helper.' at tx,det.y + 1 width tw
+   screen text 'The directory is saved with SET.BACKUP.DIRECTORY, which proves it writable and writes the one line of sd.conf (BACKUPDIR).' at tx,det.y + 1 width tw
    screen text 'This page only shows it. NETFILES and SDCLIENT, which decide what an API login may reach, are on the parameters view.' at tx,det.y + 2 width tw
    return
 
@@ -809,16 +811,13 @@ change.param:
    sent = 'set.config ' : downcase(k) : ' ' : nv
    typed = ''
    el = ''
-   el<-1> = 'Sets ' : k : ' to ' : nv : ' in /etc/sd.conf (now ' : old.f : '; the default is ' : (if pdef<i> = '' then 'none' else pdef<i>) : '). The line is replaced where it is, every other line is kept, and the file as it is now is kept as /etc/sd.conf.bak.'
-   if conf.path # '/etc/sd.conf' then
-      el<-1> = 'This session reads ' : conf.path : ', but the root helper changes /etc/sd.conf only.'
-   end
+   el<-1> = 'Sets ' : k : ' to ' : nv : ' in ' : conf.path : ' (now ' : old.f : '; the default is ' : (if pdef<i> = '' then 'none' else pdef<i>) : '). The line is replaced where it is, every other line is kept, and the file as it is now is kept beside it as sd.conf.bak.'
    if peff<i> = 'restart' then
       el<-1> = 'It takes effect when SD is next stopped and started (sd -stop, then sd -start). Until then SD, and every session, keeps running with ' : fo : '.'
    end else
       el<-1> = 'Sessions started after this read the new value. This session, and any that are already running, keep ' : fo : '.'
    end
-   el<-1> = 'The root helper makes the change and the verb writes one line to the audit trail.'
+   el<-1> = 'The verb makes the change and writes one line to the audit trail.'
    call $tk_confirm(sent, el, typed, res, cmsg)
    if res # 'run' then
       msg = cmsg
