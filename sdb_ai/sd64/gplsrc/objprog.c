@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, the owner: US spelling in everything SD prints): "Unrecognized property/method name".
  * 28 Oct 26 dm  S.87: AH_PICK_STYLE is gone (no Pick style matrix is made any more): element 0 of a matrix is always valid.
  * 16 Oct 26 dm  A name map of 32 entries or more is looked up through a hash index (QM4 Fixes item 13): next_named_entry().
  * 16 Oct 26 dm  RESTRICTED names (QM4 gaps): find_name_map_entry() skips one the running object is not in the inheritance tree of.
@@ -484,7 +485,7 @@ void op_objref() {
        reference this.                                                  */
 
     if (!find_undefined_name_handler(mode, objdata, name, TRUE)) {
-      k_error("Unrecognised property/method name (%s).", name);
+      k_error("Unrecognized property/method name (%s).", name);
     }
   }
 

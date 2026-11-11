@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, the owner: US spelling in everything SD prints): Unrecognized, initializing.
  * 11 Nov 26 dm  Carried from SD Core (25 Oct 26, commit 3d3890e3): check_file() knows the DH_INDEX2 magic of a right justified index in the total order
  *               (it would otherwise delete a good index as a bad header).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -567,7 +568,7 @@ int process_file() {
 
   /* !!FILE_VERSION!! */
   if (header.file_version > DH_VERSION) {
-    emit("Unrecognised file version (%d)\n", (int)header.file_version);
+    emit("Unrecognized file version (%d)\n", (int)header.file_version);
     if (!interactive)
       goto exit_process_file;
   }
@@ -661,7 +662,7 @@ int process_file() {
         emit("Z          show statistic counters\n");
         emit("n          show window from given hex address\n");
       } else {
-        emit("Unrecognised command. Enter ? for help\n");
+        emit("Unrecognized command. Enter ? for help\n");
       }
     } while (!done);
   } else /* Automatic mode */
@@ -1263,7 +1264,7 @@ bool check_file() {
             ebuff->block_type = DHT_DATA;
           }
 
-          emit("   Corrected by initialising %d groups starting at %d\n", grp - released_group, released_group);
+          emit("   Corrected by initializing %d groups starting at %d\n", grp - released_group, released_group);
 
           while (released_group < grp) {
             write_block(PRIMARY_SUBFILE, (((int64)(released_group - 1)) * group_bytes) + header_bytes, group_bytes, (char *)ebuff);
@@ -2167,7 +2168,7 @@ Private void show_node(int32_t group) {
       break;
 
     default:
-      emit("Unrecognised node type (%d)\n", (int)((DH_INT_NODE *)&buffer)->node_type);
+      emit("Unrecognized node type (%d)\n", (int)((DH_INT_NODE *)&buffer)->node_type);
   }
 
   emit("\n");
