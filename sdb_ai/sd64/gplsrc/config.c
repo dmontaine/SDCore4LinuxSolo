@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 11 Nov 26 dm  GRPSIZE defaults to 4 (it was 1; the shipped sd.conf said 2, now 4), as in SD Core for Linux since 25 Oct 26.  An sd.conf that names GRPSIZE keeps it.
  * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
  * 19 Oct 26 dm  NETWAIT and NETREPLY are held in 32 bit fields (config.h): 65541 in sd.conf wrapped to 5 in the 16 bit field BEFORE rangecheck, so SD started with a 5 second wait instead of
  *               refusing the value.  (PWDELAY and DHCACHE are 16 bit fields read the same way and wrap the same way; they are not changed here.)
@@ -131,7 +132,7 @@ struct CONFIG* read_config(char* errmsg) {
       (snprintf(pcfg.grpdir, MAX_PATHNAME_LEN + 1, "%s/group_accounts", home)  /* GRPDIR: group accounts parent dir */
        >= MAX_PATHNAME_LEN + 1))
     pcfg.grpdir[0] = '\0';
-  pcfg.grpsize = 1;               /* GRPSIZE:  Default group size */
+  pcfg.grpsize = 4;               /* GRPSIZE:  Default group size (1 until 11 Nov 26; the shipped sd.conf said 2, now 4) */
   pcfg.intprec = 11;              /* INTPREC:  Precision for INT() etc. 13 until 1.2-0 (openQM 2.6-9, item 6) */
   pcfg.lptrhigh = 66;             /* LPTRHIGH: Default printer lines */
   pcfg.lptrwide = 80;             /* LPTRWIDE: Default printer width */

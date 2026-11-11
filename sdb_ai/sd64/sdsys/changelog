@@ -22,6 +22,20 @@ Next release - in progress
                          AKREAD, AKWRITE, AKDELETE, CLEAR.AK, AKENABLE and AKMAP are still refused on a remote file. A path, a quote,
                          PATHNAME, LPTR, FORCE and NO.QUERY are never passed to a verb run on the server.
 
+11 Nov 26  NEW HASHED FILES ARE MADE WITH 4 KB GROUPS, NOT 2 KB: FAR FEWER OF THEIR GROUPS OVERFLOW (carried from SD Core for Linux's
+           change of 25 Oct 2026; the owner, 11 Nov 2026: "Yes, 4 KB like Core").
+
+             What        GRPSIZE, the group size of a file made without one, is 4 (KB) in the sd.conf that is shipped; it was 2, and the
+                         built-in value used when sd.conf does not say was 1, and is 4 as well. Measured in SD Core on 200,000 records of
+                         about 130 bytes with the default split and merge loads (80 and 50): groups that had overflowed were 4.8% to 11.3%
+                         at 2 KB and 0.1% to 1.7% at 4 KB; a write took 5% less, a read 5% more. Records up to 3.2 KB are now ordinary
+                         records rather than large ones.
+             Why it      An overflowed group costs a second read for every record that is in the overflow block.
+             matters
+             Does not    Change a file that exists (its size is in its header; CONFIGURE.FILE changes it), or an install that is upgraded
+                         (it keeps its sd.conf and so keeps GRPSIZE=2 until you change it), or the split and merge loads. A file with only
+                         a few records takes a little more disk than before; CONFIGURE.FILE GROUP.SIZE 2 makes one smaller.
+
 11 Nov 26  THE AI IS SENT A STANDING TEXT FIRST, AND A FOLLOW-UP QUESTION CARRIES THE EARLIER EXCHANGES (carried from SD Core for
            Linux's S.160 of 7 Nov 2026 and its follow-up work of 3 Nov 2026).
 
