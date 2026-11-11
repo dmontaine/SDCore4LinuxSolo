@@ -6,6 +6,8 @@
 *
 * START-HISTORY:
 * 23 Oct 26 dm  New.
+* 11 Nov 26 dm  S.176 carried: F6 and Shift-F6 (or Left and Right) change box, as on every page; Tab and Shift-Tab no longer do.  The key row, the opening line and
+*               the help lines say F6.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -18,7 +20,7 @@
 *     Allowed    the programs on the list now (the file viewers in the SD system directory), each with whether it still passes the test made when it is started
 *     Found      the PDF readers this machine has in /usr/bin, /usr/local/bin or /bin, each with whether it could be allowed and whether it is
 *
-*   Keys: Up and Down move in the box, Tab changes box, Enter or the space bar allows the program under the cursor (in Found) or stops allowing it (in either
+*   Keys: Up and Down move in the box, F6 and Shift-F6 (or Left and Right) change box, Enter or the space bar allows the program under the cursor (in Found) or stops allowing it (in either
 *   box), F5 reads the machine again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.
 *
 *   THE PAGE WRITES NOTHING ITSELF.  Every change is SET.VIEWER add | remove pdf name, shown with its effect in a box answered Run or Cancel (Cancel is what Enter
@@ -54,7 +56,7 @@ $include tk.h
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
-   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)                 ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
@@ -66,7 +68,7 @@ $include tk.h
    ai = 1                                                        ;* the row selected in Allowed
    fi = 1                                                        ;* the row selected in Found
    gen = 0
-   msg = 'Tab changes box, Enter allows or stops allowing the program under the cursor'
+   msg = 'F6 changes box, Enter allows or stops allowing the program under the cursor'
    done = 0
 
    gosub read.all
@@ -201,7 +203,7 @@ wrap.lines:
    return
 
 draw.help:
-   screen text 'Up and Down move.  Tab changes box.  Enter allows or stops allowing.  F1 or ? explains the box.' at 3,33 width 134
+   screen text 'Up and Down move.  F6 changes box.  Enter allows or stops allowing.  F1 or ? explains the box.' at 3,33 width 134
    screen text 'Each change is shown as its command; you answer Run or Cancel.  Allowing a program asks for its name to be typed.' at 3,34 width 134
    screen text 'F5 reads the machine again.  Ctrl-Q leaves.' at 3,35 width 134
    return
@@ -229,7 +231,7 @@ on.key:
             fi += 1
             gosub redraw
          end
-      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'right' or nm = 'left'    ;* S.176: two boxes, so either key goes to the other one; Tab and Shift-Tab do nothing
          pane = (if pane = 1 then 2 else 1)
          gosub redraw
       case nm = 'enter' or nm = ' '

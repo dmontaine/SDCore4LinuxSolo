@@ -975,6 +975,19 @@ def sec_pages():
         bail("tool.viewers never drew its page, so no row below can be believed")
     row("the page: the boxes Allowed for pdf, Found on this machine, What this means and Help", all(w in T for w in ("Allowed for pdf", "Found on this machine", "What this means", "Help")), T[:300])
     row("the Allowed box lists /usr/bin/touch and says it passes the test now", re.search(r"/usr/bin/touch\s+passes", h.line(3)) is not None, repr(h.line(3)[:80]))
+    # 11 Nov 26: F6 and Shift-F6 change box here as on every page (Core's S.176); Tab does not
+    row("the key row says 'F6 box', the status line and the Help box say 'F6 changes box', and the word Tab is nowhere on the page",
+        "F6 box" in T and re.match(r"\[Found\]\s+F6 changes box", h.line(40)) is not None and "F6 changes box." in T and "Tab" not in T, repr((h.line(40), h.line(42), h.line(33))))
+    h.key("tab", idle=0.6)
+    l_tab = h.line(40)
+    h.key("btab", idle=0.6)
+    l_btab = h.line(40)
+    row("Tab and Back-tab do not change box: the status line still names Found after each", l_tab.startswith("[Found]") and l_btab.startswith("[Found]"), repr((l_tab, l_btab)))
+    h.key("f6", idle=0.6)
+    l_f6 = h.line(40)
+    h.key("f6", idle=0.6)
+    l_f6b = h.line(40)
+    row("F6 changes box: Found to Allowed, and again back to Found", l_f6.startswith("[Allowed]") and l_f6b.startswith("[Found]"), repr((l_f6, l_f6b)))
     pos = [m.start() for m in re.finditer(r"\[\?\]", h.line(2))]
     row("a [?] at the end of each of the two boxes", len(pos) == 2, repr(h.line(2)))
     if len(pos) == 2:
@@ -988,7 +1001,7 @@ def sec_pages():
         h.key("esc", idle=0.8)
         row("...and a click on a [?] selects its box (the status line names it)", h.line(40).startswith("[Allowed]"), repr(h.line(40)))
     if h.line(40).startswith("[Found]"):
-        h.key("tab", idle=0.6)                  # to Allowed
+        h.key("f6", idle=0.6)                   # to Allowed (F6: Tab no longer changes box)
     elif h.line(40).startswith("[Allowed]"):
         pass
     h.key("enter", idle=1.2)
