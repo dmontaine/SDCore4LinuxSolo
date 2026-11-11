@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Carried from SD Core (25 Oct 26, commit 3d3890e3): check_file() knows the DH_INDEX2 magic of a right justified index in the total order
+ *               (it would otherwise delete a good index as a bad header).
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  *           process_file was commented out??, sdfix didn't do anything.
@@ -1188,7 +1190,7 @@ bool check_file() {
             if (!delete_bad_ak(sf, akno))
               goto exit_check;
           }
-        } else if (ak_header.magic != DH_INDEX) {
+        } else if ((ak_header.magic != DH_INDEX) && (ak_header.magic != DH_INDEX2)) {   /* 25 Oct 26: DH_INDEX2 is a right justified index in the total order */
           emit("AK%d subfile has incorrect magic number (%04X)\n", (int)akno, (int)(ak_header.magic));
           if (fix()) {
             if (!delete_bad_ak(sf, akno))

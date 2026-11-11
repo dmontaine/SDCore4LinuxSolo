@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Carried from SD Core (25 Oct 26, commit 3d3890e3): cross_check() accepts the DH_INDEX2 magic of a right justified index in the total order.
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * 18 Oct 26 dm - The old local index files are deleted through a PATH_LEN buffer (-m and -d used a 33 byte one, so a data
@@ -454,7 +455,7 @@ bool cross_check(char *path) {
 
       /* Check magic number in primary subfile */
 
-      if (ak_header.magic != DH_INDEX) {
+      if ((ak_header.magic != DH_INDEX) && (ak_header.magic != DH_INDEX2)) {
         printf("Incorrect magic number in index subfile %d\n", SF(ak));
         goto exit_cross_check;
       }

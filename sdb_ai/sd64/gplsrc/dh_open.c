@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 11 Nov 26 dm  Carried from SD Core (25 Oct 26, commit 3d3890e3): an index subfile may carry the DH_INDEX2 magic, and the magic (not the stored flag)
+ *               decides whether its right justified keys are in the total order (AK_V2).
  * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of the file table entry of a directory file (DHF_NOCASE set on a case-blind file system) is gone.
  * 07 Oct 26 dm  PAL-1 stage 3a: the trigger name is lowered when the file is
  *           opened, and that copy is loaded (the Windows port's 14 Sep 26).
@@ -323,10 +325,16 @@ DH_FILE* dh_open(char path[]) {
           goto exit_dh_open;
         }
 
-        if (ak_header.magic != DH_INDEX) {
+        if ((ak_header.magic != DH_INDEX) && (ak_header.magic != DH_INDEX2)) {
           dh_err = DHE_AK_HDR_FAULT;
           goto exit_dh_open;
         }
+
+        /* 25 Oct 26  The magic number decides how the keys are ordered, not the flag: DH_INDEX2 is the total order (AK_V2), DH_INDEX the old comparator. */
+        if (ak_header.magic == DH_INDEX2)
+          ak_header.flags |= AK_V2;
+        else
+          ak_header.flags &= ~AK_V2;
 
         /* Cross-check the index subfile with the primary data subfile */
 
