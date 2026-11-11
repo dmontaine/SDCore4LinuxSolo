@@ -283,6 +283,10 @@ def part3(files):
     r.append(("K3 the VOC records set.mcp and mcp.call are verbs that run $setmcp and $mcpcall, in newvoc and voc_template", not voc, repr(voc)))
     stage = read(os.path.join(HERE, "solo-stage.sh"))
     r.append(("K4 the stage script installs the launcher with the other tools", re.search(r"cp [^\n]*gplbld/solo-mcp\.py[^\n]*\"\$H/tools/\"", stage) is not None, ""))
+    names = re.findall(r"^public (?:function|subroutine) ([\w.]+)", read(os.path.join(SDSYS, "gpl.bp", "sdclient")), re.M)
+    dup = sorted({n for n in names if names.count(n) > 1})
+    r.append(("K5 no public method of the BASIC class sdclient is defined twice (the compiler says 'already been defined' and fails the whole bootstrap; a three-way merge of the class once did)",
+              len(names) > 60 and not dup, repr(dup)))
     return r
 
 

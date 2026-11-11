@@ -1092,24 +1092,6 @@ end
 * this aborts the caller on that reply unless quiet is set; with quiet it returns 0 and LastError / LastText say what the reply was (text.request ignored quiet, which would have
 * stopped the $netfile handler's own program instead of giving the person message 11500).
 
-public function recordlocked(fno, id)
-   reply = ''
-   if not(context.error(CX.CONNECTED)) then
-      if message.pair(SrvrRecordlocked, iconv(fno, 'ISL') : id) then
-         begin case
-            case server.error = SV$OK
-               reply = in.pkt
-            case server.error = SV$ON.ERROR
-               if not(quiet) then abort 'RECORDLOCKED generated an abort event'
-         end case
-      end
-   end
-   if len(reply) < 4 then return 0
-   n = oconv(reply[1,4], 'ILL')
-   if n > 2147483647 then n -= 4294967296
-   return n
-end
-
 * ======================================================================
 * EVALUATE, EVALCONV, ICONV, OCONV, ICONVS, OCONVS   (15 Oct 26 dm, QM4 gaps bundle C-1, sheets 247 and 409)
 
@@ -1190,48 +1172,15 @@ end
 * selectindexk (request 39) returns the record ids that hold one value (SELECTINDEX name, value FROM f), field marks between.  Both leave the server's STATUS() in ServerStatus: 0, or 1
 * for an index that is not there.  Unlike request 26 the name and the value are NOT padded to a two byte boundary: the name is given its length and the value is the rest of the packet.
 
-public function indices(fno, indexname)
-   pkt = iconv(fno, 'ISL') : indexname
-   return text.request(if indexname = '' then SrvrIndices1 else SrvrIndices2, pkt, 'INDICES generated an abort event')
-end
-
-public function selectindexv(fno, indexname)
-   return text.request(SrvrSelectIndexv, iconv(fno, 'ISL') : indexname, 'SELECTINDEX generated an abort event')
-end
-
-public function selectindexk(fno, indexname, indexvalue)
-   pkt = iconv(fno, 'ISL') : iconv(len(indexname), 'ISL') : indexname : indexvalue
-   return text.request(SrvrSelectIndexk, pkt, 'SELECTINDEX generated an abort event')
-end
-
-* ======================================================================
-* WRITE / WRITEU ... CREATING.SEQKEY (SD Core 15 Oct 26; carried 11 Nov 26): the record goes into the hashed file fno under the id the file's own counter gives it, and the id is returned.
-* writeuseqkey keeps the update lock the write takes.
-public function writeseqkey(fno, data)
-   return text.request(SrvrWriteSeqKey, iconv(fno, 'ISL') : data, 'WRITESEQKEY generated an abort event')
-end
-
-public function writeuseqkey(fno, data)
-   return text.request(SrvrWriteuSeqKey, iconv(fno, 'ISL') : data, 'WRITEUSEQKEY generated an abort event')
-end
-
 * ======================================================================
 * FILEADMIN(op, fno, text)   (21 Oct 26 dm, S.73 item 3; carried 11 Nov 26) - request 70: a verb run ON THE SERVER for the login.  op is the operation (two bytes), fno the open file it works on
 * (two bytes; 0 for op 8, which names no open file) and text the verb's words.  The operations: 1 analyse.file, 2 configure.file, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index,
 * 8 create.file, 9 delete.file.  Returns what the verb printed; ServerStatus is the verb's return code there.  The server refuses a session its own wall does not admit with an ON ERROR reply (a SD
 * Core server: 11521 or 11524; a Solo server: 14964), and a word that may not go to the verb with 11530: like recordlocked() this aborts the caller unless quiet is set.
 
-public function fileadmin(op, fno, text)
-   return text.request(SrvrFileadmin, iconv(op, 'ISL') : iconv(fno, 'ISL') : text, 'FILEADMIN generated an abort event')
-end
-
 * ======================================================================
 * FCONTROL(fno, key, value)   (21 Oct 26 dm, S.73 item 3; carried 11 Nov 26) - request 71: the public FCONTROL of the open file on the server (the FC$ keys of keys.h).  The value is the qualifier as
 * text (null for none).  Returns what the function returned; ServerStatus is what it left in STATUS().  Refused as fileadmin() is.
-
-public function fcontrol(fno, key, value)
-   return text.request(SrvrFcontrol, iconv(fno, 'ISL') : iconv(key, 'ISL') : value, 'FCONTROL generated an abort event')
-end
 
 * ======================================================================
 * SETLEFT
