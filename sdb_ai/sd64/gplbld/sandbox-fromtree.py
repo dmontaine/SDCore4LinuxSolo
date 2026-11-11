@@ -542,6 +542,18 @@ def layout(box):
     if os.path.lexists(box.conf):
         os.remove(box.conf)
     os.symlink(os.path.join("sys", "sd.conf"), box.conf)
+    # 11 Nov 26 (S.117): the shipped sd.conf now says SCREENTHEME=paper, and the kernel can read the name.  The pty suites were written for the plain look and
+    #   find the focus by reverse video (paper's focus is bold), so the SANDBOX's copy has the line taken out and its pages draw in mono, as SD Core's sandbox
+    #   does.  A suite that wants a theme writes the line itself.  The real install keeps it: this is the sandbox's file only.
+    real_conf = os.path.join(box.sys, "sd.conf")
+    if os.path.isfile(real_conf):
+        with open(real_conf, encoding="latin-1") as f:
+            conf_lines = f.read().split("\n")
+        kept = [l for l in conf_lines if not l.startswith("SCREENTHEME=")]
+        if len(kept) != len(conf_lines):
+            with open(real_conf, "w", encoding="latin-1") as f:
+                f.write("\n".join(kept))
+            say("    sd.conf: the SCREENTHEME line was taken out of the sandbox's copy (the suites run in the plain look)")
     for d in ("user_accounts", "group_accounts"):
         os.makedirs(os.path.join(box.root, d), exist_ok=True)
     say("    layout: sys/bin/sd -> sd-solo, sd.conf -> sys/sd.conf, user_accounts/ and group_accounts/ (empty) made")

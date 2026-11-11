@@ -281,7 +281,8 @@ end
     row("the marked letter S of Switch is underlined (the hotkey style of the mono theme), the letters next to it are not",
         "u" in sc.style(rv, cv)[2] and "u" not in sc.style(rv, cv + 1)[2] and "u" not in sc.style(rv, cv + 2)[2], repr((sc.style(rv, cv), sc.style(rv, cv + 1))))
     rf, cf = next(((r_, l_.find("Verbose")) for r_, l_ in enumerate(t.lines()) if "Verbose [ ]" in l_), (0, 0))
-    row("...and the focused check box is in reverse video, its letter not drawn apart", "r" in sc.style(rf, cf)[2] and "u" not in sc.style(rf, cf)[2], repr(sc.style(rf, cf)))
+    # 11 Nov 26: the delivered theme is paper (the sandbox's sd.conf says so, and the kernel can read the name now), whose focus is bold; mono's is reverse video
+    row("...and the focused check box stands out (bold in paper, reverse video in mono), its letter not drawn apart", ("r" in sc.style(rf, cf)[2] or "b" in sc.style(rf, cf)[2]) and "u" not in sc.style(rf, cf)[2], repr(sc.style(rf, cf)))
     t.key(E + "v")
     t.key(E + "s")
     t.key(E + "c")
