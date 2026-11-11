@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, the owner: US spelling in everything SD prints): "Unrecognized argument".
+ * 11 Nov 26 dm  Solo carry S.216 gap 14 (SD Core S.80, c5ef414c): clean_stop() ends with sd_tls_relay_finish(): an API server waits for its TLS relay to deliver the last
+ *               reply before it exits (sd_tlssrv.c); sd-solo-api@.service sets no KillMode either, so the same race was open.
  * 11 Nov 26 dm  Carried from SD Core (S.177, 8 Nov 26, commit 2e0d2a97): -stop and -restart call stop_sd_ex(TRUE), which ends with SIGKILL what is
  *               still attached after the wait.
  * 06 Nov 26 dm  S.152: fatal() and dump() are gone (nothing called them; found by linking with --gc-sections), and with
@@ -97,6 +100,7 @@
 #include "options.h"
 #include "locks.h"
 #include "keys.h"
+#include "sd_tls.h"
 
 #define BUILD_TARGET "64 Bit"
 
@@ -289,6 +293,7 @@ void clean_stop(void) {
   dh_shutdown();
   unbind_sysseg();
   shut_console();
+  sd_tls_relay_finish();               /* last: the relay delivers sd's final reply before sd exits */
 }
 
 /* ======================================================================
@@ -588,7 +593,7 @@ Private bool comlin(int argc, char *argv[]) {
   return TRUE;
 
 unrecognised:
-  fprintf(stderr, "Unrecognised argument '%s'\n", argv[arg]);
+  fprintf(stderr, "Unrecognized argument '%s'\n", argv[arg]);
 help:
   fprintf(stderr, "\nUsage:\n");
   fprintf(stderr, "   sd xxx\n");
