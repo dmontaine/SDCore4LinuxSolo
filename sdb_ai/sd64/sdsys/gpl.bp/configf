@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946): a file on another SD server is configured BY that server (!netadmin, operation 2).
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: the VERSION keyword is gone (a file keeps the format it has); message 6117 goes with it.
 * 16 Oct 26 dm  QM4 Fixes 172: REPORTING shows how far a type conversion and an IMMEDIATE resize have got (messages 11386, 11387).
@@ -123,6 +124,15 @@ $include err.h
          end
          file.name = upcase(file.name)
       end
+   end
+
+*  21 Oct 26 dm - S.73 item 3 (carried to Solo 11 Nov 26): a file on another SD server.  The server runs the verb for this login; the first parameter was fetched above and goes with the rest of the command.
+   if fileinfo(old.fu, FL$TYPE) = FL$TYPE.NET then
+      net.words = ''
+      if token.type # PARSER$END then net.words = token
+      call !netadmin(old.fu, 2, net.words, net.rc, @true)
+      @system.return.code = net.rc
+      stop
    end
 
    if fileinfo(old.fu, FL$READONLY) then

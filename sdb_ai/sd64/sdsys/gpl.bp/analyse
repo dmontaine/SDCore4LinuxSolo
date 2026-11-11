@@ -18,6 +18,7 @@
 * 
 *
 * START-HISTORY:
+* 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946): a file on another SD server is analysed BY that server (!netadmin, operation 1).
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 16 Oct 26 dm  QM4 Fixes 360: STATISTICS also shows a histogram of group utilisation (fields 32 to 42 of ANALYSE()).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
@@ -173,6 +174,13 @@ $include int$keys.h
          end
          file.name = upcase(file.name)
       end
+   end
+
+*  21 Oct 26 dm - S.73 item 3 (carried to Solo 11 Nov 26): a file on another SD server.  The server runs the report for this login (the report is printed here, a line at a time); STATISTICS goes with it, LPTR is refused there.
+   if fileinfo(file, FL$TYPE) = FL$TYPE.NET then
+      call !netadmin(file, 1, '', net.rc, @true)
+      @system.return.code = net.rc
+      stop
    end
 
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword)

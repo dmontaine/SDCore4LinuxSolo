@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 D1 (7fd83ad3): store_select_list() is no longer Private (dh_ak.c's remote index statements use it); behaviour unchanged.
  * 11 Nov 26 dm  Carried from SD Core (S.88 stage E2, 30 Oct 26, commit 36fe9456): op_dir() tells a file from a directory with S_ISREG / S_ISDIR (a socket
  *               was listed as a file, a block device as a directory).
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): the OS-access test on DIR() is back (op_dir()).
@@ -80,7 +81,6 @@ void op_dcount(void);
 Private void readnext(int16_t mode);
 Private bool dir_select(FILE_VAR* fvar, int16_t list_no);
 Private void transfer_list0(DESCRIPTOR* tgt_descr);
-Private void store_select_list(int16_t list_no, STRING_CHUNK* head, int32_t record_count);
 Private int net_select_with_flags(FILE_VAR* fvar, u_int16_t op_flags, STRING_CHUNK** ids, int32_t* count);
 
 /* ====================================================================== */
@@ -1347,9 +1347,10 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
 
 /* ======================================================================
    store_select_list()  -  Make a string of ids (field marks between) select list LIST_NO, with RECORD_COUNT in SELECT.COUNT.  Taken out of
-   dir_select() when a remote file's SELECT (S.65 slice 3d) needed the same two steps; the list is the string and keeps it.               */
+   dir_select() when a remote file's SELECT (S.65 slice 3d) needed the same two steps; the list is the string and keeps it.  Public since S.73 item 3 D1:
+   the index statements of a remote file (dh_ak.c) fill a list the same way.                                                                  */
 
-Private void store_select_list(int16_t list_no, STRING_CHUNK* head, int32_t record_count) {
+void store_select_list(int16_t list_no, STRING_CHUNK* head, int32_t record_count) {
   DESCRIPTOR* descr;
 
   /* Find SELECT.COUNT(LIST.NO) in SYSCOM */

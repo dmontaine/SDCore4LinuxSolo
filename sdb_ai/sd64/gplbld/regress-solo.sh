@@ -36,6 +36,10 @@
 # 25 Oct 2026, the rotation refusal carried: auditrot-solo (sandbox-auditrot-solo.py: a 1 MB trail is NOT rotated when a file stands under the name the rotation would take, and IS rotated when
 #   the name is free).  It stops the shared sandbox through the harness, replaces <dir>/sys/audit with a planted trail and plants files named audit.<stamp> around the start, runs sd-solo
 #   -start / -stop itself (after reading the binary for the sandbox's keys and for the live Solo's), puts the audit file and the rotated names back, and hands the sandbox back with start.
+# 11 Nov 2026, the carry of SD Core's S.73 item 3 and D1 (SDNet file administration, both sides): fileadmin-solo (sandbox-fileadmin-solo.py: requests 68 to 71 against a real server, refused
+#   to an account-password session with 14964 and served to a global-password one; it SETS a global password in the sandbox with solo_password GLOBAL and puts $cred back byte for byte at the
+#   end, and removes its files zzh, zznew, zzdirx and programs zzfx, zzfs) and netindex-solo (sandbox-netindex-solo.py: the index query requests of an account-password session; it removes
+#   zzx and zzix).  Both run after sdnet.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -45,7 +49,7 @@ mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
 # txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
-for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
+for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet fileadmin-solo netindex-solo sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)

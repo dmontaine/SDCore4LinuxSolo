@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946): an index of a file on another SD server is disabled BY that server (!netadmin, operation 6).
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 15 Oct 26 dm  Written for QM4 gaps bundle Q-8 (DISABLE.INDEX).
 * END-HISTORY
@@ -70,6 +71,13 @@ $include ak_info.h
          end
          filename = upcase(filename)
       end
+   end
+
+*  21 Oct 26 dm - S.73 item 3 (carried to Solo 11 Nov 26): a file on another SD server (see deletei).
+   if fileinfo(fu, FL$TYPE) = FL$TYPE.NET then
+      call !netadmin(fu, 6, '', net.rc, @true)
+      @system.return.code = net.rc
+      stop
    end
 
    if fileinfo(fu, FL$TYPE) # FL$TYPE.DH then

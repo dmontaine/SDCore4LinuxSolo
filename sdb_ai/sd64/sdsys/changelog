@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  AN SD CORE SERVER CAN ADMINISTER THE FILES OF A MANAGED SOLO, AND SOLO CAN ADMINISTER FILES ON A SERVER (carried from SD
+           Core for Linux's QMNet tiers C and D and its index queries of 21 Oct 2026).
+
+             What        A session signed in to this Solo with the GLOBAL password - the password of the SD Core server that manages
+                         it - may now, over the API, run analyse.file, configure.file, create.index, build.index, delete.index,
+                         disable.index, create.file and delete.file in the account, call FCONTROL on an open file and write a record
+                         under the file's own next sequential id (WRITE ... CREATING.SEQKEY). A session signed in with the account
+                         password is refused each of them with "This session cannot administer files here: sign in with the global
+                         password", and the refusal is on the audit trail; it keeps everything it had (reading, writing, locking).
+                         On the client side, a remote file (an N pointer) now takes the same verbs and FCONTROL, WRITE ... CREATING.
+                         SEQKEY, and CREATE.FILE name SERVER srv {AS remote} makes the file on the server and the pointer here;
+                         DELETE.FILE of a pointer deletes the file there and the pointer with it. INDICES, SELECTINDEX, SETLEFT,
+                         SETRIGHT, SELECTLEFT and SELECTRIGHT now work on a remote file (they gave nothing or were refused), so a
+                         query on a remote file uses the server's indices.
+             Why it      The global password exists so that a server can administer Solo; until now it could not reach Solo's files
+             matters     without a command line.
+             Does not    Open anything on a Solo with no global password (the delivered state): it serves none of these requests. The
+                         server's own wall decides on the other end: an SD Core server asks its groups sdfileswrite and sdfilesadmin.
+                         AKREAD, AKWRITE, AKDELETE, CLEAR.AK, AKENABLE and AKMAP are still refused on a remote file. A path, a quote,
+                         PATHNAME, LPTR, FORCE and NO.QUERY are never passed to a verb run on the server.
+
 11 Nov 26  THE AI IS SENT A STANDING TEXT FIRST, AND A FOLLOW-UP QUESTION CARRIES THE EARLIER EXCHANGES (carried from SD Core for
            Linux's S.160 of 7 Nov 2026 and its follow-up work of 3 Nov 2026).
 

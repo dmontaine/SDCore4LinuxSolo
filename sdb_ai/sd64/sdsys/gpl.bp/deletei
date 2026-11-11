@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946): an index of a file on another SD server is deleted BY that server (!netadmin, operation 5).
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -77,6 +78,14 @@ $include ak_info.h
          end
          filename = upcase(filename)
       end
+   end
+
+*  21 Oct 26 dm - S.73 item 3 (carried to Solo 11 Nov 26): a file on another SD server.  The server runs the verb for this login (this account needs the NET gate and a definition that
+*  says write; the server has its own wall: a SD Core server's sdfileswrite and sdfilesadmin, a Solo server's global-password session); the rest of the command goes to it as it was typed.
+   if fileinfo(fu, FL$TYPE) = FL$TYPE.NET then
+      call !netadmin(fu, 5, '', net.rc, @true)
+      @system.return.code = net.rc
+      stop
    end
 
    if fileinfo(fu, FL$TYPE) # FL$TYPE.DH then

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946): WRITE and WRITEU ... CREATING.SEQKEY of a remote file go to the server (net_write_seqkey, requests 68 and 69).
  * 28 Oct 26 dm  S.87: net_pre_change_lock() can no longer ask a caller to wait (that was AUTOLOCK's): NETL_WAIT, its two arms and the retry_pc of op_write and op_delete are gone.
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone.
  * 27 Oct 26 dm  S.87 batch 17: $MODE PICK.READ (op_pickread, P_PICKREAD), AUTOLOCK (P_AUTOLOCK, also in net_pre_change_lock) and WRITE.DELETE.THEN.ELSE (P_THEN_ELSE) are gone:
@@ -1195,6 +1196,33 @@ void op_write() {
      data collection file. */
   if (fvar->type == NET_FILE) {
     int net_st;
+
+    /* 21 Oct 26 S.73 item 3 (carried 11 Nov 26): WRITE and WRITEU ... CREATING.SEQKEY of a remote file (requests 68 and 69).  The operand where the id would be is the ADDRESS of the
+       program's id variable; the SERVER's counter gives the id (the server has its own wall: a SD Core server's sdfilesadmin, a Solo server's global-password session; net_gate() above
+       asked for the definition's mode and a transaction), and it is put in the variable as the local statement does.  The server takes the update lock on the new id and keeps it for
+       a WRITEU, so net_pre_change_lock() is not needed. */
+    if (op_flags & P_SEQKEY) {
+      DESCRIPTOR* net_id_target;
+      STRING_CHUNK* net_id = NULL;
+
+      src_descr = e_stack - 3;
+      if (src_descr->type == ADDR)
+        k_get_value(src_descr);
+      k_get_string(src_descr);
+      process.op_flags = op_flags & P_ON_ERROR;
+      net_st = net_write_seqkey(fvar, src_descr->data.str.saddr, keep_lock, &net_id);
+      process.op_flags = 0;
+      if (net_st == 0) {
+        net_id_target = rid_descr;
+        while (net_id_target->type == ADDR)
+          net_id_target = net_id_target->data.d_addr;
+        k_release(net_id_target);
+        InitDescr(net_id_target, STRING);
+        net_id_target->data.str.saddr = net_id;
+      }
+      process.status = net_st;
+      goto exit_op_write;
+    }
 
     id_len = k_get_c_string(rid_descr, id, sysseg->maxidlen);
     src_descr = e_stack - 3;

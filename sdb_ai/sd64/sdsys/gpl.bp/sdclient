@@ -18,6 +18,10 @@
 *
 * 
 * START-HISTORY:
+* 11 Nov 26 dm Solo carry of SD Core's S.73 item 3 and D1 (ef9d5946, 7fd83ad3), the owner's decision of 11 Nov 26: fileadmin(op, fno, text) (request 70), fcontrol(fno, key, value) (request 71),
+*               writeseqkey / writeuseqkey (requests 68 and 69), indices (35, 36), selectindexv (38) and selectindexk (39), each through text.request, which honours quiet; selectleft(),
+*               selectright(), setleft() and setright() honour quiet.  Only what the $netfile handler needs: SD Core's other QMClient requests (49 to 67) are not carried here.  Against a
+*               SD Core server 68 to 71 need its groups sdfileswrite and sdfilesadmin; against a Solo server a global-password session (an ON ERROR reply, message 14964, otherwise).
 * 21 Oct 26 dm Solo carry 10 (SD Core eb9ef4a and b052346): S.72b - recordlocked() honours quiet (message.pair, not text.request): an ON ERROR reply aborts the caller only when quiet is not set, so a
 *               SD Core server's refusal of request 34 (message 11521) reaches the $netfile handler as LastError / LastText.  S.73 item 2 - read.packet takes server.error and ServerStatus from the header
 *               only when the BODY has been read as well (a reply cut in the middle of its body is a lost connection, message 11497 or 11509, not "answer -1", 11504).
@@ -89,6 +93,13 @@
 * obj->setright(fno, indexname)
 * obj->write(fno, id, data)
 * obj->writeu(fno, id, data)
+* str = obj->indices(fno, indexname)
+* str = obj->selectindexv(fno, indexname)          (S.73 item 3, D1: request 38, the indexed values)
+* str = obj->selectindexk(fno, indexname, value)    (S.73 item 3, D1: request 39, the record ids that hold the value)
+* str = obj->fileadmin(op, fno, text)       (S.73 item 3: request 70, a verb run on the server; the server's own wall decides)
+* str = obj->fcontrol(fno, key, value)       (S.73 item 3: request 71)
+* id = obj->writeseqkey(fno, data)
+* id = obj->writeuseqkey(fno, data)
 *
 * Public properties
 * obj->ServerStatus
@@ -181,6 +192,11 @@ $define SrvrSelectRight  45    ;* Move index position to right
 $define SrvrMarkMapping  46    ;* Enable/disable mark mapping
 $define SrvrScramFirst   47    ;* SCRAM client-first
 $define SrvrScramFinal   48    ;* SCRAM client-final
+* 11 Nov 26 (the carry of SD Core's S.73 item 3): the four requests below, numbered as SD Core numbers them; 49 to 67 are SD Core's other QMClient requests and are not defined here.
+$define SrvrWriteSeqKey  68    ;* Write under the next sequential id
+$define SrvrWriteuSeqKey 69    ;* The same, keeping the update lock
+$define SrvrFileadmin    70    ;* A verb run on the server for the login (analyse, configure, index, create or delete a file)   (S.73 item 3)
+$define SrvrFcontrol     71    ;* FCONTROL(file, key, value)   (S.73 item 3)
 
 $define SV$OK             0    ;* Action successful
 $define SV$ON.ERROR       1    ;* Action took ON ERROR clause
@@ -202,6 +218,7 @@ deffun read.packet() local
 deffun context.error(expected) local
 deffun scram.login(username, password) local
 deffun scram.exchange(username, password, stored.salt, stored.iter, stored.ck, stored.sk) local
+deffun text.request(code, pkt, abort.text) local
 
 private context,        ;* State
         skt,            ;* Socket for connection
@@ -906,7 +923,7 @@ public function selectleft(fno, indexname, listno)
             case server.error = SV$OK
                reply = in.pkt
             case server.error = SV$ON.ERROR
-               abort 'SELECTLEFT generated an abort event'
+               if not(quiet) then abort 'SELECTLEFT generated an abort event'
          end case
       end      
    end
@@ -927,11 +944,60 @@ public function selectright(fno, indexname, listno)
             case server.error = SV$OK
                reply = in.pkt
             case server.error = SV$ON.ERROR
-               abort 'SELECTRIGHT generated an abort event'
+               if not(quiet) then abort 'SELECTRIGHT generated an abort event'
          end case
       end      
    end
    return reply
+end
+
+* ======================================================================
+* INDICES, SELECTINDEXV, SELECTINDEXK   (SD Core 15 Oct 26 and 21 Oct 26, S.73 item 3 D1; carried 11 Nov 26 for the $netfile handler)
+* indices (requests 35 and 36): INDICES(f) or INDICES(f, name).  selectindexv (request 38) returns the indexed VALUES of the index, field marks between (SELECTINDEX name FROM f);
+* selectindexk (request 39) returns the record ids that hold one value (SELECTINDEX name, value FROM f), field marks between.  Both leave the server's STATUS() in ServerStatus: 0, or 1
+* for an index that is not there.  Unlike request 26 the name and the value are NOT padded to a two byte boundary: the name is given its length and the value is the rest of the packet.
+
+public function indices(fno, indexname)
+   pkt = iconv(fno, 'ISL') : indexname
+   return text.request(if indexname = '' then SrvrIndices1 else SrvrIndices2, pkt, 'INDICES generated an abort event')
+end
+
+public function selectindexv(fno, indexname)
+   return text.request(SrvrSelectIndexv, iconv(fno, 'ISL') : indexname, 'SELECTINDEX generated an abort event')
+end
+
+public function selectindexk(fno, indexname, indexvalue)
+   pkt = iconv(fno, 'ISL') : iconv(len(indexname), 'ISL') : indexname : indexvalue
+   return text.request(SrvrSelectIndexk, pkt, 'SELECTINDEX generated an abort event')
+end
+
+* ======================================================================
+* WRITE / WRITEU ... CREATING.SEQKEY (SD Core 15 Oct 26; carried 11 Nov 26): the record goes into the hashed file fno under the id the file's own counter gives it, and the id is returned.
+* writeuseqkey keeps the update lock the write takes.
+public function writeseqkey(fno, data)
+   return text.request(SrvrWriteSeqKey, iconv(fno, 'ISL') : data, 'WRITESEQKEY generated an abort event')
+end
+
+public function writeuseqkey(fno, data)
+   return text.request(SrvrWriteuSeqKey, iconv(fno, 'ISL') : data, 'WRITEUSEQKEY generated an abort event')
+end
+
+* ======================================================================
+* FILEADMIN(op, fno, text)   (21 Oct 26 dm, S.73 item 3; carried 11 Nov 26) - request 70: a verb run ON THE SERVER for the login.  op is the operation (two bytes), fno the open file it works on
+* (two bytes; 0 for op 8, which names no open file) and text the verb's words.  The operations: 1 analyse.file, 2 configure.file, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index,
+* 8 create.file, 9 delete.file.  Returns what the verb printed; ServerStatus is the verb's return code there.  The server refuses a session its own wall does not admit with an ON ERROR reply (a SD
+* Core server: 11521 or 11524; a Solo server: 14964), and a word that may not go to the verb with 11530: like recordlocked() this aborts the caller unless quiet is set.
+
+public function fileadmin(op, fno, text)
+   return text.request(SrvrFileadmin, iconv(op, 'ISL') : iconv(fno, 'ISL') : text, 'FILEADMIN generated an abort event')
+end
+
+* ======================================================================
+* FCONTROL(fno, key, value)   (21 Oct 26 dm, S.73 item 3; carried 11 Nov 26) - request 71: the public FCONTROL of the open file on the server (the FC$ keys of keys.h).  The value is the qualifier as
+* text (null for none).  Returns what the function returned; ServerStatus is what it left in STATUS().  Refused as fileadmin() is.
+
+public function fcontrol(fno, key, value)
+   return text.request(SrvrFcontrol, iconv(fno, 'ISL') : iconv(key, 'ISL') : value, 'FCONTROL generated an abort event')
 end
 
 * ======================================================================
@@ -942,7 +1008,7 @@ public subroutine setleft(fno, indexname)
       pkt = iconv(fno, 'ISL')
       pkt := indexname
       if message.pair(SrvrSetLeft, pkt) then
-         if server.error = SV$ON.ERROR then
+         if server.error = SV$ON.ERROR and not(quiet) then
             abort 'SETLEFT generated an abort event'
          end
       end      
@@ -957,7 +1023,7 @@ public subroutine setright(fno, indexname)
       pkt = iconv(fno, 'ISL')
       pkt := indexname
       if message.pair(SrvrSetRight, pkt) then
-         if server.error = SV$ON.ERROR then
+         if server.error = SV$ON.ERROR and not(quiet) then
             abort 'SETRIGHT generated an abort event'
          end
       end      
@@ -1331,6 +1397,26 @@ local subroutine disconnect.session
    close.socket skt
    context = CX.DISCONNECTED
    return
+end
+
+* ======================================================================
+* A request whose answer is one string: the answer when the server says OK, the null string otherwise (an abort on the server aborts here too, unless quiet is set: then the caller gets the
+* null string and LastError / LastText say what the reply was).  SD Core's (15 Oct 26, S.73 item 3), carried 11 Nov 26.  Used by indices, selectindexv, selectindexk, writeseqkey,
+* writeuseqkey, fileadmin and fcontrol.
+
+local function text.request(code, pkt, abort.text)
+   reply = ''
+   if not(context.error(CX.CONNECTED)) then
+      if message.pair(code, pkt) then
+         begin case
+            case server.error = SV$OK
+               reply = in.pkt
+            case server.error = SV$ON.ERROR
+               if not(quiet) then abort abort.text
+         end case
+      end
+   end
+   return reply
 end
 
 * ======================================================================

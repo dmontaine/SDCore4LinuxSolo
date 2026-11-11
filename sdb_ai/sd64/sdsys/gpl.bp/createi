@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946): an index of a file on another SD server is created BY that server (!netadmin, operation 3).
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
@@ -76,6 +77,13 @@ $include err.h
          end
          filename = upcase(filename)
       end
+   end
+
+*  21 Oct 26 dm - S.73 item 3 (carried to Solo 11 Nov 26): a file on another SD server (see deletei).
+   if fileinfo(data.f, FL$TYPE) = FL$TYPE.NET then
+      call !netadmin(data.f, 3, '', net.rc, @true)
+      @system.return.code = net.rc
+      stop
    end
 
    if fileinfo(data.f, FL$TYPE) # FL$TYPE.DH then stop sysmsg(2010)
