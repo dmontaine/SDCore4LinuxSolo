@@ -107,7 +107,7 @@ run() {   # run [extra shell to run first]: prints what the block printed, then 
       warn() { printf "%s\n" "$*"; }
       umask 077
       mkdir -p "$T/tmpd"; export TMPDIR="$T/tmpd"
-      REPO_BRANCH="$REPO_BRANCH_V"; DOCS_URL="$DOCS_URL_V"; REPO_URL="$REPO_URL_V"
+      REPO_BRANCH="$REPO_BRANCH_V"; DOCS_URL="$DOCS_URL_V"; REPO_URL="$REPO_URL_V"; pkg_source=""
       git() {
         ( IFS=" "; printf "%s\n" "$*" ) >> "$T/git.log"
         if [ -n "${GITFAIL:-}" ]; then return 128; fi

@@ -128,7 +128,9 @@ def checks(src):
     listener.close()
 
     # The call: position and arguments.
-    call = code_line(src, r'^if \[\[ "\$REPO_URL" =~ .*net_preflight\b')
+    # 12 Nov 26 (S.218, as SD Core's S.144): the call is skipped when a release package carries the source, and only then:
+    # if [ -z "$pkg_source" ] && [[ "$REPO_URL" =~ ... ]]; then net_preflight ...; fi
+    call = code_line(src, r'^if (\[ -z "\$pkg_source" \] && )?\[\[ "\$REPO_URL" =~ .*net_preflight\b')
     ck("the installer calls net_preflight", call is not None, "line %s" % call)
     ck("the call tests port 443 of the host in an https REPO_URL only",
        call is not None and 'net_preflight "${BASH_REMATCH[1]}" 443' in src.splitlines()[call - 1]
@@ -155,6 +157,9 @@ def checks(src):
             got = p.stdout.strip()
             expect = ("CALLED:%s:443" % want) if want else ""
             ck("REPO_URL %s -> %s" % (url, expect or "no check"), got == expect, "got %r" % got)
+        script = 'net_preflight() { echo "CALLED:$1:$2"; }\npkg_source=/x/source\nREPO_URL=https://github.com/a/b\n%s\n' % cond
+        p = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=20)
+        ck("from a release package (pkg_source set) the network is not checked", p.stdout.strip() == "", "got %r" % p.stdout.strip())
     return out
 
 

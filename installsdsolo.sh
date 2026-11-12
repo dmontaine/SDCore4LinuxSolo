@@ -556,6 +556,7 @@ fi
 # ---------------------------------------------------------------- questions
 say
 say "SD Core for Linux Solo - install"
+say "Tested on current versions of Debian and Ubuntu."   # 12 Nov 26 dm - SD Core's S.150 line; the changelog of 11 Nov said so and the line was missing
 say "  into        : $HOME_DIR"
 [ -z "$pkg_pre" ] || say "  This package is the pre-release ${pkg_pre}, for testing."
 say "  source      : $src_desc"
