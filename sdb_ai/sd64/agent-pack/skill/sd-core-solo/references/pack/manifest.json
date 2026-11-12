@@ -38,7 +38,7 @@
   },
   "core.digest": {
    "chunks": 5,
-   "sha256": "5a3608d94c46ce3565a89120c5355c1a225aaf21c41b51561e7019bfb111f839"
+   "sha256": "2d5034e1913b28ca0ad6b56c7d5b60d6b4667ab22d13a0ec707b6a48e9f79ffe"
   },
   "core.start": {
    "chunks": 1,
@@ -58,7 +58,7 @@
   },
   "dict.format": {
    "chunks": 7,
-   "sha256": "0ddbca9cc29b2f132381ef2b68c8dbee07f6d4889ca18cf59de39dc4e3dc50a9"
+   "sha256": "2c7d4ea49bdb2ac49e90c96bdd568eea0e64651e93bc63d07eee8a8471e397b4"
   },
   "dict.item": {
    "chunks": 68,
@@ -66,7 +66,7 @@
   },
   "dict.itype": {
    "chunks": 6,
-   "sha256": "4a4d75b5cdbdcd06be674939039633ee67a242efd0143ba66d91d31677ad05ec"
+   "sha256": "ba3c3430d349ebab977b2c794d97df6d74edc6dda76f76a6d4b863d00d3a3d98"
   },
   "dict.overview": {
    "chunks": 3,
@@ -74,7 +74,7 @@
   },
   "dict.type": {
    "chunks": 6,
-   "sha256": "7ef89bac6cf5bc95a2a2069b89a536d8a56c5d250626a47ebec76b9bc87d4e58"
+   "sha256": "d2a7c9d34d899533d55412c0c3d57ba19a76d89746a32bfcf51d6fa09b52a04c"
   },
   "dict.types": {
    "chunks": 1,
@@ -102,7 +102,7 @@
   },
   "tcl.verb": {
    "chunks": 204,
-   "sha256": "7c38b14e6b429dad2b86bd0460e3f22678e1609e9ea3ff019e53a2ce94eb9c2e"
+   "sha256": "254ba84002ebe123e02cc965464f083ba696d1e0b5ab29e653fa379bcb2de7a4"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -118,7 +118,7 @@
   },
   "voc.type": {
    "chunks": 9,
-   "sha256": "cc41d34d5bd0a6959fbd368920434506cbb090bc4d7d6c8202d6f47caf15b02b"
+   "sha256": "60f107011b246090ab6f48e7238bd7b8b4749f5a26e5f9d3f7174f7cc9b25618"
   },
   "voc.types": {
    "chunks": 1,
@@ -130,7 +130,7 @@
  "parts": {
   "core.md": {
    "chunks": 6,
-   "sha256": "e84c0b98ec8bff05c92a8e6aae342f29a5a2dc814178237e29d461e40a639e13",
+   "sha256": "9b43b759f62e59c60b0aeea935c1c273394c77fa6637f1bd9dd40f9039a555c2",
    "words": 2229
   },
   "examples/dictionary-items.md": {
@@ -144,7 +144,7 @@
    "words": 627
   },
   "index.json": {
-   "sha256": "95c1ab40531f2e0fbb7bdd9addaada6a33371d80f4243dbd40c2293b82d12f28"
+   "sha256": "214deab742ea66c75f446bd324488617815e654173d02c38faa9e9600e867dce"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -163,7 +163,7 @@
   },
   "reference/dictionaries.md": {
    "chunks": 50,
-   "sha256": "2fcfcef4d89a341efe601c9b306a7e9062c764db1a7daf3b6c0d56bdfda965b6",
+   "sha256": "280f485adfdf6e79448e863905bfde5fc9f1bcc41871688e00bac69d42dfe8da",
    "words": 5649
   },
   "reference/messages.md": {
@@ -188,12 +188,12 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 208,
-   "sha256": "4a6d2eb4a1116d45c896eb776364e06499479c042a5de4b6dca46e6e439e368a",
-   "words": 9330
+   "sha256": "2da7873623b7f8c780a3bfb0766b8c446ddaab1d360a97f2fbc1aa1e191767d2",
+   "words": 9328
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "79b350472d3dc3f2622e56127e5f7af1ad676bb5d9cce1bead709dd370e36327",
+   "sha256": "ff40d879184a27112b4e1d00d65c08ec313b5bc6231e490254b0670aa6576c8b",
    "words": 1904
   }
  },

@@ -432,7 +432,7 @@ the argument to the BASIC `FMT()` function, and the syntax is the same.
 Every row below was run on SD Core for Windows (`W1.0-0`) and shows what
 came back, including the trailing spaces the format adds. **Not re-run on
 this port for this fork.** Dictionary conversion and format handling is
-`bcomp`/`qproc` behaviour shared between the two ports rather than something
+`bcomp`/`qproc` behavior shared between the two ports rather than something
 either implements separately, so nothing here is expected to differ — but
 that is an expectation, not a Linux measurement.
 
@@ -530,7 +530,7 @@ processor works out a width from the data.
 | `L` | left-justified |
 | `R` | right-justified |
 | `T` | text — left-justified, wrapping at word boundaries |
-| `C` | centred |
+| `C` | centered |
 | `U` | left-justified, unchanged — no trimming |
 
 ### dict:format:numeric-options
@@ -655,7 +655,7 @@ An I-type expression is a single SD BASIC expression. It can use:
   `UPCASE(TTL%AUTHOR)`, `COPY : "/" : TTL%TITLE`. A link to a link is written
   `OUT%TTL%TITLE`. See the L record on SD Dictionaries - Structure;
   a link is worked out when the I-type is compiled.
-- **Subroutine calls**: `SUBR("name", arg, ...)` invokes a catalogued
+- **Subroutine calls**: `SUBR("name", arg, ...)` invokes a cataloged
   subroutine. The `FTYPE` I-type in `voc.dic` calls `SUBR("!FTYPE",
   DATA.NAME)`.
 - **Conditional expressions**: `IF` *condition* `THEN` *value* `ELSE`
@@ -676,7 +676,7 @@ An I-type expression cannot use:
 - **Dimensioned arrays**: no `DIM`, no `MAT`.
 - **Common blocks**: no `COMMON`.
 
-If you need any of these, write a subroutine, catalogue it, and call it
+If you need any of these, write a subroutine, catalog it, and call it
 with `SUBR()` from the I-type.
 
 ### dict:system
@@ -764,7 +764,7 @@ syntax:
 | *n*`L` | left-justified, *n* characters wide |
 | *n*`R` | right-justified, *n* characters wide |
 | *n*`T` | text — left-justified, wrapping at word boundaries |
-| *n*`C` | centred, *n* characters wide |
+| *n*`C` | centered, *n* characters wide |
 | *n*`L`*d* | left-justified with *d* decimal places (numeric) |
 | *n*`R`*d* | right-justified with *d* decimal places (numeric) |
 
@@ -840,7 +840,7 @@ use:
 | `@USERNO` | the user number of the session |
 | `@PATH` | the account path |
 
-It can call `SUBR()` to invoke a catalogued subroutine, use `TRANS()` to
+It can call `SUBR()` to invoke a cataloged subroutine, use `TRANS()` to
 read from another file, and use any BASIC function — `LEN()`, `FIELD()`,
 `RAISE()`, `OCONV()`, `ICONV()`, `COUNT()`, `SUM()`, `DATE()`, `TIME()`
 and the rest. It cannot run loops or call statements that take a

@@ -26115,7 +26115,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 38
+"words": 36
 },
 "tcl:and": {
 "kind": "tcl.keyword",
