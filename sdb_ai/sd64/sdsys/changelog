@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+12 Nov 26  A RELEASE ZIP CARRIES THE SOURCE, AND THE INSTALLER BUILDS FROM IT WITHOUT DOWNLOADING (as SD Core for Linux does).
+
+             What        - a release zip of SD Core for Linux Solo now holds Solo's complete source in a folder named source, with a list
+                           SHA256SUMS of every file in it. installsdsolo.sh (an install and an --upgrade) checks the folder against the list
+                           before it asks anything, then builds from it: no GitHub check and no clone, and the documentation the ai line
+                           draws on comes from the zip as well. A changed, missing or unlisted file, a list that is a link, or anything in
+                           source/ that is not a plain file stops the install with a message saying to download the zip again. A zip made
+                           from a release-candidate tag (LS2.0-0-rc1) is named a pre-release at the start and the end of the install, and
+                           .sdcore-install records where the install came from (origin package:<folder> or the repository URL).
+             Why         - the owner asked for Solo to reach SD Core's release state; a release should build what was tested, without
+                           depending on GitHub at install time.
+             Does NOT    - Make the install work offline: the build packages still come from the distribution. The sums find damage; they
+                           cannot stop someone who rewrites both the files and the list. Run from a clone, the installer downloads as before.
+
 12 Nov 26  PSTAT, HSM AND THE PROFILER DISPLAY SHOW ANOTHER SESSION'S TEXT SAFELY TOO (carried from SD Core for Linux).
 
              What        - pstat, hsm user n and profiler display show what they read about another session (the command, the account, program

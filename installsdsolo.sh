@@ -155,6 +155,54 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2
 installer_dir=""
 if [ -f "${BASH_SOURCE[0]:-}" ]; then installer_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || installer_dir=""; fi
 
+# 12 Nov 26 dm - S.218 (SD Core's S.144 PACKAGE-SOURCE block, line for line; owner, 12 Nov 2026: "bring solo up to the same release state, programs,
+#            documentation, release notes as Core").  THE RELEASE PACKAGE CARRIES THE SOURCE.  When the folder this script is in holds source/sdb_ai/sd64,
+#            the install (and an --upgrade) builds from it: no GitHub check, no clone, and the AI line's documentation comes from source/docs.  The
+#            package is checked first, before any question: every file under source/ must be listed in SHA256SUMS and match it, and source/SDCORE-RELEASE
+#            must name the commit and branch it was made from.  A mismatch stops the install.  (The sums find damage; they cannot stop someone who
+#            rewrites both.)  Without source/ the install is what it always was: a clone of REPO_BRANCH from REPO_URL.  The build packages still come from
+#            the distribution (apt-get).  gplbld/mkrelease.sh makes the package; gplbld/test-install-package.sh runs this block.
+# PACKAGE-SOURCE-BEGIN
+pkg_source=""
+pkg_commit=""
+pkg_branch=""
+pkg_pre=""
+if [ -n "$installer_dir" ] && [ -d "$installer_dir/source/sdb_ai/sd64" ] && [ ! -L "$installer_dir/source" ]; then
+    pkg_bad=""
+    if [ ! -f "$installer_dir/SHA256SUMS" ] || [ -L "$installer_dir/SHA256SUMS" ]; then
+        pkg_bad="it has no SHA256SUMS"
+    elif ! (cd "$installer_dir" && sha256sum --quiet --strict -c SHA256SUMS >/dev/null 2>&1); then
+        pkg_bad="a file under source/ does not match SHA256SUMS"
+    elif [ "$(cd "$installer_dir" && find source -type f | wc -l)" != "$(grep -c '' "$installer_dir/SHA256SUMS" || true)" ]; then
+        pkg_bad="source/ holds files that SHA256SUMS does not list"
+    elif [ -n "$(cd "$installer_dir" && find source ! -type f ! -type d | head -1)" ]; then
+        pkg_bad="source/ holds something that is neither a file nor a directory"
+    else
+        pkg_commit=$(sed -n 's/^commit=\([0-9a-f]\{40\}\)$/\1/p' "$installer_dir/source/SDCORE-RELEASE" 2>/dev/null | head -1 || true)
+        pkg_branch=$(sed -n 's/^branch=\([A-Za-z0-9._-]\{1,40\}\)$/\1/p' "$installer_dir/source/SDCORE-RELEASE" 2>/dev/null | head -1 || true)
+        if [ -z "$pkg_commit" ] || [ -z "$pkg_branch" ]; then pkg_bad="source/SDCORE-RELEASE does not name a commit and a branch"; fi
+    fi
+    if [ -n "$pkg_bad" ]; then
+        printf "%b\n" "$RED"
+        echo "This release package cannot be installed: ${pkg_bad}."
+        echo "Download the package again, unpack it into an empty folder and run the installer from there."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+    pkg_source="$installer_dir/source"
+    # a package made from a release-candidate tag (LS2.0-0-rc1) says so at the start and at the end of the install; the version stamp (LS2.0-0) is the
+    # same in a candidate and in the release, so the build that was tested is the build that ships.
+    case "$pkg_branch" in *-rc[0-9]*) pkg_pre="$pkg_branch" ;; esac
+    REPO_BRANCH="$pkg_branch"
+    REPO_URL="package:${installer_dir}"
+fi
+# PACKAGE-SOURCE-END
+if [ -n "$pkg_source" ]; then
+    src_desc="this package (${pkg_branch}, commit ${pkg_commit:0:12}), copied to $CLONE_DIR to build and removed afterwards"
+else
+    src_desc="$REPO_URL ($REPO_BRANCH), downloaded to $CLONE_DIR and removed afterwards"
+fi
+
 # ---------------------------------------------------------------- options
 HOME_DIR="$HOME/SDCoreSolo"
 control_file=""; managed=0   # managed is decided from the global password, below: there is no mode to choose
@@ -330,7 +378,7 @@ detect_distro() {
 detect_distro
 # The host is the one the installer clones from.  SDSOLO_REPO_URL (the test hook above) may name a
 # local path, which needs no network, so only an https URL is tested.
-if [[ "$REPO_URL" =~ ^https://([^/:]+)/ ]]; then net_preflight "${BASH_REMATCH[1]}" 443; fi
+if [ -z "$pkg_source" ] && [[ "$REPO_URL" =~ ^https://([^/:]+)/ ]]; then net_preflight "${BASH_REMATCH[1]}" 443; fi   # S.218: a release package carries the source, nothing is fetched
 
 # ---------------------------------------------------------------- the password rule
 # SD's rule (owner, 19 Sep 2026): 8 or more characters with a lower-case letter, an
@@ -448,7 +496,8 @@ if [ "$upgrade" -eq 1 ]; then
   say
   say "SD Core for Linux Solo - upgrade"
   say "  tree        : $HOME_DIR ($mode_name, installed from ${old_commit:-an unknown commit})"
-  say "  source      : $REPO_URL ($REPO_BRANCH), downloaded to $CLONE_DIR and removed afterwards"
+  [ -z "$pkg_pre" ] || say "  This package is the pre-release ${pkg_pre}, for testing."
+  say "  source      : $src_desc"
   say "  kept        : the account and its data, all passwords, sd.conf, the audit trail, GLOBAL.BP.OUT, the deny list,"
   say "                the service and ssh settings"
   say "  replaced    : programs and system objects; a safety copy of the whole tree is made first"
@@ -508,7 +557,8 @@ fi
 say
 say "SD Core for Linux Solo - install"
 say "  into        : $HOME_DIR"
-say "  source      : $REPO_URL ($REPO_BRANCH), downloaded to $CLONE_DIR and removed afterwards"
+[ -z "$pkg_pre" ] || say "  This package is the pre-release ${pkg_pre}, for testing."
+say "  source      : $src_desc"
 say "  running as  : $(id -un)"
 say
 
@@ -789,11 +839,21 @@ python3-config --includes >/dev/null 2>&1 || refuse "the Python development head
 # ---------------------------------------------------------------- download and build
 say
 # 10 Oct 26  Said "(main branch)" whatever REPO_BRANCH was; a release zip's copy is pinned to a tag.
-say "Downloading the source ($REPO_BRANCH) to $CLONE_DIR"
-git ls-remote -q "$REPO_URL" >/dev/null 2>&1 || refuse "cannot reach $REPO_URL - check the network"
-rm -rf "$CLONE_DIR"
-git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$CLONE_DIR" 2>&1 | tail -2
-COMMIT="$(git -C "$CLONE_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+# 12 Nov 26 dm - S.218: from a release package the source is copied (the package itself is never written), and the commit is the one SDCORE-RELEASE
+#            names, checked against SHA256SUMS above; the package has no .git.
+if [ -n "$pkg_source" ]; then
+  say "Copying the source ($REPO_BRANCH) from the package to $CLONE_DIR"
+  rm -rf "$CLONE_DIR"
+  mkdir -p "$CLONE_DIR"
+  cp -a "$pkg_source/." "$CLONE_DIR/" || fail "copying the package's source to $CLONE_DIR"
+  COMMIT="$pkg_commit"
+else
+  say "Downloading the source ($REPO_BRANCH) to $CLONE_DIR"
+  git ls-remote -q "$REPO_URL" >/dev/null 2>&1 || refuse "cannot reach $REPO_URL - check the network"
+  rm -rf "$CLONE_DIR"
+  git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$CLONE_DIR" 2>&1 | tail -2
+  COMMIT="$(git -C "$CLONE_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+fi
 say "Installing commit $COMMIT"
 SRC="$CLONE_DIR/sdb_ai/sd64"
 [ -d "$SRC" ] || fail "the download has no sdb_ai/sd64 - the repository layout changed"
@@ -832,7 +892,7 @@ if [ "$upgrade" -eq 1 ]; then
   upgrade_backup="$(cat "$HOME_DIR/.last-upgrade-backup" 2>/dev/null || true)"
   rm -f "$HOME_DIR/.last-upgrade-backup"
   { printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; \
-    printf 'upgraded-from %s\n' "${old_commit:-unknown}"; } > "$HOME_DIR/.sdcore-install"
+    printf 'upgraded-from %s\n' "${old_commit:-unknown}"; printf 'origin %s\n' "$REPO_URL"; } > "$HOME_DIR/.sdcore-install"
   chmod 600 "$HOME_DIR/.sdcore-install"
 else
 # LSOLO 39: data a previous uninstall left in the install directory is moved aside whole, so the new tree can be
@@ -881,7 +941,7 @@ if [ -n "$reload_dir" ]; then
 fi
 
 # what was installed
-{ printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; } > "$HOME_DIR/.sdcore-install"
+{ printf 'commit %s\n' "$COMMIT"; printf 'date %s\n' "$(date -Is)"; printf 'mode %s\n' "$mode_name"; printf 'origin %s\n' "$REPO_URL"; } > "$HOME_DIR/.sdcore-install"   # S.218: origin (a URL, or package:<folder>)
 chmod 600 "$HOME_DIR/.sdcore-install"
 fi
 
@@ -931,10 +991,13 @@ fi
 #            which Solo's documentation has no pages for, so there is none and it is left out).  SKIPPED WITH A NOTE, NEVER AN ERROR: no network to the documentation, no
 #            clone, a clone without User/markdown, no mktemp or a failed copy leaves the AI line working as it did, without passages; an older install's docs are replaced only
 #            when the new ones are complete.
+#            12 Nov 26 dm - S.218: a release package carries User/markdown in source/docs; only without a package is it cloned.
 # DOCS-CORPUS-BEGIN
 docs_tmp=$(mktemp -d 2>/dev/null) || docs_tmp=""
 docs_from=""
-if [ -n "$docs_tmp" ] && GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "$REPO_BRANCH" --depth 1 "$DOCS_URL" "$docs_tmp/docs" >/dev/null 2>&1 \
+if [ -n "$pkg_source" ] && [ -d "$pkg_source/docs/User/markdown" ]; then
+    docs_from="$pkg_source/docs"
+elif [ -z "$pkg_source" ] && [ -n "$docs_tmp" ] && GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "$REPO_BRANCH" --depth 1 "$DOCS_URL" "$docs_tmp/docs" >/dev/null 2>&1 \
    && [ -d "$docs_tmp/docs/User/markdown" ]; then
     docs_from="$docs_tmp/docs"
 fi
@@ -948,6 +1011,8 @@ if [ -n "$docs_from" ]; then
         rm -rf "$HOME_DIR/docs"
         warn "The documentation for the AI line could not be copied into $HOME_DIR/docs, so it will answer without passages of it."
     fi
+elif [ -n "$pkg_source" ]; then
+    say "Note: the package holds no documentation for the AI line (source/docs), so it will answer without passages of it."
 else
     say "Note: the documentation could not be fetched from ${DOCS_URL}, so the AI line will answer without passages of it."
 fi
@@ -1319,5 +1384,6 @@ say "  service       : ${svc_state:-not installed}"
 [ "$ssh" = "off" ] || say "  ssh           : $ssh, port $ssh_port (ssh -p $ssh_port $(id -un)@<this computer>: your Linux password, then the SD account password); optional keys: bash $HOME_DIR/tools/solo-ssh.sh key-add $HOME_DIR <public key file>"
 say "  uninstall     : bash $HOME_DIR/tools/deletesdsolo.sh"
 say "  the download in $CLONE_DIR is removed when this script ends"
+[ -z "$pkg_pre" ] || say "Pre-release ${pkg_pre}, commit ${COMMIT:0:12}.  What is installed is recorded in $HOME_DIR/.sdcore-install"
 say
 if [ "$upgrade" -eq 1 ]; then say "SOLO UPGRADE COMPLETE $HOME_DIR"; else say "SOLO INSTALL COMPLETE $HOME_DIR"; fi
