@@ -52,6 +52,7 @@ def load():
     src["tool_ai"] = read(os.path.join(GPL, "tool_ai"))     # 23 Oct 26, carry 15: the AI page asks for tool.ai.providers and tool.ai.accounts
     src["tool_sessions"] = read(os.path.join(GPL, "tool_sessions"))   # 24 Oct 26, carry 20: the sessions and locks page asks for tool.sessions.page
     src["tool_gates"] = read(os.path.join(GPL, "tool_gates"))         # 24 Oct 26, carry 20b: the gates page asks for tool.gates.page
+    src["mymenu"] = read(os.path.join(GPL, "mymenu"))                 # 11 Nov 26, S.216: MY.MENU asks for tool.menus.mine (Core's record, carried)
     for app in PAGE_APPS:
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 11 Nov 26, the TUI carry: each of these pages asks for its tool.<app>.page on F1
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
@@ -149,7 +150,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|sessions|gates|" + "|".join(PAGE_APPS) + r")\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_gates"]) + "".join("\n" + strip(s["tool_" + a]) for a in PAGE_APPS)))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|sessions|gates|" + "|".join(PAGE_APPS) + r")\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["mymenu"]) + "".join("\n" + strip(s["tool_" + a]) for a in PAGE_APPS)))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 11 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
