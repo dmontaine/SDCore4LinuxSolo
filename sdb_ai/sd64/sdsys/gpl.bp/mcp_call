@@ -23,6 +23,8 @@
 *               TERM=xterm-256color: sd_files listed only the pointers written as a bare F (field 1 of a shipped pointer is "F - ..."), now
 *               WITH F1 LIKE "F..."; and LIST's clear-screen reached the agent as " [H [J" (ESC blanked, the rest kept), now every ESC [ ...
 *               sequence is taken out whole at finish before the control characters are blanked.  The code is the Windows text, line for line.
+*               Then, agreed with the Windows agent (its mail 2026-11-11T2310): sd_files shows no F1 column - it was 5 characters wide and
+*               wrapped each pointer's description a few letters a line; the answer is now one line per file (name and path).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -228,7 +230,7 @@ refuse.word:
 * ---- FILES -----------------------------------------------------------------------------------------------------------------------
 do.files:
    target = 'files'
-   execute 'LIST VOC WITH F1 LIKE "F..." F1 DATA.NAME' capturing out
+   execute 'LIST VOC WITH F1 LIKE "F..." DATA.NAME' capturing out
    return
 
 * ---- DESCRIBE file ---------------------------------------------------------------------------------------------------------------

@@ -269,8 +269,8 @@ def part2(files, label=""):
     ck("B16 SET.MCP changes ONE thing per command and everything else is the syntax message 14951", "case n.words = 3 and w2 = 'write'" in sm and "if not(syntax.ok) then stop sysmsg(14951)" in sm)
     ck("B17 SET.MCP ON says so when no password is kept ($stored in $cred, message 14954)", "read kept from cred.f, '$stored'" in sm and "sysmsg(14954)" in sm)
     # 12 Nov 26, the Windows agent's two faults (its rows B18 and B19, the same text): a shipped pointer's field 1 is "F - ...", and LIST's clear-screen
-    ck("B18 sd_files takes every file pointer: WITH F1 LIKE \"F...\", and no F1 = \"F\" (which matches only a bare F)",
-       "LIST VOC WITH F1 LIKE \"F...\" F1 DATA.NAME" in mc and "F1 = \"F\"" not in mc)
+    ck("B18 sd_files takes every file pointer: WITH F1 LIKE \"F...\", no F1 = \"F\" (which matches only a bare F), and no F1 column (one line per file)",
+       "LIST VOC WITH F1 LIKE \"F...\" DATA.NAME" in mc and "F1 = \"F\"" not in mc)
     ck("B19 at finish a terminal sequence ESC [ ... is taken out whole BEFORE the marks and control characters are converted",
        "esc.at = index(out, char(27) : '[', 1)" in fin and "index('0123456789;?', out[j, 1], 1)" in fin and "out = out[1, esc.at - 1] : out[j + 1, len(out)]" in fin
        and 0 <= fin.find("esc.at = index(") < fin.find("out = convert(ctl, blanks, out)"))
@@ -325,7 +325,8 @@ MUTANTS = [
     ("the audit line is dropped", "mcp_call", "   void kernel(K$AUDIT, 'mcp call agent=' : agent : ' tool=' : tool : ' target=' : target[1, 120] : ' status=' : st)\n", "", "B9"),
     ("the program writes a record", "mcp_call", "   n = dcount(rec, @fm)\n", "   write rec to f, p.id\n   n = dcount(rec, @fm)\n", "B13"),
     ("SET.MCP does not ask for the administrator", "setmcp", "   if not(kernel(K$ADMINISTRATOR, -1)) then", "   if 0 then", "B15"),
-    ("sd_files matches only a bare F again", "mcp_call", "WITH F1 LIKE \"F...\" F1", "WITH F1 = \"F\" F1", "B18"),
+    ("sd_files matches only a bare F again", "mcp_call", "WITH F1 LIKE \"F...\" DATA", "WITH F1 = \"F\" DATA", "B18"),
+    ("sd_files shows the F1 column again", "mcp_call", "LIKE \"F...\" DATA.NAME", "LIKE \"F...\" F1 DATA.NAME", "B18"),
     ("the escape sequence is not taken out", "mcp_call", "      out = out[1, esc.at - 1] : out[j + 1, len(out)]\n", "      exit\n", "B19"),
 ]
 
