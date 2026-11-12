@@ -49,6 +49,11 @@
 # 12 Nov 2026, S.216 gap 13: lockids-solo (sandbox-lockids-solo.py: another session's lock id, command and @PSTAT, and records planted in $IPC, reach GETLOCKS(), LIST.READU, PSTAT, HSM and
 #   PROFILER DISPLAY escaped; 34 rows).  It makes the file zzlf and the programs zzlk2, zzlk3 in sduser and zzgl, zzgu, zzpl in the system directory's bp, holds and waits for locks with two
 #   ordinary sessions that end before it does, and leaves sys/start.default terminal.  It runs after tool-sessions-solo.
+# 12 Nov 2026, S.223 (W.11 F10, carried in 608b511): ipc-solo (sandbox-ipc-solo.py: the phantom start-up seal run - PHANTOM's own flows, and records planted in $ipc
+#   by a probe that plays PHANTOM refused: the command not run, message 11947 to the parent and in the COMO log, the audit line, the records gone).  It makes three
+#   probes in the system directory's gpl.bp, the files zzout, zzlogdir and zzprf and seven programs in sduser, starts about fifteen phantoms (they sign on to
+#   sduser), and removes all of it and the COMO logs of its phantoms at the end; sys/start.default is left terminal.  Its --mutants (seven, on the sandbox's own cproc, phantom and ipc_seal)
+#   are not run from here.  It runs after lockids-solo.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -58,7 +63,7 @@ mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
 # txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
-for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile qmclient-solo crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo lockids-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet fileadmin-solo netindex-solo mcp-solo sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
+for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile qmclient-solo crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo lockids-solo ipc-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet fileadmin-solo netindex-solo mcp-solo sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)
