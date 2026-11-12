@@ -8657,10 +8657,10 @@ cited by: `setconfig`
 cited by: `setconfig`
 
 ### msg:11936
-> kind=message tier=reference since=- src=sdsys/messages/11936:1#08b30e71
+> kind=message tier=reference since=- src=sdsys/messages/11936:1#c0aa138d
 
 ```
-It takes effect when SD is next stopped and started (sd -stop, then sd -start); sessions started before then keep the old value
+It takes effect when SD is next stopped and started (sd-solo -stop, then sd-solo -start); sessions started before then keep the old value
 ```
 
 cited by: `setconfig`

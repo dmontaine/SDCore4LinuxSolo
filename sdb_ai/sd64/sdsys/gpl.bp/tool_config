@@ -8,7 +8,8 @@
 * START-HISTORY:
 * 12 Nov 26 dm  S.221: Solo has no "session" effect.  A Solo session takes its settings from the shared segment sd-solo -start filled and never reads sd.conf (SD Core's
 *               W.11 F9, which makes a session read it, is not in Solo: PAL-40), so config.table says restart for those parameters and the page no longer says a change reaches
-*               new sessions, or that a bad file stops a new session.
+*               new sessions, or that a bad file stops a new session.  Its two restart sentences and message 11936 name sd-solo -stop / -start, as the page's top line does
+*               (they said sd, the multi-user product's command; found by the Windows agent, its mail 2026-11-12T1500).
 * 11 Nov 26 dm  Solo (S.117): the file is this SD's own sd.conf (SD_CONFIG, else sd.conf in the Solo folder), never /etc/sd.conf, and SET.CONFIG writes it itself:
 *               Solo has no root helper.  The three texts that named /etc/sd.conf and the helper say so.  The rest of the page is SD Core's.
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the parameter list takes the extra rows, every
@@ -768,7 +769,7 @@ explain.fixed:
       body<-1> = pieces
       begin case
          case peff<i> = 'restart'
-            wh = 'It takes effect when SD is next stopped and started (sd -stop, then sd -start).'
+            wh = 'It takes effect when SD is next stopped and started (sd-solo -stop, then sd-solo -start).'
          case peff<i> = 'session'
             wh = 'Sessions started after the edit read it; sessions already running keep the old value.'
          case 1
@@ -816,7 +817,7 @@ change.param:
    el = ''
    el<-1> = 'Sets ' : k : ' to ' : nv : ' in ' : conf.path : ' (now ' : old.f : '; the default is ' : (if pdef<i> = '' then 'none' else pdef<i>) : '). The line is replaced where it is, every other line is kept, and the file as it is now is kept beside it as sd.conf.bak.'
    if peff<i> = 'restart' then
-      el<-1> = 'It takes effect when SD is next stopped and started (sd -stop, then sd -start). Until then SD, and every session, keeps running with ' : fo : '.'
+      el<-1> = 'It takes effect when SD is next stopped and started (sd-solo -stop, then sd-solo -start). Until then SD, and every session, keeps running with ' : fo : '.'
    end else
       el<-1> = 'Sessions started after this read the new value. This session, and any that are already running, keep ' : fo : '.'
    end
