@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+12 Nov 26  PSTAT, HSM AND THE PROFILER DISPLAY SHOW ANOTHER SESSION'S TEXT SAFELY TOO (carried from SD Core for Linux).
+
+             What        - pstat, hsm user n and profiler display show what they read about another session (the command, the account, program
+                           names, the record it waits for, @pstat) with control characters and reserved marks as ?, by the same rule as the lock
+                           list of 11 Nov. That text comes from a shared file every session can write, so a planted record could move your cursor
+                           or clear your screen when you looked at it; now it cannot. kernel(K$SHOW.SAFE, text) gives your own programs that rule.
+             Does NOT    - Change what a program may store in @pstat or what a lock id may contain; byte 200 and the other letters above 159 are
+                           shown as they are.
+
 11 Nov 26  AN AI AGENT'S MCP CLIENT CAN USE YOUR ACCOUNT THROUGH A DOOR THAT IS SHUT UNTIL THE ADMINISTRATOR OPENS IT (SD Core Solo only).
 
              What        - the Model Context Protocol launcher tools/solo-mcp.py (started by an MCP client, never by SD) offers four read-only

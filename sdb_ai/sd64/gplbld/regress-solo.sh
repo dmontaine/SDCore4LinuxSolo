@@ -46,6 +46,9 @@
 #   marker, and starts it again with sd.conf as built.  It runs after apifile; it takes about five minutes (part K idles 70 s).
 # 11 Nov 2026, the MCP door (S.211): mcp-solo (sandbox-mcp-solo.py: the launcher gplbld/solo-mcp.py run as an MCP client runs it against the sandbox's real sd-solo and the one-shot
 #   sign-in on the kept password; the register fields 20 and 21 are set by the suite and by SET.MCP and put back OFF at the end; it makes the file zzmcp in sduser and the folder $mcp).  It runs after netindex-solo.
+# 12 Nov 2026, S.216 gap 13: lockids-solo (sandbox-lockids-solo.py: another session's lock id, command and @PSTAT, and records planted in $IPC, reach GETLOCKS(), LIST.READU, PSTAT, HSM and
+#   PROFILER DISPLAY escaped; 34 rows).  It makes the file zzlf and the programs zzlk2, zzlk3 in sduser and zzgl, zzgu, zzpl in the system directory's bp, holds and waits for locks with two
+#   ordinary sessions that end before it does, and leaves sys/start.default terminal.  It runs after tool-sessions-solo.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BOX="$1"
@@ -55,7 +58,7 @@ mkdir -p "$LOGS"
 cd "$HERE" || exit 2
 bad=0
 # txnfail is last: it needs the keys the shared sandbox holds while the suites before it run (23 Oct 2026: it refused with "keys are held" in the middle of the list)
-for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile qmclient-solo crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet fileadmin-solo netindex-solo mcp-solo sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
+for s in tk-solo home-solo ai-solo ai-line-solo ai-apps-solo apifile qmclient-solo crypt csvb csvq guide jsonx osgate oscarry-solo tool-sessions-solo lockids-solo tool-gates-solo pack-examples req29 sdnet-login sdnetfile sdnet fileadmin-solo netindex-solo mcp-solo sortord vocguard xmlx shmmode-solo lnxd-solo auditrot-solo txnfail; do
   f="sandbox-$s.py"
   if [ ! -f "$f" ]; then echo "SUITE $s: no such script"; continue; fi
   t0=$(date +%s)
