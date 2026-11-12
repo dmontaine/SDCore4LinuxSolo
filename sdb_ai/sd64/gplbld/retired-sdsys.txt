@@ -329,3 +329,6 @@ gpl.bp/sed
 helptext/tool.menus.tile.ced
 messages/2006
 messages/6848
+#
+# LS2.0-0, 12 Nov 26 (S.221, parity audit finding 10): a message about the sdsys OS user, which Solo has not got; no program cites it (SD Core deleted it in d5aeaaf6).
+messages/10191

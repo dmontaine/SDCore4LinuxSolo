@@ -54,12 +54,14 @@ control-file install's first console login, only `$global` verifies** — the
 account record does not exist; that path has been read in the source and not
 exercised (GettingStarted 19).
 
-## Request 49: the managed server's ssh key (LS1.1-2)
+## Request 72: the managed server's ssh key (LS1.1-2; request 49 until LS2.0-0)
 
 In managed mode the server logs in as `sduser` with the global password, over the API
 and over ssh, and knows only the client's address. ssh needs a real Linux user, so after
-a global login the server installs its public key through request 49 and learns the
+a global login the server installs its public key through request 72 and learns the
 user name from the reply. Windows Solo answers the same request in the same words.
+In LS1.1-x this was request 49; from LS2.0-0, 49 asks the server for its revision, as in
+SD Core, and the key request is 72.
 
 - **Who may send it:** only a session signed in with the global password
   (`K$GLOBAL.SESSION`). An account-password session, or ADMIN, gets message 14975,
@@ -106,7 +108,7 @@ certificate on first use and refuses a changed one before any login byte is sent
 | S7 | `sd-tls` is 0700 and `api.pem` 0600 |
 | S7b | re-running install changes the listener |
 
-Request 49 and the pin have their own witnesses (not part of `verify-solo-service.sh`):
+Request 72 and the pin have their own witnesses (not part of `verify-solo-service.sh`):
 
 | script | legs | proves |
 |---|---|---|

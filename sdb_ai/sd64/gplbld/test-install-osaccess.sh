@@ -93,7 +93,7 @@ check() {   # check INSTALLER STAGE SAMPLE - every row, against these three file
   row "the summary and the log carry the state: the installer fails if solo-stage printed no 'OS access:' line" \
     "$([ "$(grep -c "solo-stage: OS access: //p" "$inst")" -ge 2 ] && grep -q "say \"  shell and OS  : " "$inst" && echo 0 || echo 1)"
   row "an upgrade still refuses every other install option (os-access is the one exception)" \
-    "$(grep -q 'it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger or --no-linger option' "$inst" && echo 0 || echo 1)"
+    "$(grep -q 'it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger, --no-linger or --start option' "$inst" && echo 0 || echo 1)"   # 12 Nov 26: --start joined the list (S.221)
   row "solo-stage.sh takes --os-access none|sh|os|both and refuses anything else" \
     "$(grep -q '"--os-access" \]' "$stage" && grep -q 'none|sh|os|both) osaccess=' "$stage" && grep -q -- '--os-access must be none, sh, os or both' "$stage" && echo 0 || echo 1)"
   row "solo-stage.sh turns on only what was said: SH for sh and both, OS for os and both, each with the verb and a success wording" \

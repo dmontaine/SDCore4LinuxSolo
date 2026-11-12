@@ -904,15 +904,6 @@ Log in as sdsys at the machine's keyboard (or a desktop-sharing view of
 it) and run sd from that session, or log in as yourself.
 ```
 
-### msg:10191
-> kind=message tier=reference since=- src=sdsys/messages/10191:1#77b8ac98
-
-```
-SD administration needs a local session.
-The sdsys OS user may not administer over ssh or the API;
-run sd as that user on the machine itself.
-```
-
 ### msg:10192
 > kind=message tier=reference since=- src=sdsys/messages/10192:1#91074107
 
@@ -3274,6 +3265,8 @@ cited by: `tk_help`
 ```
 %1 compiled; its catalog directive was not run (no.catalog)
 ```
+
+cited by: `basic`
 
 ### msg:11246
 > kind=message tier=reference since=- src=sdsys/messages/11246:1#76895a2d
@@ -8740,12 +8733,16 @@ cited by: `tk_aipage`
 Failed to create phantom process: no secret could be made to seal its start-up records
 ```
 
+cited by: `phantom`
+
 ### msg:11947
 > kind=message tier=reference since=- src=sdsys/messages/11947:1#72eb1251
 
 ```
 Phantom %1 : start-up records missing or not from the process that started it, nothing was run.
 ```
+
+cited by: `cproc`
 
 ### msg:11948
 > kind=message tier=reference since=- src=sdsys/messages/11948:1#58ed5a7a

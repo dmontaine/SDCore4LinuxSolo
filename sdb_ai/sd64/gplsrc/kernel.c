@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 12 Nov 26 dm  S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): a phantom takes the secret its parent gave it out of its
+ *               environment before anything it runs can inherit it (phantom_nonce_import, op_kernel.c).
  * 11 Nov 26 dm  Solo carry S.216 gap 13 (SD Core S.88 phase 2 review), the next entry:
  * 28 Oct 26 dm  S.88 phase 2 review: dump_status() (the record PSTAT prints) writes another session's text - its last command,
  *               program names, the path and record id it waits for, its account - through ev_safe(), the shared rule of
@@ -103,6 +105,7 @@ typedef void (*signal_handler)();
 void fatal_signal_handler(int signum);
 void sigusr1_handler(int signum);
 void set_old_tty_modes(void);
+void phantom_nonce_import(void); /* op_kernel.c */
 
 /* ======================================================================
    init_kernel()  -  Kernel initialisation                                */
@@ -154,6 +157,12 @@ bool init_kernel() {
 
   if (!tio_init())
     goto exit_init_kernel;
+
+  /* 12 Nov 26 dm - S.221, SD Core's W.11 F10.  A phantom was given a secret by the process that started it, in its environment; it is taken out of
+     the environment here, before anything the phantom runs can inherit it, and held for K_PHANTOM_NONCE 'G'.  Only a phantom looks.  */
+
+  if (is_phantom)
+    phantom_nonce_import();
 
   /* Perform licensing checks.
     For a terminal user, we are looking for a user table entry with a zero

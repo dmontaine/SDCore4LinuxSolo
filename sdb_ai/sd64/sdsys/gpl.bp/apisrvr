@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 12 Nov 26 dm  S.221 (Core-Solo parity audit, findings 3 and 4), carried from SD Core's 11 and 12 Oct changes: a record read from a data collection
+*               file goes to the client as its JSON text (jbuild), and a call name may be as long as the lower of 128 and MAXIDLEN (63 at the default),
+*               as op_jumps.c already allowed.  COMPILED ONLY in SD Core too: the API server was not run against a collection file.
 * 11 Nov 26 dm  SD Core's S.169 carried: request 70 operation 9 (delete.file) forgot the file number even when the verb refused (the file still on the disk, the number dead).
 *               The file is now opened again under its number after every operation, a delete included, and the number is forgotten only when it does not open (deletef
 *               already sets -ER$EXCLUSIVE for "Data part is open" and "Dictionary part is open").
@@ -480,6 +483,11 @@ loop
 return.status.set: ;* Return to here if ST already set
 
    if server.error = SV$ON.ERROR then response = @abort.message
+
+   * 11 Oct 26 dm - a record read from a data collection file is a collection; the client is sent its JSON
+   * text, the compact form the file holds
+   jt = jtype(response)
+   if jt = 'collection' or jt = 'array' then response = jbuild(response)
 
    if logging then
       s = oconv(iconv(server.error, 'ISL'):iconv(st, 'ILL'):response, 'MX0C')
@@ -1151,7 +1159,12 @@ vb.deleteu:
 
 vb.call:
                name.len = oconv(cmnd[1,2], 'ISL')
-               if name.len < 1 or name.len > MAX.CALL.NAME.LEN then
+               * 12 Oct 26 dm  openQM item 241: the lower of 128 and MAXIDLEN (63 unless raised), as in op_jumps.c.  A client
+               * (sdclilib.c, sdclient) cannot read MAXIDLEN and keeps 63.
+               max.call.len = config('MAXIDLEN')
+               if max.call.len > 128 then max.call.len = 128
+               if max.call.len < MAX.CALL.NAME.LEN then max.call.len = MAX.CALL.NAME.LEN
+               if name.len < 1 or name.len > max.call.len then
                   abort.message = sysmsg(5263) ;* Invalid call name
                   server.error = SV$ON.ERROR
                   return

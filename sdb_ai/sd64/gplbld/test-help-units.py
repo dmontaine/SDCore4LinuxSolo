@@ -153,6 +153,7 @@ def checks(s):
     asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|sessions|gates|" + "|".join(PAGE_APPS) + r")\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["mymenu"]) + "".join("\n" + strip(s["tool_" + a]) for a in PAGE_APPS)))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
+    asked |= set(re.findall(r"\$tk_help\('box',\s*'(tool\.home\.[a-z-]+)'", strip(read(os.path.join(GPL, "tool_home")))))   # 12 Nov 26 (S.221): the home screen asks for tool.home.page
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 11 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
     ck("P14 ...and every shipped record is asked for by a page (so text does not rot)", not (set(hts) - asked), repr(sorted(set(hts) - asked)))
 
@@ -174,8 +175,9 @@ def checks(s):
 
     tgn = strip(s["tool_gates"])
     ck("P17e tool.gates: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only set.os.access, set.net.access and set.ai, and it wraps with $tk_wrap",
-       "call $tk_help('mark', 134, 2, 0, 0)" in tgn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)" in tgn and "call $tk_help('hit', mev, 134, 2, hit.m)" in tgn
-       and "allow = 'set.os.access set.net.access set.ai'" in tgn and tgn.count("allow = ") == 1 and "tool.gates.page" in hts and "call $tk_wrap(lines<wi>, 134, pieces)" in tgn and "rest[cut" not in tgn)
+       "call $tk_help('mark', gat.x + gat.w - 5, gat.y + 1, 0, 0)" in tgn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)" in tgn and "call $tk_help('hit', mev, gat.x + gat.w - 5, gat.y + 1, hit.m)" in tgn
+       and "allow = 'set.os.access set.net.access set.ai'" in tgn and tgn.count("allow = ") == 1 and "tool.gates.page" in hts and "call $tk_wrap(lines<wi>, ww, pieces)" in tgn and "rest[cut" not in tgn)
+    # 12 Nov 26 (S.221): the page's boxes are panes of $tk_layout, so the [?] and the wrap width are counted from the first pane (134, 2 and 134 at 140 by 43)
 
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
@@ -190,6 +192,20 @@ def checks(s):
     seen = {k: len(arg_counts(every, k)) for k in want}
     ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), !viewlist (4), $tk_run (5) and $tk_confirm (5) has the number of arguments the subroutine takes (the null case: each is called at least once)",
        not any(wrong.values()) and seen["$tk_help"] >= 9 and seen["$tk_wrap"] >= 3 and seen["!viewlist"] >= 3 and seen["$tk_run"] >= 2 and seen["$tk_confirm"] >= 2, repr((wrong, seen)))
+
+    # 12 Nov 26 (S.221, audit finding 2): every program of gpl.bp, not only the pages listed above, is read for a $tk_help('box', '<key>', ...)
+    # with a literal key, and each such key must have a record under helptext/.  tool_home asked for tool.home.page, which Solo did not ship,
+    # and this check passed 24 of 24 because it never read tool_home.
+    box_keys = {}
+    for name in sorted(os.listdir(GPL)):
+        p = os.path.join(GPL, name)
+        if not os.path.isfile(p):
+            continue
+        for k in re.findall(r"\$tk_help\('box',\s*'([a-z0-9._-]+)'", strip(read(p))):
+            box_keys.setdefault(k, name)
+    missing = sorted("%s (asked by %s)" % (k, v) for k, v in box_keys.items() if not os.path.isfile(os.path.join(HELP, k)))
+    ck("P21 every literal key any gpl.bp program asks $tk_help('box', ...) for has a record under helptext/ (the null case: tool.home.page is among the keys asked)",
+       not missing and "tool.home.page" in box_keys, "missing: %s; keys asked: %d" % (missing, len(box_keys)))
 
     m = s["msgs"]
     ck("P19 messages 11830 to 11832, 11835 and 11838 to 11841 exist, each one line, none with a capital command word",

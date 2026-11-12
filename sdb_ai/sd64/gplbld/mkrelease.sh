@@ -31,8 +31,8 @@
 # MAKES, beside the repositories:  Project_Staging/SDCoreSolo-VERSION/  and  Project_Zips/SDCoreSolo-VERSION.zip
 #
 #   installsdsolo.sh, deletesdsolo.sh   from REF (the same bytes as source/)
-#   source/                             `git archive REF` (what a clone of REF holds, without .git), source/docs/User/markdown from the documentation
-#                                       repository (what the AI line draws on), and source/SDCORE-RELEASE (commit=, branch=, version=, docs_commit=)
+#   source/                             `git archive REF` (what a clone of REF holds, without .git), source/docs/{User,GettingStarted}/markdown from the
+#                                       documentation repository (what the AI line draws on; GettingStarted is the administrator's), and source/SDCORE-RELEASE (commit=, branch=, version=, docs_commit=)
 #   SHA256SUMS                          one line for EVERY file under source/ and no other: the installer's PACKAGE-SOURCE block refuses a package whose
 #                                       list and tree differ in either direction
 #   sd-core-solo-for-linux-lsVERSION-changes.{pdf,html,md}   the Changes document, lower case (the installer's CHANGES-DOC block copies only that pattern)
@@ -142,9 +142,11 @@ mkdir "$stage" "$stage/source" "$stage/source/docs" "$stage/pdf"
 
 echo "Making $version from $ref ${commit:0:12} (documentation $docs_ref ${docs_commit:0:12})"
 git -C "$REPO" archive "$commit" | tar -x -C "$stage/source"
-git -C "$DOCS" archive "$docs_commit" User/markdown | tar -x -C "$stage/source/docs"
+git -C "$DOCS" archive "$docs_commit" User/markdown GettingStarted/markdown | tar -x -C "$stage/source/docs"   # 12 Nov 26 (S.221): GettingStarted is the administrator's (docs/admin)
 [ -d "$stage/source/sdb_ai/sd64" ] || fail "the archive has no sdb_ai/sd64"
-ls "$stage/source/docs/User/markdown"/*.md >/dev/null 2>&1 || fail "the documentation repository has no User/markdown/*.md at $docs_ref"
+for d in User GettingStarted; do
+    ls "$stage/source/docs/$d/markdown"/*.md >/dev/null 2>&1 || fail "the documentation repository has no $d/markdown/*.md at $docs_ref"
+done
 printf 'commit=%s\nbranch=%s\nversion=%s\ndocs_commit=%s\nlabel=%s\n' "$commit" "$ref" "$version" "$docs_commit" "$label" > "$stage/source/SDCORE-RELEASE"
 
 # the installers sit beside source/, the same bytes as in it

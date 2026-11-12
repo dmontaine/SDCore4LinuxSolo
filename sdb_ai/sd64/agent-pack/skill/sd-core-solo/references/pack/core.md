@@ -70,10 +70,10 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`clear.select`** {*list.no*}
-- **`compile.dict`** — the same verb as **`cd`**
+- **`compile.dict`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict data`** *file* {*i-type* …}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
 - **`copy from`** {**`dict`**} *src* {**`to`** {**`dict`**} *tgt*} {*id* …} {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
-- **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*}
+- **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*} {**`server`** *server* {**`as`** *remote.name*}}
 - **`create.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
 - **`ct`** {**`dict`**} *file* {*id* … | **`*`**} {**`(options`**}
 - **`delete`** {**`dict`**} *file* {*id* …} {**`no.query`**}

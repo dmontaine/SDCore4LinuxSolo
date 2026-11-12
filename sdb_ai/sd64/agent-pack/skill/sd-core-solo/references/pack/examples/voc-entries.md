@@ -122,7 +122,7 @@ VOC record `sdsys/voc_template/first.compile` (type PA), the same in `voc_templa
 
 ```
 PA
-BASIC gpl.bp cproc login basic bcomp pterm catalog
+basic gpl.bp cproc login basic bcomp pterm catalog
 ```
 
 ### voc:entry:global.bp.out
@@ -171,7 +171,6 @@ VOC record `sdsys/newvoc/login` (type PA), the same in `newvoc` and `voc_templat
 
 ```
 PA
-TERM LINUX
 ```
 
 ### voc:entry:messages

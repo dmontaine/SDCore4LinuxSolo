@@ -117,3 +117,11 @@ reload-data=
 #os-access=none
 
 os-access=
+
+# start
+#   Where a session starts (12 Nov 2026): menu = the home screen, terminal = the command prompt.
+#   Blank = ask on a terminal (the home screen on Enter), and the home screen when there is none.
+#   The administrator can change it later (ADMIN, then set.start.default).
+#start=terminal
+
+start=

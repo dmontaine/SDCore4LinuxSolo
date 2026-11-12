@@ -999,7 +999,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 7
+"words": 12
 },
 "basic:func:max": {
 "kind": "basic.function",
@@ -1321,7 +1321,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 13
 },
 "basic:func:rem": {
 "kind": "basic.function",
@@ -1398,7 +1398,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 13
 },
 "basic:func:save.screen": {
 "kind": "basic.function",
@@ -1419,7 +1419,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 13
 },
 "basic:func:sddecrypt": {
 "kind": "basic.function",
@@ -1447,7 +1447,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 13
 },
 "basic:func:sdkey": {
 "kind": "basic.function",
@@ -1545,7 +1545,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 13
 },
 "basic:func:socket.info": {
 "kind": "basic.function",
@@ -1629,7 +1629,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 13
 },
 "basic:func:status": {
 "kind": "basic.function",
@@ -1888,7 +1888,7 @@
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 30
 },
 "basic:mode:non.durable.txn": {
 "kind": "basic.mode",
@@ -1909,7 +1909,7 @@
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 30
 },
 "basic:mode:trap.unused": {
 "kind": "basic.mode",
@@ -1930,14 +1930,14 @@
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 30
 },
 "basic:option:$query.debug": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "basic:option:dir.dtm": {
 "kind": "basic.option",
@@ -1951,7 +1951,7 @@
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 24
 },
 "basic:option:git": {
 "kind": "basic.option",
@@ -1965,14 +1965,14 @@
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "basic:option:show.stack.on.error": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "basic:option:spool.command": {
 "kind": "basic.option",
@@ -3225,7 +3225,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 20
 },
 "basic:stmt:release": {
 "kind": "basic.statement",
@@ -3561,7 +3561,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 30
 },
 "basic:stmt:silent": {
 "kind": "basic.clause",
@@ -3897,7 +3897,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 249
+"words": 264
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -5564,13 +5564,6 @@
 "since": "-",
 "tier": "reference",
 "words": 38
-},
-"msg:10191": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 29
 },
 "msg:10192": {
 "kind": "message",
@@ -7530,7 +7523,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 14
 },
 "msg:11246": {
 "kind": "message",
@@ -11996,14 +11989,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 17
+"words": 20
 },
 "msg:11947": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 22
 },
 "msg:11948": {
 "kind": "message",
@@ -25681,7 +25674,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "sys:param:dumpdir": {
 "kind": "sys.param",
@@ -25744,7 +25737,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "sys:param:lptrhigh": {
 "kind": "sys.param",
@@ -25968,7 +25961,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "sys:param:usplit": {
 "kind": "sys.param",
@@ -26500,7 +26493,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 37
+"words": 48
 },
 "tcl:config": {
 "kind": "tcl.verb",
@@ -26577,7 +26570,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "L1.1-0",
 "tier": "reference",
-"words": 42
+"words": 46
 },
 "tcl:create.index": {
 "kind": "tcl.verb",
@@ -27270,7 +27263,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 64
+"words": 61
 },
 "tcl:keep.open": {
 "kind": "tcl.keyword",
@@ -27684,6 +27677,13 @@
 "since": "-",
 "tier": "reference",
 "words": 72
+},
+"tcl:no.catalog": {
+"kind": "tcl.keyword",
+"part": "reference/tcl-keywords.md",
+"since": "-",
+"tier": "reference",
+"words": 36
 },
 "tcl:no.default": {
 "kind": "tcl.keyword",
@@ -28306,7 +28306,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 113
+"words": 121
 },
 "tcl:set.backup.directory": {
 "kind": "tcl.verb",
@@ -29034,7 +29034,7 @@
 "part": "examples/voc-entries.md",
 "since": "-",
 "tier": "examples",
-"words": 16
+"words": 14
 },
 "voc:entry:messages": {
 "kind": "voc.entry",

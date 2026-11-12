@@ -1,6 +1,41 @@
 Next release - in progress
 --------------------------
 
+12 Nov 26  THE LAST DIFFERENCES FROM SD CORE FOR LINUX THAT SOLO DID NOT MEAN TO HAVE (a parity audit of the two products).
+
+             What        - The home screen's F1 and [?] show its help page; Solo did not ship the page, so they found nothing.
+                         - The login paragraph no longer forces the terminal type LINUX.  On a graphical terminal it made F1-F4, Home and Ctrl with the
+                           arrows arrive wrong in the full-screen programs; SD now takes the type from the terminal (and linux when there is none).
+                           Your account loses the line the next time its VOC is updated, which an upgrade does.  You can still type TERM.
+                         - BASIC ... NO.CATALOG compiles and catalogues nothing: a $CATALOG directive in the source, or the CATALOGUE entry of the
+                           account's $BASIC.OPTIONS, is not run, and the compile says so.
+                         - The installer asks where new sessions start, the home screen (the default) or the command prompt; --start menu|terminal
+                           and the install file's start answer it for an install nobody sits at.  An upgrade asks nothing: a setting you made is
+                           kept, and an install from before the home screen keeps starting at the command prompt, as it always did.
+                         - The AI line's documentation includes the Getting Started pages for the administrator (a session that has typed ADMIN),
+                           as SD Core gives its administrator the Administrator pages.
+                         - Over the API, a record read from a data collection file reaches the client as its JSON text, and a call name may be as
+                           long as MAXIDLEN allows (up to 128), as a program on the server could already use.
+                         - AUTOLOGOUT works in the full-screen programs (carried with them on 11 Nov and not written down then).  The screen library,
+                           the IDE, the home screen and every tool page wait one second at a time, and each wait used to start the inactivity timer
+                           again; idle time is now counted across those short waits, and only a key actually typed starts the period again.
+                         - An upgrade from a release package installs the documentation PDFs; the first one installed none, because SD was stopped
+                           at that step.
+                         - A phantom runs only what the process that started it left for it.  $ipc, where PHANTOM leaves the command, the DATA
+                           lines and the log file name for the new process, is a file your processes can write; PHANTOM now seals those records
+                           with a secret it gives only to the process it starts (in its environment), and the phantom runs, stacks and sets
+                           nothing from them unless the seal checks.  A refusal is written to the phantom's COMO log and the audit trail
+                           ("phantom refused") and sent to the parent (message 11947).
+                         - tool.gates and tool.ai follow the window: in a larger window their boxes grow, a resize is followed, and on tool.ai a
+                           resize while the setup or standing-text box is open lays the page out again behind the box.  At 140 by 43 nothing moves.
+                         - tool.config and set.config said a change to most sd.conf settings reaches the sessions started after it.  In Solo it
+                           does not: every session takes its settings from the running SD, so a change takes effect when SD is next stopped and
+                           started (sd-solo -stop, then sd-solo -start), and the page now says so.
+             Why         - Linux Core is the template: Solo differs from it only where it has one account and one Linux user, or where the owner
+                           decided otherwise.  An audit of the two found these.
+             Does NOT    - Make NO.CATALOG the default, or give the administrator's pages to a session that has not typed ADMIN.  AUTOLOGOUT's
+                           default stays off.
+
 12 Nov 26  A RELEASE ZIP CARRIES THE SOURCE, AND THE INSTALLER BUILDS FROM IT WITHOUT DOWNLOADING (as SD Core for Linux does).
 
              What        - a release zip of SD Core for Linux Solo now holds Solo's complete source in a folder named source, with a list

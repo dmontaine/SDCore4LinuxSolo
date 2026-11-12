@@ -14,13 +14,17 @@
 *               ($tk_std), F6 / Shift-F6 between the boxes and the AI line ($tk_aipage, offered only refresh).  The page's own content is Solo's, unchanged.
 * 11 Nov 26 dm  Carried from SD Core (S.160, 7 Nov 26, 74cf7001; the box's wording as Core has it since 8 Nov): T (and Provider > Standing text) opens the standing text -
 *               the text sent first with every AI request - in a box with an editor: Save, Shipped default, Cancel; SET.AI CONTEXT keeps it.  T is not on the key row.
-*               NOT carried: Core's S.209 (the page following a resize while the box is open), which needs Core's $tk_layout page; Solo's page has a fixed layout.
+*               (Core's S.209, the page following a resize while the box is open, was not carried then; it is now, 12 Nov 26 below.)
 * 11 Nov 26 dm  Carried from SD Core (owner, 11 Nov 2026: "Carry Core's dialog"): GOOGLE IS A ROW and every named provider has a DEFAULT model (Core e1061f73): five
 *               provider rows, so the Provider box is one row taller and the Account box one row shorter (it has one account; five rows are shown); the table, the summary and
 *               the detail show the model that will be asked, a default marked (default).  S IS THE SETUP DIALOG (Core S.170 / S.171, 2cced06c and d208d412): the key in a
 *               password entry (a key already set shows as stars that keep it), the model chosen from the provider's own list (asked with the key when the dialog opens,
 *               and again as soon as a new key is taken), Other name for a model no list holds.  The key is handed to the helper by file (SET.AI KEY p HANDOVER, in
 *               $aikey of the Solo tree, a directory of mode 0700).  K and M are gone.  SET.AI KEY p at the prompt still keeps a key out of SD altogether.
+* 12 Nov 26 dm  S.221 (Core-Solo parity audit, finding 7; owner, 12 Nov 2026: "Carry it"), SD Core's S.88 L2 and S.209: the four boxes are panes of the layout service
+*               ($tk_layout) - drawn exactly as before at 140 by 43, and in a larger window the account box takes the extra rows and every box the extra columns; a resize is
+*               followed, and a resize while the setup box or the standing-text box is open lays the page out again behind the box (after.box, box.resized).  The
+*               Provider and Account boxes are named as focus boxes for $tk_frame's marks, as in Core.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -71,6 +75,7 @@ $include tk.h
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.ai')
+   gosub lay.declare
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
@@ -101,14 +106,14 @@ $include tk.h
    call $tk_std('keys', ctx, keys, '', '')                ;* Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    call $tk_keys('ai', keys, 'refresh', '', '', '', '')  ;* the AI line is offered only refresh: no change of a setting is proposed by it
    call $tk_aipage('init', ctx, keys, '', '', aout)
+   if aout then gosub lay.declare                         ;* the AI line took the body's last row: the panes again (as SD Core's pages)
 
-   provs = 'anthropic' : @fm : 'openai' : @fm : 'google' : @fm : 'deepseek' : @fm : 'custom'
+   provs ='anthropic' : @fm : 'openai' : @fm : 'google' : @fm : 'deepseek' : @fm : 'custom'
    nprov = dcount(provs, @fm)                                  ;* the rows of the Provider box; the last is Custom
    lnames = 'requests-hour' : @fm : 'tokens-day' : @fm : 'timeout' : @fm : 'bytes-request' : @fm : 'bytes-reply' : @fm : 'max-tokens'
    pnames = 'Provider' : @fm : 'Account'
 
-   VISA = 5                                                    ;* account rows on the screen (Solo has one; 6 until Google's provider row took one, 11 Nov 26)
-   pane = 1
+   pane = 1                                                    ;* (VISA, the account rows on the screen, is the layout's: lay.get; 5 at 140 by 43, and Solo has one account)
    pi = 1                                                      ;* the provider row under the cursor
    ci = 1                                                      ;* the account row under the cursor
    ta = 0                                                      ;* the account rows scrolled off the top
@@ -144,6 +149,8 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', lay.chg)
+            gosub lay.get
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -205,16 +212,63 @@ read.accounts:
    ci = 1
    return
 
+* The page's four boxes as panes of $tk_layout (SD Core's S.88 L2, carried 12 Nov 26): each size is the box drawn at 140 by 43 (the body is 138 by 39; the boxes add up to 38,
+* so that the last row, the AI line's, is free), so at that size nothing moves; in a larger window the account box stretches and every pane is as wide as the body.
+lay.declare:
+   d = ''
+   d<1> = 'providers' : @vm : 1 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   d<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   d<3> = 'accounts' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<4> = 'effect' : @vm : 4 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ctx<TK.C.FOCI> = 'providers' : @sm : 'Provider' : @vm : 'accounts' : @sm : 'Account'        ;* the boxes that take the focus, for $tk_frame's [*] / [-] (pnames)
+   call $tk_layout('declare', ctx, d, lay.err)
+   gosub lay.get
+   return
+
+* The rectangles of the four panes, and what is counted from them: tw the width of a text line inside a box (134 at 140 by 43), VISA the account rows, DV the detail rows,
+* EV the explanation rows
+lay.get:
+   lay.id = 'providers'
+   gosub lay.rect
+   pr.x = lay.x ; pr.y = lay.y ; pr.w = lay.w ; pr.h = lay.h
+   lay.id = 'row'
+   gosub lay.rect
+   dt.x = lay.x ; dt.y = lay.y ; dt.w = lay.w ; dt.h = lay.h
+   lay.id = 'accounts'
+   gosub lay.rect
+   ac.x = lay.x ; ac.y = lay.y ; ac.w = lay.w ; ac.h = lay.h
+   lay.id = 'effect'
+   gosub lay.rect
+   ef.x = lay.x ; ef.y = lay.y ; ef.w = lay.w ; ef.h = lay.h
+   tx = pr.x + 2
+   tw = pr.w - 4
+   mk.px = pr.x + pr.w - 5                                      ;* the [?] button of each of the two boxes that have one, at the right end of its first row
+   mk.py = pr.y + 1
+   mk.ax = ac.x + ac.w - 5
+   mk.ay = ac.y + 1
+   VISA = ac.h - 4
+   DV = dt.h - 2
+   EV = ef.h - 2
+   return
+
+lay.rect:
+   call $tk_layout('pane', ctx, lay.id, lay.r)
+   lay.x = lay.r<1, 1>
+   lay.y = lay.r<1, 2>
+   lay.w = lay.r<1, 3>
+   lay.h = lay.r<1, 4>
+   return
+
 * ------------------------------------------------------------------------------------------------- drawing
 
 draw.all:
    cw = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw,chh
-   screen box at 1,1 size 138,10 title 'AI provider'                          ;* 9 rows until Google's row (11 Nov 26); the Account box gave the row up
-   screen box at 1,11 size 138,13 title 'The row under the cursor'
-   screen box at 1,24 size 138,9 title 'May this account use the AI?'
-   screen box at 1,33 size 138,6 title 'What this means'
+   screen box at pr.x,pr.y size pr.w,pr.h title 'AI provider'
+   screen box at dt.x,dt.y size dt.w,dt.h title 'The row under the cursor'
+   screen box at ac.x,ac.y size ac.w,ac.h title 'May this account use the AI?'
+   screen box at ef.x,ef.y size ef.w,ef.h title 'What this means'
    gosub draw.providers
    gosub draw.detail
    gosub draw.accounts
@@ -222,7 +276,7 @@ draw.all:
    return
 
 draw.providers:
-   screen text '    ' : fmt('Provider', '14L') : fmt('Address', '56L') : fmt('Model', '28L') : 'Key' at 3,2 attr 'header' width 134
+   screen text '    ' : fmt('Provider', '14L') : fmt('Address', '56L') : fmt('Model', '28L') : 'Key' at tx,pr.y + 1 attr 'header' width tw
    for r = 1 to nprov
       s = ''
       if helper.ok then
@@ -234,7 +288,7 @@ draw.providers:
          gosub model.text
          s = '[' : (if provs<r> = sel then 'x' else ' ') : '] ' : fmt(nm.s, '14L') : fmt(url.s, '56L') : fmt(mod.s[1, 27], '28L') : (if pkey<r> then 'set' else 'not set')
       end
-      screen text s at 3,2 + r attr (if r = pi then (if pane = 1 then 'highlight' else 'bold') else 'normal') width 134
+      screen text s at tx,pr.y + 1 + r attr (if r = pi then (if pane = 1 then 'highlight' else 'bold') else 'normal') width tw
    next r
    if not(helper.ok) then
       s = 'The AI helper is not running, or it is not installed: nothing here can be read or changed.'
@@ -259,8 +313,8 @@ draw.providers:
          end case
       end
    end
-   screen text s at 3,9 attr 'bold' width 134
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text s at tx,pr.y + 8 attr 'bold' width tw
+   call $tk_help('mark', mk.px, mk.py, 0, 0)
    return
 
 * The row under the cursor, in full
@@ -304,13 +358,13 @@ draw.detail:
       lines<-1> = 'Limits: ' : s
    end
    gosub wrap.lines
-   for r = 1 to 11
-      screen text fmt(lines<r>, '134L') at 3,11 + r width 134
+   for r = 1 to DV
+      screen text fmt(lines<r>, tw : 'L') at dt.x + 2,dt.y + r width tw
    next r
    return
 
 draw.accounts:
-   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at 3,25 attr 'header' width 134      ;* (one row in Solo)
+   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at ac.x + 2,ac.y + 1 attr 'header' width tw      ;* (one row in Solo)
    if ci <= ta then ta = ci - 1
    if ci > ta + VISA then ta = ci - VISA
    if ta < 0 then ta = 0
@@ -320,15 +374,15 @@ draw.accounts:
       if k <= an then
          s = fmt(anm<k>, '24L') : fmt(auser<k>, '24L') : (if ast<k> = 1 then 'ON ' else 'off') : (if asusp<k> then '   (suspended)' else '')
       end
-      screen text s at 3,25 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 134
+      screen text s at ac.x + 2,ac.y + 1 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
    next r
    if ast = 1 then
       s = 'The gate is ON: this account can send text to the provider.  Enter turns the gate off.'
    end else
       s = 'The gate is off (as delivered): nothing can be sent to the provider.  Enter turns the gate on.'
    end
-   screen text s at 3,31 attr 'bold' width 134
-   call $tk_help('mark', 134, 25, 0, 0)
+   screen text s at ac.x + 2,ac.y + ac.h - 2 attr 'bold' width tw          ;* the account box's last row (31 at 140 by 43)
+   call $tk_help('mark', mk.ax, mk.ay, 0, 0)
    return
 
 * In plain sentences
@@ -347,8 +401,8 @@ draw.effect:
       lines<-1> = 'Selected: ' : anm<ci> : (if ast = 1 then ' may use the AI.  Enter turns that off (at the next request).' else ' may not use the AI.  Enter turns it on (you type ai to confirm; at the next request).')
    end
    gosub wrap.lines
-   for r = 1 to 4
-      screen text fmt(lines<r>, '134L') at 3,33 + r width 134
+   for r = 1 to EV
+      screen text fmt(lines<r>, tw : 'L') at ef.x + 2,ef.y + r width tw
    next r
    return
 
@@ -359,7 +413,7 @@ wrap.lines:
       if lines<wi> = '' then
          wrapped<-1> = ''
       end else
-         call $tk_wrap(lines<wi>, 134, pieces)
+         call $tk_wrap(lines<wi>, tw, pieces)
          wrapped<-1> = pieces
       end
    next wi
@@ -489,8 +543,8 @@ on.mouse:
       msg = ap
       return
    end
-   call $tk_help('hit', mev, 134, 2, hit.prov)
-   call $tk_help('hit', mev, 134, 25, hit.acc)
+   call $tk_help('hit', mev, mk.px, mk.py, hit.prov)
+   call $tk_help('hit', mev, mk.ax, mk.ay, hit.acc)
    if hit.prov or hit.acc then
       pane = (if hit.prov then 1 else 2)
       gosub redraw
@@ -501,12 +555,12 @@ on.mouse:
       mx = mev<3>
       my = mev<4>
       begin case
-         case mx >= 2 and mx <= 137 and my >= 3 and my <= 2 + nprov
-            pi = my - 2
+         case mx >= pr.x + 1 and mx <= pr.x + pr.w - 2 and my >= pr.y + 2 and my <= pr.y + 1 + nprov
+            pi = my - pr.y - 1
             pane = 1
             gosub redraw
-         case mx >= 2 and mx <= 137 and my >= 26 and my <= 25 + VISA
-            if ta + my - 25 <= an then ci = ta + my - 25
+         case mx >= ac.x + 1 and mx <= ac.x + ac.w - 2 and my >= ac.y + 2 and my <= ac.y + 1 + VISA
+            if ta + my - ac.y - 1 <= an then ci = ta + my - ac.y - 1
             pane = 2
             gosub redraw
       end case
@@ -671,8 +725,11 @@ do.setup:
    gosub setup.say
    su.done = 0
    loop
-      screen wait sf returning su.ev then                     ;* su.ev, NOT ev: names fold case
+      screen wait sf returning su.ev then                     ;* su.ev, NOT ev: names fold case, and EV is the page's explanation rows
          begin case
+            case su.ev<1> = 'resize'                          ;* S.209: the box goes, the page follows the window, and the next wait shows the box over it
+               screen hide sf
+               gosub box.resized
             case su.ev<1> = 'focus'
                if su.ev<3> = 'key' then gosub setup.takekey   ;* the Key entry was left: a new key in it goes to the helper and the list is asked with it
             case su.ev<1> = 'button' and su.ev<2> = 'ok'
@@ -688,6 +745,7 @@ do.setup:
    repeat
    kv = ''
    screen hide sf
+   gosub after.box
    gen += 1
    ctx<TK.C.GEN> = gen
    if su.done then
@@ -950,7 +1008,11 @@ do.context:
    screen button cf, 'cancel', '&Cancel' at 36,cx.h - 3 cancel
    cx.act = ''
    loop
-      screen wait cf returning cx.ev then                     ;* cx.ev, NOT ev: names fold case
+      screen wait cf returning cx.ev then                     ;* cx.ev, NOT ev: names fold case, and EV is the page's explanation rows
+         if cx.ev<1> = 'resize' then                          ;* S.209: the box goes, the page follows the window, and the next wait shows the box over it
+            screen hide cf
+            gosub box.resized
+         end
          if cx.ev<1> = 'button' then
             begin case
                case cx.ev<2> = 'cancel'
@@ -978,6 +1040,7 @@ do.context:
    until cx.act # ''
    repeat
    screen hide cf
+   gosub after.box
    gen += 1
    ctx<TK.C.GEN> = gen
    gosub draw.all
@@ -1018,6 +1081,23 @@ do.context:
    msg = (if said # '' then said[1, 130] else 'ran, status ' : @system.return.code)
    gosub read.all
    gosub draw.all
+   return
+
+* S.209 (SD Core's, carried 12 Nov 26): the page's own boxes (the setup box and the standing text) run their own SCREEN WAIT, and a resize that comes while one is open is
+*   taken by the box: the page never saw it and was drawn again at its old size.  So when a box closes the layout is asked again, which is the main loop's own resize step.
+after.box:
+   call $tk_layout('refresh', ctx, '', lay.chg)
+   gosub lay.get
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   return
+
+* A resize while a box is open: the page is laid out and drawn at the new size behind it (the box was hidden first; its next SCREEN WAIT shows it again on top)
+box.resized:
+   gosub after.box
+   gosub draw.all
+   call $tk_menubar('draw', ctx, keys, pnames<pane>, '', '', mr)      ;* the bar and the foot too: the main loop that draws them is waiting for the box
+   call $tk_frame(ctx, keys, pnames<pane>, msg)
    return
 
 * In: cx.new.  Out: cx.bad, null when the helper would take it, else what is wrong (said in the box)

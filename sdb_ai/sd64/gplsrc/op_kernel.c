@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 12 Nov 26 dm  S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): K_PHANTOM_NONCE (144), the secret a phantom() gives the
+ *               process it starts in that process's environment (op_phantom builds the child's environment before the fork and starts it with execle).
  * 11 Nov 26 dm  Solo carry S.216 gap 13 (SD Core S.88 phase 2): K_SHOW_SAFE (151), another session's text made safe to print by the kernel's one rule (show_ts_safe()), for PSTAT,
  *               PROFILER DISPLAY and HSM USER n, which print the $IPC records S<n>, F<n> and H<n> that any SD user can write.  Gap 4: the comment at K_AUTOLOGOUT -2 (the code was carried).
  * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): kernel(K$AUTOLOGOUT, -2) returns the inactivity clock
@@ -105,6 +107,78 @@ void set_date(int32_t);
 #define INPUT_FILL_MAX 3
 Private char input_fill[INPUT_FILL_MAX + 1] = ""; /* K_INPUT_FILL_SET / _GET (sheet item 389) */
 Private int16_t phantom_requested_user = 0;           /* PHANTOM USER n (16 Oct 26): the user number the next phantom() is to take, 0 for any */
+
+/* 12 Nov 26 dm - S.221, SD Core's W.11 F10 of 26 Oct carried (owner, 12 Nov 2026: "Carry F10").  The secret a phantom() gives the process it starts:
+   16 to 64 characters of the base64 alphabet, made by the PHANTOM verb (SDEXT SD_RANDBYTES) and staged with K_PHANTOM_NONCE 'S'.  It travels in the
+   new process's ENVIRONMENT, which only that operating-system user (and root) can read; it is not stored in $ipc or in the shared segment.
+   phantom_nonce_next is the one for the next phantom() and is cleared by it; phantom_nonce_mine is the one THIS process was started with (a phantom
+   only), answered by K_PHANTOM_NONCE 'G'.                                                                                                          */
+#define PHANTOM_NONCE_MIN 16
+#define PHANTOM_NONCE_MAX 64
+#define PHANTOM_NONCE_ENV "SD_PHANTOM_NONCE"
+Private char phantom_nonce_next[PHANTOM_NONCE_MAX + 1] = "";
+Private char phantom_nonce_mine[PHANTOM_NONCE_MAX + 1] = "";
+
+Private bool phantom_nonce_valid(const char *t) {
+  size_t len = strlen(t);
+  size_t k;
+  char c;
+
+  if ((len < PHANTOM_NONCE_MIN) || (len > PHANTOM_NONCE_MAX))
+    return FALSE;
+  for (k = 0; k < len; k++) {
+    c = t[k];
+    if (!(((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z')) || ((c >= '0') && (c <= '9')) || (c == '+') || (c == '/') || (c == '='))) {
+      return FALSE;
+    }
+  }
+  return TRUE;
+}
+
+/* phantom_nonce_import()  -  a phantom's first act (kernel.c): take the secret out of the environment, so that nothing it runs inherits it */
+
+void phantom_nonce_import(void) {
+  const char *p;
+
+  phantom_nonce_mine[0] = '\0';
+  if ((p = getenv(PHANTOM_NONCE_ENV)) != NULL) {
+    if (phantom_nonce_valid(p))
+      strcpy(phantom_nonce_mine, p);
+    /* unsetenv() drops only the pointer; the string itself stays in the stack area that /proc/<pid>/environ shows to the same user and to root
+       for the life of the phantom, so it is wiped in place first */
+    memset((char *)p, 0, strlen(p));
+    unsetenv(PHANTOM_NONCE_ENV);
+  }
+}
+
+/* phantom_child_environment()  -  op_phantom(): a copy of this process's environment for the new process to be started with.  Any
+   SD_PHANTOM_NONCE already in it is left out; a non-empty nonce is added, as SD_PHANTOM_NONCE=<nonce> in BUF.  Answers a malloc'd array
+   (its strings are this process's own and BUF), or NULL if it could not be made.                                                      */
+
+extern char **environ;
+
+Private char **phantom_child_environment(const char *nonce, char *buf, size_t bufsz) {
+  size_t count = 0;
+  size_t k;
+  size_t m = 0;
+  char **env;
+
+  while ((environ != NULL) && (environ[count] != NULL))
+    count++;
+  if ((env = (char **)malloc((count + 2) * sizeof(char *))) == NULL)
+    return NULL;
+  for (k = 0; k < count; k++) {
+    /* sizeof the name is its length and the NUL, which is the length of "NAME=" */
+    if (strncmp(environ[k], PHANTOM_NONCE_ENV "=", sizeof(PHANTOM_NONCE_ENV)) != 0)
+      env[m++] = environ[k];
+  }
+  if (nonce[0] != '\0') {
+    snprintf(buf, bufsz, "%s=%s", PHANTOM_NONCE_ENV, nonce);
+    env[m++] = buf;
+  }
+  env[m] = NULL;
+  return env;
+}
 Private char input_null_char = '\0';               /* INPUTNULL (sheet item 408): '\0' for none */
 Private char *reset_all_command = NULL;            /* LOGTO ... RESET ALL (item 30): the command the bottom command processor is to run */
 Private bool run_exe(char *exe_name, char *cmd_line);
@@ -876,6 +950,21 @@ void op_kernel() {
       result.data.value = 1;
       break;
 
+    /* 12 Nov 26 dm - S.221, SD Core's W.11 F10: see keys.h.  'S' + text stages the secret for the next phantom() (nothing is staged unless the text
+       is of the right shape); 'G' answers the secret this process was started with.  Any other argument answers 0 and changes nothing.        */
+    case K_PHANTOM_NONCE:
+      (void)k_get_c_string(descr, s, sizeof(s) - 1);
+      if (s[0] == 'S') {
+        phantom_nonce_next[0] = '\0';
+        if (phantom_nonce_valid(s + 1)) {
+          strcpy(phantom_nonce_next, s + 1);
+          result.data.value = 1;
+        }
+      } else if ((s[0] == 'G') && (s[1] == '\0')) {
+        k_put_c_string(phantom_nonce_mine, &result);
+      }
+      break;
+
     case K_LOCK_TRACE: {
       /* LOCK.TRACER (see keys.h).  Only an administrator changes it.  Starting makes an EMPTY locktrace file in the system
          directory - owner the caller, group the system directory's, mode 0620, so that the administrator reads it and the
@@ -1331,11 +1420,22 @@ void op_phantom() {
   char path[MAX_PATHNAME_LEN + 1];
   char option[15 + 1];
   int cpid;
+  char nonce_var[sizeof(PHANTOM_NONCE_ENV) + PHANTOM_NONCE_MAX + 1];
+  char **child_env;
 
   /* Reserve a user table entry for the phantom process */
 
   requested_user = phantom_requested_user; /* PHANTOM USER n: asked for once, for this phantom only */
   phantom_requested_user = 0;
+
+  /* 12 Nov 26 dm - S.221, SD Core's W.11 F10.  The environment the new process starts with is made HERE, before the fork, from this process's
+     own: with the staged secret in it (and any SD_PHANTOM_NONCE of this process's own taken out, so that a phantom started without one has none),
+     asked for once, for this phantom only.  Nothing is changed in this process's environment, and the child allocates nothing.               */
+
+  child_env = phantom_child_environment(phantom_nonce_next, nonce_var, sizeof(nonce_var));
+  phantom_nonce_next[0] = '\0';
+  if (child_env == NULL)
+    goto exit_op_phantom;
 
   StartExclusive(SHORT_CODE, 38);
   phantom_user_index = 0;
@@ -1386,8 +1486,8 @@ void op_phantom() {
       _exit(1);
     }
     sprintf(option, "-p%d", phantom_user_index);
-    execl(path, path, option, NULL);
-    _exit(1); /* execl() only returns when it failed: the same */
+    execle(path, path, option, (char *)NULL, child_env); /* 12 Nov 26 F10 (S.221): with the environment made above */
+    _exit(1); /* execle() only returns when it failed: the same */
   } else if (cpid == -1) { /* Error */
     *(UMap(uptr->uid)) = 0;
     uptr->uid = 0; /* Release reserved user cell */
@@ -1398,6 +1498,8 @@ void op_phantom() {
   }
 
 exit_op_phantom:
+  free(child_env); /* the child never gets here: it is the new program or it has gone; the secret is only in the environment it was given */
+  memset(nonce_var, 0, sizeof(nonce_var));
   InitDescr(e_stack, INTEGER);
   (e_stack++)->data.value = phantom_uid;
 }

@@ -78,6 +78,11 @@
 #                                 okular, zathura, atril, xreader, mupdf, qpdfview, xpdf).  Asked on a terminal when such a
 #                                 reader is installed and none is allowed yet; with no terminal, with --yes, or with none,
 #                                 nothing is allowed.  Later: ADMIN, then set.viewer add pdf NAME.  The control file's viewer.
+#   --start menu|terminal         where a session starts (12 Nov 2026, SD Core's question of 3 Nov): menu = the home screen,
+#                                 terminal = the command prompt.  Asked on a terminal on a fresh install (default the home
+#                                 screen); with no terminal or --yes and no --start, the home screen.  Later: ADMIN, then
+#                                 set.start.default.  The control file's start.  An upgrade asks nothing: a tree that already
+#                                 has a setting keeps it, and one from before the home screen keeps starting at the prompt.
 #   --enable-linger               run "loginctl enable-linger" so SD keeps running, and reachable, when nobody is signed in.
 #                                 THE DEFAULT (9 Nov 26): on for every install, an unattended one included; asked on a terminal.
 #   --no-linger                   do not: SD stops when your last session ends (also the control file's enable-linger=no)
@@ -221,11 +226,13 @@ ssh_key=""; enable_linger=1; skip_pkgs=0; no_service=0; assume_yes=0; upgrade=0
 linger_cli=""  # 9 Nov 26 (owner: "Yes, on by default"): yes|no when --enable-linger / --no-linger was given; linger_decide settles enable_linger
 os_access=""   # 20 Oct 26, the OS switch: none|sh|os|both once answered (by --os-access, the control file, or the question)
 viewer=""      # 23 Oct 26, Solo carry 14: a PDF reader to allow for the pdf verb (a name), or none; "" until answered
+start_choice="" # 12 Nov 26, S.221 (SD Core's START-ASK): menu or terminal once answered (--start, the control file's start, or the question)
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --os-access)              [ "$#" -ge 2 ] || refuse "--os-access needs none, sh, os or both"; os_access="$2"; shift 2 ;;
     --viewer)                 [ "$#" -ge 2 ] || refuse "--viewer needs a reader name or none"; viewer="$2"; shift 2 ;;
     --home)                   [ "$#" -ge 2 ] || refuse "--home needs a directory"; HOME_DIR="$2"; shift 2 ;;
+    --start)                  [ "$#" -ge 2 ] || refuse "--start needs menu or terminal"; start_choice="$2"; shift 2 ;;
     --control-file)           [ "$#" -ge 2 ] || refuse "--control-file needs a file"; control_file="$2"; shift 2 ;;
     --managed)                refuse "--managed is gone: there is one install now. A computer is managed if it has a global password: give --global-password-file FILE, or answer the global password question; leave it blank if no SD Core server manages this computer." ;;
     --account-password-file)  [ "$#" -ge 2 ] || refuse "$1 needs a file"; acc_file="$2"; shift 2 ;;
@@ -252,6 +259,7 @@ case "$HOME_DIR" in *" "*|*'"'*|*"'"*|*'\'*|*'$'*|*'`'*|*'%'*) refuse "the insta
 case "$api" in ""|off|local|open) ;; *) refuse "--api must be off, local or open (got '$api')" ;; esac
 case "$ssh" in ""|off|local|open) ;; *) refuse "--ssh must be off, local or open (got '$ssh')" ;; esac
 case "$os_access" in ""|none|sh|os|both) ;; *) refuse "--os-access must be none, sh, os or both (got '$os_access')" ;; esac
+case "$start_choice" in ""|menu|terminal) ;; *) refuse "--start must be menu or terminal (got '$start_choice')" ;; esac
 case "$viewer" in ""|none) ;; *[!a-z0-9._+-]*|.*) refuse "--viewer must be none or the name of a reader: letters, digits and . _ + - (got '$viewer')" ;; esac
 if [ "$ssh" = "off" ] && [ -n "$ssh_key" ]; then refuse "--ssh-key needs ssh on; give --ssh local or --ssh open, or leave --ssh out"; fi
 if [ -n "${SDSOLO_TEST_SSH_PORT:-}" ]; then
@@ -303,8 +311,8 @@ fi
 if [ "$upgrade" -eq 1 ]; then
   [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core for Linux Solo in $HOME_DIR to upgrade (no .sdcoresolo marker)"
   [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsdsolo.sh; upgrade it by hand or reinstall"
-  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key$reload_ans$linger_cli" ] \
-    || refuse "--upgrade keeps the passwords (and so whether a global password is set), the account's data and sd.conf, and the API and ssh settings as installed; it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger or --no-linger option"
+  [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key$reload_ans$linger_cli$start_choice" ] \
+    || refuse "--upgrade keeps the passwords (and so whether a global password is set), the account's data and sd.conf, and the API and ssh settings as installed; it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger, --no-linger or --start option"
 elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
   # LSOLO 39: the one non-empty directory this installer will use is what deletesdsolo.sh --keep-data leaves:
   # the stamp, the account, sd.conf and, if there was one, newvoc.mods, and NOTHING else (a folder you have put other things in is never touched).
@@ -483,7 +491,7 @@ ask_viewer() {   # settles viewer when --viewer and the control file gave none: 
 
 # An upgrade asks only that one question (above) and reads the install's own record; a first install does
 # everything from here to "scratch space".
-cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_ssh=""; cf_linger=""; cf_deny=""; cf_reload=""; cf_osacc=""; cf_viewer=""
+cf_admin=""; cf_global=""; cf_ssh_key=""; cf_api=""; cf_ssh=""; cf_linger=""; cf_deny=""; cf_reload=""; cf_osacc=""; cf_viewer=""; cf_start=""
 ACC_PW=""; ADM_PW=""; GLB_PW=""
 ssh_wanted=0; first_login=0
 if [ "$upgrade" -eq 1 ]; then
@@ -529,6 +537,7 @@ if [ -n "$control_file" ]; then
       reload-data)     cf_reload="$val" ;;
       os-access)       cf_osacc="${val//[[:space:]]/}" ;;
       viewer)          cf_viewer="${val//[[:space:]]/}" ;;
+      start)           cf_start="${val//[[:space:]]/}" ;;
       ssh-match)       warn "the control file's ssh-match is gone (LSOLO 29: Solo's ssh has its own port, 4251, and no longer uses the machine's sshd_config); ignored" ;;
       enable-linger)   cf_linger="$val" ;;
       *) warn "the control file has an item this installer does not know, ignored: $key" ;;
@@ -550,6 +559,8 @@ if [ -n "$control_file" ]; then
   [ -n "$os_access" ] || os_access="$cf_osacc"
   case "$cf_viewer" in ""|none) ;; *[!a-z0-9._+-]*|.*) refuse "viewer in the control file must be none or the name of a reader: letters, digits and . _ + - (got '$cf_viewer')" ;; esac
   [ -n "$viewer" ] || viewer="$cf_viewer"
+  case "${cf_start:-}" in ""|menu|terminal) ;; *) refuse "start in the control file must be menu or terminal (got '$cf_start')" ;; esac
+  [ -n "$start_choice" ] || start_choice="${cf_start:-}"
   if [ "$ssh" = "off" ] && [ -n "$ssh_key" ]; then refuse "an ssh public key needs ssh on: the install says ssh off and also gives a key (--ssh-key or the control file's ssh-public-key-file)"; fi
 fi
 
@@ -621,6 +632,18 @@ fi
 ask_os_access
 # 23 Oct 26, Solo carry 14: the PDF reader question (see ask_viewer above); NOTHING is allowed unless the answer says so.
 ask_viewer
+# 12 Nov 26 dm  S.221 (Core-Solo parity audit, finding 8): WHERE A SESSION STARTS, SD Core's START-ASK of 3 Nov (owner: "Can that be a question asked during
+#            the install?", then "the home/prompt question").  The home screen as delivered; the command prompt on p.  A fresh install only: an upgrade asks
+#            nothing (see START-KEEP below).  The answer is applied by the START-SET block with set.start.default.  test-install-start.sh runs these blocks.
+# START-ASK-BEGIN
+if [ -z "$start_choice" ]; then
+  start_choice=menu
+  if [ "$interactive" -eq 1 ] && [ "$assume_yes" -eq 0 ]; then
+    read -r -p "Start new sessions at the home screen or at the command prompt? (H/p) " yn_start < /dev/tty || yn_start=""
+    case "$yn_start" in [pP]|[pP][rR][oO][mM][pP][tT] ) start_choice=terminal ;; esac
+  fi
+fi
+# START-ASK-END
 
 # passwords, in the owner's order (ruling 30): account, administrator, then - if there is one - global
 get_password() {   # get_password VAR "what" "from-file" "from-control"
@@ -781,6 +804,7 @@ say "  global pw     : $([ "$managed" -eq 1 ] && echo "set - an SD Core server i
 say "  account pw    : $([ "$first_login" -eq 1 ] && echo "chosen at first login, at this computer's keyboard" || echo "set now")"
 say "  API           : $api$([ "$api" != off ] && echo " (port $api_port)")"
 say "  ssh into sd   : $ssh$([ "$ssh" != off ] && echo " (port $ssh_port, Linux password or key)")$([ -n "$ssh_key" ] && echo ", key $ssh_key")"
+say "  sessions start: $([ "$start_choice" = terminal ] && echo 'at the command prompt' || echo 'at the home screen')"
 say "  service       : $([ "$no_service" -eq 1 ] && echo "not installed" || echo "systemd user service$([ "$enable_linger" -eq 1 ] && echo ", linger on: SD keeps running when nobody is signed in" || echo ", linger off: SD stops when you sign out")")"
 say "  packages      : $([ "$skip_pkgs" -eq 1 ] && echo "not installed (checked)" || echo "installed with sudo")"
 if [ "$assume_yes" -eq 0 ] && [ "$interactive" -eq 1 ]; then
@@ -880,6 +904,15 @@ if [ "$upgrade" -eq 1 ]; then
     systemctl --user stop sd-solo-lnxd.service >/dev/null 2>&1 || true
     systemctl --user stop sd-solo-ssh.socket sd-solo-api.socket sd-solo.service >/dev/null 2>&1 || true
   fi
+  # 12 Nov 26 dm - S.221 (SD Core's START-SAVE of 3 Nov; owner: "for existing users where all installs go to the prompt by default ... that will be retained on
+  #            upgrade"): a tree from before the home screen (no gpl.bp/tool_home: LS1.1-3 and earlier) started every session at the prompt, so it keeps doing so.  A tree
+  #            that has start.default keeps it (the upgrade replaces only what it ships).  The file is what set.start.default writes: the one word.
+  # START-KEEP-BEGIN
+  if [ ! -e "$HOME_DIR/start.default" ] && [ -d "$HOME_DIR/gpl.bp" ] && [ ! -e "$HOME_DIR/gpl.bp/tool_home" ]; then
+    printf 'terminal\n' > "$HOME_DIR/start.default"
+    say "Sessions keep starting at the command prompt (this install is from before the home screen; ADMIN, then set.start.default menu, changes it)."
+  fi
+  # START-KEEP-END
   if ! bash "$SRC/gplbld/solo-stage.sh" --upgrade --os-access "${os_access:-none}" --viewer "${viewer:-none}" "$HOME_DIR" > "$WORK/stage.log" 2>&1; then
     tail -25 "$WORK/stage.log"
     [ "$had_service" -eq 0 ] || systemctl --user start sd-solo.service sd-solo-api.socket sd-solo-ssh.socket >/dev/null 2>&1 || true
@@ -993,6 +1026,9 @@ fi
 #            clone, a clone without User/markdown, no mktemp or a failed copy leaves the AI line working as it did, without passages; an older install's docs are replaced only
 #            when the new ones are complete.
 #            12 Nov 26 dm - S.218: a release package carries User/markdown in source/docs; only without a package is it cloned.
+#            12 Nov 26 dm - S.221 (Core-Solo parity audit, finding 9): SD Core gives its administrator the Administrator pages as well, in docs/admin; Solo's administration
+#            is in its Getting Started document, so GettingStarted/markdown goes to docs/admin when the documentation has it (700, files 600: tk_aidocs reads it only for
+#            a session that has typed ADMIN).  The User pages are still what decides whether there is documentation at all.
 # DOCS-CORPUS-BEGIN
 docs_tmp=$(mktemp -d 2>/dev/null) || docs_tmp=""
 docs_from=""
@@ -1004,9 +1040,14 @@ elif [ -z "$pkg_source" ] && [ -n "$docs_tmp" ] && GIT_TERMINAL_PROMPT=0 git clo
 fi
 if [ -n "$docs_from" ]; then
     rm -rf "$HOME_DIR/docs"
-    if mkdir -p "$HOME_DIR/docs/user" && cp "$docs_from"/User/markdown/*.md "$HOME_DIR/docs/user/"; then
+    if mkdir -p "$HOME_DIR/docs/user" && cp "$docs_from"/User/markdown/*.md "$HOME_DIR/docs/user/" \
+       && { [ ! -d "$docs_from/GettingStarted/markdown" ] || { mkdir -p "$HOME_DIR/docs/admin" && cp "$docs_from"/GettingStarted/markdown/*.md "$HOME_DIR/docs/admin/"; }; }; then
         chmod 755 "$HOME_DIR/docs" "$HOME_DIR/docs/user"
         find "$HOME_DIR/docs/user" -type f -exec chmod 644 {} +
+        if [ -d "$HOME_DIR/docs/admin" ]; then
+            chmod 700 "$HOME_DIR/docs/admin"
+            find "$HOME_DIR/docs/admin" -type f -exec chmod 600 {} +
+        fi
         say "Installed the documentation the AI line draws on: $HOME_DIR/docs"
     else
         rm -rf "$HOME_DIR/docs"
@@ -1096,6 +1137,25 @@ else
     say "The documentation PDFs were not installed: there is no pdf directory in $HOME_DIR."
 fi
 # MANUALS-PDF-END
+#
+# 12 Nov 26 dm - S.221: the answer to the START-ASK question (a fresh install), applied with SD's own verb through the internal door and judged on the file it
+#            writes (<home>/start.default), not on sd's exit code; SD is running here (the MANUALS block started it if it was not).  An upgrade has start_choice
+#            empty and does nothing here: START-KEEP decided before the stage.
+# START-SET-BEGIN
+if [ "$start_choice" = terminal ]; then
+    "$HOME_DIR/bin/sd-solo" -start >/dev/null 2>&1 || true
+    printf 'installsdsolo pid=%s %s\n' "$$" "$(date -Is)" > "$HOME_DIR/\$internal"
+    "$HOME_DIR/bin/sd-solo" -internal set.start.default terminal < /dev/null > /dev/null 2>&1 || true
+    rm -f "$HOME_DIR/\$internal"
+    if grep -qsx 'terminal' "$HOME_DIR/start.default"; then
+        say "New sessions start at the command prompt (set.start.default terminal)."
+    else
+        warn "WARNING: the start setting was not written.  Type ADMIN, then:  set.start.default terminal"
+    fi
+elif [ "$start_choice" = menu ]; then
+    say "New sessions start at the home screen."
+fi
+# START-SET-END
 
 # The stage leaves its own daemon running; the service takes over below.
 "$HOME_DIR/bin/sd-solo" -stop >/dev/null 2>&1 || true

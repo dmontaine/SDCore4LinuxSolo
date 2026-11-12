@@ -68,7 +68,7 @@ check() {   # check INSTALLER - every row, against this file
   row "T2 --enable-linger and --no-linger are options and set linger_cli yes / no" \
     "$(grep -qE '^ +--enable-linger\) +linger_cli=yes; shift ;;' "$inst" && grep -qE '^ +--no-linger\) +linger_cli=no; shift ;;' "$inst" && echo 0 || echo 1)"
   row "T3 an upgrade refuses either option (linger_cli in its emptiness test, both named in the message)" \
-    "$(grep -q 'reload_ans\$linger_cli" \]' "$inst" && grep -q -- '--ssh-key, --enable-linger or --no-linger option' "$inst" && echo 0 || echo 1)"
+    "$(grep -q 'reload_ans\$linger_cli\$start_choice" \]' "$inst" && grep -q -- '--ssh-key, --enable-linger, --no-linger or --start option' "$inst" && echo 0 || echo 1)"   # 12 Nov 26: --start joined the list (S.221)
   row "T4 linger_decide is called exactly once, after its definition and ask_yn's" \
     "$([ "$(grep -c '^linger_decide$' "$inst")" = 1 ] && [ "$(grep -n '^linger_decide$' "$inst" | cut -d: -f1)" -gt "$(grep -n '^ask_yn()' "$inst" | cut -d: -f1)" ] && echo 0 || echo 1)"
   row "T5 the service install passes --enable-linger when it is on, and the summary says on or off" \

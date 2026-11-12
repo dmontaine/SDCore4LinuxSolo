@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 12 Nov 26 SD Core for Linux Solo - S.221: the rest of SD Core's S.88 phase 1 - a session with no terminal is linux (it relied on the login paragraph's TERM LINUX,
+*           which went the same day).
 * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change S.88 phase 1, K1) - a TERM that SD has no entry for falls back to the family it
 *           belongs to (xterm for the xterm-family terminals), not always to linux.
 * 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
@@ -176,6 +178,11 @@ deffun pw_complex(pw) calling '!pw_complex'
             * This user has come in from a command prompt of some sort.
             s = env('TERM')
             if s = '' then s = 'vt100'
+* 12 Nov 26 dm - S.221, carried from SD Core (its 28 Oct 26 S.88 phase 1): A SESSION WITH NO TERMINAL KEEPS WHAT IT HAD.  The account's login paragraph used to make
+*   every session linux, a pipe, a cron job and a test harness among them, and their output is parsed by scripts written against linux.  The type now comes from the
+*   terminal's TERM only where there is a terminal to ask (K$WINSIZE is null with no tty); without one it is linux, as before.  (The paragraph's TERM LINUX went today;
+*   without these lines a piped session took the shell's TERM - dumb - and echoed every space of a command as a carriage return: sandbox-guide 73 rows, jsonx 1.)
+            if kernel(K$WINSIZE, '') = '' then s = 'linux'
       end
 
 * 11 Sep 26 Windows port - A TERM WITH NO SHIPPED TERMINFO ENTRY FALLS BACK

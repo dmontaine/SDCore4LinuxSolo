@@ -106,7 +106,7 @@ check() {   # check INSTALLER STAGE - every row, against these two files
   row "the summary and the log carry the state: the stage's 'PDF reader:' line is read on both paths and the summary prints it" \
     "$([ "$(grep -c "solo-stage: PDF reader: //p" "$inst")" -ge 2 ] && grep -q "say \"  pdf reader    : " "$inst" && echo 0 || echo 1)"
   row "an upgrade still refuses every other install option (os-access and viewer are the exceptions)" \
-    "$(grep -q 'it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger or --no-linger option' "$inst" && echo 0 || echo 1)"
+    "$(grep -q 'it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger, --no-linger or --start option' "$inst" && echo 0 || echo 1)"   # 12 Nov 26: --start joined the list (S.221)
   row "solo-stage.sh takes --viewer NAME|none, makes none the empty word and refuses anything that is not a plain name" \
     "$(grep -qF '"--viewer"' "$stage" && grep -qF 'case "$2" in none) viewer="" ;;' "$stage" && grep -qF '*[!a-z0-9._+-]*) refuse "--viewer must be none or the name of a reader' "$stage" && echo 0 || echo 1)"
   row "solo-stage.sh allows a reader only when one was asked for, through SET.VIEWER ADD PDF (which tests the program), and says what the list holds afterwards" \

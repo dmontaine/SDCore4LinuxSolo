@@ -150,16 +150,24 @@ def checks(raw):
     ck("GS12", "after a command the state is read again and the whole page is drawn again, and what the status line shows is the verb's own last line",
        re.search(r"call \$tk_run\(allow, sent, out, st, err\)[\s\S]*?for oi = dcount\(out, @fm\) to 1 step -1[\s\S]*?msg = \(if said # '' then said\[1, 130\] else 'ran, status ' : st\)[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", ch) is not None)
     ck("GS13", "the page has a [?] and F1, ? and a click show tool.gates.page, whose record exists with a title, a documentation page and a body of at least two paragraphs",
-       pg.count("'tool.gates.page'") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
+       pg.count("'tool.gates.page'") == 2 and "call $tk_help('mark', gat.x + gat.w - 5, gat.y + 1, 0, 0)" in pg and "call $tk_help('hit', mev, gat.x + gat.w - 5, gat.y + 1, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
        and raw["help"].split("\n")[1].strip() == "06b-operating-system-access" and len([l for l in raw["help"].split("\n")[2:] if l.strip()]) >= 2)
     dl = block(pg, "draw.all")
     dlst = block(pg, "draw.list")
     drow = block(pg, "draw.row")
     dsrc = block(pg, "draw.source")
-    ck("GS14", "the layout fits the 140 by 43 frame: three boxes (rows 1-11, 12-25, 26-34), four gate rows at y 3-6 under the headings at 2, the three summary lines at 8-10, 12 lines of explanation at y 13-24 "
-       "and 7 lines of source at y 27-33",
-       "screen box at 1,1 size 138,11" in dl and "screen box at 1,12 size 138,14" in dl and "screen box at 1,26 size 138,9" in dl and "VIS = 4" in pg and "at 3,2 + r attr" in dlst
-       and "at 3,8 attr" in dlst and "at 3,9 width" in dlst and "at 3,10 width" in dlst and "for r = 1 to 12" in drow and "at 3,12 + r width 134" in drow and "for r = 1 to 7" in dsrc and "at 3,26 + r width 134" in dsrc)
+    # 12 Nov 26 (S.221, SD Core's S.88 L2 carried): the three boxes are panes of $tk_layout.  The declaration is what the 140 by 43 layout was (bands 1, 2, 3 of 11, 14 and
+    # 9 rows by 138: rows 1-11, 12-25, 26-34, since a band starts where the one above ends), and every row the page draws is counted from its pane, so at 140 by 43 the gate
+    # rows are at y 3-6, the summary at 8-10, 12 lines of explanation at 13-24 and 7 of source at 27-33, as before; a resize lays the panes out again.
+    dly = block(pg, "declare.layout")
+    ck("GS14", "the layout fits the 140 by 43 frame: three panes declared 11, 14 and 9 rows by 138 (rows 1-11, 12-25, 26-34 at that size), four gate rows under the headings, the three summary lines "
+       "below them, the explanation and the source filling their boxes, all counted from the pane; a resize asks the layout again",
+       "ld<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 11 : @vm : 138 :" in dly and "ld<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 14 : @vm : 138 :" in dly
+       and "ld<3> = 'source' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 :" in dly
+       and "screen box at gat.x,gat.y size gat.w,gat.h" in dl and "screen box at row.x,row.y size row.w,row.h" in dl and "screen box at src.x,src.y size src.w,src.h" in dl
+       and "VIS = 4" in pg and "at tx,gat.y + 1 + r attr" in dlst and "at tx,gat.y + 7 attr" in dlst and "at tx,gat.y + 8 width" in dlst and "at tx,gat.y + 9 width" in dlst
+       and "for r = 1 to row.h - 2" in drow and "at row.x + 2,row.y + r width ww" in drow and "for r = 1 to src.h - 2" in dsrc and "at src.x + 2,src.y + r width ww" in dsrc
+       and "call $tk_layout('refresh', ctx, '', lchg)\n            gosub get.rects" in pg)
     ck("GS15", "every gate is shown as off as delivered and as reaching beyond SD (nothing is on as delivered, and each one reaches the operating system or beyond SD), and the page says when a change reaches you: "
        "next sign-on three times, at the next request for the AI",
        "fmt('off', '14L') : fmt('yes', '11L')" in dlst and "gwhen = 'next sign-on' : @fm : 'next sign-on' : @fm : 'next sign-on' : @fm : 'at the next request'" in pg)
@@ -226,14 +234,15 @@ MUTANTS = [
     ("the page is not read again after a command", "GS12", sub("page", "      gosub read.all\n      gosub draw.all\n   end else\n      msg = cmsg", "      gosub draw.all\n   end else\n      msg = cmsg")),
     ("the help key names a record that does not exist", "GS13", sub("page", "call $tk_help('box', 'tool.gates.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'", "call $tk_help('box', 'tool.gates.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'")),
     ("the help record names no page", "GS13", sub("help", "06b-operating-system-access", "")),
-    ("the second box overruns the third", "GS14", sub("page", "screen box at 1,12 size 138,14 title 'The row under the cursor'", "screen box at 1,12 size 138,15 title 'The row under the cursor'")),
-    ("a gate row is drawn on the border", "GS14", sub("page", "at 3,2 + r attr (if k = ci", "at 3,1 + r attr (if k = ci")),
+    ("the second box overruns the third", "GS14", sub("page", "ld<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 14 :", "ld<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 15 :")),
+    ("a gate row is drawn on the border", "GS14", sub("page", "at tx,gat.y + 1 + r attr (if k = ci", "at tx,gat.y + r attr (if k = ci")),
+    ("a resize is not followed", "GS14", sub("page", "            call $tk_layout('refresh', ctx, '', lchg)\n            gosub get.rects\n", "")),
     ("a gate is delivered on", "GS15", sub("page", "fmt('off', '14L') : fmt('yes', '11L')", "fmt('ON', '14L') : fmt('yes', '11L')")),
     ("a change is said to reach the AI at the next sign-on", "GS15", sub("page", "'next sign-on' : @fm : 'at the next request'", "'next sign-on' : @fm : 'next sign-on'")),
     ("the AI's register cell is not the helper's", "GS16", sub("page", "      gset<4> = gnow<4>\n", "")),
     ("the two columns are not told apart", "GS16", sub("page", "fmt('This session', '14L') : fmt('Register', '10L')", "fmt('This session', '14L') : fmt('Session', '10L')")),
     ("the page tells the administrator to sign in as SDSYS", "GS17", sub("page", "type admin, then open this page again", "sign in as SDSYS, then open this page again")),
-    ("the mouse changes a gate", "GS18", sub("page", "         ci = my - 2\n         gosub redraw\n", "         ci = my - 2\n         gosub change\n")),
+    ("the mouse changes a gate", "GS18", sub("page", "         ci = my - gat.y - 1\n         gosub redraw\n", "         ci = my - gat.y - 1\n         gosub change\n")),
 ]
 
 

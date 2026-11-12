@@ -166,6 +166,17 @@ row "B3 docs and docs/user are 755 (made under umask 077 they would be 700)" "$(
 row "B3b the pages are 644 (and there are some)" "$([ -z "$(find "$DOCS/user" -type f ! -perm 644)" ] && [ -n "$(find "$DOCS/user" -type f)" ] && echo 0 || echo 1)" "not 644: $(find "$DOCS/user" -type f ! -perm 644 | head -2 | tr '\n' ' ')"
 row "B3c nothing in docs is writable by group or other" "$([ -z "$(find "$DOCS" -perm /022)" ] && echo 0 || echo 1)" "writable: $(find "$DOCS" -perm /022 | head -2 | tr '\n' ' ')"
 
+echo "--- B5: the administrator's pages (12 Nov 26, S.221: Solo's GettingStarted is what SD Core's Administrator set is)"
+gs() { mkdir -p "$T/repo/GettingStarted/markdown"; printf '# Admin\n\nAdministrator page, zzadminword.\n' > "$T/repo/GettingStarted/markdown/06-administrator-commands.md"; }
+setup; gs; OUT=$(run)
+row "B5 with GettingStarted/markdown: docs/admin holds its pages, 700 with 600 files, docs/user unchanged, the success line" \
+    "$([ "$(ls "$DOCS/admin" 2>/dev/null | tr '\n' ' ')" = "06-administrator-commands.md " ] && [ "$(stat -c %a "$DOCS/admin")" = 700 ] && [ -z "$(find "$DOCS/admin" -type f ! -perm 600)" ] \
+       && [ "$(ls "$DOCS/user" | tr '\n' ' ')" = "01-guide.md 02-tutorial.md " ] && printf '%s' "$OUT" | grep -q 'Installed the documentation the AI line draws on' && echo 0 || echo 1)" \
+    "admin: $(ls -l "$DOCS/admin" 2>&1 | tr '\n' ' ') / $OUT"
+setup; older; gs; OUT=$(run "cp() { case \"\$*\" in *docs/admin*) return 1 ;; esac; command cp \"\$@\"; }")
+row "B5b the copy into docs/admin fails: a warning, no half directory left, no success line, REACHED-END" \
+    "$(printf '%s' "$OUT" | grep -q 'could not be copied into' && ! printf '%s' "$OUT" | grep -q 'Installed the documentation' && [ ! -e "$DOCS" ] && printf '%s' "$OUT" | grep -q REACHED-END && echo 0 || echo 1)" "$OUT / docs: $(ls "$DOCS" 2>&1 | tr '\n' ' ')"
+
 echo "--- B4: the order in the installer"
 ln_of() { grep -n -m1 -F -x -- "$1" "$INST" | cut -d: -f1; }
 ln_last_part() { grep -n -F -- "$1" "$INST" | tail -1 | cut -d: -f1; }

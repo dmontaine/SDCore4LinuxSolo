@@ -6,6 +6,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 12 Nov 26 dm  S.221: Solo has no "session" effect.  A Solo session takes its settings from the shared segment sd-solo -start filled and never reads sd.conf (SD Core's
+*               W.11 F9, which makes a session read it, is not in Solo: PAL-40), so config.table says restart for those parameters and the page no longer says a change reaches
+*               new sessions, or that a bad file stops a new session.
 * 11 Nov 26 dm  Solo (S.117): the file is this SD's own sd.conf (SD_CONFIG, else sd.conf in the Solo folder), never /etc/sd.conf, and SET.CONFIG writes it itself:
 *               Solo has no root helper.  The three texts that named /etc/sd.conf and the helper say so.  The rest of the page is SD Core's.
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the parameter list takes the extra rows, every
@@ -316,7 +319,7 @@ merge.rows:
          pk<n> = fk<j>
          pkind<n> = '' ; pdef<n> = '' ; peff<n> = '' ; pstat<n> = 'unknown' ; prange<n> = ''
          pwrite<n> = 'no' ; pwhy<n> = 'SD does not know this name.' ; pmin<n> = '' ; pmax<n> = ''
-         ptext<n> = 'SD does not know this name. SD will not start, and no new session will, while the file holds it: correct its spelling or take the line out.'
+         ptext<n> = 'SD does not know this name. SD will not start while the file holds it: correct its spelling or take the line out.'
          pforce<n> = '' ; pfile<n> = fv<j> ; pinfile<n> = 1 ; pdiff<n> = 1
          unknown<-1> = fk<j>
       end
@@ -453,7 +456,7 @@ draw.top:
       s = 'NAMES IN THE FILE THAT SD DOES NOT KNOW (SD will not start with them): ' : convert(@fm, ' ', unknown)
    end
    screen text s[1, tw] at tx,top.y + 2 width tw
-   screen text 'session: a change reaches the sessions started after it.  restart: it takes effect when SD is next started.   * marks a row where the file and SD disagree.' at tx,top.y + 3 width tw
+   screen text 'restart: a change takes effect when SD is next started (sd-solo -stop, then sd-solo -start).   * marks a row where the file and SD disagree.' at tx,top.y + 3 width tw   ;* 12 Nov 26 (S.221): Solo has no session effect
    screen text 'P parameters   B backup directory   R report   D only where they disagree   S only what the file sets   E changes one   F5 reads again' at tx,top.y + 4 width tw
    call $tk_help('mark', mk.x, mk.y, 0, 0)
    return
@@ -755,7 +758,7 @@ explain.fixed:
    body = k : ' is not changed from this page.'
    body<-1> = ''
    if pstat<i> = 'unknown' then
-      call $tk_wrap('SD does not know this name, and SD will not start, and no new session will, while the file holds it. Take the line out of ' : conf.path : ' by hand, or correct its spelling.', 100, pieces)
+      call $tk_wrap('SD does not know this name, and SD will not start while the file holds it. Take the line out of ' : conf.path : ' by hand, or correct its spelling.', 100, pieces)
       body<-1> = pieces
    end else
       call $tk_wrap('Why: ' : pwhy<i>, 100, pieces)
@@ -771,7 +774,7 @@ explain.fixed:
          case 1
             wh = 'It takes effect at once, wherever the file is read.'
       end case
-      call $tk_wrap(wh : ' A value SD does not accept stops SD, and every new session, from starting: read the guide first.', 100, pieces)
+      call $tk_wrap(wh : ' A value SD does not accept stops SD from starting: read the guide first.', 100, pieces)
       body<-1> = pieces
    end
    screen msgbox body title 'Not changed here' buttons '&Close' default 1 returning bx else bx = 0
