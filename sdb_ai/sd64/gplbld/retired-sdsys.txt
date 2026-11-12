@@ -322,3 +322,10 @@ voc_template/verify.sup
 voc_template/version
 voc_template/vert
 voc_template/without
+#
+# 12 Nov 26 (S.216): removed by the S.117 carry (10-11 Nov) and not listed then; found when a real upgrade of a 26 Oct Dev install compiled the
+# left-behind gpl.bp/sed against the new headers and bootstrap pass 2 failed.  test-retired-units.py check 4 now refuses a deletion that is not here.
+gpl.bp/sed
+helptext/tool.menus.tile.ced
+messages/2006
+messages/6848
