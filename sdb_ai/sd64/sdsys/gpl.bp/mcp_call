@@ -19,6 +19,10 @@
 * START-HISTORY:
 * 11 Nov 26 dm  New (S.211, SD Core for Linux Solo only; plan .claude/plan-solo-mcp-11nov.md).  THE LOGIC THAT MUST BE TRUSTED IS HERE, not in the launcher: a launcher that
 *               is replaced by someone else's meets the same gate, the same checks and the same audit line.
+* 12 Nov 26 dm  Two faults reported by the Windows agent (its mail 2026-11-11T2300; Windows Solo 13bb7ca9) and measured here on a real install with
+*               TERM=xterm-256color: sd_files listed only the pointers written as a bare F (field 1 of a shipped pointer is "F - ..."), now
+*               WITH F1 LIKE "F..."; and LIST's clear-screen reached the agent as " [H [J" (ESC blanked, the rest kept), now every ESC [ ...
+*               sequence is taken out whole at finish before the control characters are blanked.  The code is the Windows text, line for line.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -138,7 +142,18 @@ $include err.h
    end case
 
 finish:
-*  The answer is made safe to print: marks become newlines, control characters other than tab and newline become spaces, and it is cut.
+*  The answer is made safe to print: a terminal sequence ESC [ ... is taken out whole (LIST's clear-screen), marks become newlines, control
+*  characters other than tab and newline become spaces, and it is cut.
+   loop
+      esc.at = index(out, char(27) : '[', 1)
+   while esc.at
+      j = esc.at + 2
+      loop
+      while j <= len(out) and index('0123456789;?', out[j, 1], 1)
+         j += 1
+      repeat
+      out = out[1, esc.at - 1] : out[j + 1, len(out)]
+   repeat
    out = convert(@fm, NL, out)
    out = convert(ctl, blanks, out)
    if len(out) > MAXOUT then out = out[1, MAXOUT] : NL : '[output cut]'
@@ -213,7 +228,7 @@ refuse.word:
 * ---- FILES -----------------------------------------------------------------------------------------------------------------------
 do.files:
    target = 'files'
-   execute 'LIST VOC WITH F1 = "F" F1 DATA.NAME' capturing out
+   execute 'LIST VOC WITH F1 LIKE "F..." F1 DATA.NAME' capturing out
    return
 
 * ---- DESCRIBE file ---------------------------------------------------------------------------------------------------------------
