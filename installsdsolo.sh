@@ -1060,8 +1060,10 @@ fi
 #            script, a folder pdf/ with the per-chapter PDFs of the documentation (the names the help pages' Documentation buttons open).  They are put in <home>/pdf by SD's own
 #            docs.install, which judges every file (a lower case plain name, contents beginning %PDF-, a regular file), writes the audit line and makes the copies 644.  The verb
 #            is run through the internal door, which is admitted only against a fresh marker file (ruling 13), written here immediately before the one session and removed
-#            after it, as the stage script does for each of its steps; the stage's daemon is still running.  The result is judged file by file on <home>/pdf, not on sd's exit
+#            after it, as the stage script does for each of its steps.  The result is judged file by file on <home>/pdf, not on sd's exit
 #            code.  Nothing here stops the install: no folder (a clone from GitHub has none), no pdf directory or a refusal each print a note or a warning that says what to run.
+# 12 Nov 26 dm - S.218: an install leaves the stage's daemon running, an UPGRADE does not (solo-stage.sh stops SD before it exits), so the first install from a package
+#            (an --upgrade on the host) installed 0 of 104 PDFs: "SD has not been started".  SD is started here when it is not running; the stop after this block ends it.
 # MANUALS-PDF-BEGIN
 manuals_n=0
 manuals_ok=0
@@ -1074,6 +1076,7 @@ if [ "$manuals_n" -eq 0 ]; then
     say "No documentation PDFs beside the installer (the pdf folder of a release package), so none were installed."
     say "  In an administrator session:  docs.install <directory of PDFs>"
 elif [ -d "$HOME_DIR/pdf" ]; then
+    "$HOME_DIR/bin/sd-solo" -start >/dev/null 2>&1 || true      # still running on a fresh setup (the answer is then a refusal, ignored); stopped by the stage on an upgrade
     printf 'installsdsolo pid=%s %s\n' "$$" "$(date -Is)" > "$HOME_DIR/\$internal"
     "$HOME_DIR/bin/sd-solo" -internal docs.install "$installer_dir/pdf" < /dev/null || true
     rm -f "$HOME_DIR/\$internal"

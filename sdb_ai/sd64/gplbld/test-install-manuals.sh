@@ -127,14 +127,15 @@ mkpkg() {   # mkpkg dir name...: a package with a pdf folder holding the named P
   rm -rf "$d"; mkdir -p "$d/pdf"
   for n in "$@"; do printf '%%PDF-1.4 %s\n' "$n" > "$d/pdf/$n"; done
 }
-asked() { grep -c '^sd-solo' "$T/solo.log" || true; }
+asked() { grep -c '^sd-solo -internal docs.install' "$T/solo.log" || true; }   # 12 Nov 26: the block also asks sd-solo -start first (S.218), which is not a docs.install
 
 # ---- M1 -----------------------------------------------------------------------------------------------------------------
 mkpkg "$T/pkg" 01-first-steps.pdf 02-sessions-and-locks.pdf 29-sd-tcl-the-terminal-and-the-session.pdf
 out=$(run_block "$T/pkg" yes)
 row "M1 docs.install is asked for the package's pdf folder, once" "$(ok "$(grep -q -x "sd-solo -internal docs.install $T/pkg/pdf" "$T/solo.log" && [ "$(asked)" = 1 ] && echo yes)")" "$(cat "$T/solo.log")"
 row "M1 through the internal door: a fresh marker was there when sd was started, and standard input was /dev/null" "$(ok "$(grep -q -x 'marker=yes' "$T/solo.log" && grep -q -x 'stdin=/dev/null' "$T/solo.log" && echo yes)")" "$(cat "$T/solo.log")"
-row "M1 the marker is gone afterwards"                       "$(ok "$([ ! -e "$T/home/\$internal" ] && echo yes)")" "marker left in $T/home"
+row "M1b SD is started before docs.install (an upgrade's stage leaves it stopped; S.218 found 0 of 104 installed)" "$(ok "$(grep '^sd-solo' "$T/solo.log" | head -1 | grep -q -x 'sd-solo -start' && echo yes)")" "$(cat "$T/solo.log")"
+row "M1 the marker is gone afterwards"                      "$(ok "$([ ! -e "$T/home/\$internal" ] && echo yes)")" "marker left in $T/home"
 row "M1 the three PDFs are in the pdf directory"             "$(ok "$([ "$(ls "$PDFS" | wc -l)" = 3 ] && cmp -s "$T/pkg/pdf/01-first-steps.pdf" "$PDFS/01-first-steps.pdf" && echo yes)")" "found: $(ls "$PDFS")"
 row "M1 the line counts three, the block ends 0"             "$(ok "$(printf '%s' "$out" | grep -q 'Installed the documentation PDFs (3) into:' && printf '%s' "$out" | grep -q '^RC=0$' && echo yes)")" "$out"
 # ---- M2 -----------------------------------------------------------------------------------------------------------------
