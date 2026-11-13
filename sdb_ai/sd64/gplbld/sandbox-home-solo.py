@@ -55,9 +55,9 @@ KEYS = {"up": E + "[A", "down": E + "[B", "right": E + "[C", "left": E + "[D", "
         "btab": E + "[Z", "f1": E + "[[A", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E,
         "ctrl-q": "\x11", "bs": "\x7f"}
 OLD = 1000000000                                  # the modification time given to a fixture document: a viewer that touches it moves it
-DOCS = {"01-accounts-and-security.pdf": b"%PDF-1.4\naccounts\n", "29a-sd-tcl-the-home-screen.pdf": b"%PDF-1.4\nhome\n", "guide-one.pdf": b"%PDF-1.4\none\n", "guide-two.pdf": b"%PDF-1.4\ntwo\n",
+DOCS = {"01-accounts-and-security.pdf": b"%PDF-1.4\naccounts\n", "user-29a-sd-tcl-the-home-screen.pdf": b"%PDF-1.4\nhome\n", "guide-one.pdf": b"%PDF-1.4\none\n", "guide-two.pdf": b"%PDF-1.4\ntwo\n",
         "Upper.pdf": b"%PDF-1.4\nupper\n", "notes.txt": b"not a pdf\n"}
-LISTED = ["01-accounts-and-security", "29a-sd-tcl-the-home-screen", "guide-one", "guide-two"]       # what PDF lists: regular files, lower case, .pdf
+LISTED = ["01-accounts-and-security", "guide-one", "guide-two", "user-29a-sd-tcl-the-home-screen"]       # what PDF lists: regular files, lower case, .pdf
 HELPSRC = os.path.join(os.path.dirname(HERE), "sdsys", "helptext")
 SIGNOUT_ASK = "Sign out of SD?"
 
@@ -783,7 +783,7 @@ def sec_help():
     for bad in ("Bad_Name", "no.title", ".hidden"):
         os.remove(os.path.join(SYS, "helptext", bad))
     t, d, ls, out = hlook("tool.menus.pins")
-    row("$tk_help gives the title, the document (06-administrator-commands) and the paragraphs of the shipped file", t == "Programs of the account's own" and d == "06-administrator-commands" and len(ls) == 3
+    row("$tk_help gives the title, the document (gettingstarted-06-administrator-commands: the book, then the page, S.228) and the paragraphs of the shipped file", t == "Programs of the account's own" and d == "gettingstarted-06-administrator-commands" and len(ls) == 3
         and ls[0].startswith("Off as delivered."), repr((t, d, ls[:1], out[-3:])))
     t, d, ls, out = hlook("Tool.Menus.Pins")
     row("a key is folded to lower case", t == "Programs of the account's own", repr(t))
@@ -943,11 +943,11 @@ def sec_pages():
     h.key("f1", idle=1.2)
     reset_times()
     h.key("enter", idle=1.4)
-    row("Enter in the box chooses Close, the default: the box closes and no program was started", "The Editor tile" not in h.text() and untouched("29a-sd-tcl-the-home-screen", 1.5), h.text()[-300:])
+    row("Enter in the box chooses Close, the default: the box closes and no program was started", "The Editor tile" not in h.text() and untouched("user-29a-sd-tcl-the-home-screen", 1.5), h.text()[-300:])
     h.key("f1", idle=1.2)
     h.typed("d", idle=2.0)
-    row("the Documentation button runs pdf 29a-sd-tcl-the-home-screen through the allowed viewer: the status line says it was opened, and the program really ran",
-        "Opened 29a-sd-tcl-the-home-screen with /usr/bin/touch" in h.line(40) and touched("29a-sd-tcl-the-home-screen"), repr(h.line(40)))
+    row("the Documentation button runs pdf user-29a-sd-tcl-the-home-screen (the book, then the page: the name the pdf directory holds, S.228) through the allowed viewer: the status line says it was opened, and the program really ran",
+        "Opened user-29a-sd-tcl-the-home-screen with /usr/bin/touch" in h.line(40) and touched("user-29a-sd-tcl-the-home-screen"), repr(h.line(40)))
     reset_times()
     # a tile turned off and on through the page: Enter shows the command, Esc cancels, Run runs it.  The click on the third row's [?] above left the Editor row selected.
     h.key("enter", idle=1.2)
@@ -1023,22 +1023,31 @@ def sec_pages():
     h.end()
 
 
+SECTIONS = [("start", sec_start), ("page", sec_page), ("tiles", sec_tiles), ("tileoff", sec_tileoff), ("help", sec_help), ("pdf", sec_pdf), ("pages", sec_pages)]
+
+
 def main():
+    # 13 Nov 26 (S.228): --only=NAME[,NAME] runs just those sections, so a rerun after a failure repeats the sections that failed and not the ones
+    # that passed (owner, 13 Nov: "you should not be rerunning all the tests that passed, just those that failed").  Setup always runs: it makes the
+    # fixtures and the controls every section relies on.  The names are start, page, tiles, tileoff, help, pdf and pages; each section arranges the
+    # start setting it needs, and none relies on another's rows.  --only=start was the one selector before.
+    only = []
+    for a in sys.argv[1:]:
+        if a.startswith("--only="):
+            only += [n for n in a[7:].split(",") if n]
+    names = [n for n, _ in SECTIONS]
+    for n in only:
+        if n not in names:
+            bail("--only=%s: no such section (they are %s)" % (n, ", ".join(names)))
     try:
         start_sandbox()
         sec_setup()
-        sec_start()
-        if "--only=start" in sys.argv:       # 26 Oct 26: the start rows alone (the two-session row's red / green runs)
-            say("\n--only=start: the other sections are not run")
-            teardown()
-            say("sandbox-home-solo: %d passed, %d failed" % (passed, failed))
-            sys.exit(0 if failed == 0 and passed > 0 else 1)
-        sec_page()
-        sec_tiles()
-        sec_tileoff()
-        sec_help()
-        sec_pdf()
-        sec_pages()
+        for n, fn in SECTIONS:
+            if only and n not in only:
+                continue
+            fn()
+        if only:
+            say("\n--only=%s: the other sections are not run" % ",".join(only))
     finally:
         teardown()
     say("\nsandbox-home-solo: %d passed, %d failed" % (passed, failed))

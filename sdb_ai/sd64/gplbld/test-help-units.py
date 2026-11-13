@@ -85,12 +85,22 @@ def arg_counts(text, name):
     return out
 
 
+BOOKS = {"user": "User", "administrator": "Administrator", "gettingstarted": "GettingStarted"}     # the book as a help record's line 2 names it -> its folder (Solo has no Administrator book)
+
+
+def book_pages():
+    """S.228: the pages of each book, by the lower-case name a record's line 2 starts with (user, administrator, gettingstarted)"""
+    out = {}
+    for pre, d in BOOKS.items():
+        p = os.path.join(DOCS, d, "markdown")
+        out[pre] = {f[:-3] for f in os.listdir(p) if f.endswith(".md")} if os.path.isdir(p) else set()
+    return out
+
+
 def docs_pages():
     pages = set()
-    for d in ("User", "Administrator", "GettingStarted"):
-        p = os.path.join(DOCS, d, "markdown")
-        if os.path.isdir(p):
-            pages |= {f[:-3] for f in os.listdir(p) if f.endswith(".md")}
+    for v in book_pages().values():
+        pages |= v
     return pages
 
 
@@ -143,8 +153,14 @@ def checks(s):
     bad_body = [k for k, v in hts.items() if len([ln for ln in v.split("\n")[2:] if ln.strip()]) < 1 or len(v.split("\n")) > 14 or "\t" in v or any(len(ln) > 1200 for ln in v.split("\n"))]
     ck("P11 every shipped help file has a key for a name, a title of 1 to 60 characters, a document that is blank or a plain name, and one to twelve paragraphs",
        not bad_title and not bad_doc and not bad_name and not bad_body, repr((bad_title, bad_doc, bad_name, bad_body)))
-    missing_docs = [k for k, v in hts.items() if len(v.split("\n")) > 1 and v.split("\n")[1].strip() and v.split("\n")[1].strip() not in pages]
-    ck("P12 ...and the document each names is a page of the documentation checkout (%s, %d pages; a missing checkout fails this row, it is not skipped)" % (DOCS, len(pages)),
+    by_book = book_pages()
+
+    def doc_page_found(doc):
+        """S.228: line 2 is the PDF's name without .pdf, <book>-<chapter>; the chapter must be a page of THAT book"""
+        pre, _, chapter = doc.partition("-")
+        return pre in by_book and chapter in by_book[pre]
+    missing_docs = [k for k, v in hts.items() if len(v.split("\n")) > 1 and v.split("\n")[1].strip() and not doc_page_found(v.split("\n")[1].strip())]
+    ck("P12 ...and the document each names is <book>-<page>, a page of that book in the documentation checkout (%s, %d pages; a missing checkout fails this row, it is not skipped)" % (DOCS, len(pages)),
        len(pages) > 40 and not missing_docs, repr(missing_docs))
 
     # keys asked for by the pages
@@ -238,31 +254,33 @@ MUTANTS = [
     ("LOAD.HELP writes every time", "loadhelp", "      if old = rec then\n         n.same += 1\n         return\n      end\n", ""),
     ("LOAD.HELP writes another record", "loadhelp", "write rec to hf, name on error wok = @false", "write rec to hf, 'x' on error wok = @false"),
     ("LOAD.HELP deletes the administrator's records", "loadhelp", "      locate rid in shipped<1> setting p else n.kept += 1", "      locate rid in shipped<1> setting p else delete hf, rid"),
-    ("tool.menus loses a [?] on the Menu rows", "tool_menus", "      call $tk_help('mark', 134, 1 + r, 0, 0)", "      null"),
-    ("tool.menus calls $tk_help with too few arguments (a runtime stop in SD BASIC)", "tool_menus", "call $tk_help('mark', 66, 2, 0, 0)", "call $tk_help('mark', 66, 2)"),
+    ("tool.menus loses a [?] on the Menu rows", "tool_menus", "      call $tk_help('mark', mk.mx, mnu.y + r, 0, 0)", "      null"),
+    ("tool.menus calls $tk_help with too few arguments (a runtime stop in SD BASIC)", "tool_menus", "call $tk_help('mark', mk.acx, mk.acy, 0, 0)", "call $tk_help('mark', mk.acx, mk.acy)"),
     ("tool.viewers calls $tk_help with too few arguments", "tool_viewers", "hm, 0, 0)", "hm)"),
     ("tool.viewers calls $tk_wrap with too many arguments", "tool_viewers", "call $tk_wrap(lines<wi>, 134, pieces)", "call $tk_wrap(lines<wi>, 134, pieces, 0)"),
     ("tool.menus loses F1", "tool_menus", "      case nm = 'f1' or nm = '?'\n         gosub help.here\n", ""),
-    ("tool.menus loses the click", "tool_menus", "call $tk_help('hit', mev, 134, 1 + hr, hit.now)", "hit.now = 0"),
-    ("tool.menus uses the drawing loop variable for the click", "tool_menus", "for hr = 1 to 8", "for r = 1 to 8"),
+    ("tool.menus loses the click", "tool_menus", "call $tk_help('hit', mev, mk.mx, mnu.y + hr, hit.now)", "hit.now = 0"),
+    ("tool.menus uses the drawing loop variable for the click", "tool_menus", "for hr = 1 to nmenu", "for r = 1 to nmenu"),
     ("tool.menus asks for a tile's help with the wrong index", "tool_menus", "hk = 'tool.menus.tile.' : tids<si - 2>", "hk = 'tool.menus.tile.' : tids<si>"),
-    ("tool.menus has its own wrapping loop again", "tool_menus", "call $tk_wrap(lines<wi>, 63, pieces)", "rest[cut"),
+    ("tool.menus has its own wrapping loop again", "tool_menus", "call $tk_wrap(lines<wi>, ww, pieces)", "rest[cut"),
     ("$tk_confirm has its own wrapping loop again", "tk_confirm", "call $tk_wrap(sentence, wrapw, pieces)", "rest[cut"),
     ("$tk_wrap cuts a word at the wrong place", "tk_wrap", "rest[cut, 1] # ' '", "rest[cut, 1] # 'x'"),
     ("tool.viewers can run another command", "tool_viewers", "allow = 'set.viewer'", "allow = 'set.viewer sh'"),
     ("tool.viewers loses a [?]", "tool_viewers", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("$tk_confirm appends the explanation lines unwrapped again", "tk_confirm", "            call $tk_wrap(lines<li>, wrapw, pieces)\n            for p = 1 to dcount(pieces, @fm)\n               body<-1> = pieces<p>\n            next p", "            body<-1> = lines<li>"),
     ("$tk_confirm wraps the explanation at a width the box cuts", "tk_confirm", "call $tk_wrap(lines<li>, wrapw, pieces)", "call $tk_wrap(lines<li>, 200, pieces)"),
-    ("tool.sessions loses its [?]", "tool_sessions", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.sessions loses its [?]", "tool_sessions", "   call $tk_help('mark', ssn.x + ssn.w - 5, ssn.y + 1, 0, 0)\n", ""),
     ("tool.sessions calls $tk_help with too few arguments", "tool_sessions", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm)"),
     ("tool.sessions can run another command", "tool_sessions", "allow = 'logout unlock inhibit.login'", "allow = 'logout unlock inhibit.login sh'"),
-    ("tool.gates loses its [?]", "tool_gates", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.gates loses its [?]", "tool_gates", "   call $tk_help('mark', gat.x + gat.w - 5, gat.y + 1, 0, 0)\n", ""),
     ("tool.gates calls $tk_help with too few arguments", "tool_gates", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm)"),
     ("tool.gates can run another command", "tool_gates", "allow = 'set.os.access set.net.access set.ai'", "allow = 'set.os.access set.net.access set.ai sh'"),
     ("a help record names a page that is not there", "ht.tool.menus.pins", "06-administrator-commands", "no-such-page"),
     ("a help record has no title", "ht.tool.menus.pins", "Programs of the account's own\n", "\n"),
     ("a help record has a tab in it", "ht.tool.menus.starts-in", "Chooses what you see", "\tChooses what you see"),
     ("a help record's document name has a slash", "ht.tool.menus.pins", "06-administrator-commands", "../accounts"),
+    ("a help record names its page without the book (S.228: the file in the pdf directory is <book>-<page>.pdf)", "ht.tool.menus.pins", "gettingstarted-06-administrator-commands", "06-administrator-commands"),
+    ("a help record names a page of another book (S.228)", "ht.tool.menus.pins", "gettingstarted-06-administrator-commands", "user-06-administrator-commands"),
     ("tool.menus keeps a help key for a box Solo has not got", "tool_menus", "      case nm = 'f5'\n", "      case nm = 'f9'\n         hk = 'tool.menus.default'\n      case nm = 'f5'\n"),
 ]
 
