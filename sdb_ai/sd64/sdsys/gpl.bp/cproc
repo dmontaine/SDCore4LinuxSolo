@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Nov 26 dm A refused login exits with status 1 (it was 0), so a script or job can tell refused from done; SD Core's change of the same day,
+*           carried from the Windows port (owner, 13 Nov 2026: "Yes, carry it").
 * 12 Nov 26 dm S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): a phantom reads its Xn, Dn and Ln records together
 *           (read.phantom.cargo) and runs, stacks or sets nothing from them unless the seal on them checks against the secret the process that started
 *           it gave it in its environment (K$PHANTOM.NONCE, !IPC_SEAL).  A refusal is written to the COMO log and the audit trail ("phantom refused")
@@ -478,7 +480,12 @@ restart.cproc:
       
       i = '$LOGIN'
       call @i(j,0)
-      if not(j) then goto abort.cproc
+*  13 Nov 26 dm - a refused login ends the process with status 1, not 0, so a script, a job or ssh can tell refused from done (SD Core's
+*  change of the same day, carried from the Windows port; owner, 13 Nov 2026: "Yes, carry it").
+      if not(j) then
+         i = kernel(K$EXIT.STATUS, 1)
+         goto abort.cproc
+      end
 
 * 09 Sep 26 dm - HERE, not up in the privilege block, because $LOGIN has just
 *   drawn the sign-on banner.  See display.admin.notice for the owner's shape

@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+13 Nov 26  A REFUSED SIGN-ON ENDS WITH EXIT STATUS 1 (as in SD Core for Linux, from the same day).
+
+             What        - when SD refuses a session at sign-on (a wrong password, a session the LOGIN program will not admit),
+                           sd-solo now ends with exit status 1; it ended with 0, the same as a session that signed on and was left
+                           with OFF.
+             Why         - a script, a scheduled job or an ssh command could not tell a refused session from one that worked.
+             Does NOT    - Change what is printed, or the exit status of a session that signed on: OFF and LOGOUT still end with 0.
+
 12 Nov 26  THE LAST DIFFERENCES FROM SD CORE FOR LINUX THAT SOLO DID NOT MEAN TO HAVE (a parity audit of the two products).
 
              What        - The home screen's F1 and [?] show its help page; Solo did not ship the page, so they found nothing.
