@@ -27,6 +27,7 @@
 	  * 18 Oct 26 dm S.66: K$SHARED.READ (128), K$SHARED.WRITE (129), K$SHARED.REF (130), K$SHARED.ONCE (131).
 	  * 19 Oct 26 dm S.67 stage 1: K$MASTERS (150), the master files.
 	  * 28 Oct 26 dm S.88 phase 2: K$SHOW.SAFE (151), the kernel's one rule for showing another session's text (PSTAT, PROFILER, HSM).
+	  * 12 Nov 26 dm Solo: K$SHARED.REF (130), K$SHARED.ONCE (131) and OPT.INHERIT.OWNERSHIP (60) removed - no user, and the kernel answers none (Windows Solo re-audit).
 	  * 02 Nov 26 dm S.96 M6: K$MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
 	  * END-HISTORY
       *
@@ -230,8 +231,7 @@
       $define K$NET             127     ;* may open a file on another SD server (SDNet): account-scoped like K$SD.ACCOUNTS (set from $internal; -1 asks); does nothing until the remote-file slices (17 Oct 26, S.65 slice 1)
       $define K$SHARED.READ     128     ;* may open the files of the shared account by name: account-scoped like K$NET (set from $internal; -1 asks) (18 Oct 26, S.66)
       $define K$SHARED.WRITE    129     ;* may write records in the files of the shared account (same rules) (18 Oct 26, S.66)
-      $define K$SHARED.REF      130     ;* argument pathname:@fm:fno:@fm:catname: 1 if that F-pointer target is acceptable as a shared file, else 0; reads only (18 Oct 26, S.66)
-      $define K$SHARED.ONCE     131     ;* a file name: 1 the first time this process is asked about it, 0 afterwards (the audit of a shared open) (18 Oct 26, S.66)
+      * 130 and 131 are SD Core's K$SHARED.REF and K$SHARED.ONCE: Solo has no shared account and its kernel answers neither (12 Nov 26)
       $define K$PROFILER        116   ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
       $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
       $define K$SHOW.SAFE       151     ;* any text: the same text with every byte of the kernel's one rule (0-31, 127, 128-159, 248-255) as '?', the same length; for printing another session's text (28 Oct 26, S.88 phase 2: PSTAT, PROFILER, HSM)
@@ -455,7 +455,7 @@
       $define OPT.GIT                 49 ;* .gitignore and .gitattributes are not mapped in a directory file (kernel)
       $define OPT.DIR.DTM             50 ;* A write to a directory file moves the directory's date and time modified (kernel)
       $define OPT.SPOOL.COMMAND       53 ;* Show the operating system command that prints (kernel)
-      $define OPT.INHERIT.OWNERSHIP   60 ;* CREATE.FILE gives a new file the account directory's owner and group (kernel)
+      * 60 is SD Core's OPT.INHERIT.OWNERSHIP: not in Solo (owner, 9 Nov 26); the kernel's table ends at 59
 
       * MKINDEX flag values (additive)
       $define MKI$CREATE               1 ;* Create indices

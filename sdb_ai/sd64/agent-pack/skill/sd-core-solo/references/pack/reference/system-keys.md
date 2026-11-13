@@ -368,7 +368,7 @@ Constants beginning `FL$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (
 - `FL$SETRDONLY` = 10005 - Make file read only (cannot reverse)
 
 ### sys:ikeys:in$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:57#7a2659c9
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:58#7a2659c9
 
 Constants beginning `IN$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -394,7 +394,7 @@ Constants beginning `IN$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (
 - `IN$RAW` = 0x00200000 - INPUT ... RAW: exactly `length` characters, no interpretation of newline or erase (openQM 548)
 
 ### sys:ikeys:k$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:79#4721cdd6
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:80#4721cdd6
 
 Constants beginning `K$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -504,8 +504,6 @@ Constants beginning `K$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `K$NET` = 127 - may open a file on another SD server (SDNet): account-scoped like K$SD.ACCOUNTS (set from $internal; -1 asks); does nothing until the remote-file slices (17 Oct 26, S.65 slice 1)
 - `K$SHARED.READ` = 128 - may open the files of the shared account by name: account-scoped like K$NET (set from $internal; -1 asks) (18 Oct 26, S.66)
 - `K$SHARED.WRITE` = 129 - may write records in the files of the shared account (same rules) (18 Oct 26, S.66)
-- `K$SHARED.REF` = 130 - argument pathname:@fm:fno:@fm:catname: 1 if that F-pointer target is acceptable as a shared file, else 0; reads only (18 Oct 26, S.66)
-- `K$SHARED.ONCE` = 131 - a file name: 1 the first time this process is asked about it, 0 afterwards (the audit of a shared open) (18 Oct 26, S.66)
 - `K$PROFILER` = 116 - n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
 - `K$PROFILER.USER` = 117 - user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
 - `K$SHOW.SAFE` = 151 - any text: the same text with every byte of the kernel's one rule (0-31, 127, 128-159, 248-255) as '?', the same length; for printing another session's text (28 Oct 26, S.88 phase 2: PSTAT, PROFILER, HSM)
