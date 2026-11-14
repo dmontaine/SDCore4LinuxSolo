@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  THE AI CHOICE PAGE ASKS FOR A CUSTOM CONNECTION IN ONE FORM.
+
+             What        - C on the AI choice page (tool.ai) used to ask the six fields of a custom connection one prompt after the
+                           other and, when something was wrong, named only the last bad field and lost what you had typed.  It is
+                           now one form with all six fields in view; a refusal names the first bad field, leaves the cursor on it
+                           and keeps everything else.  The checks and the command that is run are the same.  SD Core for Linux
+                           says the same.
+             Why         - the six prompts could not be corrected without typing all of them again.
+             Does NOT    - Change what a custom connection is, what it may reach, or any other prompt on the page.
+
 14 Nov 26  AN API SIGN-IN IS ON THE AUDIT TRAIL, BY USER AND ACCOUNT.
 
              What        - a program that signed in over the API (SDConnect and the client libraries) left nothing on the audit trail
