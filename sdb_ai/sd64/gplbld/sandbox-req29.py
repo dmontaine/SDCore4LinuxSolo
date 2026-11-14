@@ -286,7 +286,13 @@ def main():
         say("\n--- B. NETFILES=2 (bit 2 set), the NET gate on: the control that request 29 works for the account's own file -----------------")
         if not restart("NETFILES=2"):
             bail("SD does not start with NETFILES=2 in sd.conf")
+        off0 = audit_off()
         w = af.Wire("B")
+        new0 = audit_new(off0)
+        # 14 Nov 26, S.235 (carried from SD Core): the sign-in (the Wire's SCRAM login and request 3) names the user and the account on the audit trail, once
+        pat0 = r"api login user=\S+ account=%s$" % re.escape(af.USER.lower())
+        row("B0b S.235: the sign-in wrote exactly one 'api login user=<name> account=%s' line (found %d)" % (af.USER.lower(), len(re.findall(pat0, new0 or "", re.M))),
+            new0 is not None and len(re.findall(pat0, new0, re.M)) == 1, repr(new0))
         off = audit_off()
         row("B0a the audit file can be read (a row that needs a line from it fails, it does not pass for want of one)", off is not None, repr(off))
         fno, r = open29(w, "sduser;zzsec")

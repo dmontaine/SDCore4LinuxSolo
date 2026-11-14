@@ -755,6 +755,12 @@ void kernel(K$NET,     api.net.grant)   ;* 20 Oct 26, SDNet carry 9: loaded at e
 *   such paragraph unless the administrator wrote one.  It runs in the account just entered, under that account's switches.
 if not(master.login.done) then
    master.login.done = @true
+*  14 Nov 26 dm - S.235, carried from SD Core for Linux (owner: "carry to solo if necessary"): THE API SIGN-IN IS ON THE AUDIT TRAIL BY USER AND
+*    ACCOUNT.  A terminal sign-in writes `login account=` from LOGIN; an API caller reaches an account through neither, so a sign-in left
+*    nothing that named the user (only a refusal was recorded).  One line, at the first entry to the account (an SDLogto is not another
+*    sign-in), after every refusal of this routine has passed and before MASTER.LOGIN or the account's LOGIN runs.  @logname, not logname: a
+*    plain variable does not survive an abort (as the other lines of this program).
+   void kernel(K$AUDIT, 'api login user=' : @logname : ' account=' : who)
    openpath @sdsys:@ds:'voc' to master.f on error null
    then
       read master.rec from master.f, 'MASTER.LOGIN' on error null
