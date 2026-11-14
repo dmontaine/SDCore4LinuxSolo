@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  start_lnxd() and the startup command: a failed daemon() is said on stderr (it was ignored).
  * 11 Nov 26 dm  Carried from SD Core (S.177, 8 Nov 26, commit 2e0d2a97): stop_sd_ex(kill_survivors) - "sd-solo -stop" and "-restart" end with SIGKILL
  *               any process still attached to SD's segment ten seconds after SIGTERM (end_attached_survivors, by the key in /proc/<pid>/maps)
  *               before the segment and the semaphores are removed; the wait is wait_detached().  bind_sysseg()'s failure path keeps plain stop_sd().
@@ -442,7 +443,9 @@ Private bool start_lnxd(void) {
   if (cpid == 0) { /* Child process */
     for (i = 3; i < 1024; i++)
       close(i);
-    daemon(1, 1);
+    /* 14 Nov 26 dm - a failed daemon() is said, not ignored: sdlnxd then starts without detaching.  */
+    if (daemon(1, 1) != 0)
+      fprintf(stderr, "sdlnxd: daemon() failed (%s); starting it without detaching\n", strerror(errno));
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sdlnxd", sysseg->sysdir) >=
         (MAX_PATHNAME_LEN + 1)) {
@@ -495,7 +498,9 @@ bool start_sd(bool with_daemon) {
     if (cpid == 0) { /* Child process */
       for (i = 3; i < 1024; i++)
         close(i);
-      daemon(1, 1);
+      /* 14 Nov 26 dm - a failed daemon() is said, not ignored: the startup command then runs without detaching.  */
+      if (daemon(1, 1) != 0)
+        fprintf(stderr, "startup command: daemon() failed (%s); running it without detaching\n", strerror(errno));
       /* converted to snprintf() -gwb 22Feb20 */
       if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/" SD_SERVER_NAME, sysseg->sysdir) >=
           (MAX_PATHNAME_LEN + 1)) {

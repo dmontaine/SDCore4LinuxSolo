@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: removed the unused variable no.query; the NO.QUERY keyword is still accepted and still changes nothing.
 * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946, as SD Core's text now stands): CREATE.FILE name ... SERVER srv {AS remote} makes the file on another SD server and writes
 *               the N pointer only after the server confirmed it (create.remote.file, messages 11528, 11529, 11533, 11536-11539).
 * 28 Oct 26 dm  S.87: multifiles are gone.  CREATE.FILE name,part and the MULTIFILE word are refused (a comma after the name is an unexpected token, 2018), a file that already has a data part is no longer converted or extended, field 4 of an existing record is ignored, and edit.check.existing and messages 6103, 6124, 6162, 6195, 6197 and 6201 go with them.  PARSER$MFILE is now PARSER$GET.TOKEN.
@@ -98,7 +99,6 @@ $define default.split.load 80
    dir.name = ""
    dir.name.with.delimiter = ""
    using.dict = @false
-   no.query = @false
    no.resize = @false
    net.server = ''           ;* 21 Oct 26 dm, S.73 item 3 (carried to Solo 11 Nov 26): SERVER name - create the file on another SD server
    net.as = ''               ;* ... AS name: its name there (the local name when left out)
@@ -211,7 +211,7 @@ $define default.split.load 80
 
          * ---------- NO.QUERY
          case keyword = KW$NO.QUERY
-            no.query = @true
+            null
 
          * ---------- NO.RESIZE
          case keyword = KW$NO.RESIZE

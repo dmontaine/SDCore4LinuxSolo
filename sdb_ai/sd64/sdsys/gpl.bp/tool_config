@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: the "Not changed here" SCREEN MSGBOX no longer keeps its answer in bx, which nothing read (RETURNING and ELSE are optional).
 * 12 Nov 26 dm  S.221: Solo has no "session" effect.  A Solo session takes its settings from the shared segment sd-solo -start filled and never reads sd.conf (SD Core's
 *               W.11 F9, which makes a session read it, is not in Solo: PAL-40), so config.table says restart for those parameters and the page no longer says a change reaches
 *               new sessions, or that a bad file stops a new session.  Its two restart sentences and message 11936 name sd-solo -stop / -start, as the page's top line does
@@ -778,7 +779,7 @@ explain.fixed:
       call $tk_wrap(wh : ' A value SD does not accept stops SD from starting: read the guide first.', 100, pieces)
       body<-1> = pieces
    end
-   screen msgbox body title 'Not changed here' buttons '&Close' default 1 returning bx else bx = 0
+   screen msgbox body title 'Not changed here' buttons '&Close' default 1
    msg = k : ' is not changed from this page; nothing was written'
    return
 

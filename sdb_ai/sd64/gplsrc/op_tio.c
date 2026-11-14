@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  como_string(): the COMO write is tested (a failure loses only the copy; said why nothing more is done).
  * 22 Oct 26 SD Core for Linux Solo (Solo carry 13): tio_init() starts the display at DEFAULT_WIDTH by DEFAULT_DEPTH + 1 (140 by 43), Core's 18 Oct 26 change.
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): the "before login" argument of
  *               api_packet_length_ok() is `is_sdApiSrvr && !api_logged_in` (kernel.h, set by K_SET_USERNAME), not `is_sdApiSrvr && geteuid() == 0`: a Solo server is
@@ -2543,7 +2544,11 @@ void freescrn(SCREEN_IMAGE *image) {
 
 Private void como_string(char *str, int16_t bytes) {
   if (!tio.suppress_como) {
-    Write(tio.como_file, str, bytes);
+    /* 14 Nov 26 dm - tested: the COMO file is a copy of the screen, so a failed write loses only the copy, and saying so
+       on the screen would itself be written to the COMO file.  */
+    if (Write(tio.como_file, str, bytes) != bytes) {
+      /* the copy is lost: see above */
+    }
   }
 }
 

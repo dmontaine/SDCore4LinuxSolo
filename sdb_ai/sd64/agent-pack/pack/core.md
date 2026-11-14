@@ -136,7 +136,7 @@ you**, or `root`, from reading or changing the files directly.
 | Every session | asks the account password |
 | Administrator commands | refused until `admin`. The eight that had no check of their own — `CONFIG`, `LISTU`, `LIST.LOCKS`, `LIST.READU`, `LOCK`, `CLEAR.LOCKS`, `SET.DATE`, `CLEAN.ACCOUNT` — are gated too. See Administrator commands |
 | The VOC | direct edits need `admin`; the global catalog is changed by nobody in a session |
-| The shell and OS access | refused until the administrator turns the `sh` or `os` switch on with `set.os.access`: off on a new install, and on an upgrade unless you answered yes when the installer asked — see Operating system access |
+| The shell and OS access | refused until the administrator turns the `sh` or `os` switch on with `set.os.access`: off on a new install unless you answered yes when the installer asked, and kept as they were on an upgrade (off on one from LS1.1-3) — see Operating system access |
 | The NET gate | API request 29 (open an `account;file` file for a client) is refused until the administrator sets `NETFILES=2` in `sd.conf` and turns the gate on with `set.net.access on`: both off as delivered; and a VOC pointer that leads out of the account is refused unless the account has the `os` switch on — see API access |
 | The daemon | runs as you, never as root; SD refuses to start as root |
 | Files | mode 0600, directories 0700, from the installer and from every file SD creates (`umask 077`) |

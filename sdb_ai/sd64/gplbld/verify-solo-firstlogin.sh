@@ -47,7 +47,7 @@ echo "  running as  : $(id -un) (uid $(id -u))"
 pass=0; fail=0; legs=0
 leg() { legs=$((legs+1)); if [ "$3" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1 | $2"; else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi; }
 strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
-clean() { strip | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the'; }
+clean() { strip | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'; }
 piped() { local pw="$1"; shift; printf '%s\n' "$pw" "$@" OFF | timeout 60 "$H/bin/sd-solo" 2>&1 | clean; }
 PRENV=()
 PR() { python3 "$here/ptyrun.py" --timeout 25 ${PRENV[@]+"${PRENV[@]}"} "$H/bin/sd-solo" "$@"; }

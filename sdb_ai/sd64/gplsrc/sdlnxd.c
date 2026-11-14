@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  The error log's write is tested (Solo carry S.232, Core 64561d81; Solo has no audit socket, so Core's other change has no place here).
  * 25 Oct 26 dm  The daemon's restart (carried): sd-solo-lnxd.service runs this program and restarts it if it dies (Restart=on-failure), so a daemon that finds another one
  *               already named in the segment (and running this same executable) ends with status 0 - there is one daemon at a time.
  * 25 Oct 26 dm  W.11 F1 (carried from the full product): this daemon no longer takes the system directory from the shared segment,
@@ -330,7 +331,10 @@ void log_message(char* msg) {
                       ltime->tm_year % 100, ltime->tm_hour, ltime->tm_min,
                       ltime->tm_sec, Newline, msg, Newline);
 
-      write(errlog, buff, bytes);
+      /* 14 Nov 26 dm - tested, not ignored: a failed write of the error log cannot itself be logged.  */
+      if (write(errlog, buff, bytes) != bytes) {
+        /* nothing further: this is the error log */
+      }
 
       close(errlog);
     }

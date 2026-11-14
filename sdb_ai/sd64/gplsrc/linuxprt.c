@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  spool_print_job(): a print command that fails is reported on stderr (system()'s result was ignored).
  * 20 Oct 26 dm  Solo OS switch (S.63 carried): a print unit's own SPOOLER string is run only for a session that holds the OS-access gate.
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the S.63 OS-access test on a print unit's own
  *               SPOOLER string (SETPTR ... SPOOLER is still run as a shell command by the user's own process: Solo has no OS switch yet).
@@ -186,7 +187,13 @@ cmd_too_long:
   if (Option(OptSpoolCommand))
     tio_printf("%s\n", cmd);
 
-  system(cmd);
+  /* 14 Nov 26 dm - the spool command's result is reported: a command that could not run, or that failed, used to leave the
+     print silently unprinted.  Said as the too-long case above is.  */
+  {
+    int rc = system(cmd);
+    if (rc != 0)
+      fprintf(stderr, "spool_print_job: the print command failed (status %d) - the job may not have been printed\n", rc);
+  }
   /* 15 Oct 26 dm - QM4 gaps Q-18: SYSTEM(20), the count of jobs passed to the spooler, for all sessions */
   __atomic_fetch_add(&sysseg->print_jobs, 1, __ATOMIC_SEQ_CST);
   /* -------------------- */

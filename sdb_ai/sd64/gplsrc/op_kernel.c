@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
  * 12 Nov 26 dm  S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): K_PHANTOM_NONCE (144), the secret a phantom() gives the
  *               process it starts in that process's environment (op_phantom builds the child's environment before the fork and starts it with execle).
  * 11 Nov 26 dm  Solo carry S.216 gap 13 (SD Core S.88 phase 2): K_SHOW_SAFE (151), another session's text made safe to print by the kernel's one rule (show_ts_safe()), for PSTAT,
@@ -991,8 +992,10 @@ void op_kernel() {
           if (lt_fd >= 0) {
             (void)fchmod(lt_fd, 0620);
             snprintf(lt_dirpath, sizeof(lt_dirpath), "%s", sysseg->sysdir);
-            if (stat(lt_dirpath, &lt_dir) == 0)
-              (void)fchown(lt_fd, (uid_t)-1, lt_dir.st_gid);
+            /* 14 Nov 26 dm - the group change is reported: without it the trace keeps this session's group and the
+               administrator's group may not read it.  The trace still runs.  */
+            if (stat(lt_dirpath, &lt_dir) == 0 && fchown(lt_fd, (uid_t)-1, lt_dir.st_gid) != 0)
+              log_message("lock.tracer: could not give locktrace the group of the system directory");
             close(lt_fd);
             sysseg->lock_trace = 1;
             result.data.value = 1;
@@ -1477,7 +1480,10 @@ void op_phantom() {
     for (i = 3; i < 1024; i++)
       close(i); /* 0401 */
 
-    daemon(1, 1);
+    /* 14 Nov 26 dm - a failed daemon() (its own fork) leaves the phantom running, attached to this process group; it is
+       now said in the error log rather than ignored.  */
+    if (daemon(1, 1) != 0)
+      log_message("phantom: daemon() failed; the phantom runs without detaching");
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/" SD_SERVER_NAME, sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should also be logged with more detail */

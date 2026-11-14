@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 14 Nov 26 dm  ak_clear(): a failed truncate of the index subfile is DHE_AK_WRITE_ERROR (it was ignored).
  * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 D1 (7fd83ad3): INDICES (both forms), SELECTINDEX (both), SETLEFT, SETRIGHT, SELECTLEFT and SELECTRIGHT work on a NET_FILE through
  *               net_index_query() (net_selindex, net_akscan, net_split_scan); AKREAD, AKWRITE, AKDELETE, CLEAR.AK, AKENABLE and AKMAP still refuse.
  * 11 Nov 26 dm  Carried from SD Core (its change of 25 Oct 26, commit 3d3890e3, the index tree fix only): update_internal_node() hands the parent the node's
@@ -4221,7 +4222,13 @@ bool ak_clear(DH_FILE *dh_file, int16_t subfile) {
       node_num = GetAKFwdLink(dh_file, ((DH_ITYPE_NODE *)buff)->next);
     }
 
-    chsize64(dh_file->sf[subfile].fu, eof);
+    /* 14 Nov 26 dm - a failed truncate is an error, as in get_ak_node() above (dh_ak.c 3087): it used to be ignored, so a
+       CLEAR.FILE of an index could report success with the old nodes still in the subfile.  */
+    if (chsize64(dh_file->sf[subfile].fu, eof)) {
+      dh_err = DHE_AK_WRITE_ERROR;
+      process.os_error = OSError;
+      goto exit_ak_clear;
+    }
 
     /* Write an empty terminal node at the root node position */
 

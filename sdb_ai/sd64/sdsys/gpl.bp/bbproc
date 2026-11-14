@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: removed the unused assignment to inp_ln in inp_sub (its only caller is commented out).
 * 28 Oct 26 dm  S.87: the call of $BCOMP no longer passes the is.ctype argument (the C dictionary item type is gone).
 * 18 Oct 26 dm  voc_refusal and voc_guard join the bootstrap list: BASIC calls !voc_guard (Solo carry A, owner's ruling B).
 * 03 Oct 26 dm  is_grp_member leaves the bootstrap list: the program is deleted
@@ -414,7 +415,6 @@ until key_char = cr    ;* enter key
   end
 repeat
 crt ''
-inp_ln = in_str
 return
 
 end

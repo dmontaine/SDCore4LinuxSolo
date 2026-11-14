@@ -40,7 +40,7 @@ leg() {   # leg NAME EXPECT OK(0/1) SAW
 }
 clean() {
   sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'
 }
 last() { printf '%s\n' "$1" | tail -1; }
 # sess PW CMD... : one session, signed in with PW, ended with OFF.

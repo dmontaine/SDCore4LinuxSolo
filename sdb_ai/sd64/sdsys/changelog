@@ -1,6 +1,32 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  THE SIGN-ON BANNER SAYS "SD CORE SOLO FOR LINUX", AND THE HOME SCREEN SAYS WHAT IS RUNNING.
+
+             What        - the line printed at sign-on read "SD Core for Linux Solo, the Essential Multivalue String Database,
+                           version LS2.0-0"; it now reads "SD Core Solo for Linux, ...".  The home screen showed only who is
+                           signed on and the date; the date line now ends with the product and its version, for example
+                           "Friday 13 Nov 2026  -  21:30  -  SD Core Solo for Linux LS2.0-0".
+             Why         - the owner (14 Nov 2026): the four products name themselves the same way (SD Core for Linux, SD Core
+                           Solo for Linux, SD Core for Windows, SD Core Solo for Windows), and the home screen never said which
+                           SD, or which version, was running.
+             Does NOT    - Change the version number, or the product's name anywhere but these two lines.
+
+14 Nov 26  THE BUILD AND THE INSTALL NO LONGER PRINT WARNINGS, AND WHAT THEY POINTED AT IS FIXED.
+
+             What        - the C build printed warnings and the install's compile of SD's own programs printed "X is assigned a
+                           value but never used".  Each was fixed where it is, not hidden, as in SD Core for Linux.  A user
+                           notices: SENDMAIL now fails (ER_IOE, with the mail command's status in os.error) when the mail
+                           command cannot run or fails - it used to report success; a print command that fails is reported on
+                           the terminal; an index whose clear could not shrink its file reports an error.  The client
+                           library's message for a failed secure connection can no longer be cut short.
+             Compiler    - "assigned a value but never used" is now said only of a variable whose every assignment is a plain
+                           "x = ..." and which is never read.  A variable a statement fills for you - the variable of READU,
+                           LOCATE ... SETTING, FINDSTR, INPUT, CAPTURING and the like - is no longer reported.  A call made only
+                           for what it does is written VOID name(...).
+             Why         - the owner (14 Nov 2026), after an upgrade printed screens of warnings: "fix".
+             Does NOT    - Change what any program does apart from the failures named above.
+
 14 Nov 26  AN UPGRADE NO LONGER ASKS ABOUT THE SHELL AND OS ACCESS.
 
              What        - installsdsolo.sh --upgrade keeps the shell (SH) and OS access switches as they are and says so; it

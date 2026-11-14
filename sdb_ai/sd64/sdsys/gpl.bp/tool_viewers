@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: the unused acct.name = '' in change is gone (S.232).
 * 23 Oct 26 dm  New.
 * 11 Nov 26 dm  S.176 carried: F6 and Shift-F6 (or Left and Right) change box, as on every page; Tab and Shift-Tab no longer do.  The key row, the opening line and
 *               the help lines say F6.
@@ -288,7 +289,6 @@ help.here:
 * ------------------------------------------------------------------------------------------------- changing something: the command, its effect, Run or Cancel, then the machine's answer
 
 change:
-   acct.name = ''
    if pane = 2 then
       if fn = 0 then return
       pname = fname<fi>

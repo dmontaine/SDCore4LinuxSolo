@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 14 Nov 26 dm  init_kernel(): the unused m is gone (its reader, the GetUserName() call, was taken out for Solo; -Wunused-variable).  S.232.
  * 12 Nov 26 dm  S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): a phantom takes the secret its parent gave it out of its
  *               environment before anything it runs can inherit it (phantom_nonce_import, op_kernel.c).
  * 11 Nov 26 dm  Solo carry S.216 gap 13 (SD Core S.88 phase 2 review), the next entry:
@@ -114,7 +115,6 @@ bool init_kernel() {
   bool status = FALSE;
   int16_t i;
   USER_ENTRY* uptr;
-  u_int32_t m;
   int16_t msg_no = 1000; /* User limit reached */
   int32_t lgn_waited = 0; /* Tenths of a second waited for a user entry (LGNWAIT) */
   char* p;

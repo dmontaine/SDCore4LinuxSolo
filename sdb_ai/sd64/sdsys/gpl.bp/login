@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: lgn.id and audit.account, set and never read in Solo, are gone (S.232).
 * 12 Nov 26 SD Core for Linux Solo - S.221: the rest of SD Core's S.88 phase 1 - a session with no terminal is linux (it relied on the login paragraph's TERM LINUX,
 *           which went the same day).
 * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change S.88 phase 1, K1) - a TERM that SD has no entry for falls back to the family it
@@ -350,7 +351,9 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   distinguish it FROM.
 * 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - the product's name, as Solo for
 *   Windows' banner names its own.
-      display "SD Core for Linux Solo, the Essential Multivalue String Database, version " : SD.REV.STAMP
+* 14 Nov 26 dm - The owner, 14 Nov 26: "SD Core Solo for Linux" (and "SD Core for Linux", "SD Core for Windows", "SD Core Solo for Windows"
+*   in the other three); the name was "SD Core for Linux Solo".
+      display "SD Core Solo for Linux, the Essential Multivalue String Database, version " : SD.REV.STAMP
       * --------------------
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
       display
@@ -381,7 +384,6 @@ deffun pw_complex(pw) calling '!pw_complex'
     goto terminate.connection
   end else
      * This user has come in from a command prompt.
-     lgn.id = @logname
 * 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE sdusers GATE IS GONE.  There
 *   are no SD groups: the one user's tree is in their own home and the file
 *   permissions on it are the gate.  @logname is always sduser (kernel.c).  A
@@ -798,7 +800,6 @@ internal.gate:
       audit.reason = 'no internal marker'
    end
 
-   audit.account = initial.account
    if gate.ok then
       void kernel(K$AUDIT, 'internal session admitted account=' : initial.account : ' writer=' : gate.writer : ' age=' : gate.age)
       display sysmsg(14974, gate.writer) ;* Internal session admitted (opened by %1)

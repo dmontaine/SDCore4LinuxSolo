@@ -13,6 +13,7 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: the out = '' before the CAPTURING is gone (CAPTURING sets it).
 * 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 19): the S.64 question is back as in _OSCOPY (VOC alone).
 * 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 18): as _OSCOPY, without the S.67 journal note (Solo has none).
 * 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 as in _OSCOPY.
@@ -61,7 +62,6 @@ $include int$keys.h
       return
    end
 
-   out = ''
    os.execute "cp -R -f -- '" : source : "' '" : target : "' 2>&1" capturing out
    status = os.error()
    return

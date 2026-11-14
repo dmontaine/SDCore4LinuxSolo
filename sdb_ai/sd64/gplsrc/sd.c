@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  sd_init(): a failed getcwd() gives an empty entry directory (it read an unset buffer); the build's warning.
  * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, the owner: US spelling in everything SD prints): "Unrecognized argument".
  * 11 Nov 26 dm  Solo carry S.216 gap 14 (SD Core S.80, c5ef414c): clean_stop() ends with sd_tls_relay_finish(): an API server waits for its TLS relay to deliver the last
  *               reply before it exits (sd_tlssrv.c); sd-solo-api@.service sets no KillMode either, so the same race was open.
@@ -304,7 +305,10 @@ Private void sd_init(int argc, char *argv[]) {
 
   /* Save the current working directory for use by SYSTEM(1024) */
 
-  (void)getcwd(cwd, MAX_PATHNAME_LEN);
+  /* 14 Nov 26 dm - a failed getcwd() (the directory removed, or a path too long) left cwd unset and strlen() read past it;
+     SYSTEM(1024) is then the empty string.  */
+  if (getcwd(cwd, MAX_PATHNAME_LEN) == NULL)
+    cwd[0] = '\0';
   entry_dir = k_alloc(MAX_PATHNAME_LEN, strlen(cwd) + 1); /* was hard coded at 110 -gwb */
   /* Modified by Composer AI - 2026/06/10.
      k_alloc() can return NULL; abort startup rather than strcpy to NULL. */

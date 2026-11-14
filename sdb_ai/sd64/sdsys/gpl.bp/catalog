@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: set.owner.path is no longer set; Solo's set.owner is empty and never read it (S.232).
 * 28 Oct 26 dm  S.87: multifiles are gone.  The program file's name is always name.out (the file,part form is not split); PARSER$MFILE is now PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: * and - are no longer global prefix characters (! $ and _ are).
 * 27 Oct 26 dm  S.87 batch 8: OPTION CATALOGUE.LOCAL is gone; CATALOG with no word catalogues privately, and LOCAL says local.
@@ -473,9 +474,8 @@ catalogue.program:
          deleteu gcat.f, call.name   ;* 14 Sep 26 stage 3a: NTFS keeps an overwritten file's old case
          write object.code to gcat.f, call.name
          *
-         * rev 0.9.0 set file ownership
-         set.owner.path =  @sdsys:@ds:'gcat':@ds:call.name 
-         gosub set.owner     
+         * rev 0.9.0 set file ownership (14 Nov 26: set.owner is empty in Solo, so the path it would have read is no longer set)
+         gosub set.owner
          display sysmsg(3030, call.name) ;* xx added to global catalogue
 
          gosub check.local

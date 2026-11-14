@@ -61,7 +61,7 @@ leg() {   # leg NAME EXPECT OK(0/1) SAW
 sess() {
   printf '%s\n' "$GOOD" "$@" OFF | timeout 300 "$SD" 2>&1 \
     | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'
 }
 one() { printf '%s\n' "$1" | tail -3 | tr '\n' ' '; }
 
