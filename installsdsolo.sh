@@ -1413,7 +1413,9 @@ rm -f "$HOME_DIR/\$internal"
 # stdin is /dev/null: "timeout" runs its command in a BACKGROUND process group, and an sd
 # that meets the terminal there is stopped by SIGTTIN - which hung this check for ever
 # whenever the installer was run from a real terminal (found by verify-solo-interactive.sh).
-gate="$(timeout 60 "$HOME_DIR/bin/sd-solo" -internal WHO </dev/null 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+# 14 Nov 26 dm  "|| true": since 13 Nov a refused sign-on exits 1, and under set -euo pipefail that ended the whole install here with no
+#               word (found by verify-solo-interactive.sh on the Debian VM).  The refusal is the EXPECTED answer; the words below judge it.
+gate="$(timeout 60 "$HOME_DIR/bin/sd-solo" -internal WHO </dev/null 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' || true)"
 if printf '%s\n' "$gate" | grep -qE '^[0-9]+ sdsys$'; then fail "sd -internal was admitted with no marker: the internal door is OPEN"; fi
 printf '%s\n' "$gate" | grep -qx 'Connection terminated' || fail "sd -internal did not end with 'Connection terminated'"
 [ ! -e "$HOME_DIR/\$internal" ] || fail "a marker file was left in $HOME_DIR"
