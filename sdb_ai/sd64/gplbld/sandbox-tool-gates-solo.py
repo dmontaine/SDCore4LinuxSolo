@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-tool-gates-solo.py - the gates page, TOOL.GATES, driven on a PSEUDO-TERMINAL on a private SD Core for Linux Solo (Solo carry 20b; Core has two pages under this name, the
+# sandbox-tool-gates-solo.py - the gates page, TOOL.GATES, driven on a PSEUDO-TERMINAL on a private SD Core Solo for Linux (Solo carry 20b; Core has two pages under this name, the
 # administrator's matrix (sandbox-tool-gates.py) and the holder's read-only view (sandbox-tool-mygates.py); Solo has one account and one page with two modes).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-tool-gates-solo.py <dir> [--build] [--mutant=NAME]

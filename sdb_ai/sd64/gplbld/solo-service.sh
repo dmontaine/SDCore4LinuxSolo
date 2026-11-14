@@ -1,5 +1,5 @@
 #!/bin/bash
-# solo-service.sh - run SD Core for Linux Solo as the user's own systemd service.
+# solo-service.sh - run SD Core Solo for Linux as the user's own systemd service.
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh install HOME_DIR [--api off|local|open] [--ssh off|local|open]
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh ssh HOME_DIR off|local|open [--print]
@@ -100,7 +100,7 @@ api_socket_text() {   # api_socket_text MODE PORT
   if [ "$1" = "open" ]; then listen="0.0.0.0:$2"; else listen="127.0.0.1:$2"; fi
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (API listener, $1)
+Description=SD Core Solo for Linux (API listener, $1)
 
 [Socket]
 ListenStream=$listen
@@ -113,7 +113,7 @@ UNIT
 api_template_text() {   # api_template_text TREE
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (one API connection)
+Description=SD Core Solo for Linux (one API connection)
 Requires=$DAEMON
 After=$DAEMON
 
@@ -179,7 +179,7 @@ ssh_socket_text() {   # ssh_socket_text MODE PORT
   if [ "$1" = "open" ]; then listen="0.0.0.0:$2"; else listen="127.0.0.1:$2"; fi
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (ssh listener, $1)
+Description=SD Core Solo for Linux (ssh listener, $1)
 
 [Socket]
 ListenStream=$listen
@@ -196,7 +196,7 @@ ssh_python_path() { command -v python3 2>/dev/null || echo /usr/bin/python3; }
 ssh_template_text() {   # ssh_template_text TREE SSHD PYTHON
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (one ssh connection)
+Description=SD Core Solo for Linux (one ssh connection)
 Requires=$DAEMON
 After=$DAEMON
 CollectMode=inactive-or-failed
@@ -249,7 +249,7 @@ AI_TEMPLATE="sd-solo-ai@.service"
 ai_socket_text() {
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (the AI helper's socket)
+Description=SD Core Solo for Linux (the AI helper's socket)
 
 [Socket]
 ListenStream=%t/sd-solo-ai.sock
@@ -264,7 +264,7 @@ UNIT
 ai_template_text() {   # ai_template_text TREE PYTHON
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (the AI helper, one request)
+Description=SD Core Solo for Linux (the AI helper, one request)
 
 [Service]
 StandardInput=socket
@@ -307,7 +307,7 @@ ai_apply() {
 daemon_text() {   # daemon_text TREE
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (daemon)
+Description=SD Core Solo for Linux (daemon)
 Documentation=file://$1/sd.conf
 Wants=$LNXD
 
@@ -325,7 +325,7 @@ UNIT
 lnxd_text() {   # lnxd_text TREE
   cat <<UNIT
 [Unit]
-Description=SD Core for Linux Solo (clean-up of lost sessions, sdlnxd)
+Description=SD Core Solo for Linux (clean-up of lost sessions, sdlnxd)
 After=$DAEMON
 BindsTo=$DAEMON
 StartLimitIntervalSec=60
@@ -499,7 +499,7 @@ if [ "$cmd" = "status" ]; then
 fi
 
 if [ "$cmd" = "remove" ]; then
-  echo "removing the SD Core for Linux Solo user units"
+  echo "removing the SD Core Solo for Linux user units"
   systemctl --user disable --now "$SSH_SOCKET" >/dev/null 2>&1 || true
   systemctl --user disable --now "$AI_SOCKET" >/dev/null 2>&1 || true
   systemctl --user disable --now "$SOCKET" >/dev/null 2>&1 || true

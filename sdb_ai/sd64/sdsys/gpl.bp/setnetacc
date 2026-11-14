@@ -3,7 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
-* 20 Oct 26 SD Core for Linux Solo - written (Solo carry 8).  THE OWNER'S WORDS, 20 Oct 2026: "q3 c" - carry SD Core's fix for API request 29 with a NET
+* 20 Oct 26 SD Core Solo for Linux - written (Solo carry 8).  THE OWNER'S WORDS, 20 Oct 2026: "q3 c" - carry SD Core's fix for API request 29 with a NET
 *           gate (a Solo gate, off by default); his ruling of 18 Oct is that what is off is turned on by the administrator and by nobody else.  This is
 *           Solo's own, like SET.OS.ACCESS: SD Core has MODIFY.ACCOUNT NET-ON / NET-OFF for many accounts, and Solo has one account and no such verb.  A
 *           DEVIATION FROM THE LINUX CORE TEMPLATE WITH THE OWNER'S SPECIFIC PERMISSION (the verb's name and shape), listed for the parity audit.

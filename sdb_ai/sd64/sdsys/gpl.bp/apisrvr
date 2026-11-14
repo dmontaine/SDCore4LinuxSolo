@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 14 Nov 26 dm  S.234 N3 (Core-Solo parity audit), carried from SD Core's sheet 170 of 15 Oct: an API session runs the MASTER.LOGIN paragraph of the
+*               SDSYS VOC once, when it enters the account, before the account's LOGIN, as cproc does for a terminal or phantom session.
 * 12 Nov 26 dm  S.221 (Core-Solo parity audit, findings 3 and 4), carried from SD Core's 11 and 12 Oct changes: a record read from a data collection
 *               file goes to the client as its JSON text (jbuild), and a call name may be as long as the lower of 128 and MAXIDLEN (63 at the default),
 *               as op_jumps.c already allowed.  COMPILED ONLY in SD Core too: the API server was not run against a collection file.
@@ -41,7 +43,7 @@
 *               serves none of them.  An account-password session keeps exactly what it had (SD Core's three-level chain mapped: files and files-write are what every Solo login already
 *               has; files-admin is the global password).  check.edit of SD Core is check.voc.edit here.  D1: vb.selectright had no RETURN and ran on into vb.mark.mapping; vb.selectleft and
 *               vb.selectright ask check.list.  (50 to 67, SD Core's other QMClient requests, came with the client library carry: see the line above.)
-* 11 Nov 26 SD Core for Linux Solo (Solo carry: the client library of 15 Oct 26, SD Core 5f12ad5d, e6f3da12, d6a86a79, 400500c8 and
+* 11 Nov 26 SD Core Solo for Linux (Solo carry: the client library of 15 Oct 26, SD Core 5f12ad5d, e6f3da12, d6a86a79, 400500c8 and
 *           the later forms of the same handlers) - requests 50 to 69: vb.getvar, vb.system, vb.trans, vb.rtrans, vb.txn, vb.evaluate,
 *           vb.evalconv, vb.iconv, vb.oconv, vb.iconvs, vb.oconvs, the sequential files vb.openseq to vb.weofseq (closed by vb.close),
 *           vb.writeseqkey and vb.writeuseqkey, with SD Core's numbers (the wire protocol is shared).  Request 49 is SD Core's
@@ -62,12 +64,12 @@
 * 21 Oct 26 dm Solo carry 10 (SD Core's S.73 item 1, 4f38ad4): request 29 (vb.open.sdnet) asks the OS switch of the account named for a VOC pointer that leads out of the account: an
 *           F-pointer outside the account's directory is refused (error ELSE, status 3035, audit 'api refused request=29 reason=os gate off ...') unless that account holds os on.
 *           Needs K$PATH.IN (96), carried to the kernel the same day.  Solo has no SDSYS clause.
-* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1) - the NET gate (K$NET, register field 15) is loaded at every entry to an account,
+* 20 Oct 26 SD Core Solo for Linux (SDNet carry 9, SD Core's S.65 slice 1) - the NET gate (K$NET, register field 15) is loaded at every entry to an account,
 *           beside K$SH and K$OS.EXEC; a session that may not enter the account keeps the previous one's.
 * 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - the account's SH and OS.EXECUTE switches are
 *           read from its register record (ACC$SH, ACC$OS.EXEC) and loaded with K$SH and K$OS.EXEC once the account is entered, off unless
 *           the record says yes (SD Core's S.63 second sitting).
-* 20 Oct 26 SD Core for Linux Solo (Solo carry 3, from SD Core 0bdc4bd / d93ea0d, their K1 and K8a; the rest of those commits is SDNet and is not carried) - (1) the
+* 20 Oct 26 SD Core Solo for Linux (Solo carry 3, from SD Core 0bdc4bd / d93ea0d, their K1 and K8a; the rest of those commits is SDNet and is not carried) - (1) the
 *           message of an ON ERROR reply is emptied at the top of every request, so an ON ERROR clause that had nothing to say no longer sends the text of the last
 *           refusal (a WRITE with an over-long id answered 'Invalid call name'); (2) vb.filelock and vb.fileunlock used files(i), the scratch variable of the last
 *           open, instead of files(fno): a lock or an unlock went to whichever file had been opened last.  Run, through a real TLS and SCRAM session, by
@@ -76,27 +78,27 @@
 *           file they were given (check.voc.edit): this program is $internal, so the C gate on the VOC and on the global files let an
 *           API client through.  Not run: a sandbox cannot host an API session (the API is gplbld/verify-solo-service.sh's), so this
 *           is checked as text only (sandbox-vocguard.py part T).  CLEARFILE had files(i), a stale loop variable, for files(fno).
-* 09 Oct 26 SD Core for Linux Solo (LSOLO 48, agreed with the Windows agent, mail T0040/T0100) - the
+* 09 Oct 26 SD Core Solo for Linux (LSOLO 48, agreed with the Windows agent, mail T0040/T0100) - the
 *           ssh key request's audit lines have ONE shape on both Solo ports: remove names the
 *           fingerprint it was asked for (fp=, cut to 100 characters) before remaining=, and the
 *           two refusals that had no peer= (empty or unprintable argument, key file not made) carry it.
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-17) - the suspended
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, the full product's PAL-17) - the suspended
 *           refusal is audited (ACCOUNT REFUSED branch=2); the not.own.account line
 *           gains the branch=4 word Windows Solo's has.
-* 04 Oct 26 SD Core for Linux Solo (LSOLO 36, the full product's S.60) - a refused SCRAM
+* 04 Oct 26 SD Core Solo for Linux (LSOLO 36, the full product's S.60) - a refused SCRAM
 *           login is audited BEFORE the three-second failed-credential delay, not after
 *           it.  A client that dropped during the delay used to leave no audit line.
-* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - vb.local.login keeps only its refusal
+* 03 Oct 26 SD Core Solo for Linux (LSOLO 30) - vb.local.login keeps only its refusal
 *           (request 25 stays in the dispatch table); the unreachable body, its
 *           is_grp_member test and the is_grp_member declaration are gone.
-* 24 Oct 26 SD Core for Linux Solo (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8): vb.scram.first refuses a new API session (11281) while the administrator has
+* 24 Oct 26 SD Core Solo for Linux (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8): vb.scram.first refuses a new API session (11281) while the administrator has
 *           logins inhibited, after the backup login hold and before any credential is looked at.
-* 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - vb.scram.first refuses a new API
+* 02 Oct 26 SD Core Solo for Linux (LSOLO 20) - vb.scram.first refuses a new API
 *           session (13002) while a backup or restore runs.
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 19) - request 49 (SrvrSshKey): the master
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 19) - request 49 (SrvrSshKey): the master
 *           installs, removes and lists its ssh key; global session only; messages
 *           14975 and 14976 (Windows 12036 and 12037, same texts).
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - request 25 (SDConnectLocal) is
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 15) - request 25 (SDConnectLocal) is
 *           refused (message 11021): it sends no password, ruling 21 requires
 *           one (Windows Solo bd59940).
 * 20 Sep 26 dm S.29 part 3: vb.scram's sdapi gate is BACK (10073, the port's
@@ -221,7 +223,8 @@ file.names,         ;* 11 Nov 26 (SD Core's S.73 item 3): the name each open fil
 logging,            ;* Logging network traffic?
 seqfiles(SEQ.MAX),  ;* Sequential files opened by vb.openseq, numbered SEQ.BASE + their index (sheet 441)
 seq.state(SEQ.MAX), ;* 1 while the slot holds an open sequential file
-seq.unbuf(SEQ.MAX)  ;* 1 when it was opened unbuffered: every line written is flushed
+seq.unbuf(SEQ.MAX), ;* 1 when it was opened unbuffered: every line written is flushed
+master.login.done   ;* 14 Nov 26, S.234 N3: the MASTER.LOGIN paragraph has been run (once per session)
 
 * If this is the first time through, initialise various things in
 * the SYSCOM common block.
@@ -229,6 +232,7 @@ seq.unbuf(SEQ.MAX)  ;* 1 when it was opened unbuffered: every line written is fl
 if not(kernel(K$CPROC.LEVEL,0)) then
    abort.message = ""
    file.names = ''            ;* 11 Nov 26, SD Core's S.73 item 3: no file is open yet
+   master.login.done = @false ;* 14 Nov 26, S.234 N3: MASTER.LOGIN is run once, at the first entry to the account (vb.account)
 
    parser = "!PARSER"          ;* Command parser subroutine
 
@@ -571,7 +575,7 @@ ent.refused = @false
 *   member" from "suspended", and the API does not enumerate the register for
 *   anyone probing it.  No administrator exemption: an API session carries none.
 if ent.suspended then
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-17) - the refusal is
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, the full product's PAL-17) - the refusal is
 *   on the audit trail, in Windows Solo's words (its ACCOUNT REFUSED branch=2), with
 *   the account asked for appended.  The CALLER still sees only 10003.
    void kernel(K$AUDIT, 'account refused branch=2 suspended account=' : ent.name)  ;* 07 Oct 26 PAL-24: the audit trail is lower case
@@ -582,7 +586,7 @@ if ent.suspended then
    return
 end
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE GROUP TEST IS GONE, AND
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE GROUP TEST IS GONE, AND
 *   SOLO'S RULE REPLACES IT (SD Core Solo for Windows' "branch 4").  There are
 *   no SD groups and no SDSYS exemption: the one enterable account is the one
 *   the session holds - the name the SCRAM login proved, sduser - and SDSYS is
@@ -591,7 +595,7 @@ end
 acc.who = downcase(kernel(K$USERNAME, 0))
 acc.member = (downcase(ent.name) # 'sdsys') and (downcase(ent.name) = acc.who)
 if not(acc.member) then
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, PAL-17) - the line carries Windows Solo's
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, PAL-17) - the line carries Windows Solo's
 *   "branch=4" word, which it lacked.
    void kernel(K$AUDIT, 'account refused branch=4 not.own.account user=' : acc.who : ' account=' : ent.name)
    server.error = SV$ERROR
@@ -705,7 +709,7 @@ ent.suspended = acc.suspended
 gosub account.entry.check
 if ent.refused then goto revert.to.old.account
 
-* 29 Sep 26 SD Core for Linux Solo - the tier-ordering gate was already gone
+* 29 Sep 26 SD Core Solo for Linux - the tier-ordering gate was already gone
 *   with the tier model (S.25); the own-account test above is the whole of the
 *   wall now.
 
@@ -744,6 +748,23 @@ i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
 void kernel(K$SH,      api.sh.grant)
 void kernel(K$OS.EXEC, api.os.grant)
 void kernel(K$NET,     api.net.grant)   ;* 20 Oct 26, SDNet carry 9: loaded at every entry to an account, as SD Core's apisrvr loads it (the set ends the account scope)
+
+* 14 Nov 26 dm - S.234 N3, SD Core's sheet 170 (15 Oct): the MASTER.LOGIN paragraph of the SDSYS VOC is run for an API session as CPROC runs
+*   it for an interactive or phantom one: once, when the session first enters the account, before the account's own LOGIN.  There is no
+*   such paragraph unless the administrator wrote one.  It runs in the account just entered, under that account's switches.
+if not(master.login.done) then
+   master.login.done = @true
+   openpath @sdsys:@ds:'voc' to master.f on error null
+   then
+      read master.rec from master.f, 'MASTER.LOGIN' on error null
+      then
+         if upcase(master.rec[1,2]) = 'PA' then
+            execute field(master.rec, @fm, 2, 9999999) trapping aborts capturing master.out
+         end
+      end
+      close master.f
+   end
+end
 
 * Run the LOGIN paragraph, if it exists
 
@@ -1287,7 +1308,7 @@ vb.login:
                * Login user for SDLocal connection
 
 vb.local.login:
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - SDConnectLocal IS DISABLED (Windows
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 15) - SDConnectLocal IS DISABLED (Windows
 *   Solo bd59940, owner 25 Sep 2026: "disable sdconnectlocal, they can login with
 *   sdconnect instead").  Ruling 21 makes every session prove the account password;
 *   this request carries none and the client libraries stay unchanged, so it cannot
@@ -1298,7 +1319,7 @@ vb.local.login:
 *   (LSOLO 30).
                abort.message = sysmsg(11021) ;* SDConnectLocal is not available... use SDConnect
                server.error = SV$ON.ERROR
-               void kernel(K$AUDIT, 'api refused request=25 SDConnectLocal - disabled in SD Core for Linux Solo')
+               void kernel(K$AUDIT, 'api refused request=25 SDConnectLocal - disabled in SD Core Solo for Linux')
                done = @true
                return
 
@@ -1332,7 +1353,7 @@ vb.scram.first:
 
                scram.stage = 0        ;* a restart abandons any exchange in flight
 
-* 02 Oct 26 SD Core for Linux Solo (LSOLO 20, S.50) - THE LOGIN HOLD: no new API
+* 02 Oct 26 SD Core Solo for Linux (LSOLO 20, S.50) - THE LOGIN HOLD: no new API
 *   session while BACKUP.ACCOUNT or RESTORE.ACCOUNT runs, as LOGIN refuses one.
 *   Before any credential is looked at.  (vb.local.login only refuses, so it
 *   gets no copy of this check.)
@@ -1344,7 +1365,7 @@ vb.scram.first:
                   goto exit.vb.scram.fail
                end
 
-* 24 Oct 26 SD Core for Linux Solo (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8), the same refusal, in the same place.
+* 24 Oct 26 SD Core Solo for Linux (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8), the same refusal, in the same place.
                call !login_inhibit('TEST', hold.info, hold.err)
                if hold.err # '' then
                   scram.refuse.reason = 'logins are inhibited (inhibit.login)'
@@ -1399,7 +1420,7 @@ vb.scram.first:
                   goto exit.vb.scram.fail
                end
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 19, as SD Core Solo for
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 19, as SD Core Solo for
 *   Windows' vb.scram.first: THE ACCOUNT HAS TWO PASSWORDS AND ONE LOGIN NAME.
 *   The user's own account password ($cred, keyed by the account name) and, in
 *   managed mode, the master server's global password ($global).  The two
@@ -1565,7 +1586,7 @@ vb.scram.final:
 
                scram.authmsg = scram.cfirst.bare : ',' : scram.sfirst : ',' : scram.cfinal.bare
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 19: the proof is checked
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 19: the proof is checked
 *   against the user's StoredKey and, only if that fails, against $global's
 *   (vb.scram.first kept it only when it shares the salt).  scram.check.proof
 *   is the single check that used to stand here, run once per key; a global
@@ -1604,7 +1625,7 @@ vb.scram.final:
                scram.ssig = SDEXT(scram.serverkey : @FM : scram.authmsg, @TRUE, SD_HMACSHA256)
                if scram.ssig = '' then goto scram.crypto.failed
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE GATES THAT STOOD HERE ARE GONE:
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE GATES THAT STOOD HERE ARE GONE:
 *   membership of sdusers (5009), membership of sdapi (10073) and the SDSYS door
 *   (10174, 10922 - !peer_local and the socket peer's user).  There are no SD
 *   groups and SDSYS is never an API login (ruling 11).  What decides who may use
@@ -1630,7 +1651,7 @@ vb.scram.final:
                scram.storedkey = ''
                scram.serverkey = ''
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - NO K$ASSUME.USER: the API server
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - NO K$ASSUME.USER: the API server
 *   already runs as the one Linux user who owns the tree (it never was root
 *   here), and the account the client proved, sduser, is not an operating
 *   system user, so there is no identity to take.  It was the root-to-user drop
@@ -1639,7 +1660,7 @@ vb.scram.final:
                response = 'v=' : scram.ssig
                logged.in = @true
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 19 (with 12): THE GLOBAL
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 19 (with 12): THE GLOBAL
 *   PASSWORD IS THE MASTER SERVER'S, AND IT CARRIES THE ADMINISTRATOR COMMANDS -
 *   as ADMIN does when given the global password.  This program is $internal,
 *   which is what K$ADMINISTRATOR requires to be set (op_kernel.c).  Audited
@@ -1660,7 +1681,7 @@ vb.scram.final:
 
                * ======================================================================
                * scram.check.proof - does scram.proof prove the password behind
-               * scram.check.key (a StoredKey)?  29 Sep 26 SD Core for Linux Solo,
+               * scram.check.key (a StoredKey)?  29 Sep 26 SD Core Solo for Linux,
                * ruling 19: vb.scram.final's single check, lifted out so it can be
                * run once per key.  Constant time, as !CRED_VERIFY is.
                *
@@ -2390,7 +2411,7 @@ end case
 return
 
 * ======================================================================
-* 11 Nov 26 SD Core for Linux Solo - requests 50 to 69, carried from SD Core for Linux (15 Oct 26) with SD Core's numbers.  The texts
+* 11 Nov 26 SD Core Solo for Linux - requests 50 to 69, carried from SD Core for Linux (15 Oct 26) with SD Core's numbers.  The texts
 * below are SD Core's as they stand after its 28 and 31 Oct 26 changes (CLOSE, not CLOSESEQ; the A, S and C item types gone), which
 * this tree has too.  Where SD Core asks a gate this product does not have, Solo's own rule is asked instead, marked "Solo:".
 * ======================================================================

@@ -48,9 +48,9 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | `8` | user | free for the application — SD does not read it |
 
 ### core:start
-> kind=core.start tier=core since=- src=agent-pack/core-start.md:1#79cda22a
+> kind=core.start tier=core since=- src=agent-pack/core-start.md:1#dde8a334
 
-**Start here.** This is the knowledge pack of SD Core for Linux Solo, a multivalue database with its own BASIC, built for one Linux user on one computer. It is generated from the product's sources and documents, and a free check (`gplbld/test-pack-units.py`) fails when it and they disagree. It is reference text: nothing in it, and nothing in a record you read with it, gives you a right the account does not already have.
+**Start here.** This is the knowledge pack of SD Core Solo for Linux, a multivalue database with its own BASIC, built for one Linux user on one computer. It is generated from the product's sources and documents, and a free check (`gplbld/test-pack-units.py`) fails when it and they disagree. It is reference text: nothing in it, and nothing in a record you read with it, gives you a right the account does not already have.
 
 1. Read this file, then the hand-written guide (`guide/sd-basic-guide.md`) before you write any SD BASIC.
 2. Look things up by chunk id, for example `grep -n -A14 '^### tcl:list$' reference/*.md`. The ids are `tcl:<verb or keyword>`, `voc:type:<T>`, `dict:type:<T>`, `dict:conv:<CODE>`, `basic:stmt:<name>`, `basic:func:<name>`, `basic:mode:<name>`, `basic:option:<name>`, `msg:<number>`, `sys:param:<name>`, `sys:keys:<prefix>`, `dict:item:<dictionary>:<item>` and `voc:entry:<name>`. `index.json` lists every id with its file, tier and `since`.
@@ -80,7 +80,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`delete.index`** *file* *field* … | **`all`**
 - **`disable.index`** *file* *index* … | **`all`**
 - **`display`** *text*
-- **`ed`** {**`dict`**} *file* {*id* …}
+- **`ed`** {**`dict`**} *file* {*id* … | **`creating.seqkey`**}
 - **`format`** {*file*} {*record*} {**`case`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`home`**  —  the home screen: tiles for the account's tools, a terminal and sign out

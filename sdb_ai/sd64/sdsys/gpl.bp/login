@@ -19,19 +19,19 @@
 * 
 * START-HISTORY:
 * 14 Nov 26 dm  Compiler warnings: lgn.id and audit.account, set and never read in Solo, are gone (S.232).
-* 12 Nov 26 SD Core for Linux Solo - S.221: the rest of SD Core's S.88 phase 1 - a session with no terminal is linux (it relied on the login paragraph's TERM LINUX,
+* 12 Nov 26 SD Core Solo for Linux - S.221: the rest of SD Core's S.88 phase 1 - a session with no terminal is linux (it relied on the login paragraph's TERM LINUX,
 *           which went the same day).
-* 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change S.88 phase 1, K1) - a TERM that SD has no entry for falls back to the family it
+* 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 28 Oct 26 change S.88 phase 1, K1) - a TERM that SD has no entry for falls back to the family it
 *           belongs to (xterm for the xterm-family terminals), not always to linux.
 * 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
 *           are still the records SD shipped (!vocrmchk), saves a copy of each to sdsys/voc_removed.saved first, reports the ones it kept and audits.  Messages 11900-11904.
-* 26 Oct 26 SD Core for Linux Solo (Solo carry 21, SD Core's 26 Oct change) - UPDATE.ACCOUNTS (modes 2 and 4) updates the SDSYS account's own VOC from VOC_TEMPLATE, not NEWVOC.
-* 22 Oct 26 SD Core for Linux Solo (Solo carry 13, Core's 18 Oct 26 change) - the size a session with no tty takes is DEFAULT.WIDTH by DEFAULT.DEPTH, now
+* 26 Oct 26 SD Core Solo for Linux (Solo carry 21, SD Core's 26 Oct change) - UPDATE.ACCOUNTS (modes 2 and 4) updates the SDSYS account's own VOC from VOC_TEMPLATE, not NEWVOC.
+* 22 Oct 26 SD Core Solo for Linux (Solo carry 13, Core's 18 Oct 26 change) - the size a session with no tty takes is DEFAULT.WIDTH by DEFAULT.DEPTH, now
 *           140 by 42 (int$keys.h), and the terminfo entries say the same; a real terminal still decides its own size.
-* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1) - the NET gate (K$NET, register field 15) is loaded beside K$SH and K$OS.EXEC.
+* 20 Oct 26 SD Core Solo for Linux (SDNet carry 9, SD Core's S.65 slice 1) - the NET gate (K$NET, register field 15) is loaded beside K$SH and K$OS.EXEC.
 * 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - the load of K$SH and K$OS.EXEC from
 *           ACC$SH / ACC$OS.EXEC (SD Core's S.63) is back, OFF unless the register record says yes.
-* 18 Oct 26 SD Core for Linux Solo (LSOLO 52) - carried from SD Core for Linux 5315c65
+* 18 Oct 26 SD Core Solo for Linux (LSOLO 52) - carried from SD Core for Linux 5315c65
 *           (merge base c0802d7): the terminal's own size wins (K$WINSIZE; the TERM 120,36
 *           line is out of the login paragraph), the user table is told the account
 *           (K$SET.ACCOUNT), the internal FCI$NON.TXN fcontrol, and the SDTERM size escape
@@ -40,20 +40,20 @@
 * 09 Nov 26 SD Core for Linux Solo (Solo carry 22; owner, 9 Nov: "Yes, renumber Solo") - Solo's own messages moved again, 11900-11914 to
 *           14974-14988 and 11920-11925 to 14989-14994, so that SD Core's 11900-11918 (the VOC deletion list) keep their numbers here: the
 *           internal session announcement is 14974.
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-12) - a release
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, the full product's PAL-12) - a release
 *           mismatch at login no longer asks (5025/5026/5027); it proceeds, as on
 *           Windows and Windows Solo.  UPDATE.ACCOUNTS ALL refreshes the account.
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-16) - the LOGIN
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, the full product's PAL-16) - the LOGIN
 *           audit line of a single-command sign-on carries command=<the command>.
-* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - the unused is_grp_member declaration
+* 03 Oct 26 SD Core Solo for Linux (LSOLO 30) - the unused is_grp_member declaration
 *           is gone (the program itself is deleted).
-* 24 Oct 26 SD Core for Linux Solo (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8, carried from Core 15 Oct 26): a new session is refused (11281) while
+* 24 Oct 26 SD Core Solo for Linux (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8, carried from Core 15 Oct 26): a new session is refused (11281) while
 *           the administrator has logins inhibited; !login_inhibit decides.  In Solo ADMIN is typed after sign-on, so no new session is the administrator
 *           at this point: only the session that set it (and its phantoms) is let in, and a hold whose setter has gone is ignored, so it cannot lock the owner out.
 *           Also the newvoc.mods loop at the end of update.voc (openQM 501): the optional @SDSYS/newvoc.mods records are written to the account's VOC after the standard ones.
-* 02 Oct 26 SD Core for Linux Solo (LSOLO 20) - the login hold (13002) while a
+* 02 Oct 26 SD Core Solo for Linux (LSOLO 20) - the login hold (13002) while a
 *           backup or restore runs; !acc_hold decides.
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 14) - Windows Solo SOLO 18: a managed
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 14) - Windows Solo SOLO 18: a managed
 *           account with no password yet sets its first one at the console
 *           (set.first.password; messages 11025-11027, 11036, 11037).
 * 20 Sep 26 dm THE BATCH GATE (S.40), PARITY WITH THE WINDOWS PORT.  Owner's
@@ -349,10 +349,10 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   the stamp rather than by the name.  "(AI modified)" is gone with it - the
 *   stamp is this project's own number now, so there is nothing left to
 *   distinguish it FROM.
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - the product's name, as Solo for
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 2) - the product's name, as Solo for
 *   Windows' banner names its own.
 * 14 Nov 26 dm - The owner, 14 Nov 26: "SD Core Solo for Linux" (and "SD Core for Linux", "SD Core for Windows", "SD Core Solo for Windows"
-*   in the other three); the name was "SD Core for Linux Solo".
+*   in the other three); the name was "SD Core Solo for Linux".
       display "SD Core Solo for Linux, the Essential Multivalue String Database, version " : SD.REV.STAMP
       * --------------------
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
@@ -384,13 +384,13 @@ deffun pw_complex(pw) calling '!pw_complex'
     goto terminate.connection
   end else
      * This user has come in from a command prompt.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE sdusers GATE IS GONE.  There
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE sdusers GATE IS GONE.  There
 *   are no SD groups: the one user's tree is in their own home and the file
 *   permissions on it are the gate.  @logname is always sduser (kernel.c).  A
 *   session with no register record still stops below, at the register read,
 *   and every session that is not internal proves the account password (still
 *   to be built - LSOLO 6).
-* 02 Oct 26 SD Core for Linux Solo (LSOLO 20, S.50) - THE LOGIN HOLD.  While
+* 02 Oct 26 SD Core Solo for Linux (LSOLO 20, S.50) - THE LOGIN HOLD.  While
 *   BACKUP.ACCOUNT or RESTORE.ACCOUNT runs, a new session is refused with a
 *   message until it finishes (the owner's ruling, 1 Oct 2026, for all four
 *   products).  !acc_hold ignores a hold whose holder session has gone.
@@ -400,7 +400,7 @@ deffun pw_complex(pw) calling '!pw_complex'
         audit.reason = 'a backup or restore is running'
         goto terminate.connection
      end
-* 24 Oct 26 SD Core for Linux Solo (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8): the administrator's switch.  Refused unless this is the administrator,
+* 24 Oct 26 SD Core Solo for Linux (Solo carry 18) - INHIBIT.LOGIN (QM4 gaps Q-8): the administrator's switch.  Refused unless this is the administrator,
 *   the session that set it or a phantom it started; a setter that has gone is ignored.  !login_inhibit decides.
      call !login_inhibit('TEST', inhibit.info, inhibit.err)
      if inhibit.err # '' then
@@ -435,7 +435,7 @@ deffun pw_complex(pw) calling '!pw_complex'
             goto terminate.connection
          end
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE ACCOUNT-GROUP TEST IS GONE
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE ACCOUNT-GROUP TEST IS GONE
 *   (there are no groups).  What replaces it: with no group to consult, "sd
 *   -Aname" may name only the one account, or SDSYS on the internal door
 *   (checked above).  Anything else is refused as not allowed.
@@ -496,7 +496,7 @@ deffun pw_complex(pw) calling '!pw_complex'
 
    end case
 
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 9) - RULING 13: "sd -internal" IS
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 9) - RULING 13: "sd -internal" IS
 *   CLOSED ON A DELIVERED SYSTEM AND OPENED, ONE SESSION AT A TIME, BY WHOEVER
 *   LEGITIMATELY STARTS ONE.  Ported from SD Core Solo for Windows' LOGIN
 *   (RELEASE_1.1 82).  An internal session is admitted only while a marker file
@@ -613,7 +613,7 @@ deffun pw_complex(pw) calling '!pw_complex'
 
    if not(is.phantom) and not(fileinfo(voc, FL$READONLY)) then
       read voc.rec from voc, "$release" then     ;* 13 Sep 26 - plan M3, the $ records
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-12; Windows RELEASE_1.1 39
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, the full product's PAL-12; Windows RELEASE_1.1 39
 *   and Windows Solo's, owner 16 Sep 2026, "proceed silently").  THE OLD PER-LOGIN
 *   RELEASE-MISMATCH PROMPT (5025/5026/5027, Field 2) IS REMOVED.  It ran an unguarded
 *   `input` on the mode-0 path, so a session with no keyboard behind it (the
@@ -676,7 +676,7 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   interactive session has a human present to use judgement, a bare command
 *   line does not, so it gets a pre-vetted list instead, regardless of whose
 *   Linux identity is running it.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE BATCH GATE IS GONE, as in SD
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE BATCH GATE IS GONE, as in SD
 *   Core Solo for Windows (SOLO 4).  It limited what an unattended "sd <cmd>"
 *   could run to a list in SDSYS batch.jobs, because the multi-user product runs
 *   other people's commands.  In Solo "sd <command>" is the one user running
@@ -684,7 +684,7 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   run (LSOLO 6), not here.  The batch.permitted subroutine that followed this
 *   is deleted with it.
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 21: EVERY SESSION PROVES
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 21: EVERY SESSION PROVES
 *   THE ACCOUNT PASSWORD - at the keyboard, over ssh and for a one-shot "sd
 *   <command>" alike.  Three exemptions, each for its own reason: mode 1 is the
 *   API (SCRAM, apisrvr), a phantom inherits its parent's login, and the
@@ -701,7 +701,7 @@ deffun pw_complex(pw) calling '!pw_complex'
 
 * 11 Sep 26 dm - THE SUCCESS RECORD, mode 0 only: the update modes reach here
 *   too and are not sign-ons.
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-16) - a sign-on that
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, the full product's PAL-16) - a sign-on that
 *   was a single command line ("sd-solo 'command'") records the command, as Windows
 *   Solo's does, so the trail says WHAT ran unattended and not only who.  An
 *   interactive sign-on is unchanged.
@@ -729,7 +729,7 @@ abort.login:
 *
 * ======================================================================
 * INTERNAL.GATE  -  may this internal session start?  Sets gate.ok.
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 9), ruling 13; SD Core Solo for
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 9), ruling 13; SD Core Solo for
 * Windows' routine of the same name, RELEASE_1.1 82.
 *
 * THE RULE.  A marker file named $internal must exist in the SDSYS directory and
@@ -809,7 +809,7 @@ internal.gate:
 *
 * ======================================================================
 * REQUIRE.PASSWORD  -  the session proves the account password.  Sets pw.ok,
-* and pw.why when it is false.  29 Sep 26 SD Core for Linux Solo, ruling 21;
+* and pw.why when it is false.  29 Sep 26 SD Core Solo for Linux, ruling 21;
 * SD Core Solo for Windows' routine of the same name, less its DPAPI file (here
 * a private file in clear - !SOLO_STORE_PW) and less the managed tree's
 * first-password prompt, which comes with the installer's control file
@@ -851,7 +851,7 @@ require.password:
    end
    pw.rec = ''
    if not(pw.has.acct or pw.has.global) then
-      display sysmsg(11020) ;* This account has no password - install SD Core for Linux Solo again...
+      display sysmsg(11020) ;* This account has no password - install SD Core Solo for Linux again...
       pw.why = 'the account has no password'
       return
    end
@@ -1164,7 +1164,7 @@ update.voc:
       display sysmsg(10166, overridden.count, convert(@fm, ' ', overridden.ids))
    end
 
-* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - RETIRED VERBS.  The loop above only adds
+* 03 Oct 26 SD Core Solo for Linux (LSOLO 30) - RETIRED VERBS.  The loop above only adds
 *   and replaces, so a verb a release stops shipping would stay in every account that
 *   already has it.  LOGTO is the first (removed in LS1.1-3); to retire another, add
 *   its id here and delete its files from the sdsys tree and from solo-stage.sh's

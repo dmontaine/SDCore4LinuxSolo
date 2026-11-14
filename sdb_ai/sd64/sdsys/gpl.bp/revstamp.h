@@ -23,9 +23,9 @@
 *           1.1-3 on both full and solo"); pairs with L1.1-3 and the Windows W1.1-3 / WS1.1-3.
 * 30 Sep 26 SD Core for Linux Solo - SD_REV_STAMP LS1.1-2 (owner, 30 Sep 2026):
 *           the managed server's ssh-key request (49) and certificate pinning.
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - SD_REV_STAMP LS1.1-1: the product
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 2) - SD_REV_STAMP LS1.1-1: the product
 *           is SD Core for Linux Solo, its first release is LS1.1-1 (owner,
-*           29 Sep 2026: "SD Core for Linux Solo - LS1.1-1"), paired with the
+*           29 Sep 2026: "SD Core Solo for Linux - LS1.1-1"), paired with the
 *           multi-user L1.1-1 it was made from.
 * 29 Sep 26 dm  SD_REV_STAMP L1.1-1 (English-only release)
 * rev 1.0-2 see sdsys/changelog

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-osgate.py - the Solo OS-access switch (SH and OS) RUN on a private SD Core for Linux Solo: ordinary sessions of the one
+# sandbox-osgate.py - the Solo OS-access switch (SH and OS) RUN on a private SD Core Solo for Linux: ordinary sessions of the one
 #                     account, sduser, that refuse, run, and leave a sentinel on the disk as evidence.  Solo's copy of the idea of
 #                     SD Core's sandbox-gates.py (S.63); written FIRST, before the switch existed, and run red on a423ed5.
 #

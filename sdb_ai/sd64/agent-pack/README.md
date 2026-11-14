@@ -1,4 +1,4 @@
-# agent-pack: what an AI agent needs to work in SD Core for Linux Solo
+# agent-pack: what an AI agent needs to work in SD Core Solo for Linux
 
 S.69 rows 1 and 1b of the AI plan, carried to Solo (LSOLO 55, 20 Oct 2026). Documents, a generator and free and sandbox checks. **Nothing here is installed, compiled into SD or shipped by the installer** (it reads `sdsys`, `bin`, `gplsrc`, `gplobj`, `terminfo` and a few `gplbld` files; this directory is none of those), and nothing here calls a model, holds a key, opens a wall or changes ssh.
 

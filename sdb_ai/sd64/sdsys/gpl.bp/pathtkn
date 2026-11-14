@@ -37,7 +37,7 @@ $catalog !pathtkn
          null
       case u.path[1,6] = '@SDSYS'
          path = @sdsys:path[7,9999]
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - @USRDIR, the accounts folder
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - @USRDIR, the accounts folder
 *   (config USRDIR, which config.c derives from the tree's own location).
 *   solo_account stores an account's path as @USRDIR/<name> so a tree copied
 *   to another folder, user or computer still finds its account.  Same as

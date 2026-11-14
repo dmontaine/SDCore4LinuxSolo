@@ -83,7 +83,7 @@ import time
 
 CURRENT, STALE, UNKNOWN = 0, 1, 2
 
-# SD Core for Linux Solo (30 Sep 26): the install is one tree in the user's home
+# SD Core Solo for Linux (30 Sep 26): the install is one tree in the user's home
 # directory (installsdsolo.sh --home), and that directory IS the SDSYS directory.
 DEFAULT_SDSYS = os.path.expanduser("~/SDCoreSolo")
 STAMP_NAME = ".sdcore-install"

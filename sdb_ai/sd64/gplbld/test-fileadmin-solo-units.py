@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test-fileadmin-solo-units.py - SDNet file administration on SD Core for Linux Solo (SD Core's S.73 item 3, ef9d5946, and its D1, 7fd83ad3, carried on 11 Nov 2026), BOTH SIDES,
+"""test-fileadmin-solo-units.py - SDNet file administration on SD Core Solo for Linux (SD Core's S.73 item 3, ef9d5946, and its D1, 7fd83ad3, carried on 11 Nov 2026), BOTH SIDES,
 as invariants read off the source.
 
   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-fileadmin-solo-units.py

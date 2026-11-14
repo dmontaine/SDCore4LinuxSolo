@@ -2,8 +2,8 @@
 //
 // 15 Oct 2026.  The library's own signatures are in gplsrc/sdclilib.h and win over this file; gplbld/test-clientheaders-units.py
 // holds every declaration below against that header (the names, the number of parameters and their types).
-// 11 Nov 2026: carried to SD Core for Linux Solo.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and says
-// so: connect with SDConnect and the account password); SDRevision against a Solo server answers 0.0-0 for the server.
+// 11 Nov 2026: carried to SD Core Solo for Linux.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and says
+// so: connect with SDConnect and the account password).
 //
 // WINDOWS AND LINUX.  The library is named "sdclilib": .NET loads sdclilib.dll on Windows (the C client library of the Windows kit,
 // not the Visual Basic DLL sdclient.dll, whose calls are stdcall) and sdclilib.so or libsdclilib.so on Linux (the installed copy is

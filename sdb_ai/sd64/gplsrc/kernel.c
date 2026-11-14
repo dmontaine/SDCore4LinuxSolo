@@ -235,7 +235,7 @@ retry_login:
     /* Phantom processes have the user name entered by the parent when the
       user table entry is reserved.  For other users, initialise this now. */
 
-    /* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE SESSION'S USER NAME IS
+    /* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE SESSION'S USER NAME IS
        ALWAYS THE ONE ACCOUNT, sduser, not the Linux user's name.  This is what
        LOGIN lands as the account and what WHO, @LOGNAME and the audit report.
        The process is not touched: it still runs as the Linux user, and ssh

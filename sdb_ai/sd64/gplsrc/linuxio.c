@@ -19,7 +19,7 @@
  * START-HISTORY:
  * 14 Nov 26 dm  The build's warnings: socket_byte() gives a NUL on an ended read (it returned an unset byte), the key written
  *               to a child's pipe is tested, and the Unix-socket path is copied with its terminator always set.
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 changes S.88 phase 2 S3 and the review of L2): AUTOLOGOUT measures idle time ACROSS
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 28 Oct 26 changes S.88 phase 2 S3 and the review of L2): AUTOLOGOUT measures idle time ACROSS
  *               keyin() calls (idle_waited, idle_carry): a wait that ends by its own timeout no longer starts the inactivity clock again, so the screen
  *               library's one-second polling cannot keep a session alive; a byte of input or an interrupt starts it again as before, and with nothing carried
  *               the test is the old strict "period < timeout".  keyin_idle_ms() gives that clock to kernel(K$AUTOLOGOUT, -2) for the IDE's countdown.

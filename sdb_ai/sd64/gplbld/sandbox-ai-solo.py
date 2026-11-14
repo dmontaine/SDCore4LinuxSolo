@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-ai-solo.py - SET.AI, the ai verb, the kernel's transport (K$AI.*) and the AI choice page TOOL.AI, RUN on a private SD Core for Linux Solo
+# sandbox-ai-solo.py - SET.AI, the ai verb, the kernel's transport (K$AI.*) and the AI choice page TOOL.AI, RUN on a private SD Core Solo for Linux
 #                      (SOLO CARRY 15 of S.69 step 2, 23 Oct 2026).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-solo.py <dir> [--build] [--mutant=NAME]
@@ -861,7 +861,7 @@ def sec_context():
         body = (requests(fm)[-1][2] or {}) if n else {}
         got = body.get("system", [{}])[0].get("text", "")
         row("C8 with no text of the administrator's the shipped default (Solo's own gplbld/ai-context) is what is sent first, whole, before the fixed sentence; the preview shows none of it",
-            n == 1 and got == head + shipped + "\n\n" + sysx and shipped.startswith("About this system: SD Core for Linux Solo") and "About this system" not in "\n".join(out), repr((n, got[:160])))
+            n == 1 and got == head + shipped + "\n\n" + sysx and shipped.startswith("About this system: SD Core Solo for Linux") and "About this system" not in "\n".join(out), repr((n, got[:160])))
 
         say("\n--- T on the page: the box")
         first = shipped.split("\n")[0]

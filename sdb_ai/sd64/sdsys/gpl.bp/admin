@@ -18,9 +18,9 @@
 *
 *
 * START-HISTORY:
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 12) - ruling 33: the global password
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ruling 33: the global password
 *           also sets K$GLOBAL.SESSION.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - adapted from SD Core Solo for
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - adapted from SD Core Solo for
 *           Windows' gpl.bp/admin (SOLO 5).  Messages are 11002-11007 here
 *           (12002-12007 there).
 * END-HISTORY

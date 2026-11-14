@@ -5,7 +5,7 @@
   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ipcsafe-units.py
   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ipcsafe-units.py --selftest
 
-(Carried to SD Core for Linux Solo unchanged, 12 Nov 26, S.216 gap 13: the check found Solo's pstat, hsm and profiler printing raw.)
+(Carried to SD Core Solo for Linux unchanged, 12 Nov 26, S.216 gap 13: the check found Solo's pstat, hsm and profiler printing raw.)
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.
 

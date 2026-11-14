@@ -87,7 +87,8 @@ def checks(raw):
     ck("GS1", "the page is an internal program catalogued as $tool_gates, and both of Solo's VOC layers (voc_template and newvoc) have it as a verb for that program: the page is open to every session and "
        "decides by itself what to offer",
        re.search(r"^\$internal\s*\nprogram \$tool_gates\s*\n\$catalog \$tool_gates\b", pg, re.M) is not None and raw["voc"].split("\n")[:3] == ["V", "CA", "$tool_gates"]
-       and raw["newvoc"].split("\n")[:3] == ["V", "CA", "$tool_gates"], repr((raw["voc"][:30], raw["newvoc"][:30])))
+       and raw["newvoc"].split("\n")[0][:1] == "V" and raw["newvoc"].split("\n")[1:3] == ["CA", "$tool_gates"],   # 14 Nov 26 S.234 N13: newvoc's field 1 carries a description, as Core's does
+       repr((raw["voc"][:30], raw["newvoc"][:30])))
     i_open = pg.find("call $tk_open('tool.gates', '', ctx, err)")
     i_adm = pg.find("adm = (if kernel(K$ADMINISTRATOR, -1) then 1 else 0)")
     i_aud = pg.find("if adm then void kernel(K$AUDIT, 'tool start app=tool.gates')")

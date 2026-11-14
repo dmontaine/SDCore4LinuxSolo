@@ -18,19 +18,19 @@
 *
 *
 * START-HISTORY:
-* 09 Nov 26 SD Core for Linux Solo (Solo carry 22, SD Core's S.87 fb98cfb5 took the * and - global
+* 09 Nov 26 SD Core Solo for Linux (Solo carry 22, SD Core's S.87 fb98cfb5 took the * and - global
 *           prefixes away; the Windows agent's T1420, as Windows Solo did in 97debab3) - a server's
 *           program is catalogued under its PLAIN name and called as CALL name; a gcat entry with no
 *           $ ! _ prefix is the server's (a left-over *name entry is swept as stale); a name in
 *           global.bp.out that begins with $ ! _ * or - is refused, so SD's own programs are never
 *           touched.  A local program of the same name is found first (object.c tries the local
 *           catalogue for every name without a $ ! _ prefix).
-* 08 Oct 26 SD Core for Linux Solo (LSOLO 46) - a server's program is catalogued as *name in
+* 08 Oct 26 SD Core Solo for Linux (LSOLO 46) - a server's program is catalogued as *name in
 *           LOWER case (it was *NAME, which the loader no longer finds since PAL-1 stage 3a);
 *           stale entries are compared by their stored name, so an upper-case one goes.
-* 06 Oct 26 SD Core for Linux Solo (LSOLO 38) - no "standalone" mode: with no
+* 06 Oct 26 SD Core Solo for Linux (LSOLO 38) - no "standalone" mode: with no
 *           $global it says so in new words (the same on SD Core Solo for Windows).
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 12) - ported; message 11028/11029,
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ported; message 11028/11029,
 *           $cred record $global (lower case), catalogue names upper case.
 * 28 Sep 26 SD Core Solo - new, ruling 33.
 * END-HISTORY

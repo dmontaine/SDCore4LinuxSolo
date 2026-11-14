@@ -1,6 +1,40 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  THE INSTALLED SYSTEM HOLDS NO SOURCE; AN API SESSION RUNS MASTER.LOGIN; THE IDE'S RECOVERY COPY CAN BE TURNED ON.
+
+             What        - four changes that bring SD Core Solo for Linux level with SD Core for Linux (the Core-Solo parity
+                           audit of 14 Nov 2026).  (1) The install and an upgrade no longer leave the SD BASIC and C source of SD
+                           itself in the installed directory: gpl.bp, gplsrc, gplobj, gplbld, gpl.src and the Makefile are
+                           removed after the last compile (an older install's copies go at its next upgrade).  The source stays
+                           in the download.  (2) An API session runs the MASTER.LOGIN paragraph of the SDSYS VOC once, when it
+                           enters the account, before the account's own LOGIN, as a terminal or phantom session already did.
+                           (3) The new administrator verb SET.RECOVERY ON | OFF turns on the IDE's recovery copy of unsaved text
+                           (readable only by you, in ~/.local/state/sd/recovery/sduser/, offered back when the record is
+                           opened again);
+                           SET.RECOVERY alone says whether it is on.  OFF as delivered.  (4) sdidx refuses a link put in place
+                           of a file's primary subfile instead of following it.
+             Why         - SD Core for Linux is the template for Solo.  The source was meant never to be installed (the owner,
+                           10 Nov 2026); the IDE kept recovery copies only when a switch was on, and Solo had no way to turn it
+                           on.
+             Does NOT    - Remove the source from the download, or change what an existing MASTER.LOGIN paragraph does.  A
+                           MASTER.LOGIN paragraph exists only if the administrator wrote one.
+
+14 Nov 26  AN INDEX ON A RIGHT JUSTIFIED ITEM KEEPS ITS KEYS IN ONE ORDER: THE EMPTY KEY, THEN NUMBERS BY VALUE, THEN TEXT.
+
+             What        - carried from SD Core for Linux on 11 Nov 2026; this entry was missing until the parity audit of 14
+                           Nov found it.  An index on a right justified dictionary item compared its keys the way a right
+                           justified sort does, and when the item held both numbers and text that comparison gave no single
+                           order, so a scan of the index and a lookup in it could disagree.  A new right justified index keeps
+                           its keys in one order: the empty key first, then numbers by value (decimals included), then text.
+                           Building an index no longer loses record ids under keys that are equal as numbers, such as 1, 01
+                           and 001.
+             Why         - an outside review of SD Core's index code found the inconsistent order; a query through an index
+                           must find what the same query finds by reading the records.
+             Does NOT    - Change an index that already exists: it keeps its old order until it is deleted and made again
+                           (DELETE.INDEX, CREATE.INDEX, BUILD.INDEX).  A left justified index is unchanged.  A file holding an
+                           index of the new kind cannot be opened by an SD older than this release.
+
 14 Nov 26  THE SIGN-ON BANNER SAYS "SD CORE SOLO FOR LINUX", AND THE HOME SCREEN SAYS WHAT IS RUNNING.
 
              What        - the line printed at sign-on read "SD Core for Linux Solo, the Essential Multivalue String Database,

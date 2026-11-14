@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit test for SD's password rule, SD Core for Linux Solo.  Free - no install,
+"""Unit test for SD's password rule, SD Core Solo for Linux.  Free - no install,
 no sudo, no sd.
 
 29 Sep 2026, LSOLO 4: THE BASH COPY IS GONE.  gplbld/sd-elevate, which held the

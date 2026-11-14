@@ -18,7 +18,7 @@
  *
  * START-HISTORY:
  * rev 0.9.0 Jan 25 mab initial commit
- * 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - THE BODY IS GONE.  It switched
+ * 29 Sep 26 SD Core Solo for Linux (LSOLO 4) - THE BODY IS GONE.  It switched
  *               the process's effective uid and gid to a named account's
  *               operating system user, and back, so a session could reach
  *               that account's files.  Solo has one account, sduser, which is

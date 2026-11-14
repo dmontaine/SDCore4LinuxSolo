@@ -4,8 +4,8 @@
   SDRTrans, SDTxn, SDEvaluate, SDEvalConv, SDIConv, SDOConv, SDIConvs and SDOConvs added (the functions of the QMClient
   API that SD Core for Linux took on), and the load and unload routines written out.  The library's own signatures are in
   gplsrc/sdclilib.h and win over this file.
-  11 Nov 2026: carried to SD Core for Linux Solo.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and
-  says so: connect with SDConnect and the account password); SDRevision against a Solo server answers 0.0-0 for the server.
+  11 Nov 2026: carried to SD Core Solo for Linux.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and
+  says so: connect with SDConnect and the account password).
 
   Name this file sdclilibbind.pas.  LoadSdCliLib('') looks for sdclilib.so by the system's rules; give the directory
   (the installed one is bin in the install directory, ~/SDCoreSolo/bin by default) to load that copy.  It returns False,

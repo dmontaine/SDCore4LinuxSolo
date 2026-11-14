@@ -17,7 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
-* 24 Oct 26 dm  SD Core for Linux Solo (Solo carry 18): carried from Core; the gate is Solo's OS switch (set.os.access os on), message 11314 says so.
+* 24 Oct 26 dm  SD Core Solo for Linux (Solo carry 18): carried from Core; the gate is Solo's OS switch (set.os.access os on), message 11314 says so.
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 15 Oct 26 dm  Written for QM4 gaps bundle Q-8 (SET.MODE).

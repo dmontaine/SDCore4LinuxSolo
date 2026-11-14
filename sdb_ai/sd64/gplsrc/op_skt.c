@@ -1062,7 +1062,7 @@ void op_sktinfo() {
       }
       break;
 
-    /* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the hash of the server's public key, 64 lower case
+    /* 20 Oct 26 SD Core Solo for Linux (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the hash of the server's public key, 64 lower case
        hex digits, "" without TLS or without a key. */
     case SKT_INFO_TLS_SPKI: {
       unsigned char spki[32];

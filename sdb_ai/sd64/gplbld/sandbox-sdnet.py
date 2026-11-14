@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-sdnet.py - SDNet on SD Core for Linux Solo (carry 9 of SD Core's S.65): the NET gate as the kernel holds it, and the
+# sandbox-sdnet.py - SDNet on SD Core Solo for Linux (carry 9 of SD Core's S.65): the NET gate as the kernel holds it, and the
 #                    administrator's server definitions.  Solo's copy of the idea of SD Core's sandbox-net.py (which uses SD Core's
 #                    fixture accounts, sandbox-gates.py and the sdfiles route); written FIRST, before the code existed, and run red on
 #                    8d0a720.  No install, no sudo.

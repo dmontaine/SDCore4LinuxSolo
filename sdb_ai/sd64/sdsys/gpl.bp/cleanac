@@ -53,7 +53,7 @@ $include int$keys.h
 
    @system.return.code = -ER$ARGS      ;* Preset for command format errors
 
-*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35 (Solo for Windows): a
+*  29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 35 (Solo for Windows): a
 *  maintenance verb, so ADMIN (or the global password) first.  It lived in
 *  SDSYS, entered only by the administrator, until the one-account model moved
 *  it into the user's account with no check of its own.

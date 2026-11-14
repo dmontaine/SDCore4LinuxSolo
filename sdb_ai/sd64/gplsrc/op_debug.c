@@ -17,7 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 1 Nov 26 change S.98 H2, the IDE hands its breakpoints to the debugger): BREAKPOINT 7 (add a
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 1 Nov 26 change S.98 H2, the IDE hands its breakpoints to the debugger): BREAKPOINT 7 (add a
  *           line) leaves STATUS() 1 when a statement begins on that line and 0 when it does not (debug_line_start(), shared with BREAKPOINT 10); the
  *           breakpoint list is scanned against the id of the RUNNING program and not that of the last stop.
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone (variable display, WATCH).

@@ -19,7 +19,7 @@
  * START-HISTORY:
  * 18 Oct 26 dm DEFAULT_WIDTH 140 and DEFAULT_DEPTH 42 (were 120 and 36), and linuxio.c and
  *           op_tio.c tio_init() use them instead of literals.
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 2 Nov 26 change): DEFAULT_DEPTH 43 (was 42), so that a
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 2 Nov 26 change): DEFAULT_DEPTH 43 (was 42), so that a
  *           session whose terminal gives no size answer meets the 140 by 43 every full-screen page needs; int$keys.h
  *           DEFAULT.DEPTH already said 43 here, and terminfo.src moves with it.
  * 31 Dec 23 SD launch - prior history suppressed

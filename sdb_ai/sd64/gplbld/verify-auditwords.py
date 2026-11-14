@@ -6,7 +6,7 @@
     sudo python3 .../verify-auditwords.py --since '2026-10-08 15:06:45'     (judge from this moment on)
     sudo python3 .../verify-auditwords.py --all                              (judge the whole file)
     sudo python3 .../verify-auditwords.py --file /usr/local/sdsys/audit.1    (a rotated file)
-    python3 .../verify-auditwords.py --file /home/USER/SDCoreSolo/audit      (SD Core for Linux Solo: the
+    python3 .../verify-auditwords.py --file /home/USER/SDCoreSolo/audit      (SD Core Solo for Linux: the
         file is the user's own, no sudo; its stamp is the "date" line of ~/SDCoreSolo/.sdcore-install.
         The same file is kept byte-identical in both Linux trees.)
 

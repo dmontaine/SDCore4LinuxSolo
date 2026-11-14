@@ -1,5 +1,5 @@
 #!/bin/bash
-# solo-stage.sh - lay out an SD Core for Linux Solo tree and run the bootstrap.
+# solo-stage.sh - lay out an SD Core Solo for Linux tree and run the bootstrap.
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-stage.sh HOME_DIR
 #
@@ -80,10 +80,15 @@ osaccess=""
 # --viewer NAME|none (23 Oct 26, Solo carry 14): a PDF reader to allow for the pdf verb (SET.VIEWER ADD PDF NAME, in an internal session, which tests the program).  none, and no
 # option, allow nothing: the list is empty as delivered, and an upgrade keeps what the administrator allowed.  The installer's question is what gives it.
 viewer=""
-usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] [--reload-data DIR] [--os-access none|sh|os|both] [--viewer NAME|none] HOME_DIR
-       bash $0 --upgrade [--os-access none|sh|os|both] [--viewer NAME|none] HOME_DIR"
-while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--reload-data" ] || [ "${1:-}" = "--os-access" ] || [ "${1:-}" = "--viewer" ] || [ "${1:-}" = "--upgrade" ]; do
+# --keep-source (14 Nov 26, S.234 N1): leave gpl.bp, the C source and the build files in the tree.  ONLY sandbox-fromtree.py passes it: its suites
+# recompile system programs.  The installer never does - an installed tree holds no source (SD Core's S.198, owner 10 Nov: "the gpl.bp and c source
+# should never be installed just distributed with the installer").
+keepsource=0
+usage="usage: bash $0 [--account-password-file FILE] [--admin-password-file FILE] [--global-password-file FILE] [--deny-verbs LIST] [--reload-data DIR] [--os-access none|sh|os|both] [--viewer NAME|none] [--keep-source] HOME_DIR
+       bash $0 --upgrade [--os-access none|sh|os|both] [--viewer NAME|none] [--keep-source] HOME_DIR"
+while [ "${1:-}" = "--account-password-file" ] || [ "${1:-}" = "--admin-password-file" ] || [ "${1:-}" = "--global-password-file" ] || [ "${1:-}" = "--deny-verbs" ] || [ "${1:-}" = "--reload-data" ] || [ "${1:-}" = "--os-access" ] || [ "${1:-}" = "--viewer" ] || [ "${1:-}" = "--upgrade" ] || [ "${1:-}" = "--keep-source" ]; do
   if [ "$1" = "--upgrade" ]; then upgrade=1; shift; continue; fi
+  if [ "$1" = "--keep-source" ]; then keepsource=1; shift; continue; fi
   [ "$#" -ge 3 ] || refuse "$usage"
   if [ "$1" = "--reload-data" ]; then reloaddir="$2"; shift 2; continue; fi
   if [ "$1" = "--viewer" ]; then
@@ -131,7 +136,7 @@ case "$H" in
 esac
 if [ "$upgrade" -eq 1 ]; then
   [ -z "$pwfile$adminfile$globalfile$denyverbs" ] || refuse "--upgrade takes no password file and no --deny-verbs: the credentials and the deny list are kept as they are"
-  [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not an SD Core for Linux Solo tree, nothing to upgrade"
+  [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not an SD Core Solo for Linux tree, nothing to upgrade"
   # 02 Oct 26 - the server's file name is sd-solo; a tree installed before that still has bin/sd.
   [ -x "$H/bin/sd-solo" ] || [ -x "$H/bin/sd" ] || refuse "$H/bin/sd-solo is not there (nor the old bin/sd) - the tree is damaged; reinstall"
   [ -d "$H/user_accounts/sduser" ] || refuse "$H/user_accounts/sduser is not there - the tree is damaged; reinstall"
@@ -587,6 +592,28 @@ if [ -n "$reloaddir" ]; then
   convert_nocase
   echo "SOLO RELOAD DONE data=reloaded config=$reload_conf"
 fi
+
+# 14 Nov 26 - S.234 N1, SD Core's SOURCE-GONE (S.198; owner, 10 Nov: "the gpl.bp and c source should never be installed just distributed with the
+#            installer"; "it applies to linux").  Last, because every step above runs programs through the gpl.bp VOC entry.  The VOC records that name
+#            the source go first (they leave voc_template too, or the VOC update at a login would bring them back), then the source and build files.  An
+#            upgrade copies the source in for its build, so this also clears what an older install left.  Solo's cproc has no IS_INSTALL code (LSOLO 30),
+#            so unlike SD Core there is no closing recompile.  Judged on DELETE's own count and on each name being gone.  --keep-source skips it.
+# SOURCE-GONE-BEGIN
+if [ "$keepsource" -eq 0 ]; then
+  echo
+  echo "Removing the source from the installed tree ($SD -internal DELETE VOC gpl.bp first.compile second.compile)"
+  sg_out="$(sdi DELETE VOC gpl.bp first.compile second.compile 2>&1)" || true
+  printf '%s\n' "$sg_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' | tail -2
+  printf '%s\n' "$sg_out" | grep -qF '3 record(s) deleted' || fail "DELETE VOC gpl.bp first.compile second.compile did not say '3 record(s) deleted'"
+  for source_item in gpl.bp gplsrc gplobj gplbld gpl.src Makefile voc_template/gpl.bp voc_template/first.compile voc_template/second.compile; do
+    rm -rf -- "${H:?}/$source_item"
+    [ ! -e "$H/$source_item" ] || fail "$H/$source_item could not be removed"
+  done
+  echo "solo-stage: source: removed (gpl.bp, gplsrc, gplobj, gplbld, gpl.src, Makefile)"
+else
+  echo "solo-stage: source: kept (--keep-source)"
+fi
+# SOURCE-GONE-END
 
 upgrade_ok=1
 if [ "$upgrade" -eq 1 ]; then

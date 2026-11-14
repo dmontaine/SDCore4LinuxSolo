@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify-solo-ssh.sh - does ssh on Solo's own port land straight in SD Core for Linux Solo?
+# verify-solo-ssh.sh - does ssh on Solo's own port land straight in SD Core Solo for Linux?
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-ssh.sh HOME_DIR ACCOUNT_PASSWORD_FILE
 #

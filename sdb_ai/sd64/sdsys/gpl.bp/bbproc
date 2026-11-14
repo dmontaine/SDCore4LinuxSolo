@@ -152,7 +152,7 @@ end
 
 * Main processing loop
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE "MUST BE ROOT" TEST IS GONE.
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE "MUST BE ROOT" TEST IS GONE.
 * It read system(27) (the real uid) and refused unless it was 0, because the
 * multi-user install ran the bootstrap under sudo.  Solo never runs as root
 * (sd refuses uid 0) and its bootstrap runs as the installing user in their own

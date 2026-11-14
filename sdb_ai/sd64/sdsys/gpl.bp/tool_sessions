@@ -1,6 +1,6 @@
 * TOOL_SESSIONS
 * Sessions, locks and logout: the administrator's one screen for who is signed on, what they hold, and ending a session (S.75, plan .claude/plan-fullscreen-toolkit.md section 5, A4).
-* Copyright (c) 2026, SD Core for Linux Solo.  This program is free software; you can redistribute
+* Copyright (c) 2026, SD Core Solo for Linux.  This program is free software; you can redistribute
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:

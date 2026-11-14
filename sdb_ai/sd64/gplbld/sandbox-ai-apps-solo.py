@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-ai-apps-solo.py - the AI in the IDE, SED, CED and the debugger (AI line stages 2 and 3), driven on a pseudo-terminal on a private SD Core for Linux Solo
+# sandbox-ai-apps-solo.py - the AI in the IDE, SED, CED and the debugger (AI line stages 2 and 3), driven on a pseudo-terminal on a private SD Core Solo for Linux
 #                           (SOLO CARRY 17 of S.69, 24 Oct 2026; Core commit 0f0e6d9 and the stage 3 commit after it; the debugger rows with the debugger's own carry, 24 Oct 2026).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-apps-solo.py <dir> [--build] [--mutant=NAME]

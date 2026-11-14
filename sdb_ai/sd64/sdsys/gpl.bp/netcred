@@ -18,7 +18,7 @@
 *
 * START-HISTORY:
 * 14 Nov 26 dm  Compiler warning: the redundant out = '' before the CAPTURING that fills it is gone (S.232).
-* 20 Oct 26 dm  SD Core for Linux Solo, SDNet carry 9 (Core Dev 680747d, the whole of S.65 slice 2b): WHERE is <sys>/netlogins/<server>, one directory for the one Linux
+* 20 Oct 26 dm  SD Core Solo for Linux, SDNet carry 9 (Core Dev 680747d, the whole of S.65 slice 2b): WHERE is <sys>/netlogins/<server>, one directory for the one Linux
 *               user that owns the tree, made by this program itself (action ENSURE, mkdir -m 700), not /var/lib/sd-net/<linux user> made by sd-elevate (Solo has no root
 *               step).  No Linux user name is read or tested (Solo's is whoever owns the tree; message 11458 is not used).  Everything else is SD Core's, line for line.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.

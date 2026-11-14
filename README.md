@@ -1,4 +1,4 @@
-# SD Core for Linux Solo
+# SD Core Solo for Linux
 
 A personal, single-user edition of SD Core for Linux: the SD multivalue
 database for one Linux user, installed entirely under that user's home
@@ -6,7 +6,7 @@ directory (`~/SDCoreSolo`), with no root-owned files of its own.
 
 SD is a multivalue database in the Pr1me Information tradition, descended from
 OpenQM and ScarletDME through [sdb64](https://codeberg.org/stringdatabase/sdb64).
-SD Core for Linux Solo has every feature of the full SD Core for Linux except
+SD Core Solo for Linux has every feature of the full SD Core for Linux except
 those that exist to serve more than one person: there is one account, named
 after the Linux user, and no commands to create accounts or grant access to
 them. It is the Linux counterpart of

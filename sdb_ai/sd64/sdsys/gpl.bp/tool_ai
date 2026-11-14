@@ -3,7 +3,7 @@
 * information for each ai should be filled in except for the key and the model which the user needs to provide. There should be a checkbox for the currently selected
 * provider. ... a fourth option for a user selected model where the user has to fill everything in. The same model needs to be used by all accounts. There needs to be an
 * API gate for each user account").  An administrator app.
-* Copyright (c) 2026, SD Core for Linux Solo.  This program is free software; you can redistribute
+* Copyright (c) 2026, SD Core Solo for Linux.  This program is free software; you can redistribute
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:

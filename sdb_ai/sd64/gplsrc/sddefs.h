@@ -21,8 +21,8 @@
  * 02 Jul 24 mab define max string size.
  * 06 Aug 24 mab define sdext max arg
  * 15 Sep 26 dm - SD_CONFIG_ENV / SD_CONFIG_DEFAULT, one pair for both sides.
- * 29 Sep 26 SD Core for Linux Solo - SD_CONFIG_DEFAULT removed; see inipath.c
- * 02 Oct 26 SD Core for Linux Solo - SD_SHM_KEY / SD_SEM_KEY 0x53434C11/12.
+ * 29 Sep 26 SD Core Solo for Linux - SD_CONFIG_DEFAULT removed; see inipath.c
+ * 02 Oct 26 SD Core Solo for Linux - SD_SHM_KEY / SD_SEM_KEY 0x53434C11/12.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -139,7 +139,7 @@
  * (sdclilib.c) - so setting the variable you would expect configured exactly
  * one of them.  SCARLET_CONFIG is not read any more: it named a project this
  * is not part of, and the standing rule is to convert rather than tolerate.
- * 29 Sep 26 SD Core for Linux Solo - SD_CONFIG_DEFAULT is gone.  With the
+ * 29 Sep 26 SD Core Solo for Linux - SD_CONFIG_DEFAULT is gone.  With the
  * variable unset the file is sd.conf in the installation's own folder,
  * found at run time from the executable's path (inipath.c GetHomePath), so
  * no machine path is compiled in.  Same as SD Core Solo for Windows.
@@ -159,7 +159,7 @@
  * test-soloexe-units.py checks that none of them still says bin/sd. */
 #define SD_SERVER_NAME    "sd-solo"
 
-/* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE ONE ACCOUNT, and every
+/* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE ONE ACCOUNT, and every
  * session's user name (kernel.c init_kernel), whatever the Linux user is
  * called.  Owner's ruling 29 for Solo for Windows: "the name of the single
  * account is always sduser, not the name of the [operating system] account".

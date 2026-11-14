@@ -24,10 +24,10 @@
 *           call to the $internal verbs that had none (getlist, savelst, dellist, sortlst,
 *           copylst, mapcat, format, fixdir, spview, generate, cd, settrig, qproc, createf,
 *           como, basic) and, through !voc_refusal, to the API server's record writes.
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 12) - the second half: SDSYS's gcat,
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - the second half: SDSYS's gcat,
 *           global.bp.out and solo.policy need a global-password session
 *           (ruling 33, K$GLOBAL.SESSION; message 11028).
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - the VOC half of SD Core Solo for
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - the VOC half of SD Core Solo for
 *           Windows' gpl.bp/voc_guard (SOLO 5).
 * END-HISTORY
 *

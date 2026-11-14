@@ -13,9 +13,9 @@
  * GNU General Public License for more details.
  *
  * START-HISTORY:
- * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9): sd_tls_client_peer_spki_sha256(), SD Core's S.65 slice 2 (6815cdc): the hash a server
+ * 20 Oct 26 SD Core Solo for Linux (SDNet carry 9): sd_tls_client_peer_spki_sha256(), SD Core's S.65 slice 2 (6815cdc): the hash a server
  *           definition pins.
- * 30 Sep 26 SD Core for Linux Solo (LSOLO 19): sd_tls_client_pin() - the
+ * 30 Sep 26 SD Core Solo for Linux (LSOLO 19): sd_tls_client_pin() - the
  *           server's certificate is pinned on first use (below).
  * 15 Sep 26 dm S.19: created.  See sd_tls.h.
  * 21 Oct 26 dm  Solo carry 10 (SD Core b052346, S.73 item 2): sd_tls_client_read_now(), the TLS read that never waits (READ.SOCKET waits on the descriptor itself, for the time that is left).
@@ -413,7 +413,7 @@ int sd_tls_client_peer_sha256(SD_TLS_CLIENT* c, unsigned char* out) {
   return ok;
 }
 
-/* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the SHA-256 of the server certificate's
+/* 20 Oct 26 SD Core Solo for Linux (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the SHA-256 of the server certificate's
    SubjectPublicKeyInfo - the key, not the certificate - so a renewed certificate over the same key has the same hash.  This is what a server
    definition pins (set.server); the certificate digest above would change at every renewal.  32 bytes into OUT; false when there is no
    certificate or the key cannot be encoded. */
@@ -437,7 +437,7 @@ int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out) {
 /* ======================================================================
    sd_tls_client_pin()  -  PIN THE SERVER'S CERTIFICATE ON FIRST USE
 
-   30 Sep 26 SD Core for Linux Solo (LSOLO 19), agreed with SD Core Solo for
+   30 Sep 26 SD Core Solo for Linux (LSOLO 19), agreed with SD Core Solo for
    Windows.  The first time a client connects to host:port it records the
    SHA-256 of the server's certificate (the whole DER certificate, as
    sd_tls_client_peer_sha256() computes it) in a store of its own; every later

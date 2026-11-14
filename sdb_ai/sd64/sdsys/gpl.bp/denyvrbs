@@ -18,7 +18,7 @@
 *
 *
 * START-HISTORY:
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 12) - ported from SD Core Solo for
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ported from SD Core Solo for
 *           Windows (rulings 34 and 36, SOLO 22).  Message 11030 here (12030
 *           there); VOC ids are lower case, so a listed name is read as such.
 * 28 Sep 26 SD Core Solo - new, rulings 34 and 36.

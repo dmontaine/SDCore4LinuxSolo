@@ -41,7 +41,7 @@ DEFAULT_TREE = os.path.dirname(HERE)
 # agent-pack/README.md lists every place the Solo pack differs from Core's and why.  Core's generator was written to take --tree and --docs so that
 # Solo could run it; what it could not do on Solo's tree and docs is what these few names answer.
 DEFAULT_DOCS = "/home/don/Projects/SDCore4LinuxSoloDocs"      # SOLO: Core's is /home/don/Projects/SDCore4LinuxDocs
-DEFAULT_PRODUCT = "SD Core for Linux Solo"                      # SOLO: Core's is "SD Core for Linux"
+DEFAULT_PRODUCT = "SD Core Solo for Linux"                      # SOLO: Core's is "SD Core for Linux"
 ADMIN_DOCS = "GettingStarted"                                  # SOLO: the administrator's pages of Solo's docs (Core: Administrator)
 HAS_ACCOUNT_WORDS = False                                      # SOLO: no createa / modifya, no gate words, no groups: no chunk for any of them
 SKILL_NAME = "sd-core-solo"                                    # SOLO: the skill's directory and name (Core: sd-core)

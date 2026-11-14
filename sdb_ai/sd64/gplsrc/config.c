@@ -30,7 +30,7 @@
  * 27 Oct 26 dm  S.87: the parameters CODEPAGE, CREATUSR, EXCLREM, GDI, RINGWAIT, TXCHAR, APILOGIN, FIXUSERS, JNLDIR, JNLMODE, PORTMAP and INVCASE are no longer read; a line naming one stops SD, so the installer removes them from a restored sd.conf.
  * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user (removed 27 Oct 26)
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored (removed 27 Oct 26).
- * 29 Sep 26 SD Core for Linux Solo - USRDIR, GRPDIR and SDSYS default to
+ * 29 Sep 26 SD Core Solo for Linux - USRDIR, GRPDIR and SDSYS default to
  *               folders in the installation's own folder (inipath.c).
  * 16 Oct 26 dm  NUMLOCKS is range checked, 1 to 32767 (QM4 Fixes 532): the lock table's cells and counts are int16, so a bigger value wrapped.
  * 16 Oct 26 dm  CLEANUP (seconds between scans for lost processes) and PHANTOMS (user numbers reserved for PHANTOM USER n), QM4 gaps.
@@ -135,7 +135,7 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.fltdiff = 0.0000000000291; /* FLTDIFF: Wide zero for float eq test */
   pcfg.fsync = 0;                 /* FSYNC:    Controls when to do fsync() */
  /* 20240219 mab create-account based on type (user / group / other) */   
- /* 29 Sep 26 SD Core for Linux Solo (LSOLO 3) - accounts live in the
+ /* 29 Sep 26 SD Core Solo for Linux (LSOLO 3) - accounts live in the
     installation's own folder, found at run time (inipath.c GetHomePath), so
     sd.conf holds no path.  With no home (a development run with SD_CONFIG)
     these defaults are left EMPTY rather than guessed; sd.conf must then set
@@ -192,7 +192,7 @@ struct CONFIG* read_config(char* errmsg) {
   cfg->fds_limit = SHRT_MAX;
   cfg->max_users = 1;
 
-  /* 29 Sep 26 SD Core for Linux Solo - SDSYS IS THE HOME ITSELF, so sd.conf
+  /* 29 Sep 26 SD Core Solo for Linux - SDSYS IS THE HOME ITSELF, so sd.conf
      need not name it.  Unlike SD Core Solo for Windows (<home>\sdsys beside
      usr\bin) the Linux code finds its programs and the pcode file at
      <sysdir>/bin (sysseg.c, op_kernel.c, gplbld/pcode_bld.py), so the home -

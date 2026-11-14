@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  S.234 N7, carried from SD Core (30 Oct 26, S.78): the primary subfile is opened with O_NOFOLLOW, so a link put at %0 is refused
+ *               (ELOOP, "Cannot open data file [40]") instead of followed.  Solo has no root helper that runs sdidx; carried for parity.
  * 11 Nov 26 dm  Carried from SD Core (25 Oct 26, commit 3d3890e3): cross_check() accepts the DH_INDEX2 magic of a right justified index in the total order.
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
@@ -383,7 +385,7 @@ bool open_primary() {
     unbind_sysseg();
   }
 
-  pfu = open(pathname, (int)(O_RDWR | O_BINARY), default_access);
+  pfu = open(pathname, (int)(O_RDWR | O_BINARY | O_NOFOLLOW), default_access);       /* 14 Nov 26 (SD Core 30 Oct): never through a link at %0 */
   if (pfu < 0) {
     printf("Cannot open data file [%d]\n", errno);
     goto exit_open_primary;

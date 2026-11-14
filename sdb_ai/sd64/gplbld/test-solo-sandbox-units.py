@@ -122,7 +122,7 @@ Internal session admitted (opened by solo-stage)
 COMPLETE
 
 Compiling C and I type dictionaries (/x/sys/bin/sd-solo -internal THIRD.COMPILE)
-SD Core for Linux Solo, the Essential Multivalue String Database, version LS1.1-3
+SD Core Solo for Linux, the Essential Multivalue String Database, version LS1.1-3
 Internal session admitted (opened by solo-stage pid=1 2026-10-18T09:36:03-07:00)
 Compiling gname
 Compiling mode.flag

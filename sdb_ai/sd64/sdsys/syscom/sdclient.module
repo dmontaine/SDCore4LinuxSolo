@@ -4,8 +4,8 @@
 ' From the Gambas3 definitions of the SD Core owner; 15 Oct 2026: SDGetVar, SDIndices, SDRecordlocked, SDOpenSeq, SDReadSeq, SDReadBlk, SDWriteSeq, SDWriteBlk, SDSeek, SDWeofSeq, SDRevision, SDSystem, SDTrans,
 ' SDRTrans, SDTxn, SDEvaluate, SDEvalConv, SDIConv, SDOConv, SDIConvs and SDOConvs added (the functions of the QMClient
 ' API that SD Core for Linux took on).  The library's own signatures are in gplsrc/sdclilib.h and win over this file.
-' 11 Nov 2026: carried to SD Core for Linux Solo.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and
-' says so: connect with SDConnect and the account password); SDRevision against a Solo server answers 0.0-0 for the server.
+' 11 Nov 2026: carried to SD Core Solo for Linux.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and
+' says so: connect with SDConnect and the account password).
 '
 ' Every function that returns a String returns memory the library allocated; Gambas does not free it (SDFree does).
 ' SDReadList and SDReadNext take only the list number: the ErrNo argument declared here is ignored by the library.

@@ -19,7 +19,8 @@
 # (the file modes), cut out verbatim and evaluated under the options read from the installer's own "set" line and under IFS=$'\n\t' (Solo's
 # installer sets no IFS; this is the stricter of the two and what the other install tests of this directory use), with umask 077 as the installer
 # runs, say and warn as the installer defines them (printing plain), SRC the "download" - a scratch copy of THIS tree's real sdb_ai/sd64/agent-pack/ -
-# and HOME_DIR a scratch install directory holding the real gpl.bp/revstamp.h.  The working directory is an empty one: the block must use $SRC.
+# holding the real sdsys/gpl.bp/revstamp.h too (the block reads the version from the download since S.234 N1: an installed tree holds no gpl.bp),
+# and HOME_DIR a scratch install directory.  The working directory is an empty one: the block must use $SRC.
 #
 #   A1  the real pack installs: the success line names the version, guide and every pack file are there and byte-equal to the download's
 #   A2  nothing else is copied: no skill, templates, recipe, generator or notes
@@ -112,8 +113,8 @@ row() {   # name, ok(0/1), detail
 }
 
 setup() {   # a fresh installed tree (just the stamp) and a fresh "download": a copy of this tree's agent-pack, in the sd64 directory $SRC points at
-  rm -rf "$T/home" "$T/work" "$T/cwd"; mkdir -p "$T/home/gpl.bp" "$T/work/sd64" "$T/cwd"
-  cp "$SD64/sdsys/gpl.bp/revstamp.h" "$T/home/gpl.bp/revstamp.h"
+  rm -rf "$T/home" "$T/work" "$T/cwd"; mkdir -p "$T/home" "$T/work/sd64/sdsys/gpl.bp" "$T/cwd"
+  cp "$SD64/sdsys/gpl.bp/revstamp.h" "$T/work/sd64/sdsys/gpl.bp/revstamp.h"
   cp -R "$SD64/agent-pack" "$T/work/sd64/agent-pack"
 }
 run() {   # run BLOCK-VARIABLE-NAME [extra shell to run first]: prints what the block printed, then REACHED-END
@@ -165,7 +166,7 @@ row "A4 not installed, the note names the pack's version LS9.9-9 and the install
     "$(printf '%s' "$OUT" | grep -q -F "for version 'LS9.9-9' and this is '$GOOD'" && printf '%s' "$OUT" | grep -q REACHED-END && [ "$(ls "$DEST")" = keep.txt ] && echo 0 || echo 1)" "$OUT"
 
 echo "--- A5: no installed revstamp.h (would stop an install under pipefail), no rev_stamp, an unreadable manifest, a failing copy"
-setup; rm -f "$T/home/gpl.bp/revstamp.h"
+setup; rm -f "$T/work/sd64/sdsys/gpl.bp/revstamp.h"
 OUT=$(run BLK)
 row "A5 not installed, the install goes on, the note says the installed version is unknown" \
     "$(printf '%s' "$OUT" | grep -q -F "and this is '?'" && printf '%s' "$OUT" | grep -q REACHED-END && [ ! -e "$DEST" ] && echo 0 || echo 1)" "$OUT"

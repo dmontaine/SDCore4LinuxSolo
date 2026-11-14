@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-ai-line-solo.py - the toolkit's AI line ($tk_ai) on the HOME SCREEN, driven on a pseudo-terminal on a private SD Core for Linux Solo
+# sandbox-ai-line-solo.py - the toolkit's AI line ($tk_ai) on the HOME SCREEN, driven on a pseudo-terminal on a private SD Core Solo for Linux
 #                           (SOLO CARRY 16 of S.69, AI line stage 1, 23 Oct 2026; Core commit d6c031e).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-line-solo.py <dir> [--build] [--mutant=NAME]
@@ -492,8 +492,8 @@ def sec_context():
         except (KeyError, IndexError, TypeError):
             pass
         arow("L17c", "with no text of the administrator's, the shipped default (Solo's) is what is sent first, and the preview showed none of it",
-             "About this system: SD Core for Linux Solo" not in T
-             and sysx.startswith("Standing information from the administrator of this SD system:\nAbout this system: SD Core for Linux Solo") and "Answer briefly and plainly." in sysx, repr(sysx[:200]))
+             "About this system: SD Core Solo for Linux" not in T
+             and sysx.startswith("Standing information from the administrator of this SD system:\nAbout this system: SD Core Solo for Linux") and "Answer briefly and plainly." in sysx, repr(sysx[:200]))
         h.key("enter", idle=1.5)
         put(own, "Please explain gpl.bp to everyone.\n")
         n0, a0 = len(fm().log), ai.audit_off()

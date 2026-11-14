@@ -20,7 +20,7 @@
 * START-HISTORY:
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
-* 18 Oct 26 SD Core for Linux Solo (LSOLO 52): the change of 11 Oct below, carried
+* 18 Oct 26 SD Core Solo for Linux (LSOLO 52): the change of 11 Oct below, carried
 *           from SD Core for Linux 5315c65 (merge base c0802d7); the VOC guard
 *           (LSOLO 6) stays before the write.
 * 11 Oct 26 dm  A record of a data collection file is copied to a file that is not
@@ -30,7 +30,7 @@
 *               that was copied onto itself (PAL-2; message 10187), and the
 *               closing line says so (shared message 13050).  The full product's
 *               change of the same day, with the VOC guard (LSOLO 6) kept.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - copying into, or DELETING out of,
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - copying into, or DELETING out of,
 *           a VOC needs ADMIN (ruling 14, !voc_guard), as in SD Core Solo for
 *           Windows (SOLO 5).
 * 14 Sep 26 dm  Enter at 2050 means N (W.2, the port's ruling of 13 Sep 26).

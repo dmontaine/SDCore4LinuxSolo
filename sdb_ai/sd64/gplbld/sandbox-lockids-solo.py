@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-lockids-solo.py - another session's text reaches GETLOCKS(), LIST.READU, PSTAT, HSM and PROFILER DISPLAY escaped, on a private SD Core for Linux Solo
+# sandbox-lockids-solo.py - another session's text reaches GETLOCKS(), LIST.READU, PSTAT, HSM and PROFILER DISPLAY escaped, on a private SD Core Solo for Linux
 # (Solo carry of SD Core's sandbox-lockids.py, S.216 gap 13).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-lockids-solo.py <dir> [--build]

@@ -1294,7 +1294,7 @@ int DLLEntry SDConnectLocal(char* account) {
 
   initialise_client();
 
-  /* 30 Sep 26 SD Core for Linux Solo (LSOLO 15) - SDCONNECTLOCAL IS DISABLED, as in
+  /* 30 Sep 26 SD Core Solo for Linux (LSOLO 15) - SDCONNECTLOCAL IS DISABLED, as in
      SD Core Solo for Windows (bd59940; owner 25 Sep 2026: "disable sdconnectlocal,
      they can login with sdconnect instead").  It sends no password and ruling 21
      makes every session prove the account password.  Measured here before this
@@ -1307,7 +1307,7 @@ int DLLEntry SDConnectLocal(char* account) {
     return FALSE;
   ClearError;
   snprintf(session[session_idx].sderror, sizeof(session[session_idx].sderror),
-           "SDConnectLocal is not available in SD Core for Linux Solo - "
+           "SDConnectLocal is not available in SD Core Solo for Linux - "
            "connect with SDConnect and the account password");
   return FALSE;
 

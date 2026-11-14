@@ -17,7 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 2 Nov 26 change): op_capture(): the chunk before the last is tracked as such.  `prev` was
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 2 Nov 26 change): op_capture(): the chunk before the last is tracked as such.  `prev` was
  *               set to every chunk in turn, so it was the LAST chunk itself; when the captured output was a lone newline the emptied only chunk was
  *               freed while capture_head still pointed at it ("double free or corruption", the process died).
  * 27 Oct 26 dm  S.87 batch 17: $MODE STDFIL.SHARED is gone; stdfil_element(), stdfil_shared_save() and stdfil_shared_restore() are deleted.

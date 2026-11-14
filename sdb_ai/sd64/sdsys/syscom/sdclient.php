@@ -4,8 +4,8 @@
  * 15 Oct 2026.  The library's own signatures are in gplsrc/sdclilib.h and win over this file; gplbld/test-clientheaders-units.py
  * holds the C declarations below against that header (and has a C compiler read the two together, so a type that differs is an
  * error), and checks the class constants.
- * 11 Nov 2026: carried to SD Core for Linux Solo.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and says
- * so: connect with SDConnect and the account password); SDRevision against a Solo server answers 0.0-0 for the server.
+ * 11 Nov 2026: carried to SD Core Solo for Linux.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and says
+ * so: connect with SDConnect and the account password).
  *
  * The extension must be on (extension=ffi in php.ini) and, for a web server's PHP, ffi.enable must be "true" in php.ini: the default
  * "preload" allows FFI only in command line scripts and preloaded code.  The library is sdclilib.so on Linux (the installed copy is

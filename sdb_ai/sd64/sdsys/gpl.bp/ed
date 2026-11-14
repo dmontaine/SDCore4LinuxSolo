@@ -27,7 +27,7 @@
 *               start-line and end-line prompts of LOAD and UNLOAD cancel (an UNLOAD took the default and wrote the whole record).
 *               Every other INPUT already ended on '' (the yes/no questions take N, the insert and the names stop on a null line).
 *               Carried to Solo by the carry of 19 Oct 26 (LSOLO 52 carry 2); the VOC guard (LSOLO 6) is unchanged.
-* 18 Oct 26 SD Core for Linux Solo (LSOLO 52): the changes of 11 to 15 Oct below, carried
+* 18 Oct 26 SD Core Solo for Linux (LSOLO 52): the changes of 11 to 15 Oct below, carried
 *           from SD Core for Linux 5315c65 (merge base c0802d7); the VOC guard
 *           (LSOLO 6) stays before the JSON unload write and the other writes.
 * 15 Oct 26 dm  CREATING.SEQKEY in the place of a record id (openQM 4): the editor takes the file's next sequential
@@ -40,7 +40,7 @@
 *               collection file the lines go back as text, which the file parses
 *               and refuses if it is not a JSON object or array.  The editor died
 *               with "Data cannot be converted to a string" on such a record.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - saving, unloading into or deleting
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - saving, unloading into or deleting
 *           a VOC record needs ADMIN (ruling 14, !voc_guard), as in Solo for
 *           Windows.
 * 14 Sep 26 dm  Enter at 2050 means N (W.2, the port's ruling of 13 Sep 26).
@@ -3570,7 +3570,7 @@ save.record:
       return
    end
 
-*  29 Sep 26 SD Core for Linux Solo - LSOLO 6, ruling 14: saving into the VOC
+*  29 Sep 26 SD Core Solo for Linux - LSOLO 6, ruling 14: saving into the VOC
 *  needs ADMIN.  voc_guard has already said so when it refuses.
    if not(voc_guard(n.file)) then return
 

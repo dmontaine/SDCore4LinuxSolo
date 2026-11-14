@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-mcp-solo.py - the MCP door of SD Core for Linux Solo (S.211), RUN on a private Solo: the launcher gplbld/solo-mcp.py is started as an MCP client
+# sandbox-mcp-solo.py - the MCP door of SD Core Solo for Linux (S.211), RUN on a private Solo: the launcher gplbld/solo-mcp.py is started as an MCP client
 #                       starts it, against the sandbox's REAL sd-solo and its REAL account, and the disk, the register and the audit trail are the evidence.
 #                       No install, no sudo.
 #

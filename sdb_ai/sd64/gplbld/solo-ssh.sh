@@ -184,13 +184,13 @@ if [ "$cmd" = "setup" ]; then
   mkdir -p "$D" || fail "mkdir $D"
   chmod 700 "$D" || fail "chmod $D"
   if [ ! -f "$HOSTKEY" ]; then
-    ssh-keygen -q -t ed25519 -N '' -C "SD Core for Linux Solo host key" -f "$HOSTKEY" || fail "ssh-keygen $HOSTKEY"
+    ssh-keygen -q -t ed25519 -N '' -C "SD Core Solo for Linux host key" -f "$HOSTKEY" || fail "ssh-keygen $HOSTKEY"
   fi
   chmod 600 "$HOSTKEY"; chmod 644 "$HOSTKEY.pub" 2>/dev/null || true
   [ -f "$AK" ] || { : > "$AK" && chmod 600 "$AK" || fail "create $AK"; }
   tmp="$(mktemp "$D/sshd_config.XXXXXX")" || fail "mktemp in $D"
   cat > "$tmp" <<CONFIG
-# SD Core for Linux Solo: the sshd it runs for itself, one process per connection
+# SD Core Solo for Linux: the sshd it runs for itself, one process per connection
 # (sd-solo-ssh.socket on port $PORT).  WRITTEN BY $H/tools/solo-ssh.sh setup and
 # REWRITTEN every time it runs; add keys with solo-ssh.sh key-add, do not edit this.
 HostKey $HOSTKEY

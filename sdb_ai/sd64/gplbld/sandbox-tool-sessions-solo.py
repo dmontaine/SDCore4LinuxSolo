@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-tool-sessions-solo.py - the sessions and locks page, TOOL.SESSIONS, driven on a PSEUDO-TERMINAL on a private SD Core for Linux Solo (Solo carry 20 of Core's sandbox-tool-sessions.py,
+# sandbox-tool-sessions-solo.py - the sessions and locks page, TOOL.SESSIONS, driven on a PSEUDO-TERMINAL on a private SD Core Solo for Linux (Solo carry 20 of Core's sandbox-tool-sessions.py,
 # S.75 administrator app A4).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-tool-sessions-solo.py <dir> [--build] [--mutant=NAME]

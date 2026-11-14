@@ -42,7 +42,7 @@
 * 27 Oct 26 dm S.87: a typed verb is no longer retried with its hyphens changed to dots (clear-select); the VOC records cleardata, clearinput, clearprompts, clearselect and cs are gone.
 * 20 Oct 26 SD Core for Linux Solo (the OS switch; owner: two words like SD Core, SET.OS.ACCESS) - os.command (the SH verb and "!")
 *           asks K$ADMINISTRATOR / K$SH again and refuses with 10053 (SD Core's S.63).
-* 18 Oct 26 SD Core for Linux Solo (LSOLO 52) - carried from SD Core for Linux 5315c65
+* 18 Oct 26 SD Core Solo for Linux (LSOLO 52) - carried from SD Core for Linux 5315c65
 *           (merge base c0802d7): KEEP.SELECT and CLEAR.SELECT, the .C- undo, COMMAND.LOGGING
 *           (K$CMDLOG.WRITE), CHAINED.SELECT, the $PRIVATE.VOC lookup, INPUTNULL, PHANTOM LOG
 *           and DATA, NO.PHANTOM.NOTIFY, LPTR and NO.PAGE on a catalogued name, the screen
@@ -294,7 +294,7 @@ deffun ipc_seal(sl.mode, sl.key, sl.seal, sl.cmd, sl.data, sl.log) calling '!ipc
 
 $define max.elements 500
 
-* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - privileged_commands (the four verbs
+* 03 Oct 26 SD Core Solo for Linux (LSOLO 30) - privileged_commands (the four verbs
 *   that needed root: CREATEA, DELACC, MODIFYA, MODIFY.PASSWORD; empty since LSOLO 4/5)
 *   and the logto.reset flag are gone with the code that read them.
 * 13 Oct 26 dm - THE SCREEN LIBRARY'S KEPT SCREEN (only its flag is read here).  A program that SCREEN OPENs and then ends
@@ -405,7 +405,7 @@ restart.cproc:
 * rev 0.9.0 entered as root?   
 * if we run as root, and the root umask is usually 022, that will not work for us
    
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - 077, NOT 002.  The multi-user
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - 077, NOT 002.  The multi-user
 *   product made everything group-writable so the SD accounts' users could
 *   share files; Solo has one user, and the kept account password
 *   ($cred/$STORED, in clear - !SOLO_STORE_PW) was created 0664.  Everything a
@@ -463,7 +463,7 @@ restart.cproc:
 *   still building the machine there is no register and no finished CPROC, and
 *   the seeding steps run as root.  That arm compiles only into the install
 *   build of CPROC.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - THE COMMENTS ABOVE DESCRIBE THE
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - THE COMMENTS ABOVE DESCRIBE THE
 *   MULTI-USER PRODUCT (root, an sdsys OS user, sudo) AND NO LONGER APPLY.  Solo
 *   never runs as root (sd refuses uid 0) and has no sdsys OS user.  The only
 *   session that is an administrator at entry is the INTERNAL one: "sd -i" and
@@ -1397,7 +1397,7 @@ stack.manipulation:
 * found" message.  It now takes 5043 and leaves, as .L does.  And each failed
 * readu now releases the id it locked - the upcase miss used to release
 * at.command, leaving the lock on upcase(at.command) held.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 27: .D name NEEDS ADMIN,
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 27: .D name NEEDS ADMIN,
 *   like .S name.  .D and .Dn above only edit this session's command stack and
 *   stay ungated.
             if not(kernel(K$ADMINISTRATOR, -1)) then
@@ -1551,7 +1551,7 @@ stack.manipulation:
             arg3 = n
          end
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 27 (Solo for Windows): .S
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 27 (Solo for Windows): .S
 *   name NEEDS ADMIN ("they change VOC"), narrowing ruling 14's exemption for a
 *   saved sentence.  Before any record is read or locked, with voc_guard's
 *   message (11008).
@@ -3015,7 +3015,7 @@ int.clearinput:
 * INT.CLEAR.LOCKS  -  CLEAR.LOCKS (Internal verb 26)
 
 int.clear.locks:
-*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35 (Solo for Windows): a
+*  29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 35 (Solo for Windows): a
 *  maintenance verb, so ADMIN (or the global password) first.
    if not(kernel(K$ADMINISTRATOR, -1)) then
       display sysmsg(2001) ;* Command requires administrator privileges
@@ -3059,7 +3059,7 @@ int.clear.locks:
 * INT.LOCK  -  LOCK (Internal verb 27)
 
 int.lock:
-*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35: ADMIN first, as
+*  29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 35: ADMIN first, as
 *  CLEAR.LOCKS above.
    if not(kernel(K$ADMINISTRATOR, -1)) then
       display sysmsg(2001) ;* Command requires administrator privileges
@@ -3213,7 +3213,7 @@ int.logout:
 *   interactive form while the caller believed they had asked for the other.
 
 int.update.accounts:
-*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - a maintenance verb, so ADMIN (or
+*  29 Sep 26 SD Core Solo for Linux (LSOLO 6) - a maintenance verb, so ADMIN (or
 *  the global password) first, like the others (ruling 12).  It lived in SDSYS,
 *  entered only by the administrator, until the one-account model moved it into
 *  the user's account.
@@ -3614,7 +3614,7 @@ run.exe:
 * INT.SET.DATE
 
 int.set.date:
-*  29 Sep 26 SD Core for Linux Solo (LSOLO 6) - RULING 35: ADMIN first, as
+*  29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 35: ADMIN first, as
 *  CLEAR.LOCKS above.
    if not(kernel(K$ADMINISTRATOR, -1)) then
       display sysmsg(2001) ;* Command requires administrator privileges

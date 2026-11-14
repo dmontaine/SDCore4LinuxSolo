@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
   int status = 1;
   char errmsg[80 + 1];
 
-  /* 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - BEFORE ANYTHING ELSE, so no
+  /* 29 Sep 26 SD Core Solo for Linux (LSOLO 4) - BEFORE ANYTHING ELSE, so no
      state is built as root.  Solo belongs to the one user who owns the tree
      and every session, remote ones included, runs as that user: root has no
      business here, and a root session would own files the user could not
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
      boundary against root, who can do anything; it stops the mistake of
      "sudo sd" and of a service started as root.                           */
   if (geteuid() == 0) {
-    fprintf(stderr, "SD Core for Linux Solo does not run as root.\n");
+    fprintf(stderr, "SD Core Solo for Linux does not run as root.\n");
     return status;
   }
 
@@ -526,9 +526,9 @@ Private bool comlin(int argc, char *argv[]) {
             goto help;
           } else if (!stricmp(argv[arg], "--VERSION")) {
 /* rev 0.9.1 Mar 25 return to single rev track */            
-/* 30 Sep 26 SD Core for Linux Solo (LSOLO 2) - the product's name, as Solo for
+/* 30 Sep 26 SD Core Solo for Linux (LSOLO 2) - the product's name, as Solo for
    Windows prints "SD Core Solo for Windows (sd) Version WS1.1-1".            */
-            printf("SD Core for Linux Solo (sd) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
+            printf("SD Core Solo for Linux (sd) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
 /* 09 Sep 26 dm - PRE_RELEASE 21.  A developer build must be identifiable
    without running anything privileged, because the ONE thing it changes is a
    privilege check.  Anything that reports a version - a bug report, a
@@ -645,7 +645,7 @@ help:
    operations (start, stop, kill, restart, bootstrap install) rather than SD
    ones, so root is the right question for them to ask.                     */
 
-/* 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - NO ELEVATION TEST.  The text
+/* 29 Sep 26 SD Core Solo for Linux (LSOLO 4) - NO ELEVATION TEST.  The text
    above is the multi-user product's reasoning and no longer applies: Solo's
    server, data and programs belong to the one user who runs them, and the
    daemon runs unprivileged as that user, so "sd -start", "-stop", "-k" and the

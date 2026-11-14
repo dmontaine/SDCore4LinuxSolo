@@ -21,7 +21,7 @@
 * 28 Oct 26 dm  S.87: multifiles are gone.  The refusal "Renaming of multifiles is not supported" (6148) goes, and the parser key PARSER$MFILE is now PARSER$GET.TOKEN, so old,new always splits at the comma.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
 *               dictionary read folds case, as typed then lower then upper.
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - renaming records in a VOC needs
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - renaming records in a VOC needs
 *           ADMIN (ruling 14, !voc_guard), as in Solo for Windows.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
@@ -261,7 +261,7 @@ rename.records:
       stop sysmsg(1431) ;* File is read-only
    end
 
-*  29 Sep 26 SD Core for Linux Solo - LSOLO 6, ruling 14: renaming records IN
+*  29 Sep 26 SD Core Solo for Linux - LSOLO 6, ruling 14: renaming records IN
 *  the VOC is a direct edit of it.  (Renaming a FILE, above, moves its VOC
 *  entry as a side effect of the command, like CREATE.FILE, and is not gated.)
    if not(voc_guard(file)) then

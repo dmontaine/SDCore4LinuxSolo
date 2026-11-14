@@ -22,16 +22,16 @@
  *               process it starts in that process's environment (op_phantom builds the child's environment before the fork and starts it with execle).
  * 11 Nov 26 dm  Solo carry S.216 gap 13 (SD Core S.88 phase 2): K_SHOW_SAFE (151), another session's text made safe to print by the kernel's one rule (show_ts_safe()), for PSTAT,
  *               PROFILER DISPLAY and HSM USER n, which print the $IPC records S<n>, F<n> and H<n> that any SD user can write.  Gap 4: the comment at K_AUTOLOGOUT -2 (the code was carried).
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): kernel(K$AUTOLOGOUT, -2) returns the inactivity clock
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): kernel(K$AUTOLOGOUT, -2) returns the inactivity clock
  *           (keyin_idle_ms()) instead of the period, for the IDE's countdown.
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone with the KEEP.SELECT statement and OPTION CLEAR.SELECT; the number stays reserved.
- * 24 Oct 26 SD Core for Linux Solo (Solo carry 19): K_EDIT_OS_OK (126, SD Core's number and name), an OS pathname about to be written, created, deleted or copied into: asks edit_os_path_refusal()
+ * 24 Oct 26 SD Core Solo for Linux (Solo carry 19): K_EDIT_OS_OK (126, SD Core's number and name), an OS pathname about to be written, created, deleted or copied into: asks edit_os_path_refusal()
  *           (op_sh.c; the VOC is the one kind Solo classifies).  !OSCOPY and !IOSCOPY ask it, as Core's do.
- * 21 Oct 26 SD Core for Linux Solo (Solo carry 10, SD Core's S.73 item 1): K_PATH_IN (96), SD Core's second-sitting case of 13 Oct, for API request 29's OS question.
- * 20 Oct 26 SD Core for Linux Solo (SDNet carry 9, SD Core's S.65 slice 1, 9d6f407): K_NET (127), the NET gate as the user flag USR_NET (SD Core keeps it in
+ * 21 Oct 26 SD Core Solo for Linux (Solo carry 10, SD Core's S.73 item 1): K_PATH_IN (96), SD Core's second-sitting case of 13 Oct, for API request 29's OS question.
+ * 20 Oct 26 SD Core Solo for Linux (SDNet carry 9, SD Core's S.65 slice 1, 9d6f407): K_NET (127), the NET gate as the user flag USR_NET (SD Core keeps it in
  *               a gates word); set from a $internal program, -1 asks; a set also empties the key ring of the XE conversion, as SD Core's does.  Carry 7's wipe
  *               in K_SET_USERNAME is therefore now a second, harmless one: it can go once APISRVR's K$NET load has been seen to run (a follow-up).
- * 20 Oct 26 SD Core for Linux Solo (Solo carry 7, SD Core's encryption layer 3, 00a5888; a DEVIATION from the Core template, flagged for the parity
+ * 20 Oct 26 SD Core Solo for Linux (Solo carry 7, SD Core's encryption layer 3, 00a5888; a DEVIATION from the Core template, flagged for the parity
  *               audit): Core empties the key ring of the XE conversion (kr_wipe, sd_keyring.c) in the K_NET set that ends an account scope; Solo has no
  *               K_NET and one account, so the ring is emptied where the session takes its name, K_SET_USERNAME's success branch.
  * 20 Oct 26 SD Core for Linux Solo (the OS switch, owner: two words like SD Core): K_SH, K_OS_EXEC and K_PATH_OK (93 to 95), SD Core's S.63 cases.
@@ -60,7 +60,7 @@
  *               (PORT_ADOPTION 13).
  * 14 Sep 26 dm  K_INTERNAL: only an $internal program may change internal
  *               mode, in the shape of K_ADMINISTRATOR (PROJECT_STATUS S.8).
- * 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - K_ASSUME_USER no longer
+ * 29 Sep 26 SD Core Solo for Linux (LSOLO 4) - K_ASSUME_USER no longer
  *               switches identity: see the case.
  * 29 Sep 26 dm  K_SET_LANGUAGE (38) removed: SD is English only.  Key 38 is
  *               retired, not reused; calling it is an illegal key.
@@ -449,7 +449,7 @@ void op_kernel() {
        as root, whatever the register holds.  The drop is checked by reading
        the uids back, not assumed from the calls' return codes.  No way back
        to root is offered.                                                   */
-    /* 29 Sep 26 SD Core for Linux Solo (LSOLO 4) - THERE IS NO ONE TO BECOME.
+    /* 29 Sep 26 SD Core Solo for Linux (LSOLO 4) - THERE IS NO ONE TO BECOME.
        The paragraph above describes the multi-user server, a root process
        that took an OS user's identity after SCRAM.  In Solo the API server
        already runs as the one Linux user who owns the tree, and the account
@@ -473,7 +473,7 @@ void op_kernel() {
       }
       break;
 
-    /* 03 Oct 26 SD Core for Linux Solo (LSOLO 30) - key 65, K_LOGIN_UID (does the
+    /* 03 Oct 26 SD Core Solo for Linux (LSOLO 30) - key 65, K_LOGIN_UID (does the
        kernel's audit loginuid belong to the named user?), is gone: its one caller
        was the sdsys entry check in CPROC, which Solo has not compiled since LSOLO 6
        and which was deleted today.  The number stays reserved in keys.h.        */
@@ -638,7 +638,7 @@ void op_kernel() {
       result.data.value = (my_uptr->flags & USR_OS_EXEC) != 0;
       break;
 
-    /* 20 Oct 26 SD Core for Linux Solo (SDNet carry 9; SD Core's S.65 slice 1, 17 Oct 26): the NET gate, set as K_SH is (only from a $internal
+    /* 20 Oct 26 SD Core Solo for Linux (SDNet carry 9; SD Core's S.65 slice 1, 17 Oct 26): the NET gate, set as K_SH is (only from a $internal
        program; -1 asks).  Loaded at sign-on (LOGIN) and by the API server, so it ends an account scope: the keys of the XE conversion belong to
        the scope that ended (SD Core's encryption layer 3 does the same here).  The administrator needs no grant: USR_ADMIN passes the check
        that reads this on its own. */

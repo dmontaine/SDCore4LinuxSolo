@@ -228,7 +228,7 @@ if command -v gcc >/dev/null 2>&1 && [ -f "$H/bin/sdclilib.so" ]; then
   LCT="$(mktemp -d)"
   if gcc -o "$LCT/lct" "$(dirname "$SVC")/local-connect-test.c" -ldl 2>/dev/null; then
     lo="$(cd "$H" && timeout 30 "$LCT/lct" "$H/bin/sdclilib.so" 2>&1)"; lrc=$?
-    if [ "$lrc" -eq 0 ] && printf '%s\n' "$lo" | grep -q "^SDConnectLocal -> 0 error='SDConnectLocal is not available in SD Core for Linux Solo - connect with SDConnect and the account password'$"; then
+    if [ "$lrc" -eq 0 ] && printf '%s\n' "$lo" | grep -q "^SDConnectLocal -> 0 error='SDConnectLocal is not available in SD Core Solo for Linux - connect with SDConnect and the account password'$"; then
       leg "S6f SDConnectLocal is refused, not hung" "returns 0 with the 'not available ... use SDConnect' error" 0 "refused at once"
     else
       leg "S6f SDConnectLocal is refused, not hung" "returns 0 with the 'not available' error, within 30 s" 1 "rc=$lrc; $lo"

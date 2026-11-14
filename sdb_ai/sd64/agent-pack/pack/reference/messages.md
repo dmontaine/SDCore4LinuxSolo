@@ -31,10 +31,10 @@ Invalid Create-Account argument %1
 ```
 
 ### msg:10002
-> kind=message tier=reference since=- src=sdsys/messages/10002:1#a325bdac
+> kind=message tier=reference since=- src=sdsys/messages/10002:1#6ebc4d13
 
 ```
-The SDSYS account is not entered in SD Core for Linux Solo - type admin for the administrator commands
+The SDSYS account is not entered in SD Core Solo for Linux - type admin for the administrator commands
 ```
 
 cited by: `login`
@@ -732,10 +732,10 @@ cited by: `login`
 cited by: `login`
 
 ### msg:10172
-> kind=message tier=reference since=- src=sdsys/messages/10172:1#85c96df0
+> kind=message tier=reference since=- src=sdsys/messages/10172:1#7612811c
 
 ```
-Cannot update every registered account from here, so NOTHING has been updated.\n\nupdate.accounts all cannot be run from a session. SD Core for Linux Solo's installer runs it whenever SD Core for Linux Solo is upgraded.
+Cannot update every registered account from here, so NOTHING has been updated.\n\nupdate.accounts all cannot be run from a session. SD Core Solo for Linux's installer runs it whenever SD Core Solo for Linux is upgraded.
 ```
 
 cited by: `login`
@@ -1288,19 +1288,19 @@ Expected array variable|%s
 ```
 
 ### msg:11020
-> kind=message tier=reference since=- src=sdsys/messages/11020:1#14cb9e68
+> kind=message tier=reference since=- src=sdsys/messages/11020:1#26c01b71
 
 ```
-This account has no password - install SD Core for Linux Solo again to set one
+This account has no password - install SD Core Solo for Linux again to set one
 ```
 
 cited by: `login`
 
 ### msg:11021
-> kind=message tier=reference since=- src=sdsys/messages/11021:1#a277ad57
+> kind=message tier=reference since=- src=sdsys/messages/11021:1#00a34948
 
 ```
-SDConnectLocal is not available in SD Core for Linux Solo - connect with SDConnect and the account password
+SDConnectLocal is not available in SD Core Solo for Linux - connect with SDConnect and the account password
 ```
 
 cited by: `apisrvr`
@@ -1329,10 +1329,10 @@ Cannot create the backup directory %1: %2
 ```
 
 ### msg:11025
-> kind=message tier=reference since=- src=sdsys/messages/11025:1#a0357a71
+> kind=message tier=reference since=- src=sdsys/messages/11025:1#2aefaaff
 
 ```
-This account has no password yet. Choose one now - SD Core for Linux Solo asks for it every time it is used.
+This account has no password yet. Choose one now - SD Core Solo for Linux asks for it every time it is used.
 ```
 
 cited by: `login`
@@ -7287,6 +7287,8 @@ cited by: `ide`
 Account %1 keeps a recovery copy of unsaved editor text: %2
 ```
 
+cited by: `setrecovery`
+
 ### msg:11771
 > kind=message tier=reference since=- src=sdsys/messages/11771:1#a74d7275
 
@@ -10886,6 +10888,33 @@ The MCP request is not valid or is not there
 
 cited by: `mcp_call`
 
+### msg:14960
+> kind=message tier=reference since=- src=sdsys/messages/14960:1#7a51eedf
+
+```
+set.recovery {on | off}; set.recovery alone says whether the IDE keeps a recovery copy of unsaved text
+```
+
+cited by: `setrecovery`
+
+### msg:14961
+> kind=message tier=reference since=- src=sdsys/messages/14961:1#b8611b59
+
+```
+The recovery copy for %1 was already %2; nothing changed
+```
+
+cited by: `setrecovery`
+
+### msg:14962
+> kind=message tier=reference since=- src=sdsys/messages/14962:1#ef977074
+
+```
+The recovery copy switch could not be written
+```
+
+cited by: `setrecovery`
+
 ### msg:14964
 > kind=message tier=reference since=- src=sdsys/messages/14964:1#81410a0f
 
@@ -11055,10 +11084,10 @@ Not in the backup: %1
 cited by: `acc_archive`
 
 ### msg:14984
-> kind=message tier=reference since=- src=sdsys/messages/14984:1#a8e0ddc5
+> kind=message tier=reference since=- src=sdsys/messages/14984:1#40f377b2
 
 ```
-SD Core for Linux Solo puts a restore in place at its next start, not while it runs (%1).
+SD Core Solo for Linux puts a restore in place at its next start, not while it runs (%1).
 ```
 
 ### msg:14985
@@ -11458,7 +11487,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 23 more
+cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 24 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -17374,7 +17403,7 @@ Account already exists
 Account name is invalid
 ```
 
-cited by: `setmcp`, `setpins`, `settile`
+cited by: `setmcp`, `setpins`, `setrecovery`, `settile`
 
 ### msg:6004
 > kind=message tier=reference since=- src=sdsys/messages/6004:1#34da8e01

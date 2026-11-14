@@ -28,7 +28,7 @@
 * 21 Oct 26 dm Solo carry 10 (SD Core eb9ef4a and b052346): S.72b - recordlocked() honours quiet (message.pair, not text.request): an ON ERROR reply aborts the caller only when quiet is not set, so a
 *               SD Core server's refusal of request 34 (message 11521) reaches the $netfile handler as LastError / LastText.  S.73 item 2 - read.packet takes server.error and ServerStatus from the header
 *               only when the BODY has been read as well (a reply cut in the middle of its body is a lost connection, message 11497 or 11509, not "answer -1", 11504).
-* 20 Oct 26 dm SD Core for Linux Solo, SDNet carry 9: SD Core's S.65 and S.72 changes to this class (the lines below down to the 17 Oct one), carried as one merge of Core Dev
+* 20 Oct 26 dm SD Core Solo for Linux, SDNet carry 9: SD Core's S.65 and S.72 changes to this class (the lines below down to the 17 Oct one), carried as one merge of Core Dev
 *               680747d against the Core text before 96d8be8.  Solo's own default port (4249, 02 Oct 26) is kept.
 * 20 Oct 26 dm S.72 (QMNet parity): filelock(fno, wait) (request 32) and fileunlock(fno) (request 33).  The two requests were in the table of codes and in apisrvr and had no method here.
 *               Like clearfile() and recordlock() they abort the caller on a server ON ERROR reply unless quiet is set.  The $netfile handler is the one user of them.

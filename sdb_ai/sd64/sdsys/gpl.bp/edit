@@ -20,9 +20,9 @@
 * 27 Oct 26 dm  S.87 batch 14: the NANO verb is gone; micro is the one external editor (editor.exe is always micro), and nano's syntax file and installer step are gone.
 * 20 Oct 26     SD Core for Linux Solo (the OS switch; owner: two words like SD Core): nano and micro need the OS switch
 *               (K$OS.EXEC), as in SD Core's S.63; the administrator passes.
-* 30 Sep 26     SD Core for Linux Solo (LSOLO 16): NANO is highlighted through an
+* 30 Sep 26     SD Core Solo for Linux (LSOLO 16): NANO is highlighted through an
 *               rc file (--rcfile) written per session - see place.syntax.
-* 29 Sep 26     SD Core for Linux Solo (LSOLO 6): saving into a VOC needs ADMIN
+* 29 Sep 26     SD Core Solo for Linux (LSOLO 6): saving into a VOC needs ADMIN
 *               (ruling 14, !voc_guard).
 * 22 Sep 26     find.editor's missing-editor message named "sudo apt install",
 *               unconditionally, in the multi-distribution restore of
@@ -791,7 +791,7 @@ save.record.query:
       goto end.program
    end
 
-*  29 Sep 26 SD Core for Linux Solo - LSOLO 6, ruling 14: saving into the VOC
+*  29 Sep 26 SD Core Solo for Linux - LSOLO 6, ruling 14: saving into the VOC
 *  needs ADMIN (as in Solo for Windows, SOLO 5).
    if not(voc_guard(input.file)) then
       error.text = 'Record not saved'

@@ -17,7 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
-* 20 Oct 26 dm  SD Core for Linux Solo, SDNet carry 9 (Core Dev 680747d): carried unchanged.  In Solo @sdsys is the tree's own directory and the file is written
+* 20 Oct 26 dm  SD Core Solo for Linux, SDNet carry 9 (Core Dev 680747d): carried unchanged.  In Solo @sdsys is the tree's own directory and the file is written
 *               by the one Linux user who owns it, through the administrator's verbs.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 17 Oct 26 dm  S.65 slice 1: written.  The one place that knows the layout of the server definitions file; set.server,

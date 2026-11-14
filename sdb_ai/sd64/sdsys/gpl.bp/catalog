@@ -22,7 +22,7 @@
 * 28 Oct 26 dm  S.87: multifiles are gone.  The program file's name is always name.out (the file,part form is not split); PARSER$MFILE is now PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: * and - are no longer global prefix characters (! $ and _ are).
 * 27 Oct 26 dm  S.87 batch 8: OPTION CATALOGUE.LOCAL is gone; CATALOG with no word catalogues privately, and LOCAL says local.
-* 18 Oct 26 SD Core for Linux Solo (LSOLO 52): the changes of 12 to 16 Oct below,
+* 18 Oct 26 SD Core Solo for Linux (LSOLO 52): the changes of 12 to 16 Oct below,
 *           carried from SD Core for Linux 5315c65 (merge base c0802d7).  Solo's
 *           ruling 33 test (the global catalogue is never written here) stays, and
 *           the OPTION CATALOGUE.LOCAL default is applied before it.
@@ -32,11 +32,11 @@
 *               of every call name that has no prefix of its own - so a select list can be catalogued globally
 *               with a prefix.  A hyphen, which openQM also lists as a prefix, is not accepted.
 * 16 Oct 26 dm  openQM 217: the hyphen is accepted as a global prefix (CATALOG bp -name, GLOBAL -).
-* 07 Oct 26 SD Core for Linux Solo (LSOLO 43, the full product's PAL-1 stage 3a and D2):
+* 07 Oct 26 SD Core Solo for Linux (LSOLO 43, the full product's PAL-1 stage 3a and D2):
 *           catalogue names are stored lower case and an old upper-case entry is found
 *           and replaced (the Windows port's 4d8136b2), but only on a case-sensitive VOC
 *           (its d236ac72 and bc54c53a).
-* 30 Sep 26 SD Core for Linux Solo (LSOLO 12) - ruling 33 (Windows Solo): the
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ruling 33 (Windows Solo): the
 *           global catalogue is never written here (GLOBAL or a * ! _ $ name:
 *           message 11029) except by the internal session, which the
 *           bootstrap's $catalog directives are; a LOCAL entry no longer offers
@@ -638,7 +638,7 @@ check.global:
 * assumes:
 * set.owner.path - file path
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - NOTHING TO CHANGE OWNER TO.  It
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - NOTHING TO CHANGE OWNER TO.  It
 *   made the new catalogue entry sdsys:sdusers; Solo has neither the user nor
 *   the group (it failed with "Unable change ownership", err 1000, on every
 *   entry) and the files belong to the one Linux user who runs SD.  Kept as a

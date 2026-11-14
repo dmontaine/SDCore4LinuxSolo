@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-fromtree.py - a private SD Core for Linux Solo built from THIS TREE, no install, no sudo.
+# sandbox-fromtree.py - a private SD Core Solo for Linux built from THIS TREE, no install, no sudo.
 #
 #   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-fromtree.py <dir> all
 #   python3 .../sandbox-fromtree.py <dir> start | stop
@@ -503,7 +503,8 @@ def stage(box):
         write_secret(os.path.join(box.root, name))
     script = os.path.join(box.tree, "gplbld", "solo-stage.sh")
     cmd = ["bash", script, "--account-password-file", os.path.join(box.root, "account.pw"),
-           "--admin-password-file", os.path.join(box.root, "admin.pw"), box.sys]
+           "--admin-password-file", os.path.join(box.root, "admin.pw"),
+           "--keep-source", box.sys]      # 14 Nov 26, S.234 N1: the suites recompile system programs; an install removes the source
     say("  > %s (cwd %s)" % (" ".join(cmd), box.tree))
     env = {k: v for k, v in os.environ.items() if k != "SD_CONFIG"}    # solo-stage finds sd.conf from the binary's own path
     log = os.path.join(box.root, "stage.log")

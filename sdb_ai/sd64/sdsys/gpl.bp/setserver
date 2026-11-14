@@ -17,7 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
-* 20 Oct 26 dm  SD Core for Linux Solo, SDNet carry 9 (Core Dev 680747d): carried whole.  Solo's word for the gate is SET.NET.ACCESS (message 11439 says so; the
+* 20 Oct 26 dm  SD Core Solo for Linux, SDNet carry 9 (Core Dev 680747d): carried whole.  Solo's word for the gate is SET.NET.ACCESS (message 11439 says so; the
 *               text of 11439 differs from SD Core's on purpose).  Solo has one account, sduser, so the accounts list holds that name or none.
 * 19 Oct 26 dm  Finish 2 (verifier): the header says NETWAIT seconds to connect where it still said 5 (comment only).  sandbox-net.py section timeouts now times it.
 * 19 Oct 26 dm  K8d: CONNECT waits NETWAIT seconds (sd.conf, 5 by default) for the connection.

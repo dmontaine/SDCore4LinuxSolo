@@ -1,5 +1,5 @@
 * REMOTEDOOR
-* REMOTE.API and REMOTE.SSH verbs of SD Core for Linux Solo: whether this computer answers the SD API, and ssh, and for whom.
+* REMOTE.API and REMOTE.SSH verbs of SD Core Solo for Linux: whether this computer answers the SD API, and ssh, and for whom.
 * Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *

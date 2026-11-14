@@ -1,5 +1,5 @@
 #!/bin/bash
-# witness-signout.sh - does SD Core for Linux Solo survive the user's LAST sign-out?  (LSOLO 7, open since 30 Sep)
+# witness-signout.sh - does SD Core Solo for Linux survive the user's LAST sign-out?  (LSOLO 7, open since 30 Sep)
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-signout.sh mark  [--home DIR]
 #   ... sign out of EVERY session (the desktop included), wait a minute, sign in again ...

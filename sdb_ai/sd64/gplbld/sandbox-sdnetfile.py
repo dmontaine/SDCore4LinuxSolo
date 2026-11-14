@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-sdnetfile.py - SDNet on SD Core for Linux Solo, stages C and D: a file on ANOTHER SD server, opened through a VOC pointer of type N by an ORDINARY session's
+# sandbox-sdnetfile.py - SDNet on SD Core Solo for Linux, stages C and D: a file on ANOTHER SD server, opened through a VOC pointer of type N by an ORDINARY session's
 #                        OPEN statement and used with the ordinary file statements, against the Python fake API server (gplbld/netfake.py).  Solo's own, smaller suite for the
 #                        client SD Core carried (S.65 slices 3a to 3e and S.72): SD Core's sandbox-netfile.py has 5,000 lines on SD Core's fixtures (accounts, groups, edit gates) and
 #                        is not run here.  What this suite covers is what Solo changed or must not break: the gate (USR_NET), the account list, the stored login, the pin, the mode

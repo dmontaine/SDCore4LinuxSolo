@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-oscarry-solo.py - the features Core has and Solo lacked until SOLO CARRY 18 (24 Oct 2026), RUN on a private SD Core for Linux Solo
+# sandbox-oscarry-solo.py - the features Core has and Solo lacked until SOLO CARRY 18 (24 Oct 2026), RUN on a private SD Core Solo for Linux
 #                           as ordinary sessions of the one account, sduser, with the disk as the evidence: OSCOPY and !IOSCOPY, SELECT.DIR,
 #                           SET.MODE, the functions ACCOUNT.PATH and VOCPATH (the OS-path programs held since carry 2 until Solo had an OS
 #                           switch), LOCK.TRACER (its VOC entry was missing), INHIBIT.LOGIN and the newvoc.mods file.  No install, no sudo.

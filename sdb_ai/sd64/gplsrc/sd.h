@@ -24,7 +24,7 @@
  *               rule for showing another session's text; kernel.c's dump_status() uses it.
  * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 and D1 (ef9d5946, 7fd83ad3): NETG_ADMIN, net_admin, net_create_file, net_fcontrol, net_write_seqkey,
  *               net_last_reply_status, net_index_query and store_select_list (op_dio4.c, no longer Private).
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): keyin_idle_ms() (linuxio.c), the inactivity
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 28 Oct 26 change, the S.88 review of L2): keyin_idle_ms() (linuxio.c), the inactivity
  *               clock that kernel(K$AUTOLOGOUT, -2) returns.
  * 06 Nov 26 dm  S.152: the prototypes of fatal, dump, k_dh_error, k_strnum_len, k_null_id, coll_json_build,
  *               coll_fill_entry, coll_value_of and is_global are gone with the functions (nothing called them).
@@ -41,7 +41,7 @@
  * 17 Oct 26 dm  S.64: prototypes of the edit gates (op_sh.c): edit_kind_of_path, edit_permitted, edit_ok_for_path, edit_os_path_refusal.
  * 31 Dec 23 SD launch - prior history suppressed
  * 29 Sep 26 dm  load_language() is init_messages(): English only.
- * 29 Sep 26 SD Core for Linux Solo - GetHomePath(), GetDefaultSysdir().
+ * 29 Sep 26 SD Core Solo for Linux - GetHomePath(), GetDefaultSysdir().
  * 18 Oct 26 dm  Solo carry from SD Core (v1.1-3 to 5315c65), LSOLO 52: Core's text without the prototypes of netfiles.c (S.65) and of the
  *               OS-access and edit gates of op_sh.c (S.63, S.64), which Solo does not carry.
  * 10 Nov 26 dm  S.196: log_termination_signal() (linuxio.c).

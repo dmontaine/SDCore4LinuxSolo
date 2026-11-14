@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test-ai-solo-units.py - the AI helper, its gate, SET.AI, the ai verb, the kernel transport and the page of SD Core for Linux Solo (carry 15 of S.69 step 2, 23 Oct 2026), as
+"""test-ai-solo-units.py - the AI helper, its gate, SET.AI, the ai verb, the kernel transport and the page of SD Core Solo for Linux (carry 15 of S.69 step 2, 23 Oct 2026), as
 invariants read off the source.  Solo's counterpart of Core's test-ai-units.py (whose checks about a Linux group, sd-elevate and the OS user sdai have no Solo equivalent and are not here).
 
   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ai-solo-units.py

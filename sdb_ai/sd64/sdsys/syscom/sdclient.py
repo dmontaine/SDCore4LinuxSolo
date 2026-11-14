@@ -3,8 +3,8 @@
 From the Python definitions of the SD Core owner; 15 Oct 2026: SDGetVar, SDIndices, SDRecordlocked, SDOpenSeq, SDReadSeq, SDReadBlk, SDWriteSeq, SDWriteBlk, SDSeek, SDWeofSeq, SDRevision, SDSystem, SDTrans,
 SDRTrans, SDTxn, SDEvaluate, SDEvalConv, SDIConv, SDOConv, SDIConvs and SDOConvs added (the functions of the QMClient
 API that SD Core for Linux took on).  The library's own signatures are in gplsrc/sdclilib.h and win over this file.
-11 Nov 2026: carried to SD Core for Linux Solo.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and
-says so: connect with SDConnect and the account password); SDRevision against a Solo server answers 0.0-0 for the server.
+11 Nov 2026: carried to SD Core Solo for Linux.  Solo's API port is 4249; SDConnectLocal is disabled in Solo (it fails and
+says so: connect with SDConnect and the account password).
 
 Every function with a c_char_p result returns text the library allocated: ctypes copies it and the original is not
 freed, so a long-running program that calls these many times leaks.  Declare the result type c_void_p instead, read

@@ -17,7 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 25 Oct 26 change): merge_sort_files(): a merged run takes the place in the queue of the files
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 25 Oct 26 change): merge_sort_files(): a merged run takes the place in the queue of the files
  *               it replaces (the number of the last of them) and no longer goes to the end.  A sort with more runs than SORTMRG put equal keys out in an
  *               order that depended on SORTMEM and SORTMRG, and a UNIQUE sort could keep a record that was not the first to arrive.
  * 16 Oct 26 dm  Expose user-callable SORT(), SORTADD, SORTCLEAR, SORTDATA(),

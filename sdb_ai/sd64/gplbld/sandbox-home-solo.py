@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # sandbox-home-solo.py - the home screen, the start setting, tiles off, the account's own programs, the context help, pdf and the readers it may start (SOLO CARRY 14, 23 Oct 2026),
-#                        RUN on a private SD Core for Linux Solo, on a pseudo-terminal.  No install, no sudo.
+#                        RUN on a private SD Core Solo for Linux, on a pseudo-terminal.  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-home-solo.py <dir> [--build]
 #

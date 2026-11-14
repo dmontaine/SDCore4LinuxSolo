@@ -21,7 +21,7 @@ CRT
 *INPUT OK
 *IF UPCASE(OK) # 'Y' THEN STOP 'Process Aborted'
 
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - the SYSTEM(27) # 0 "must be
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - the SYSTEM(27) # 0 "must be
 * root" test is gone; Solo never runs as root.  See BBPROC.
 
 OPENPATH DATA_PATH TO DP.FILEVAR ELSE

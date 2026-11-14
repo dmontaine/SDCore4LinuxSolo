@@ -18,7 +18,7 @@
  * 
  * START-HISTORY:
  * 14 Nov 26 dm  como_string(): the COMO write is tested (a failure loses only the copy; said why nothing more is done).
- * 22 Oct 26 SD Core for Linux Solo (Solo carry 13): tio_init() starts the display at DEFAULT_WIDTH by DEFAULT_DEPTH + 1 (140 by 43), Core's 18 Oct 26 change.
+ * 22 Oct 26 SD Core Solo for Linux (Solo carry 13): tio_init() starts the display at DEFAULT_WIDTH by DEFAULT_DEPTH + 1 (140 by 43), Core's 18 Oct 26 change.
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): the "before login" argument of
  *               api_packet_length_ok() is `is_sdApiSrvr && !api_logged_in` (kernel.h, set by K_SET_USERNAME), not `is_sdApiSrvr && geteuid() == 0`: a Solo server is
  *               never root, so Core's test is never true here and no limit applied before the login.

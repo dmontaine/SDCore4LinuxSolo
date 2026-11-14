@@ -1,10 +1,10 @@
 /* OP_AI.C
  * The kernel's side of the in-SD AI helper (S.69 step 2; carried to Solo as carry 15).
- * Copyright (c) 2026, SD Core for Linux Solo.  This program is free software; you can redistribute it and/or modify
+ * Copyright (c) 2026, SD Core Solo for Linux.  This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 3 or later.
  *
  * START-HISTORY:
- * 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 3 Nov 26 and 8 Nov 26 changes): follow-up questions - K$AI.START takes
+ * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 3 Nov 26 and 8 Nov 26 changes): follow-up questions - K$AI.START takes
  *               system : FM : maxtokens : VM : n : FM : q1 : FM : a1 ... : FM : prompt, the n (1 to 3, AI_HIST_MAX) earlier exchanges the person chose to carry; they
  *               go to the helper as "history" and count in bytes.out, and the audit line then says followup=n.  And a status reply is waited for up to AI_STATUS_MS
  *               (8 s), not 2 s.  The socket path stays Solo's own.

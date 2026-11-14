@@ -17,7 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
-* 11 Nov 26 dm  New (S.211, SD Core for Linux Solo only; plan .claude/plan-solo-mcp-11nov.md).  THE LOGIC THAT MUST BE TRUSTED IS HERE, not in the launcher: a launcher that
+* 11 Nov 26 dm  New (S.211, SD Core Solo for Linux only; plan .claude/plan-solo-mcp-11nov.md).  THE LOGIC THAT MUST BE TRUSTED IS HERE, not in the launcher: a launcher that
 *               is replaced by someone else's meets the same gate, the same checks and the same audit line.
 * 12 Nov 26 dm  Two faults reported by the Windows agent (its mail 2026-11-11T2300; Windows Solo 13bb7ca9) and measured here on a real install with
 *               TERM=xterm-256color: sd_files listed only the pointers written as a bare F (field 1 of a shipped pointer is "F - ..."), now

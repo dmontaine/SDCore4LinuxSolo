@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-ipc-solo.py - W.11 F10 on a private SD Core for Linux Solo: what a phantom takes from the file $ipc, and that it REFUSES records
+# sandbox-ipc-solo.py - W.11 F10 on a private SD Core Solo for Linux: what a phantom takes from the file $ipc, and that it REFUSES records
 # its parent did not seal.  Solo carry of SD Core's sandbox-ipc.py (S.223).  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ipc-solo.py <dir> [--build] [--mutants]

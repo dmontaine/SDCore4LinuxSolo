@@ -18,7 +18,7 @@
 * 
 * 
 * START-HISTORY:
-* 11 Nov 26 SD Core for Linux Solo (carried from SD Core, its 2 Nov 26 change) - the end of the input ends the pick list as Q does (item null): on a
+* 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 2 Nov 26 change) - the end of the input ends the pick list as Q does (item null): on a
 *               pipe that has ended, or a terminal that has gone, KEYCODE() gives the null key, which rang the bell for ever at full CPU.  No timeout
 *               is asked, so a null key is never a key.  Its one caller is SP.VIEW.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.

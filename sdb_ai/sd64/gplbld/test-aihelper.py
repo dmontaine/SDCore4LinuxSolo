@@ -726,7 +726,7 @@ def rows_context(env, fm):
     row("the shipped gplbld/ai-context beside the providers file: the status carries it whole, context-from default  [%d bytes]" % len(stext),
         r.get("context") == stext and r.get("context-from") == "default" and len(stext) > 200, repr(r)[:200])
     row("the shipped text is printable ASCII and line feeds, at most 4000 characters, says it is Solo and names no place Solo does not install",
-        env.mod.CONTEXT_RE.match(stext) is not None and len(stext) <= 4000 and "SD Core for Linux Solo" in stext and "/usr/local/sdsys" not in stext, "")
+        env.mod.CONTEXT_RE.match(stext) is not None and len(stext) <= 4000 and "SD Core Solo for Linux" in stext and "/usr/local/sdsys" not in stext, "")
     env.gate(False)
     env.conf(provider="openai", model__openai=M)
     r = env.ask(op="status")
@@ -775,7 +775,7 @@ def rows_context(env, fm):
     body = fm.log[n0]["body"] if len(fm.log) > n0 else b""
     body = body.decode("utf-8", "replace") if isinstance(body, bytes) else body
     row("the helper adds nothing itself: what SD sends as the system text reaches the provider as it was sent (SD puts the standing text in it)",
-        r.get("t") == "ok" and "SYS" in body and "SD Core for Linux Solo" not in body, body[:200])
+        r.get("t") == "ok" and "SYS" in body and "SD Core Solo for Linux" not in body, body[:200])
     # the client
     ctl = os.path.join(HERE, "sd-ai-ctl")
     runner = os.path.join(HERE, "ai-runner.py")

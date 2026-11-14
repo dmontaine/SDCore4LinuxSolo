@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-sdnet-login.py - SDNet on SD Core for Linux Solo, stage B: set.server ... connect (one TLS handshake, the key hash shown and confirmed), the stored logins
+# sandbox-sdnet-login.py - SDNet on SD Core Solo for Linux, stage B: set.server ... connect (one TLS handshake, the key hash shown and confirmed), the stored logins
 #                          ($netcred, <sys>/netlogins) and set.netlogin / delete.netlogin against a FAKE SD API server (gplbld/netfake.py).  Solo's copy of the idea of SD Core's
 #                          sandbox-net.py sections connect, netcred and netlogin (S.65 slices 2a and 2b), in Solo's one-account lane, WITHOUT the stand-ins SD Core needs for its
 #                          root helper (Solo has none: the store is made by $netcred itself).  No install, no sudo.

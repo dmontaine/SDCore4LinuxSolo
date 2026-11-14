@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test-mcp-units.py - the MCP door of SD Core for Linux Solo (S.211), free: no SD, no install, no sudo.
+"""test-mcp-units.py - the MCP door of SD Core Solo for Linux (S.211), free: no SD, no install, no sudo.
 
   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-mcp-units.py [--selftest]
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# mkrelease.sh - stage the SD Core for Linux Solo release package and zip it (S.218; SD Core's gplbld/mkrelease.sh of S.144 / S.151, carried for Solo:
+# mkrelease.sh - stage the SD Core Solo for Linux release package and zip it (S.218; SD Core's gplbld/mkrelease.sh of S.144 / S.151, carried for Solo:
 # owner, 12 Nov 2026: "bring solo up to the same release state, programs, documentation, release notes as Core"; the client folders: "Yes, the same five").
 #
 # 12 Nov 26 dm - New: SD Core's script with Solo's names - VERSION LS2.0-0, the zip SDCoreSolo-LS2.0-0.zip, installsdsolo.sh and deletesdsolo.sh, the

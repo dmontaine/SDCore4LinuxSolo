@@ -17,7 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
-* 20 Oct 26 dm  SD Core for Linux Solo, SDNet carry 9 (Core Dev 680747d): carried unchanged.
+* 20 Oct 26 dm  SD Core Solo for Linux, SDNet carry 9 (Core Dev 680747d): carried unchanged.
 * 17 Oct 26 dm  S.65 slice 1: written.  Nothing yet opens a remote file; this shows the definitions the later slices will use.
 * END-HISTORY
 *

@@ -22,7 +22,7 @@
 * 06 Oct 26 dm  LSOLO 40 (parity audit): Enter at "Use file 'xx'?" (2051) means
 *               N, and the prompt shows (y/<n>); the same loop as cproc's 5045,
 *               in both ports (the full product's change).
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - clearing a VOC needs ADMIN
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - clearing a VOC needs ADMIN
 *           (ruling 14, !voc_guard), as in Solo for Windows.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY

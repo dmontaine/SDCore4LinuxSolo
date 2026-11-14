@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""solo-mcp.py - the MCP launcher of SD Core for Linux Solo (S.211): a Model Context Protocol server on standard input and output.
+"""solo-mcp.py - the MCP launcher of SD Core Solo for Linux (S.211): a Model Context Protocol server on standard input and output.
 
 An AI agent's MCP client starts this program as a child process (it is printed by `solo-mcp.py --config`).  It speaks JSON-RPC 2.0, one
 message to a line, and does NOT decide anything itself: every call is one one-shot `sd-solo mcp.call <id>` on the account's KEPT password,
@@ -214,7 +214,7 @@ def handle(msg):
         reply(mid, {"protocolVersion": want if want in SUPPORTED else SUPPORTED[0],
                     "capabilities": {"tools": {"listChanged": False}},
                     "serverInfo": {"name": SERVER_NAME, "version": VERSION},
-                    "instructions": "Tools for the SD Core for Linux Solo database of the person who started this server. The administrator controls the door "
+                    "instructions": "Tools for the SD Core Solo for Linux database of the person who started this server. The administrator controls the door "
                                     "(set.mcp). Every call is written to SD's audit trail with your name."})
     elif method == "ping":
         reply(mid, {})

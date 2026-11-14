@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test-req29path-units.py - API request 29 asks the OS switch of an F-pointer that leads out of the account, as invariants read off apisrvr (SD Core for Linux Solo).
+"""test-req29path-units.py - API request 29 asks the OS switch of an F-pointer that leads out of the account, as invariants read off apisrvr (SD Core Solo for Linux).
 
   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-req29path-units.py
   python3 .../test-req29path-units.py --selftest

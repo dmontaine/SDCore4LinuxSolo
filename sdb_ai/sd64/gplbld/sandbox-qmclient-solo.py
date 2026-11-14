@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-qmclient-solo.py - the client library (sdclilib.so) of SD Core for Linux Solo through a REAL logged-in API session on Solo's own
+# sandbox-qmclient-solo.py - the client library (sdclilib.so) of SD Core Solo for Linux through a REAL logged-in API session on Solo's own
 #                            sandbox: the QMClient functions carried from SD Core for Linux on 11 Nov 26 (SD Core's work of 15 Oct 26:
 #                            SDRevision, SDGetVar, SDSystem, SDIndices, SDTrans, SDRTrans, SDRecordlocked, SDTxn, SDEvaluate, SDEvalConv,
 #                            SDIConv(s), SDOConv(s), the sequential files, SDWriteSeqKey / SDWriteuSeqKey, the multi-character SDDcount,

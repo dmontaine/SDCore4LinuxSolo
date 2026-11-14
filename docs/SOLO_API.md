@@ -1,4 +1,4 @@
-# SD Core for Linux Solo — the API, as built
+# SD Core Solo for Linux — the API, as built
 
 How a client reaches a Solo computer, what runs on it, and what each step is
 checked by. It is the Linux counterpart of the Windows Solo design note, written

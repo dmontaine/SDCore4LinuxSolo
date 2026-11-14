@@ -11,7 +11,7 @@ import array
 import logging
 logger = logging.getLogger(__name__)
 
-# 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - the SDSYS directory is the
+# 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - the SDSYS directory is the
 # ONE argument.  It was hardcoded to /usr/local/sdsys, a path Solo never has.
 # No default: a build that guessed would write bin/pcode into the wrong tree.
 import sys

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sd-ai-ctl - the client of the AI helper of SD Core for Linux Solo (carry 15 of S.69 step 2).  Run as the Solo user: the helper refuses every other uid,
+# sd-ai-ctl - the client of the AI helper of SD Core Solo for Linux (carry 15 of S.69 step 2).  Run as the Solo user: the helper refuses every other uid,
 # by the uid it reads from the socket, so there is no password here and nothing to guess.  Standard library only.
 #
 #   sd-ai-ctl [--socket PATH] show [--json]

@@ -23,7 +23,7 @@
  *               of net_change_op into net_change_result.  NETG_ADMIN asks steps 1 and 3 of net_gate (read-mode, transaction): Solo has no S.64 edit gate (the deviation of carry 9).  The
  *               refusal of CREATING.SEQKEY (step 2) is gone as in SD Core.  The server's wall is its own: a SD Core server's sdfilesadmin, a Solo server's global-password session.
  * 21 Oct 26 dm  Solo carry 10 (SD Core eb9ef4a): S.72b, see the entry below it; net_gate() has the NETG_PEEK case before the SEQKEY and transaction steps.
- * 20 Oct 26 dm  SD Core for Linux Solo, SDNet carry 9 (Core Dev 680747d, carried whole): three changes, all because Solo has no S.64 edit gates and no gates word.  (1) net_gate_ok()
+ * 20 Oct 26 dm  SD Core Solo for Linux, SDNet carry 9 (Core Dev 680747d, carried whole): three changes, all because Solo has no S.64 edit gates and no gates word.  (1) net_gate_ok()
  *               reads the user flag USR_NET, not UG_NET in a gates word.  (2) The kind of the REMOTE file's name (edit_kind_of_net_name, S.64) is not worked out at open and
  *               net_gate() does not ask edit_permitted() for a write, delete or clear: whether a file on another server may be changed is the server's own gate, and a
  *               server defined mode read refuses it here already.  A DEVIATION from the SD Core template, forced by Solo's not having S.64 (flag it in the parity audit).

@@ -1,6 +1,6 @@
 # {{PROJECT}}
 
-{{One sentence: what this project is and who uses it.}} It is written in SD BASIC and lives in the one account of an SD Core for Linux Solo installation, `sduser`, on `{{HOST}}`. You reach it {{HOW: as a client with the account password (ssh to port 4251 with your own key, or the API on port 4249), with the shell and OS switches OFF; or on a computer, virtual machine or container of your own that holds none of the owner's data}}, as `{{AGENT_USER}}`. (Fill in every `{{...}}` and delete this paragraph. Keep this file under 200 lines.)
+{{One sentence: what this project is and who uses it.}} It is written in SD BASIC and lives in the one account of an SD Core Solo for Linux installation, `sduser`, on `{{HOST}}`. You reach it {{HOW: as a client with the account password (ssh to port 4251 with your own key, or the API on port 4249), with the shell and OS switches OFF; or on a computer, virtual machine or container of your own that holds none of the owner's data}}, as `{{AGENT_USER}}`. (Fill in every `{{...}}` and delete this paragraph. Keep this file under 200 lines.)
 
 ## Read first
 

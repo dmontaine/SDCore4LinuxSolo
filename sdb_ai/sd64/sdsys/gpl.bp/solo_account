@@ -18,7 +18,7 @@
 *
 *
 * START-HISTORY:
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - copied unchanged from SD Core Solo
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - copied unchanged from SD Core Solo
 *           for Windows (its gpl.bp/solo_account, 28 Sep 2026); the program is
 *           portable BASIC.  Only the comments name Windows.
 * 28 Sep 26 SD Core Solo - ruling 29: the account is always sduser; the name

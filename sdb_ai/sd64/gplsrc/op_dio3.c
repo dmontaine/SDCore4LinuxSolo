@@ -27,7 +27,7 @@
  *               directory file line terminator modes, record ids with bytes 128 to 247 (the owner's exception of 12 Oct 26, which covers Solo),
  *               triggers on directory files and the profiler.  Not carried: the S.64 edit gates and the S.65 remote file writes and locks.
  *               voc_write_refused() and global_write_refused() stay where Solo put them.
- * 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - voc_write_refused(): a user
+ * 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - voc_write_refused(): a user
  *           program's own write, delete or clear of a VOC needs ADMIN (owner's
  *           rulings 12 and 14), as in SD Core Solo for Windows (SOLO 5).
  * 18 Oct 26 dm  S.65 slice 3e: WRITE, WRITEU, MATWRITE, WRITEV, DELETE and CLEARFILE of a NET_FILE of a write-mode server go to netfiles.c
@@ -1535,7 +1535,7 @@ void op_writev() {
 
   process.status = 0;
 
-  /* 29 Sep 26 SD Core for Linux Solo (LSOLO 6), ruling 14.  Tested HERE, not
+  /* 29 Sep 26 SD Core Solo for Linux (LSOLO 6), ruling 14.  Tested HERE, not
      left to op_write(): the recursive pcode below is $internal, so by the time
      it writes, the caller's program flags are gone.  A refusal drops the four
      operands and reports like any failed WRITEV.                          */

@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify-solo-global.sh - the MANAGED-mode server controls of SD Core for Linux Solo
+# verify-solo-global.sh - the MANAGED-mode server controls of SD Core Solo for Linux
 # (LSOLO 12; rulings 33, 34 and 36 of Solo for Windows, its verify-solo legs 16 and 17).
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-global.sh HOME_DIR ACCOUNT_PW_FILE ADMIN_PW_FILE GLOBAL_PW_FILE
@@ -40,7 +40,7 @@ leg() {   # leg NAME EXPECT OK(0/1) SAW
 }
 clean() {
   sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core Solo for Linux, the|SD Core Solo for Linux, the'
 }
 last() { printf '%s\n' "$1" | tail -1; }
 # sess PW CMD... : one session, signed in with PW, ended with OFF.

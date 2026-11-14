@@ -19,7 +19,7 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 15 Sep 26 dm - read SD_CONFIG, not SCARLET_CONFIG, and bound the copy.
- * 29 Sep 26 SD Core for Linux Solo (LSOLO 3) - SD_CONFIG_DEFAULT is gone; the
+ * 29 Sep 26 SD Core Solo for Linux (LSOLO 3) - SD_CONFIG_DEFAULT is gone; the
  *           home is found from the executable's own path (GetHomePath).
  * END-HISTORY
  *
@@ -124,7 +124,7 @@ bool GetConfigPath(char *inipath) {
   }
 
   if (!GetHomePath(home, sizeof(home))) {
-    fprintf(stderr, "Cannot determine the SD Core for Linux Solo folder.\n");
+    fprintf(stderr, "Cannot determine the SD Core Solo for Linux folder.\n");
     return FALSE;
   }
 

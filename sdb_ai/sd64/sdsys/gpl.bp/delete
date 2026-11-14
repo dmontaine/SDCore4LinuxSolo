@@ -20,13 +20,13 @@
 * START-HISTORY:
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
-* 18 Oct 26 SD Core for Linux Solo (LSOLO 52): a record locked by another user is
+* 18 Oct 26 SD Core Solo for Linux (LSOLO 52): a record locked by another user is
 *           reported (message 11073) and left, not waited for - carried from SD Core
 *           for Linux 5315c65 (merge base c0802d7); the VOC guard (LSOLO 6) stays.
 * 06 Oct 26 dm  LSOLO 40 (parity audit): Enter at the "Delete all records"
 *               prompt (3220) means N, and the prompt shows (y/<n>); the same
 *               loop as cproc's 5045, in both ports (the full product's change).
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - deleting VOC records needs ADMIN
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - deleting VOC records needs ADMIN
 *           (ruling 14, !voc_guard), as in Solo for Windows.
 * 14 Sep 26 dm  Enter at 2050 means N (W.2, the port's ruling of 13 Sep 26).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).

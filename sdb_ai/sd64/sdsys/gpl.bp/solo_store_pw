@@ -18,7 +18,7 @@
 *
 *
 * START-HISTORY:
-* 29 Sep 26 SD Core for Linux Solo (LSOLO 6) - new.  The Linux form of SD Core
+* 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - new.  The Linux form of SD Core
 *           Solo for Windows' gpl.bp/solo_store_pw (SOLO 15 piece 4), which
 *           encrypts the password with DPAPI; Linux has no such facility, and
 *           the owner ruled (29 Sep 2026, Q3) for a private file holding the

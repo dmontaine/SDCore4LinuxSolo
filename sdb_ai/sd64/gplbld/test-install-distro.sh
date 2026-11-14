@@ -3,7 +3,7 @@
 # test-install-distro.sh - installsdsolo.sh refuses every distribution but Debian and Ubuntu, BEFORE it changes
 # anything (owner, 11 Nov 2026: "Yes, Debian and Ubuntu only"; carried from SD Core for Linux's S.105 of 2 Nov 2026,
 # whose gplbld/test-install-distro.sh this is, adapted to Solo's installer: refuse() exits 2, the banner is
-# say "SD Core for Linux Solo - install", the question is ask_yn "Continue?", there is no sudo -v, and the package
+# say "SD Core Solo for Linux - install", the question is ask_yn "Continue?", there is no sudo -v, and the package
 # install is a function).
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-distro.sh
@@ -56,7 +56,7 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant refusal-returns       's/^  refuse "this distribution is not supported/  return 0; &/'
   mutant call-deleted          '/^detect_distro$/d'
   mutant call-after-netcheck   '/^detect_distro$/d; s/^if \[\[ "\$REPO_URL" =~ .*$/&\ndetect_distro/'
-  mutant call-after-banner     '/^detect_distro$/d; s/^say "SD Core for Linux Solo - install"$/detect_distro\n&/'
+  mutant call-after-banner     '/^detect_distro$/d; s/^say "SD Core Solo for Linux - install"$/detect_distro\n&/'
   mutant dnf-back              's/^  sudo apt-get -y --ignore-missing install libcrypt-dev || true$/&\n  sudo dnf -y install git || true/'
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
@@ -138,7 +138,7 @@ L_CALL=$(first '^[0-9]+:detect_distro[[:space:]]*$')
 N_CALL=$(code | grep -c -E '^[0-9]+:[[:space:]]*detect_distro[[:space:]]*$')
 L_GATE=$(first '^[0-9]+:.*refuse "a Solo service is already running')
 L_NET=$(first '^[0-9]+:(if .*; then +)?net_preflight ')
-L_BANNER=$(first '^[0-9]+:say "SD Core for Linux Solo - install"')
+L_BANNER=$(first '^[0-9]+:say "SD Core Solo for Linux - install"')
 L_ASK=$(first '^[0-9]+:[[:space:]]*ask_yn "Continue\?"')
 # The first sudo the script RUNS: a line outside every function body (bodies run only when called), where sudo is
 # the command (at the start, after if / ! / && / || / ; / |), not a word in a message.

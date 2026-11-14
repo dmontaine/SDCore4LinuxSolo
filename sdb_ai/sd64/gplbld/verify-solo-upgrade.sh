@@ -47,7 +47,7 @@ echo "  running as  : $(id -un) (uid $(id -u))"
 pass=0; fail=0; legs=0
 leg() { legs=$((legs+1)); if [ "$3" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1 | $2"; else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi; }
 strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
-clean() { strip | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'; }
+clean() { strip | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core Solo for Linux, the|SD Core Solo for Linux, the'; }
 sess() { local pw="$1"; shift; printf '%s\n' "$pw" "$@" OFF | timeout 120 "$H/bin/sd-solo" 2>&1 | clean; }
 
 echo
@@ -213,7 +213,7 @@ fi
 mkdir "$W/notree"; : > "$W/notree/x"
 o="$(bash "$sd64/gplbld/solo-stage.sh" --upgrade "$W/notree" 2>&1 | strip)"
 o2="$(bash "$sd64/gplbld/solo-stage.sh" --upgrade --account-password-file "$W/a.pw" "$H" 2>&1 | strip)"
-if printf '%s\n' "$o" | grep -q '^REFUSED: .*not an SD Core for Linux Solo tree' && printf '%s\n' "$o2" | grep -q '^REFUSED: --upgrade takes no password file'; then
+if printf '%s\n' "$o" | grep -q '^REFUSED: .*not an SD Core Solo for Linux tree' && printf '%s\n' "$o2" | grep -q '^REFUSED: --upgrade takes no password file'; then
   leg "10 refusals" "a non-Solo directory, and a password with --upgrade" 0 "both refused"
 else
   leg "10 refusals" "a non-Solo directory, and a password with --upgrade" 1 "$(printf '%s\n' "$o" | tail -1) / $(printf '%s\n' "$o2" | tail -1)"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # verify-solo-backup.sh - LSOLO 20 (S.50): BACKUP.ACCOUNT, RESTORE.ACCOUNT and
-# SETTINGS.REPORT on SD Core for Linux Solo, including the start-up swap.
+# SETTINGS.REPORT on SD Core Solo for Linux, including the start-up swap.
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-backup.sh HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE
 #
@@ -61,7 +61,7 @@ leg() {   # leg NAME EXPECT OK(0/1) SAW
 sess() {
   printf '%s\n' "$GOOD" "$@" OFF | timeout 300 "$SD" 2>&1 \
     | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core Solo for Linux, the|SD Core Solo for Linux, the'
 }
 one() { printf '%s\n' "$1" | tail -3 | tr '\n' ' '; }
 

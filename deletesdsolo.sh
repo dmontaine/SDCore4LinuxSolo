@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# SD Core for Linux Solo - delete script
+# SD Core Solo for Linux - delete script
 #   (c) 2026 Donald Montaine.  Released under the Blue Oak Model License 1.0.0,
 #   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
 #
 #   bash deletesdsolo.sh [--home DIR] [--keep-data | --delete-data] [--yes]
 #
-# Removes SD Core for Linux Solo for the user who runs it: the systemd user units,
+# Removes SD Core Solo for Linux for the user who runs it: the systemd user units,
 # the running daemon, the ~/.local/bin/sd and sd-solo commands, the ssh key lines an earlier
 # release added to your ~/.ssh/authorized_keys, the old sshd_config.d block (sudo, only if it
 # exists), Solo's own PAM service /etc/pam.d/sd-solo-ssh-<you> (sudo, only if it exists -
@@ -80,7 +80,7 @@ if [ -z "$H" ]; then
   if [ -f "$self_dir/../.sdcoresolo" ]; then H="$(cd "$self_dir/.." && pwd)"; else H="$HOME/SDCoreSolo"; fi
 fi
 case "$H" in /*) ;; *) refuse "--home must be an absolute path (got '$H')" ;; esac
-[ -f "$H/.sdcoresolo" ] || refuse "$H is not an SD Core for Linux Solo tree (no .sdcoresolo marker); nothing was changed"
+[ -f "$H/.sdcoresolo" ] || refuse "$H is not an SD Core Solo for Linux tree (no .sdcoresolo marker); nothing was changed"
 # A last defence against a wrong path: never the home directory itself, "/" or a top-level directory.
 [ "$H" != "$HOME" ] && [ "$H" != "/" ] && [ "$(printf '%s' "$H" | tr -cd '/' | wc -c)" -ge 2 ] \
   || refuse "$H is not a plausible install directory"
@@ -102,7 +102,7 @@ fi
 interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
 
 say
-say "SD Core for Linux Solo - delete"
+say "SD Core Solo for Linux - delete"
 say "  tree        : $H"
 say "  running as  : $(id -un)"
 [ -f "$H/.sdcore-install" ] && sed 's/^/  installed   : /' "$H/.sdcore-install" | head -3

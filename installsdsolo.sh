@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# SD Core for Linux Solo - install script
+# SD Core Solo for Linux - install script
 #   (c) 2026 Donald Montaine.  Released under the Blue Oak Model License 1.0.0,
 #   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
 #
 #   bash installsdsolo.sh [options]        run it as YOUR OWN USER, never as root
 #
-# WHAT IT DOES.  Downloads the source of SD Core for Linux Solo (the main branch of
+# WHAT IT DOES.  Downloads the source of SD Core Solo for Linux (the main branch of
 # github.com/dmontaine/SDCore4LinuxSolo) into a TEMPORARY directory under your home,
 # builds it there, installs it into ~/SDCoreSolo, sets your passwords, starts it as
 # your own systemd service, and deletes the download.  The script itself can be
@@ -152,7 +152,7 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2
            [ -z "${kept_aside:-}" ] || printf '%bYour saved data is safe, moved aside to %s%b\n' "$YELLOW" "$kept_aside" "$NC" >&2
            exit 1; }
 
-[ "$(id -u)" -ne 0 ] || refuse "run this as your own user, not root: SD Core for Linux Solo never runs as root"
+[ "$(id -u)" -ne 0 ] || refuse "run this as your own user, not root: SD Core Solo for Linux never runs as root"
 
 # 11 Nov 26 dm  S.216 (SD Core's installsdcore.sh installer_dir, 24 Oct 26): WHERE THE INSTALLER LIVES, for the files that travel beside it in a release package (the changes
 #            document and the pdf folder: the CHANGES-DOC and MANUALS-PDF blocks below).  Empty when the script was not run from a file (curl | bash), so nothing is looked
@@ -302,14 +302,14 @@ is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves
 }
 # END is_kept_tree
 if [ -f "$HOME_DIR/.sdcoresolo" ] && [ "$upgrade" -eq 0 ]; then
-  refuse "SD Core for Linux Solo is already installed in $HOME_DIR.
+  refuse "SD Core Solo for Linux is already installed in $HOME_DIR.
   To bring it up to the current release, keeping your account, data and passwords:
       bash $0 --upgrade --home $HOME_DIR
   To remove it instead (your data can be kept):
       bash $HOME_DIR/tools/deletesdsolo.sh"
 fi
 if [ "$upgrade" -eq 1 ]; then
-  [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core for Linux Solo in $HOME_DIR to upgrade (no .sdcoresolo marker)"
+  [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core Solo for Linux in $HOME_DIR to upgrade (no .sdcoresolo marker)"
   [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsdsolo.sh; upgrade it by hand or reinstall"
   [ -z "$control_file$acc_file$adm_file$glb_file$api$ssh$ssh_key$reload_ans$linger_cli$start_choice" ] \
     || refuse "--upgrade keeps the passwords (and so whether a global password is set), the account's data and sd.conf, and the API and ssh settings as installed; it takes no password, control-file, --reload-data, --start-clean, --api, --ssh, --ssh-key, --enable-linger, --no-linger or --start option"
@@ -319,7 +319,7 @@ elif [ -e "$HOME_DIR" ] && [ -n "$(ls -A "$HOME_DIR" 2>/dev/null)" ]; then
   if is_kept_tree "$HOME_DIR"; then
     kept_tree=1
   else
-    refuse "$HOME_DIR exists and is not empty, and is not an SD Core for Linux Solo tree or the data and configuration one left (the .sdcore-kept stamp, user_accounts/sduser, sd.conf and a newvoc.mods directory, and nothing else); this script will not use it"
+    refuse "$HOME_DIR exists and is not empty, and is not an SD Core Solo for Linux tree or the data and configuration one left (the .sdcore-kept stamp, user_accounts/sduser, sd.conf and a newvoc.mods directory, and nothing else); this script will not use it"
   fi
 fi
 # 02 Oct 26 - THE MULTI-USER PRODUCT NO LONGER BLOCKS THIS INSTALL (owner, 2 Oct 2026: yes to
@@ -507,7 +507,7 @@ if [ "$upgrade" -eq 1 ]; then
   # LSOLO 38: a tree installed before 6 Oct 2026 records "standalone" for what is now called unmanaged.
   case "$mode_name" in standalone|unmanaged) managed=0; mode_name="unmanaged" ;; managed) managed=1 ;; *) refuse "$HOME_DIR/.sdcore-install has no usable 'mode' line" ;; esac
   say
-  say "SD Core for Linux Solo - upgrade"
+  say "SD Core Solo for Linux - upgrade"
   say "  tree        : $HOME_DIR ($mode_name, installed from ${old_commit:-an unknown commit})"
   [ -z "$pkg_pre" ] || say "  This package is the pre-release ${pkg_pre}, for testing."
   say "  source      : $src_desc"
@@ -571,7 +571,7 @@ fi
 
 # ---------------------------------------------------------------- questions
 say
-say "SD Core for Linux Solo - install"
+say "SD Core Solo for Linux - install"
 say "Tested on current versions of Debian and Ubuntu."   # 12 Nov 26 dm - SD Core's S.150 line; the changelog of 11 Nov said so and the line was missing
 say "  into        : $HOME_DIR"
 [ -z "$pkg_pre" ] || say "  This package is the pre-release ${pkg_pre}, for testing."
@@ -998,7 +998,8 @@ fi
 # AGENTPACK-BEGIN
 if [ -f "$SRC/agent-pack/guide/sd-basic-guide.md" ] && [ -f "$SRC/agent-pack/pack/manifest.json" ] && [ -f "$SRC/agent-pack/pack/core.md" ]; then
     pack_stamp=$(sed -n '/"rev_stamp"/{s/^[^:]*: *"\([^"]*\)".*/\1/p;q}' "$SRC/agent-pack/pack/manifest.json") || pack_stamp=""
-    tree_stamp=$(sed -n '/^\$define SD\.REV\.STAMP/{s/^[^"]*"\([^"]*\)".*/\1/p;q}' "$HOME_DIR/gpl.bp/revstamp.h" 2>/dev/null) || tree_stamp=""
+    # 14 Nov 26 (S.234 N1): the version is read from the download the stage just built, because the installed tree no longer holds gpl.bp
+    tree_stamp=$(sed -n '/^\$define SD\.REV\.STAMP/{s/^[^"]*"\([^"]*\)".*/\1/p;q}' "$SRC/sdsys/gpl.bp/revstamp.h" 2>/dev/null) || tree_stamp=""
     if [ -n "$pack_stamp" ] && [ "$pack_stamp" = "$tree_stamp" ]; then
         rm -rf "$HOME_DIR/agent-pack"
         if mkdir -p "$HOME_DIR/agent-pack" && cp -R "$SRC/agent-pack/guide" "$SRC/agent-pack/pack" "$HOME_DIR/agent-pack/"; then
@@ -1425,12 +1426,12 @@ ACC_PW=""; ADM_PW=""; GLB_PW=""
 # ---------------------------------------------------------------- summary
 say
 if [ "$upgrade" -eq 1 ]; then
-  say "SD Core for Linux Solo is upgraded."
+  say "SD Core Solo for Linux is upgraded."
   say "  from commit   : ${old_commit:-unknown}"
   say "  to commit     : $COMMIT"
   say "  safety copy   : ${upgrade_backup:-not recorded}   (the tree as it was; delete it when you are satisfied)"
 else
-  say "SD Core for Linux Solo is installed."
+  say "SD Core Solo for Linux is installed."
 fi
 say "  home          : $HOME_DIR      ($mode_name)"
 if [ -n "${reload_note:-}" ]; then

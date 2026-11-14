@@ -10,7 +10,7 @@
 # function with no header entry) and expects each to be caught.
 #
 # START-HISTORY:
-# 11 Nov 26 dm  Carried to SD Core for Linux Solo with the client library of 15 Oct 26, unchanged but for the path in the usage
+# 11 Nov 26 dm  Carried to SD Core Solo for Linux with the client library of 15 Oct 26, unchanged but for the path in the usage
 #               line: Solo's eight headers are SD Core's, with Solo's port (4249) and install directory in their comments.
 # 15 Oct 26 dm  Written when the QMClient work (SDRevision, SDGetVar, SDSystem, SDIndices, SDTrans, SDRTrans, SDTxn,
 #               SDEvaluate, SDEvalConv, SDIConv, SDOConv, SDIConvs, SDOConvs) was found to have reached the C, Basic and

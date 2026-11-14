@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify-solo.sh - does an SD Core for Linux Solo tree behave as ruled?
+# verify-solo.sh - does an SD Core Solo for Linux tree behave as ruled?
 #
 #   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo.sh HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE
 #
@@ -106,7 +106,7 @@ fi
 # ---- 7. sd will not run as root (a user namespace makes euid 0 without sudo).
 if unshare -Ur true 2>/dev/null; then
   out="$(unshare -Ur "$SD" WHO 2>&1 | strip)"
-  if printf '%s\n' "$out" | grep -qx 'SD Core for Linux Solo does not run as root.'; then
+  if printf '%s\n' "$out" | grep -qx 'SD Core Solo for Linux does not run as root.'; then
     leg "7 refuses uid 0" "the root refusal line" 0 "refused"
   else
     leg "7 refuses uid 0" "the root refusal line" 1 "$(last "$out")"
@@ -150,7 +150,7 @@ fi
 sess() {
   printf '%s\n' "$GOOD" "$@" OFF | timeout 120 "$SD" 2>&1 \
     | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core Solo for Linux, the|SD Core Solo for Linux, the'
 }
 NEEDS='Command requires administrator privileges'
 
@@ -262,7 +262,7 @@ sess_as() {
   local first="$1"; shift
   printf '%s\n' "$first" "$@" OFF | timeout 120 "$SD" 2>&1 \
     | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
-    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core for Linux Solo, the|SD Core Solo for Linux, the'
+    | grep -v -E '^\[K:|^\*+$|^[[:space:]]*$|Ladybridge|free software|welcome to|conditions|SD Core Solo for Linux, the|SD Core Solo for Linux, the'
 }
 NEWPW='New-Pass-3!'
 

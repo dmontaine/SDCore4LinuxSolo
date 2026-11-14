@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-tk-solo.py - the screen library, SED, the IDE and tool.keys in SD Core for Linux Solo (carry 13, 22 Oct 2026), on a pseudo-terminal.  No install, no sudo.
+# sandbox-tk-solo.py - the screen library, SED, the IDE and tool.keys in SD Core Solo for Linux (carry 13, 22 Oct 2026), on a pseudo-terminal.  No install, no sudo.
 #
 #   SDSOLOBOX_KEYSET=n python3 .../sandbox-tk-solo.py <dir> [--build]
 #

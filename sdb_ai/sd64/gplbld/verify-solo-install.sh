@@ -85,7 +85,7 @@ refusal "R4 no password and no terminal"    "no terminal to ask on"          "$W
 refusal "R5 global password = account's"    "must differ from the account"   "$W/h5" --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw" --global-password-file "$W/same.pw"
 mkdir -p "$W/h6" && : > "$W/h6/.sdcoresolo"
 refusal "R6 already installed"              "already installed"              "$W/h6" --account-password-file "$W/acc.pw" --admin-password-file "$W/adm.pw"
-refusal "R8 --upgrade with nothing installed" "there is no SD Core for Linux Solo in .* to upgrade" "$W/h7" --upgrade
+refusal "R8 --upgrade with nothing installed" "there is no SD Core Solo for Linux in .* to upgrade" "$W/h7" --upgrade
 refusal "R9 --upgrade of a tree the installer did not make" "has no .sdcore-install record" "$W/h6" --upgrade
 mkdir -p "$W/h8" && : > "$W/h8/.sdcoresolo" && echo "commit x" > "$W/h8/.sdcore-install"
 refusal "R10 --upgrade takes no password option" "keeps the passwords .*API and ssh settings" "$W/h8" --upgrade --account-password-file "$W/acc.pw"
