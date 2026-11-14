@@ -32,6 +32,11 @@ INSTALL="$REPO/installsdsolo.sh"
 command -v python3 >/dev/null || refuse "python3 is required"
 git -C "$REPO" diff --quiet && git -C "$REPO" diff --cached --quiet || refuse "the working tree has uncommitted changes; the installer would install HEAD, not them"
 systemctl --user is-active sd-solo.service >/dev/null 2>&1 && refuse "a Solo service is running for this user"
+# 14 Nov 26: STOPPING THE SERVICE IS NOT ENOUGH.  A Solo's user units carry no tree path (sd-solo.service, sd-solo-*.socket), so leg 2's install
+# replaced them and the cleanup's deletesdsolo.sh removed them - the owner's live Solo lost its service, its ssh and its AI socket.  This
+# witness runs only for a user with no Solo installed: as another user, or on a VM.
+ls "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/" 2>/dev/null | grep -q '^sd-solo' \
+  && refuse "Solo's user units are installed for this user (${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/sd-solo*); this witness would replace and then remove them.  Run it as a user with no Solo."
 ss -ltn 2>/dev/null | grep -q ':14245 ' && refuse "port 14245 is in use"
 [ ! -e "$HOME/.sdsolotmp" ] || refuse "$HOME/.sdsolotmp exists; remove it"
 
