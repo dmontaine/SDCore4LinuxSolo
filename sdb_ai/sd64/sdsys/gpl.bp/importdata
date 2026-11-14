@@ -40,8 +40,11 @@
 *   what XML cannot have in a name made an underscore).  The id is the attribute or child ID names, or the record's number.
 *
 * A record that is already there is left alone and counted, unless OVERWRITING.  The pathname goes through the OS-access gate, and each record
-* written takes its record lock.  Nothing is changed by a file that cannot be read.  (SD Core also asks its S.64 edit gates of the file, with
-* !edit_guard; Solo has no edit gates, so that call is not here - Solo carry 12, 21 Oct 26.)
+* written takes its record lock.  Nothing is changed by a file that cannot be read.  SD Core asks its S.64 edit gates of the file (!edit_guard);
+* Solo asks its own rule for the VOC, !voc_guard (ruling 14: a VOC is written only after ADMIN), as COPY and ED do.
+* 14 Nov 26 dm  S.234 BASIC review: the !voc_guard call added.  Solo carry 12 (21 Oct 26) left SD Core's edit_guard call out and put nothing in its
+*               place, so IMPORT.CSV / .JSON / .XML into the file VOC wrote VOC records from a session that had not typed ADMIN: this program is $internal,
+*               which the kernel's voc_write_refused() lets through, trusting $internal programs to check for themselves.
 *
 * END-DESCRIPTION
 *
@@ -57,6 +60,7 @@ $include int$keys.h
 $include parser.h
 
    deffun readcsvrow(f, d, q, e, row) calling '!readcsvrow'
+   deffun voc_guard(f) calling '!voc_guard'
 
    parser = '!PARSER'
    @system.return.code = -ER$ARGS
@@ -117,6 +121,10 @@ $include parser.h
          @system.return.code = -ER$FNF
          return
       end
+   end
+   if not(voc_guard(out.f)) then                 ;* 14 Nov 26, S.234: the VOC is written only after ADMIN (ruling 14); the guard says why
+      @system.return.code = -ER$PERM
+      return
    end
    if kind = 'JSON' and not(fileinfo(out.f, FL$COLLECTION)) then
       display sysmsg(11854, fname)

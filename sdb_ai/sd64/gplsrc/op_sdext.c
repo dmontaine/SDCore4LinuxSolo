@@ -18,6 +18,9 @@
  * 
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  S.234 kernel review: the release of the value buffer, carried from SD Core's L2 review (d8dbde84, 28 Oct): it is freed unless
+ *               SDMEArgArray[0] points at it (myval_in_args).  The test was IsArgMV != 0, which left the one byte of an EMPTY argument allocated for
+ *               good on every SDEXT('', @FALSE, key) - SD_USER_HOME's call for the home itself, carried here 9 Nov without this hunk.
  * 09 Nov 26 dm  Solo carry 22 (area 5, SD Core's W.11 F10b): SD_USER_HOME (112) carried, as SD Core has it (S.88 d35f5e31 and the L2 review d8dbde84):
  *               the phantom debugger's private store (!pdbg_store) needs it.  Only the key and user_home_dir(); the IDE's recovery copy that it was
  *               made for is TUI work, held.  The 1-byte free fix of the same review is not carried: Solo's argument buffer code is older.
@@ -137,6 +140,7 @@ void op_sdext() {
 
   char myErrMsg[SD_ERR_MSG_LEN + 1];    /* hardcoded max string length is set to 512 char need to do something more "durable" */
   int32_t myval_len;
+  int myval_in_args = 0;                   /* 1 when SDMEArgArray[0] IS myval_buffer, which the release loop below then frees */
   int32_t mybuf_sz;
   char* myval_buffer;                      /* buffer for past value string  */
   STRING_CHUNK* str;
@@ -224,7 +228,8 @@ void op_sdext() {
 	    }
     } else {  /* MV Flag not set, */
         argCnt = 1;                       /* always one args */
-        SDMEArgArray[0] = myval_buffer;   /* we just point to the value buffer created earlier */  
+        SDMEArgArray[0] = myval_buffer;   /* we just point to the value buffer created earlier */
+        myval_in_args = 1;
     }
   }	  
   
@@ -539,7 +544,7 @@ void op_sdext() {
   }
   /* and the val buffer */
   if (myval_buffer != NULL){
-    if (IsArgMV != 0) {      /* rem if IsArgMV not set, we pointed DMEArgArray[0] to myval_buffer*/
+    if (!myval_in_args) {    /* 14 Nov 26 (SD Core 28 Oct): freed here unless SDMEArgArray[0] points at it, when the loop above has freed it */
 	    explicit_bzero(myval_buffer, strlen(myval_buffer));
 	    free(myval_buffer);    /* do not want to attempt to free the memory again!!*/
     }

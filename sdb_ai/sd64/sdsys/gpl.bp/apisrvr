@@ -19,6 +19,7 @@
 *
 *
 * START-HISTORY:
+* 14 Nov 26 dm  S.234 BASIC review: a refused SCRAM login waits PWDELAY seconds (config('PWDELAY')), as SD Core's does, not a fixed 3.
 * 14 Nov 26 dm  S.234 N3 (Core-Solo parity audit), carried from SD Core's sheet 170 of 15 Oct: an API session runs the MASTER.LOGIN paragraph of the
 *               SDSYS VOC once, when it enters the account, before the account's LOGIN, as cproc does for a terminal or phantom session.
 * 12 Nov 26 dm  S.221 (Core-Solo parity audit, findings 3 and 4), carried from SD Core's 11 and 12 Oct changes: a record read from a data collection
@@ -1729,7 +1730,9 @@ scram.bad.cred:
 * 04 Oct 26 dm S.60 / LSOLO 36: THE DELAY IS TAKEN AFTER THE REFUSAL IS AUDITED, NOT
 *   BEFORE (the full product's S.60; see its apisrvr).  A client that dropped during the
 *   old "sleep 3" ended this process before the audit line was written.
-               scram.fail.delay = 3
+* 14 Nov 26 dm S.234 BASIC review, carried from SD Core (12 Oct 26, openQM item 106): the length of the wait is the PWDELAY
+*   configuration parameter, seconds, 3 unless sd.conf says otherwise; 0 means no wait.  Solo read PWDELAY and ignored it here.
+               scram.fail.delay = config('PWDELAY')
                goto exit.vb.scram.fail
 
 exit.vb.scram.fail:

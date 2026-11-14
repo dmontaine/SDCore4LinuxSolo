@@ -9,6 +9,8 @@
  *    http://www.gnu.org/licenses/gpl.html
  *
  * START-HISTORY
+ * 14 Nov 26 dm S.234 kernel review, carried from SD Core (6f35445c, 12 Oct): a response packet's body is read in pieces bounded by what is left
+ *              of THAT packet, not by the buffer's free space, which after a resize can be larger and made a read take bytes of the next packet.
  * 14 Nov 26 dm SDConnect's TLS error buffer is 256 bytes, as in SD Core (a 512-byte one could be cut in sderror).  S.232.
  * 11 Nov 26 dm Solo carry: SD Core for Linux's client library work of 15 Oct 26 (Core 5f12ad5d, e6f3da12, d6a86a79,
  *     375cbe7f, 400500c8): SDRevision, SDGetVar, SDSystem, SDIndices, SDTrans, SDRTrans, SDRecordlocked, SDTxn, SDEvaluate,
@@ -4564,7 +4566,7 @@ Private bool read_packet() {
   p = (unsigned char*)buff;
   buff_bytes = 0;
   while (buff_bytes < packet_bytes) {
-    rcv_len = min(buff_size - buff_bytes, 16384);
+    rcv_len = min(packet_bytes - buff_bytes, 16384); /* 14 Nov 26 (SD Core 12 Oct): what is left of THIS packet, not the buffer's free space */
     if (session[session_idx].is_local) {
       rcvd_bytes = read(session[session_idx].RxPipe[0], p, rcv_len);
       if ((rcvd_bytes < 0) && (errno == EINTR))

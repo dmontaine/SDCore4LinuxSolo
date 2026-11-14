@@ -138,6 +138,7 @@ def part_text():
         ("qproc", "voc_guard(reformat.f)", "write s to reformat.f", "REFORMAT ... TO file"),
         ("como", "voc_guard(alt.f)", "target.dir = fileinfo(alt.f", "COMO ON ... IN file"),
         ("basic", "voc_guard(out.f)", "delete out.f, record.name", "BASIC: the object file"),
+        ("importdata", "voc_guard(out.f)", "write rec on out.f", "IMPORT.CSV / .JSON / .XML into file"),   # 14 Nov 26, S.234
     ]
     for prog, guard, write, what in sites:
         code = code_of(prog)
@@ -352,7 +353,8 @@ def dir_snapshot(path):
 
 FIXTURE_VOC = ["zzvgv", "zzvgd", "zzvgq", "zzvgo", "zzvgsrc", "zzvgsr2", "zzvgg", "zzvgh", "zzvgdir"]
 FIXTURE_ACCT = ["zzvgv", "zzvgd", "zzvgd.dic", "zzvgq", "zzvgq.dic", "zzvgo", "zzvgo.dic", "zzvgsrc", "zzvgsrc.dic", "zzvgsr2", "zzvgsr2.dic",
-                "zzvgg", "zzvgg.dic", "zzvgh", "zzvgh.dic", "zzvgdir"]
+                "zzvgg", "zzvgg.dic", "zzvgh", "zzvgh.dic", "zzvgdir",
+                "zzvgic1.csv", "zzvgic2.csv", "zzvgic3.csv"]      # 14 Nov 26: the importcsv case's input files (RUN_S 1-3)
 FIXTURE_LISTS = ["zzvgl1", "zzvgl2", "zzvgl3", "zzvgd1", "dr1", "dr2", "dr3", "zzgdrG", "zzgdrO"]   # saved lists the probes made
 
 
@@ -436,6 +438,10 @@ def rec_cases():
          lambda T, s: [], changed("fm%d")),
         ("cd", "COMPILE.DICT DATA file cdN", lambda T, s: ["COMPILE.DICT DATA %s cd%d" % (T, s)],
          lambda T, s: [r"Compiling cd%d" % s], changed("cd%d")),
+        # 14 Nov 26 (S.234 BASIC review): IMPORT.CSV wrote VOC records from an ordinary session; importdata now asks !voc_guard.  The CSV is
+        # zzvgicN.csv in the account's own directory (made by main() before the cases run), so the OS switch, which is off, is not what refuses.
+        ("importcsv", "IMPORT.CSV zzvgicN.csv file", lambda T, s: ["IMPORT.CSV zzvgic%d.csv %s" % (s, T)],
+         lambda T, s: [r"%s: 1 record\(s\) written, 0 skipped" % T], made("ic%d")),
         ("reformat", "REFORMAT source @RECORD TO file", lambda T, s: ["REFORMAT %s @ID @RECORD TO %s" % (SRC[s], T)],
          lambda T, s: [r"\d+ record\(s\) reformated, \d+ record\(s\) overwritten"],
          lambda b, a, T, s: any(k[0] == "D" and k[1] == T and k not in b for k in a)),
@@ -508,6 +514,9 @@ def main():
         out = box.session(["RUN bp zzvgseed"], admin=True)
         if not has_line(out, "SEED DONE"):
             bail("the seed program did not finish:\n" + out[-500:])
+        for s in sorted(set(RUN_S.values())):     # the importcsv case's input, one per run: id icN, one field
+            with open(os.path.join(box.acct, "zzvgic%d.csv" % s), "w") as f:
+                f.write("ic%d,imported\n" % s)
         reset_dirs(box)
 
         # ---- S0, the null cases
