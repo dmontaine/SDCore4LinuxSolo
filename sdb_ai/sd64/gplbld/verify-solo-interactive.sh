@@ -53,6 +53,7 @@ export SDSOLO_REPO_URL="$REPO"
 BRANCH="$(git -C "$REPO" rev-parse --abbrev-ref HEAD)"
 [ -n "$BRANCH" ] && [ "$BRANCH" != HEAD ] || refuse "the repository is not on a branch"
 sed "s/^REPO_BRANCH=\"main\"\$/REPO_BRANCH=\"$BRANCH\"/" "$INSTALL" > "$W/installsdsolo.sh"
+chmod 700 "$W/installsdsolo.sh"   # ptyrun.py starts the installer itself, so the copy must be executable
 if [ "$BRANCH" != main ]; then
   [ "$(diff "$INSTALL" "$W/installsdsolo.sh" | grep -c '^[<>]')" = 2 ] || refuse "the branch copy of the installer differs in more than its REPO_BRANCH line"
 fi
