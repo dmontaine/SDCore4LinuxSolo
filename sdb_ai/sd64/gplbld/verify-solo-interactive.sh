@@ -47,9 +47,20 @@ umask 077
 ACC='Acct-Ia-Test-4711!'; ADM='Admin-Ia-Test-4712!'; WEAK='weak'; OTHER='Other-Ia-Test-9999!'; GLB='Glob-Ia-Test-4713!'
 export SDSOLO_REPO_URL="$REPO"
 
+# 14 Nov 26: the installer clones REPO_BRANCH, which is "main" (the last release), so a run from the Dev tree installed main's source with
+# Dev's installer (its solo-stage.sh refused --os-access).  A private copy of the installer clones the branch this repository has checked out;
+# it is refused unless that one line is the only difference.
+BRANCH="$(git -C "$REPO" rev-parse --abbrev-ref HEAD)"
+[ -n "$BRANCH" ] && [ "$BRANCH" != HEAD ] || refuse "the repository is not on a branch"
+sed "s/^REPO_BRANCH=\"main\"\$/REPO_BRANCH=\"$BRANCH\"/" "$INSTALL" > "$W/installsdsolo.sh"
+if [ "$BRANCH" != main ]; then
+  [ "$(diff "$INSTALL" "$W/installsdsolo.sh" | grep -c '^[<>]')" = 2 ] || refuse "the branch copy of the installer differs in more than its REPO_BRANCH line"
+fi
+INSTALL="$W/installsdsolo.sh"
+
 echo "verify-solo-interactive inputs:"
-echo "  installer  : $INSTALL"
-echo "  source     : $REPO (HEAD $(git -C "$REPO" rev-parse --short HEAD)) via SDSOLO_REPO_URL"
+echo "  installer  : $INSTALL (a copy that clones $BRANCH)"
+echo "  source     : $REPO $BRANCH (HEAD $(git -C "$REPO" rev-parse --short HEAD)) via SDSOLO_REPO_URL"
 echo "  scratch    : $W"
 echo "  running as : $(id -un) (uid $(id -u))"
 
