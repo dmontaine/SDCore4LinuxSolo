@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  AN UPGRADE NO LONGER ASKS ABOUT THE SHELL AND OS ACCESS.
+
+             What        - installsdsolo.sh --upgrade keeps the shell (SH) and OS access switches as they are and says so; it
+                           used to ask both questions again.  A fresh install still asks.
+             Why         - the owner (14 Nov 2026): "on an upgrade the shell and os access should accept the current settings, not
+                           re-ask".
+             Does NOT    - Turn anything on.  A Solo from before the switches (LS1.1-3) has neither set, so after the upgrade both
+                           are off: type ADMIN, then set.os.access sh on or set.os.access os on.
+
 14 Nov 26  THE INSTALLER ASKS SD CORE'S TWO ACCESS QUESTIONS.
 
              What        - the API and ssh questions are now "Allow API access from other computers? (y/N)" and "Allow ssh access

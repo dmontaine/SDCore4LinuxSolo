@@ -68,9 +68,9 @@
 #                                 switch): sh = the SH verb and "!"; os = OS.EXECUTE, files outside the account,
 #                                 Python and the editors that run outside SD; both = both; none = neither.  BOTH ARE OFF
 #                                 unless you say so, and they can be turned on or off later with ADMIN and set.os.access.
-#                                 On a terminal the installer asks (a fresh install and an upgrade, default no); with
-#                                 no terminal, with --yes and no --os-access, or with none, both stay as they are
-#                                 (off on a new account, as you left them on an upgrade).  The control file's os-access.
+#                                 On a terminal a fresh install asks (default no); an upgrade does not ask and keeps the
+#                                 two as they are.  With no terminal, with --yes and no --os-access, or with none, both
+#                                 stay as they are (off on a new account).  The control file's os-access.
 #   --viewer NAME|none            the answer to the question "allow a PDF reader to show the documentation?" (23 Oct 2026,
 #                                 Solo carry 14): the pdf verb shows a documentation PDF even when the account has no OS
 #                                 access, so it starts only a reader the administrator allowed.  NOTHING IS ALLOWED unless you
@@ -416,8 +416,8 @@ read_password() {   # read_password "Prompt: " VARNAME  - stars, from the termin
 
 # 20 Oct 26, THE SOLO OS SWITCH (owner: "ask during install"; his ruling of 18 Oct: OFF unless the administrator turns it on).  The shell
 # and OS access are two switches of the one account, SH and OS, OFF as delivered.  The question is asked on a terminal, once, with default
-# NO for each, on a first install AND on an upgrade (the upgrade is the one run in which an existing Solo, whose shell was never gated
-# before, would otherwise lose it without a word); the answer is --os-access, and solo-stage.sh turns on what was said, with the verb.
+# NO for each, on a first install; an upgrade keeps the switches as they are and does not ask (owner, 14 Nov 2026; see ask_os_access).
+# The answer is --os-access, and solo-stage.sh turns on what was said, with the verb.
 # With no terminal, with --yes, or with neither answer, nothing is turned on here: off on a new account, as it was on an upgrade.
 # The functions between the markers are run by gplbld/test-install-osaccess.sh: keep them free of anything but their arguments and
 # the variables named in them.
@@ -437,6 +437,14 @@ os_yn() {   # os_yn "question": 0 only for an answer that starts with y; anythin
 ask_os_access() {   # settles os_access when --os-access and the control file gave none: asks on a terminal, else none
   local sh_yes=0 os_yes=0
   [ -z "$os_access" ] || return 0
+  # 14 Nov 26 dm  AN UPGRADE DOES NOT ASK (owner, 14 Nov 2026: "on an upgrade the shell and os access should accept the current settings, not
+  #               re-ask").  The two switches are fields of the kept register record and solo-stage.sh only ever turns one ON, so with none
+  #               nothing changes and the stage prints the state as it is.  A tree from before the switches (LS1.1-3) has none set and stays off.
+  if [ "$upgrade" -eq 1 ]; then
+    os_access="none"
+    say "  The shell and OS access are kept as they are (type ADMIN, then set.os.access, to change them)."
+    return 0
+  fi
   if [ "$interactive" -ne 1 ] || [ "$assume_yes" -eq 1 ]; then
     os_access="none"
     say "  (the shell and OS access were not asked about - no terminal, or --yes, and no --os-access: nothing is turned on here)"
@@ -447,9 +455,6 @@ ask_os_access() {   # settles os_access when --os-access and the control file ga
   say "  The shell is the SH verb, which runs Linux commands.  OS access is OS.EXECUTE in a program, the embedded Python,"
   say "  micro, and files and directories outside the account by pathname.  Either lets whoever signs in do what your"
   say "  Linux user can do.  You can change this later: type ADMIN, then set.os.access."
-  if [ "$upgrade" -eq 1 ]; then
-    say "  Until this release the shell and OS access were always on; now they are off unless you say yes."
-  fi
   if os_yn "Turn on the shell (SH) for your SD account?"; then sh_yes=1; fi
   if os_yn "Turn on OS access (os.execute, outside files, Python, micro) for your SD account?"; then os_yes=1; fi
   os_access="$(os_access_word "$sh_yes" "$os_yes")"

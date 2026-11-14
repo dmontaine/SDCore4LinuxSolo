@@ -72,10 +72,12 @@ check() {   # check INSTALLER STAGE SAMPLE - every row, against these three file
   out="$(run_block 1 0 0 '' "n n" 2>&1)"
   row "the first question is about the shell and the second about OS access" \
     "$(printf '%s\n' "$out" | grep -q '^Q|Turn on the shell.*|Turn on OS access' && echo 0 || echo 1)" "$out"
-  out="$(run_block 1 0 1 '' "n n" 2>&1)"
-  row "an upgrade says that the shell and OS access used to be always on" "$(printf '%s\n' "$out" | grep -q 'Until this release the shell and OS access were always on' && echo 0 || echo 1)" "$out"
+  # 14 Nov 26 (owner: "on an upgrade the shell and os access should accept the current settings, not re-ask")
+  out="$(run_block 1 0 1 '' "y y" 2>&1)"
+  row "an upgrade on a terminal asks nothing, turns nothing on (none), and says the two are kept as they are" \
+    "$(printf '%s\n' "$out" | grep -qx 'RESULT none ASKED 0' && printf '%s\n' "$out" | grep -q 'kept as they are' && echo 0 || echo 1)" "$out"
   out="$(run_block 1 0 0 '' "n n" 2>&1)"
-  row "a first install does not say that" "$(printf '%s\n' "$out" | grep -q 'Until this release' && echo 1 || echo 0)" "$out"
+  row "a first install does not say that" "$(printf '%s\n' "$out" | grep -q 'kept as they are' && echo 1 || echo 0)" "$out"
 
   # the real os_yn, as text: the default is NO
   row "the real os_yn reads the terminal, and only an answer starting y is yes (a bare Enter is no)" \
@@ -132,6 +134,7 @@ the terminal test is gone, so a run with no terminal asks|i|s/\[ "\$interactive"
 the answer is not kept when one was given|i|s/\[ -z "\$os_access" \] || return 0/true/
 os_access_word says sh for both|i|s/if \[ "\$1" = 1 \] \&\& \[ "\$2" = 1 \]; then echo both/if [ "$1" = 1 ] \&\& [ "$2" = 1 ]; then echo sh/
 the first install no longer asks|i|s/^ask_os_access$/true/
+an upgrade asks again|i|s/^  if \[ "\$upgrade" -eq 1 \]; then$/  if false; then/
 the upgrade passes no answer to solo-stage|i|s/--upgrade --os-access "\${os_access:-none}"/--upgrade/
 the fresh stage passes no answer to solo-stage|i|s/st_args+=(--os-access "\${os_access:-none}" --viewer "\${viewer:-none}")/true/
 the control file's os-access is not read|i|s/os-access)       cf_osacc=/os-accessX)      cf_osacc=/
