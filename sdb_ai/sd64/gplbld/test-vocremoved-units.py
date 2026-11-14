@@ -207,7 +207,9 @@ def checks(t, old_newvoc=None, old_template=None):
     d, i, n = t["delete"], t["install"], t["installer"]
     kp = d[d.find("keep_prune() {"):d.find("# END keep_prune")]
     ck("S1 deletesdsolo.sh's keep_prune keeps voc_removed.saved (a real directory only) beside the account",
-       'if [ -d "$d/voc_removed.saved" ] && [ ! -L "$d/voc_removed.saved" ]; then keep+=(! -name voc_removed.saved); fi' in kp, kp[-200:])
+       # 14 Nov 26 (S.234 N9): the kept directories are one loop now; voc_removed.saved is in its list, and the loop keeps a real directory only
+       re.search(r"for n in newvoc\.mods voc_removed\.saved [^;]*; do\n\s*if \[ -d \"\$d/\$n\" \] && \[ ! -L \"\$d/\$n\" \]; then keep\+=\(! -name \"\$n\"\); fi", kp) is not None,
+       kp[-200:])
     back = i.find('cp -a "$reloaddir/voc_removed.saved" "$H/voc_removed.saved"')
     walk = i.find('ua_out="$(sdi UPDATE.ACCOUNTS ALL 2>&1)"', i.find("Refreshing the reloaded account's VOC"))   # the reload branch's own refresh
     ck("S2 solo-stage.sh puts the kept copies back before it refreshes the VOC (UPDATE.ACCOUNTS ALL), and the installer's is_kept_tree accepts them",
@@ -285,7 +287,7 @@ def selftest():
         ("rstvoc: the oldest copy wins", mut(rep("rstvoc", "if at > newest.at<p> then", "if at < newest.at<p> then")), "A4"),
         ("verb: restore.voc missing from newvoc (Solo)", mut(lambda c: c["newvoc"].discard("restore.voc")), "A5"),
         ("message 11900 without its list", mut(lambda c: c["msgs"].__setitem__(11900, "removed\n")), "M1"),
-        ("delete: keep_prune does not keep it", mut(rep("delete", "keep+=(! -name voc_removed.saved)", "true")), "S1"),
+        ("delete: keep_prune does not keep it", mut(rep("delete", "for n in newvoc.mods voc_removed.saved ", "for n in newvoc.mods ")), "S1"),
         ("stage: no reload", mut(rep("install", 'cp -a "$reloaddir/voc_removed.saved" "$H/voc_removed.saved"', "true")), "S2"),
         ("installer: is_kept_tree refuses it", mut(rep("installer", "newvoc.mods|voc_removed.saved)", "newvoc.mods)")), "S2"),
         ("stage: the copies are left readable", mut(rep("install", 'chmod -R go-rwx "$H/voc_removed.saved"', "true")), "S3"),

@@ -59,24 +59,36 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
 
   d="$T/p1"; mk_install "$d"; mkdir -p "$d/newvoc.mods/sub"; echo "SDVOC" > "$d/newvoc.mods/sub/rec"; echo top > "$d/newvoc.mods/toprec"
   before="$(top "$d")"; rc="$(run_prune "$d")"; after="$(top "$d")"
-  row "P1 a REAL newvoc.mods directory stays, with what is in it, beside the account and sd.conf; the installation, \$cred and the markers go (status 0)" \
-    "$([ "$rc" = 0 ] && [ "$after" = "newvoc.mods sd.conf user_accounts " ] && [ "$(cat "$d/newvoc.mods/sub/rec" 2>/dev/null)" = SDVOC ] && [ "$(cat "$d/newvoc.mods/toprec" 2>/dev/null)" = top ] && [ -f "$d/user_accounts/sduser/voc/%0" ] && echo 0 || echo 1)" \
+  row "P1 a REAL newvoc.mods directory stays, with what is in it, beside the account, sd.conf and \$cred (S.234 N9); the installation and the markers go (status 0)" \
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred newvoc.mods sd.conf user_accounts " ] && [ "$(cat "$d/newvoc.mods/sub/rec" 2>/dev/null)" = SDVOC ] && [ "$(cat "$d/newvoc.mods/toprec" 2>/dev/null)" = top ] && [ -f "$d/user_accounts/sduser/voc/%0" ] && echo 0 || echo 1)" \
     "rc=$rc before='$before' after='$after'"
 
   d="$T/p2"; mk_install "$d"
   before="$(top "$d")"; rc="$(run_prune "$d")"; after="$(top "$d")"
   row "P2 NULL CASE: with no newvoc.mods the empty array is harmless under set -u and the folder holds exactly the account and sd.conf (status 0)" \
-    "$([ "$rc" = 0 ] && [ "$after" = "sd.conf user_accounts " ] && echo 0 || echo 1)" "rc=$rc before='$before' after='$after'"
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred sd.conf user_accounts " ] && echo 0 || echo 1)" "rc=$rc before='$before' after='$after'"
 
   d="$T/p3"; mk_install "$d"; mkdir -p "$T/elsewhere"; echo precious > "$T/elsewhere/rec"; ln -s "$T/elsewhere" "$d/newvoc.mods"
   before="$(top "$d")"; rc="$(run_prune "$d")"; after="$(top "$d")"
   row "P3 a newvoc.mods that is a LINK to a directory is not kept (the link goes; the directory it pointed to is untouched)" \
-    "$([ "$rc" = 0 ] && [ "$after" = "sd.conf user_accounts " ] && [ "$(cat "$T/elsewhere/rec" 2>/dev/null)" = precious ] && echo 0 || echo 1)" "rc=$rc before='$before' after='$after'"
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred sd.conf user_accounts " ] && [ "$(cat "$T/elsewhere/rec" 2>/dev/null)" = precious ] && echo 0 || echo 1)" "rc=$rc before='$before' after='$after'"
 
   d="$T/p4"; mk_install "$d"; echo "not a directory" > "$d/newvoc.mods"
   before="$(top "$d")"; rc="$(run_prune "$d")"; after="$(top "$d")"
   row "P4 a newvoc.mods that is a plain FILE is not kept" \
-    "$([ "$rc" = 0 ] && [ "$after" = "sd.conf user_accounts " ] && echo 0 || echo 1)" "rc=$rc before='$before' after='$after'"
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred sd.conf user_accounts " ] && echo 0 || echo 1)" "rc=$rc before='$before' after='$after'"
+
+  # 14 Nov 26 (S.234 N9, owner: "N9 same as core"): what SD Core's keep cycle keeps stays - real directories $cred sd-tls sshd ai netlogins, regular files
+  # audit, audit.<date>, start.default - and the same names as LINKS go (their targets untouched), as does a directory called audit.
+  d="$T/p6"; mk_install "$d"; mkdir -p "$d/sd-tls" "$d/sshd" "$d/ai/keys" "$d/netlogins/srv"; echo pem > "$d/sd-tls/api.pem"; echo hk > "$d/sshd/ssh_host_ed25519_key"
+  echo k > "$d/ai/keys/anthropic"; echo n > "$d/netlogins/srv/rec"; echo line1 > "$d/audit"; echo old > "$d/audit.20261101-000000"; echo menu > "$d/start.default"
+  rc="$(run_prune "$d")"; after="$(top "$d")"
+  row "P6 the keep cycle's set stays, with its contents: \$cred, ai, audit and its rotated copy, netlogins, sd-tls, sshd, start.default (status 0)" \
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred ai audit audit.20261101-000000 netlogins sd-tls sd.conf sshd start.default user_accounts " ] && [ "$(cat "$d/sd-tls/api.pem")" = pem ] && [ "$(cat "$d/ai/keys/anthropic")" = k ] && [ "$(cat "$d/sshd/ssh_host_ed25519_key")" = hk ] && echo 0 || echo 1)" "rc=$rc after='$after'"
+  d="$T/p7"; mk_install "$d"; mkdir -p "$T/else7"; echo keep7 > "$T/else7/rec"; ln -s "$T/else7" "$d/sd-tls"; ln -s "$T/else7/rec" "$d/start.default"; mkdir "$d/audit"
+  rc="$(run_prune "$d")"; after="$(top "$d")"
+  row "P7 a LINK named sd-tls or start.default, and a DIRECTORY named audit, go; the link's target is untouched" \
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred sd.conf user_accounts " ] && [ "$(cat "$T/else7/rec" 2>/dev/null)" = keep7 ] && echo 0 || echo 1)" "rc=$rc after='$after'"
 
   d="$T/p5"; mk_install "$d"; mkdir "$d/newvoc.mods"; echo sentinel > "$T/outside-sentinel"
   rc="$(run_prune "$d")"
@@ -114,6 +126,11 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
   out="$(kept "$d")"; row "I7 without the stamp it is not a kept tree" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
   d="$T/k8"; mk_kept "$d"; mkdir "$d/user_accounts/other"
   out="$(kept "$d")"; row "I8 a second account folder is not allowed" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
+  # 14 Nov 26 (S.234 N9): the keep cycle's set is part of a kept tree; a link in its place is a stranger's, as for newvoc.mods.
+  d="$T/k9"; mk_kept "$d"; mkdir "$d/\$cred" "$d/sd-tls" "$d/sshd" "$d/ai" "$d/netlogins"; echo a > "$d/audit"; echo b > "$d/audit.20261101-000000"; echo menu > "$d/start.default"
+  out="$(kept "$d")"; row "I10 a folder that also holds \$cred, sd-tls, sshd, ai, netlogins, audit, audit.<date> and start.default is a kept tree" "$([ "$out" = YES ] && echo 0 || echo 1)" "got $out"
+  d="$T/k10"; mk_kept "$d"; ln -s "$T/elsewhere" "$d/\$cred"
+  out="$(kept "$d")"; row "I11 a \$cred that is a LINK makes it a stranger's folder" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
   row "I9 the allowance asks the owner as well as the type (somebody else's directory named newvoc.mods is a stranger's)" \
     "$(awk '/^# BEGIN is_kept_tree$/,/^# END is_kept_tree$/' "$inst" | grep -qF 'newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;' && echo 0 || echo 1)"
 

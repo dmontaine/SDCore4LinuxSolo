@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  UNINSTALLING WITH --keep-data KEEPS THE PASSWORDS, KEYS AND SETTINGS AS WELL, AND A REINSTALL PUTS THEM BACK.
+
+             What        - deletesdsolo.sh --keep-data used to keep only the account's files and sd.conf, so the next install
+                           asked for new passwords, made new TLS and ssh host keys (which clients that trusted the old ones
+                           then refuse), lost the AI keys and the SDNet logins, and started a new audit trail.  It now keeps
+                           what SD Core for Linux keeps with its accounts: the passwords ($cred), the audit trail and its
+                           rotated copies, the API's TLS key (sd-tls), the ssh server's host key and authorized keys (sshd),
+                           the AI settings and keys (ai), the SDNet logins (netlogins) and where sessions start
+                           (start.default, always written, as the tree behaved).  A reload puts them all back: the installer
+                           says "Passwords: kept from the previous install - not changed", does not ask where sessions start,
+                           and the audit trail goes on from where it was.
+             Why         - the owner (14 Nov 2026): "N9 same as core".
+             Does NOT    - Keep the deny list or GLOBAL.BP.OUT (an SD Core server puts both back).  Password files given with
+                           a reload (--account-password-file, --admin-password-file, --global-password-file, or a control
+                           file's global password) replace the kept passwords: that is how a computer becomes managed after
+                           the fact.  A folder kept by an earlier release has no passwords, so its reload asks for them.
+
 14 Nov 26  THE INSTALLED SYSTEM HOLDS NO SOURCE; AN API SESSION RUNS MASTER.LOGIN; THE IDE'S RECOVERY COPY CAN BE TURNED ON.
 
              What        - four changes that bring SD Core Solo for Linux level with SD Core for Linux (the Core-Solo parity

@@ -16,16 +16,18 @@
 # are still enabled is worse than a tree that is still there.
 #
 # YOUR DATA AND CONFIGURATION.  The account's files live in <home>/user_accounts/sduser and
-# the configuration is <home>/sd.conf.  --keep-data LEAVES BOTH WHERE THEY ARE - and, if you made one, the
-# <home>/newvoc.mods directory of your own VOC additions - and removes
-# everything else in <home> (programs, system files, passwords, audit trail, deny list, keys);
-# --delete-data removes <home> whole.  Asked when neither is given; with no terminal to ask on, the
+# the configuration is <home>/sd.conf.  --keep-data LEAVES BOTH WHERE THEY ARE, with what SD Core's keep cycle
+# keeps (S.234 N9, owner 14 Nov 2026: "N9 same as core"): the passwords ($cred), the audit trail (audit and its
+# rotated copies), the API's TLS identity (sd-tls), the ssh server's host key and your keys (sshd), the AI
+# settings and keys (ai), the SDNet logins (netlogins), where sessions start (start.default), and, if you made
+# them, newvoc.mods and voc_removed.saved.  It removes everything else in <home> (programs, system files,
+# the deny list and GLOBAL.BP.OUT, which an SD Core server puts back); --delete-data removes <home> whole.  Asked when neither is given; with no terminal to ask on, the
 # data is KEPT (nothing is deleted unasked, as in Windows Solo's silent uninstall).  06 Oct 2026 (LSOLO 39,
 # owner: "the uninstaller leaves the data in place" and "you and windows should handle removal
 # and reinstall the same way"): what is left is data and configuration, not an installation, and
 # a stamp, <home>/.sdcore-kept, says which release made it.  A new install into <home> finds it
-# and OFFERS to reload it (installsdsolo.sh; --reload-data, --start-clean); it asks for new
-# passwords.  To remove what was kept for good: rm -rf <home>.
+# and OFFERS to reload it (installsdsolo.sh; --reload-data, --start-clean); a reload keeps the
+# passwords and asks for none.  To remove what was kept for good: rm -rf <home>.
 #
 # Linger is left as it is: it is a persistent setting of your account and other things
 # may rely on it.  A firewall rule the installer added is not removed; the script says so.
@@ -47,12 +49,21 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 # where the remover saves @sdsys/newvoc.mods and the installer puts it back.  A file or a link called newvoc.mods is not kept: it is not what the VOC reads.
 # 9 Nov 2026 (Solo carry 22, SD Core's S.87 VOC deletion list): voc_removed.saved too, on the same terms - the copies the VOC update saved of the records it
 # removed from the account's VOC, which RESTORE.VOC puts back (SD Core's remover keeps it the same way).
+# 14 Nov 2026 (S.234 N9, the owner: "N9 same as core"): what SD Core's keep cycle keeps when the accounts are kept is kept here too, each in Solo's own place:
+# the credential register $cred (a reload asks for no password), the audit trail (audit and its rotated audit.<date>-<time> copies), the API's TLS identity
+# sd-tls (clients pin it), the ssh server's directory sshd (its host key, which clients pin, and the authorized keys), the AI settings and keys ai, the SDNet
+# logins netlogins, and start.default (where sessions start).  A directory is kept only when it is a REAL directory and a file only when it is a regular file:
+# a link of any of these names goes with the installation, as a link called newvoc.mods always has.
 # Returns find's status.  (An empty array is expanded with the + form: bash before 4.4 calls "${keep[@]}" unbound under set -u.)
 keep_prune() {
-  local d="$1"
+  local d="$1" n
   local -a keep=()
-  if [ -d "$d/newvoc.mods" ] && [ ! -L "$d/newvoc.mods" ]; then keep=(! -name newvoc.mods); fi
-  if [ -d "$d/voc_removed.saved" ] && [ ! -L "$d/voc_removed.saved" ]; then keep+=(! -name voc_removed.saved); fi
+  for n in newvoc.mods voc_removed.saved '$cred' sd-tls sshd ai netlogins; do
+    if [ -d "$d/$n" ] && [ ! -L "$d/$n" ]; then keep+=(! -name "$n"); fi
+  done
+  for n in "$d"/audit "$d"/audit.* "$d"/start.default; do
+    if [ -f "$n" ] && [ ! -L "$n" ]; then keep+=(! -name "${n##*/}"); fi
+  done
   find "$d" -mindepth 1 -maxdepth 1 ! -name user_accounts ! -name sd.conf ${keep[@]+"${keep[@]}"} -exec rm -rf {} +
 }
 # END keep_prune
@@ -252,10 +263,16 @@ if [ "$data" = "keep" ]; then
   if [ -d "$H/user_accounts/sduser/voc" ]; then
     # LSOLO 39: the data and sd.conf stay exactly where they are; the stamp says which release made them
     # and when they were left, so a new install can tell this folder from any other.  Nothing is moved, so
-    # nothing can be lost in a move.  The passwords ($cred), the audit trail, the system files, the deny
-    # list and the keys are NOT kept: they belong to the install, and a new one asks for new passwords.
+    # nothing can be lost in a move.  14 Nov 2026 (S.234 N9): what SD Core's keep cycle keeps stays too (keep_prune
+    # names it); the system files, the deny list and GLOBAL.BP.OUT go with the installation.
     stamp="$(mktemp)" || fail "mktemp"
     { [ ! -f "$H/.sdcore-install" ] || cat "$H/.sdcore-install"; printf 'kept %s\n' "$(date -Is)"; } > "$stamp"
+    # START-SAVE (SD Core's of 14 Nov 2026, owner: "an upgrade from 1.1-3 will always be prompt"): where sessions start is ALWAYS kept.  A tree whose
+    # setting was never changed has no start.default; it is written as the tree behaved - the home screen when the tree has it (gpl.bp.out/tool_home,
+    # the compiled program), the prompt otherwise.
+    if [ ! -f "$H/start.default" ] && [ ! -L "$H/start.default" ]; then
+      if [ -f "$H/gpl.bp.out/tool_home" ]; then printf 'menu\n' > "$H/start.default"; else printf 'terminal\n' > "$H/start.default"; fi
+    fi
     keep_prune "$H" || fail "removing the installation from $H"
     find "$H/user_accounts" -mindepth 1 -maxdepth 1 ! -name sduser -exec rm -rf {} + || fail "removing the other accounts' folders from $H/user_accounts"
     mv "$stamp" "$H/.sdcore-kept" && chmod 600 "$H/.sdcore-kept" || fail "writing $H/.sdcore-kept"
@@ -266,7 +283,8 @@ if [ "$data" = "keep" ]; then
     say "your data is in $H/user_accounts/sduser"
     if [ -f "$H/sd.conf" ]; then say "your configuration is in $H/sd.conf"; else warn "there is no $H/sd.conf to keep"; fi
     if [ -d "$H/newvoc.mods" ]; then say "your local VOC modifications are in $H/newvoc.mods"; fi
-    say "a new install into $H will offer to reload them; to remove them for good: rm -rf $H"
+    if [ -d "$H/\$cred" ]; then say "your passwords, audit trail, keys and settings are kept with them (\$cred, audit, sd-tls, sshd, ai, netlogins, start.default)"; fi
+    say "a new install into $H will offer to reload them, keeping the passwords; to remove them for good: rm -rf $H"
   else
     warn "there is no $H/user_accounts/sduser to keep"
   fi

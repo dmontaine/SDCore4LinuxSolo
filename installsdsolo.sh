@@ -214,6 +214,7 @@ control_file=""; managed=0   # managed is decided from the global password, belo
 acc_file=""; adm_file=""; glb_file=""
 reload_ans=""        # yes (--reload-data), no (--start-clean) or "": what to do with data a previous uninstall kept in the install directory
 kept_tree=0; kept_aside=""; reload_dir=""
+kept_pw=0            # 14 Nov 26 (S.234 N9): 1 when a reload keeps the passwords ($cred) of the kept data, so none is asked
 # 02 Oct 26 - THE API PORT IS 4249, FIXED (owner, 2 Oct 2026: "make ports 4247 and 4249
 # -- do not allow adjustable ports").  --api-port is gone.  The witnesses' private
 # ports go through solo-service.sh's announced test hook, SDSOLO_TEST_API_PORT.
@@ -281,7 +282,7 @@ interactive=0; [ -t 0 ] && [ -r /dev/tty ] && interactive=1
 
 # ---------------------------------------------------------------- what is already here
 # BEGIN is_kept_tree
-is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves - the stamp, the account, sd.conf and, if there was one, newvoc.mods; nothing else
+is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves - the stamp, the account, sd.conf and what keep_prune keeps; nothing else
   local d="$1" e
   { [ -f "$d/.sdcore-kept" ] && [ ! -f "$d/.sdcoresolo" ] && [ -d "$d/user_accounts/sduser/voc" ]; } || return 1
   { [ ! -L "$d" ] && [ ! -L "$d/user_accounts" ] && [ ! -L "$d/user_accounts/sduser" ]; } || return 1
@@ -294,6 +295,9 @@ is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves
       # accepted: a link, a file of that name, or somebody else's directory makes the folder "not ours" and the install refuses it, as it refuses any other stranger.
       # 9 Nov 26 (Solo carry 22): the saved copies of VOC records the update removed (voc_removed.saved) are kept on the same terms.
       newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      # 14 Nov 26 (S.234 N9, owner: "N9 same as core"): what SD Core's keep cycle keeps, on the same terms - a real directory, or a regular file, owned by this user.
+      '$cred'|sd-tls|sshd|ai|netlogins) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      audit|audit.*|start.default) { [ -f "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       *) return 1 ;;
     esac
   done
@@ -621,7 +625,13 @@ ask_yn() {   # ask_yn "question" default(y|n)  -> 0 yes, 1 no ; non-interactive:
 if [ "$kept_tree" -eq 1 ]; then
   say "Saved data was found: $HOME_DIR"
   say "  (the account's files$([ -f "$HOME_DIR/sd.conf" ] && echo " and sd.conf")$([ -d "$HOME_DIR/newvoc.mods" ] && echo " and your local VOC modifications (newvoc.mods)"), left here by deletesdsolo.sh$(sed -n 's/^commit \(.......\).*/ from commit \1/p' "$HOME_DIR/.sdcore-kept" | head -1)$(sed -n 's/^kept \([0-9-]*\)T.*/ on \1/p' "$HOME_DIR/.sdcore-kept" | head -1))"
-  say "  Passwords are not kept: this install asks for new ones."
+  # 14 Nov 26 (S.234 N9, owner: "N9 same as core"): the passwords are kept with the data, as SD Core keeps $cred with the accounts; a reload
+  #            asks for none (SD Core: "Password exists - not changed").  Kept means all three records a password-asking install writes are there.
+  if [ -f "$HOME_DIR/\$cred/sduser" ] && [ -f "$HOME_DIR/\$cred/\$admin" ] && [ -f "$HOME_DIR/\$cred/\$stored" ]; then
+    say "  Your passwords are kept with it: reloading it asks for none."
+  else
+    say "  No passwords were kept with it: this install asks for new ones."
+  fi
   if [ -z "$reload_ans" ]; then
     if [ "$interactive" -eq 1 ]; then
       if ask_yn "Reload your saved data and configuration into this new install?" y; then reload_ans="yes"; else reload_ans="no"; fi
@@ -629,6 +639,14 @@ if [ "$kept_tree" -eq 1 ]; then
       reload_ans="yes"
       say "  (no terminal and no --reload-data or --start-clean: reloading it)"
     fi
+  fi
+  # Password files given with the reload (or a control file's global password) replace the kept passwords: that is how a computer becomes managed
+  # after the fact, or how a forgotten password is replaced.  The stage then sets them and does not put the kept $cred back.
+  if [ "$reload_ans" = "yes" ] && [ -z "$acc_file$adm_file$glb_file$cf_global" ] \
+     && [ -f "$HOME_DIR/\$cred/sduser" ] && [ -f "$HOME_DIR/\$cred/\$admin" ] && [ -f "$HOME_DIR/\$cred/\$stored" ]; then
+    kept_pw=1
+  elif [ "$reload_ans" = "yes" ] && [ -n "$acc_file$adm_file$glb_file$cf_global" ]; then
+    say "  Password files were given: they replace the kept passwords."
   fi
   say
 fi
@@ -640,7 +658,13 @@ ask_viewer
 # 12 Nov 26 dm  S.221 (Core-Solo parity audit, finding 8): WHERE A SESSION STARTS, SD Core's START-ASK of 3 Nov (owner: "Can that be a question asked during
 #            the install?", then "the home/prompt question").  The home screen as delivered; the command prompt on p.  A fresh install only: an upgrade asks
 #            nothing (see START-KEEP below).  The answer is applied by the START-SET block with set.start.default.  test-install-start.sh runs these blocks.
+# 14 Nov 26 dm  S.234 N9 (SD Core's START-ASK of 14 Nov: an install that keeps the accounts "should just take the existing situation"): a reload of kept data
+#            takes where sessions started from the kept start.default - the home screen only when it says menu - and asks nothing.
 # START-ASK-BEGIN
+if [ -z "$start_choice" ] && [ "${reload_ans:-}" = "yes" ] && [ -f "$HOME_DIR/start.default" ]; then
+  if [ "$(head -1 "$HOME_DIR/start.default" | tr -d '[:space:]' | tr 'A-Z' 'a-z')" = menu ]; then start_choice=menu; else start_choice=terminal; fi
+  say "New sessions start where they did before: $([ "$start_choice" = menu ] && echo 'at the home screen' || echo 'at the command prompt')."
+fi
 if [ -z "$start_choice" ]; then
   start_choice=menu
   if [ "$interactive" -eq 1 ] && [ "$assume_yes" -eq 0 ]; then
@@ -704,10 +728,18 @@ get_global() {
   refuse "no acceptable global password after three tries (leave it blank to install without one)"
 }
 
+ACC_PW=""; ADM_PW=""; GLB_PW=""
+if [ "$kept_pw" -eq 1 ]; then
+# 14 Nov 26 (S.234 N9): a reload keeps the passwords, as SD Core's keep cycle does ("Password exists - not changed"); whether a global password is set
+#            (managed) is whatever the kept register holds.  The stage is given no password file, and copies the kept $cred over the new one.
+first_login=0
+say "Passwords: kept from the previous install - not changed."
+managed=0; [ ! -f "$HOME_DIR/\$cred/\$global" ] || managed=1
+mode_name="unmanaged"; [ "$managed" -eq 1 ] && mode_name="managed"
+else
 say "Passwords. Every SD session asks for the ACCOUNT password; the ADMINISTRATOR password unlocks"
 say "SD's administrator commands (ADMIN).  A GLOBAL password is asked for last, and is optional."
 say
-ACC_PW=""; ADM_PW=""; GLB_PW=""
 # LSOLO 14 (Windows Solo SOLO 18, owner 27 Sep 2026): a control file never holds the
 # account password.  With one and no --account-password-file, the installer does not
 # ask for it either: the user chooses it at the console on first login, which is what
@@ -730,6 +762,7 @@ mode_name="unmanaged"; [ "$managed" -eq 1 ] && mode_name="managed"
 if [ "$managed" -eq 1 ]; then
   [ "$first_login" -eq 1 ] || [ "$GLB_PW" != "$ACC_PW" ] || refuse "the global password must differ from the account password (ruling 19)"
   [ "$GLB_PW" != "$ADM_PW" ] || refuse "the global password must differ from the administrator password"
+fi
 fi
 
 # the API and ssh: the user's choice in every install, with or without a global password
@@ -943,9 +976,11 @@ if [ "$kept_tree" -eq 1 ]; then
 fi
 say "Installing into $HOME_DIR and running the bootstrap."
 st_args=()
+if [ "$kept_pw" -eq 0 ]; then   # 14 Nov 26 (S.234 N9): kept passwords are copied in by the stage's reload; no file is given
 if [ "$first_login" -eq 0 ]; then printf '%s\n' "$ACC_PW" > "$WORK/acc.pw"; st_args+=(--account-password-file "$WORK/acc.pw"); fi
 printf '%s\n' "$ADM_PW" > "$WORK/adm.pw"; st_args+=(--admin-password-file "$WORK/adm.pw")
 if [ "$managed" -eq 1 ]; then printf '%s\n' "$GLB_PW" > "$WORK/glb.pw"; st_args+=(--global-password-file "$WORK/glb.pw"); fi
+fi
 if [ -n "$cf_deny" ]; then st_args+=(--deny-verbs "$cf_deny"); fi
 if [ -n "$reload_dir" ]; then st_args+=(--reload-data "$reload_dir"); fi
 st_args+=(--os-access "${os_access:-none}" --viewer "${viewer:-none}")
@@ -955,7 +990,11 @@ rm -f "$WORK/acc.pw" "$WORK/adm.pw" "$WORK/glb.pw"
 os_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: OS access: //p' | tail -1)"
 [ -n "$os_state" ] || fail "the stage log has no 'solo-stage: OS access:' line (SET.OS.ACCESS did not report)"
 viewer_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: PDF reader: //p' | tail -1)"
-if [ "$first_login" -eq 0 ]; then
+if [ "$kept_pw" -eq 1 ]; then
+  grep -qx 'solo-stage: passwords: reloaded' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
+    || fail "the stage log has no 'solo-stage: passwords: reloaded' (the kept passwords in $reload_dir were NOT put back)"
+  [ -f "$HOME_DIR/\$cred/sduser" ] || fail "\$cred/sduser is missing after the passwords were reloaded"
+elif [ "$first_login" -eq 0 ]; then
   grep -qx 'SOLO PASSWORD SET ACCOUNT' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
     || fail "the stage log has no 'SOLO PASSWORD SET ACCOUNT'"
 else
@@ -1398,8 +1437,8 @@ fw_open() {   # fw_open PORT WHAT
 # ---------------------------------------------------------------- self-check (ruling 13 included)
 say
 say "Checking the install."
-if [ "$upgrade" -eq 1 ]; then
-  # No password is known here; a one-shot command uses the copy SD keeps for it.
+if [ "$upgrade" -eq 1 ] || [ "$kept_pw" -eq 1 ]; then
+  # No password is known here (an upgrade, or a reload that kept the passwords); a one-shot command uses the copy SD keeps for it.
   chk="$(echo "" | timeout 60 "$HOME_DIR/bin/sd-solo" WHO 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 elif [ "$first_login" -eq 1 ]; then
   # There is no account password yet; the global password (which this installer

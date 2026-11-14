@@ -27459,7 +27459,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 31
+"words": 32
 },
 "tcl:lnum": {
 "kind": "tcl.keyword",

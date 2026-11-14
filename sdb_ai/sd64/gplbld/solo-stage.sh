@@ -547,6 +547,38 @@ if [ -n "$reloaddir" ]; then
   cp -a "$reloaddir/user_accounts/sduser" "$H/user_accounts/sduser" || fail "copying the kept account into $H/user_accounts"
   chmod -R go-rwx "$H/user_accounts/sduser"
   [ -d "$H/user_accounts/sduser/voc" ] || fail "the reloaded account has no voc"
+  # 14 Nov 26 (S.234 N9, the owner: "N9 same as core"): WHAT SD CORE'S KEEP CYCLE KEEPS IS PUT BACK, each replacing what this stage made:
+  #            the credential register $cred (so the passwords are the kept ones; the installer gave this stage none and checks the line
+  #            "solo-stage: passwords: reloaded"), the API's TLS identity sd-tls, the ssh server's directory sshd (its host key and the authorized
+  #            keys; solo-ssh.sh setup keeps a host key that is there), the AI settings and keys ai, the SDNet logins netlogins, and start.default.
+  #            The audit trail is JOINED, not replaced: the kept trail, then the lines this install wrote; rotated copies are put back as they were.
+  #            SD is stopped here.  Only a real directory or a regular file is taken: the installer's is_kept_tree refuses the folder otherwise.
+  # RELOAD-KEPT-BEGIN
+  #            $cred only when this stage was given no password file: passwords given with a reload replace the kept ones (the installer's rule).
+  for kept_item in '$cred' sd-tls sshd ai netlogins; do
+    if [ "$kept_item" = '$cred' ] && [ -n "$pwfile$adminfile$globalfile" ]; then echo "solo-stage: passwords: set by this install, the kept ones not used"; continue; fi
+    if [ -d "$reloaddir/$kept_item" ] && [ ! -L "$reloaddir/$kept_item" ]; then
+      rm -rf "${H:?}/$kept_item" || fail "removing the new tree's $kept_item before the reload"
+      cp -a "$reloaddir/$kept_item" "$H/$kept_item" || fail "copying the kept $kept_item into $H"
+      chmod -R go-rwx "$H/$kept_item"
+      case "$kept_item" in '$cred') echo "solo-stage: passwords: reloaded" ;; *) echo "solo-stage: $kept_item: reloaded" ;; esac
+    fi
+  done
+  if [ -f "$reloaddir/start.default" ] && [ ! -L "$reloaddir/start.default" ]; then
+    cp "$reloaddir/start.default" "$H/start.default" && chmod 600 "$H/start.default" || fail "copying the kept start.default into $H"
+    echo "solo-stage: start.default: reloaded"
+  fi
+  if [ -f "$reloaddir/audit" ] && [ ! -L "$reloaddir/audit" ]; then
+    { cat "$reloaddir/audit"; [ ! -f "$H/audit" ] || cat "$H/audit"; } > "$H/audit.joined" && mv "$H/audit.joined" "$H/audit" && chmod 600 "$H/audit" \
+      || fail "joining the kept audit trail with this install's"
+    echo "solo-stage: audit trail: reloaded"
+  fi
+  for kept_item in "$reloaddir"/audit.*; do
+    if [ -f "$kept_item" ] && [ ! -L "$kept_item" ]; then
+      cp -a "$kept_item" "$H/${kept_item##*/}" || fail "copying the kept ${kept_item##*/} into $H"
+    fi
+  done
+  # RELOAD-KEPT-END
   # 24 Oct 26 (PAL-36, the owner: "build the keep cycle"): the administrator's site-local VOC additions (newvoc.mods, QM4 gap 501) were kept beside the account
   # by deletesdsolo.sh; put them back BEFORE the VOC is refreshed below, because UPDATE.ACCOUNTS applies them.  Only a real directory is taken (the installer's
   # is_kept_tree refuses a link); the new tree has none of its own, and whatever is there is replaced whole.  The line the installer reads is printed either way.
