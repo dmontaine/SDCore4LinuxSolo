@@ -16,7 +16,7 @@
   },
   "basic.internal": {
    "chunks": 37,
-   "sha256": "82431cc811b6af913733609c522bbf0c2bbe6ef0a3e616174e59c5a0e2309f9d"
+   "sha256": "cbc69b9c94da58e8d08ab29dcfecffb0c37726e605017d0a5216b056360d3e20"
   },
   "basic.mode": {
    "chunks": 9,
@@ -116,7 +116,7 @@
   },
   "voc.type": {
    "chunks": 9,
-   "sha256": "60f107011b246090ab6f48e7238bd7b8b4749f5a26e5f9d3f7174f7cc9b25618"
+   "sha256": "7b0be370e6fb58fb7c234558176db5db3836df0c576dc77d3eeca6510608cda3"
   },
   "voc.types": {
    "chunks": 1,
@@ -146,7 +146,7 @@
   },
   "reference/basic-functions.md": {
    "chunks": 267,
-   "sha256": "716cad17179d71bd098e0316b28ad2046549fb8b72f75ba1e67b897c45604782",
+   "sha256": "3dc5b8faf41cb5f756694791f966060cb2d84ff99dab422d6990aecb34428805",
    "words": 4441
   },
   "reference/basic-modes.md": {
@@ -191,7 +191,7 @@
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "ddfe5a3003bf28f462a581e3f7503e8c0976317b52258fba528b9efc34acd947",
+   "sha256": "92f111ba2bd91289029a0d2ca2a175115cb30a7d292ff9dcddf605affd301db3",
    "words": 1904
   }
  },

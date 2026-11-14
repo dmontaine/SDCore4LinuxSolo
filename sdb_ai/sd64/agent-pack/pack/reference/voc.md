@@ -17,7 +17,7 @@ The one account's VOC (`sduser`) is `newvoc` in full: `gpl.bp/solo_account` copi
 SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (11): `$hold`, `accounts`, `bp`, `bp.out`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `messages`, `qfile`, `second.compile`, `third.compile`.
 
 ### voc:type:F
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:80#98baf5a6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:78#98baf5a6
 
 **The F record — a file**
 
@@ -72,7 +72,7 @@ name rather than by path.
 
 
 ### voc:type:K
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:261#4f0b8cdd
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:259#4f0b8cdd
 
 **The K record — a keyword**
 
@@ -110,7 +110,7 @@ supplier` parse.
 
 
 ### voc:type:PA
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:226#9486a7c4
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:224#9486a7c4
 
 **The PA record — a paragraph**
 
@@ -150,7 +150,7 @@ in the command instead.
 
 
 ### voc:type:PH
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:243#7acc327c
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:241#7acc327c
 
 **The PH record — a phrase**
 
@@ -173,7 +173,7 @@ in the command instead.
 
 
 ### voc:type:Q
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:183#b10fccd2
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:181#b10fccd2
 
 **The Q record — an indirect pointer**
 
@@ -191,7 +191,7 @@ followed under the same rules, so a chain cannot reach where its links alone cou
 
 
 ### voc:type:R
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:196#7919279b
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:194#7919279b
 
 **The R record — a remote record reference**
 
@@ -215,7 +215,7 @@ keywords, `"PA"` paragraphs, `"PH"` phrases, `"Q"` Q-pointers, `"R"` R-records,
 
 
 ### voc:type:S
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:215#e478fff6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:213#e478fff6
 
 **The S record — a sentence**
 
@@ -231,7 +231,7 @@ command with its first arguments filled in.
 
 
 ### voc:type:V
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:130#770e48c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:128#770e48c1
 
 **The V record — a verb**
 
@@ -248,12 +248,12 @@ target, and the remaining fields carry options.
 
 | Field 2 | Field 3 | What it does |
 |---|---|---|
-| `CA` | *catalog name* | a cataloged program — 98 of the shipped verbs |
-| `IN` | *number* | internal verb *n*, handled by the command processor itself — 42 verbs |
+| `CA` | *catalog name* | a cataloged program — 167 of the shipped verbs |
+| `IN` | *number* | internal verb *n*, handled by the command processor itself — 37 verbs |
 | `OS` | *text* | an operating-system command — `sh`, and nothing else |
 | `CS` | *path* | a locally cataloged function |
 
-The first three rows account for all 139 of Solo's `V` records. The
+The first three rows account for all 205 of Solo's `V` records. The
 remaining four verbs are the keyword records described above — `break`,
 `count`, `display` and `off` — where field 2 holds a keyword number rather than a
 dispatch type, and it is field 3 that marks the record as a verb.
@@ -289,7 +289,7 @@ a marginal verb.
 
 
 ### voc:type:X
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:294#f1c700c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:292#f1c700c1
 
 **The X record — text**
 
