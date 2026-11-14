@@ -59,7 +59,8 @@ strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
 # LSOLO 23: there is no --api-port; the private port goes through the installer's announced test
 # hook, which ptyrun.py hands on in its environment.
 export SDSOLO_TEST_API_PORT=14245
-IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages "$INSTALL" "$@"; }
+# 14 Nov 26: ssh is given as --ssh off (Core's yes/no question cannot answer off, and this witness never wanted Solo's sshd); the API question is answered n.
+IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages --arg --ssh --arg off "$INSTALL" "$@"; }
 
 # The answers, in the installer's order.  Each send waits for its prompt.
 answers() {   # answers CONTINUE-ANSWER [typed-global] [reload-answer]  (no second argument = the global password left blank;
@@ -87,8 +88,7 @@ answers() {   # answers CONTINUE-ANSWER [typed-global] [reload-answer]  (no seco
   else
     printf '%s\n' expect:'Global password \(leave blank if no SD Core server manages this computer\): ' send:
   fi
-  printf '%s\n' expect:'API listener \[off/local/open\] \(default off\): ' send:local
-  printf '%s\n' expect:'ssh listener \[off/local/open\] \(default local\): ' send:off
+  printf '%s\n' expect:'Allow API access from other computers\? opens TCP port [0-9]+ \(y/N\) ' send:n
   printf '%s\n' expect:'Enable it now\? \[Y/n\]' send:n
   printf '%s\n' expect:'Ready to install:'
   printf '%s\n' expect:'Continue\? \[Y/n\]' send:"$1"
@@ -175,11 +175,11 @@ else
   leg "3b a blank global password installs an unmanaged computer" "no \$cred/\$global; mode unmanaged" 1 "global-record=$([ -e "$H/\$cred/\$global" ] && echo present || echo absent) mode=$(sed -n 's/^mode //p' "$H/.sdcore-install")"
 fi
 
-# ---- 4. the API answer took: a local listener on the port given.
-if ss -ltn 2>/dev/null | grep -q '127.0.0.1:14245 '; then
-  leg "4 the API answer 'local' took" "listening on 127.0.0.1:14245" 0 "listening"
+# ---- 4. the API answer took: n leaves the API off, so nothing listens on the port given.
+if ss -ltn 2>/dev/null | grep -q ':14245 '; then
+  leg "4 the API answer 'n' took" "nothing listening on port 14245" 1 "$(ss -ltn 2>/dev/null | grep ':14245' | head -1)"
 else
-  leg "4 the API answer 'local' took" "listening on 127.0.0.1:14245" 1 "$(ss -ltn 2>/dev/null | grep ':14245' | head -1)"
+  leg "4 the API answer 'n' took" "nothing listening on port 14245" 0 "nothing"
 fi
 
 echo

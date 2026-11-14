@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  THE INSTALLER ASKS SD CORE'S TWO ACCESS QUESTIONS.
+
+             What        - the API and ssh questions are now "Allow API access from other computers? (y/N)" and "Allow ssh access
+                           from other computers? (y/N)", as SD Core for Linux asks them; you used to type off, local or open.
+                           A no (or Enter) leaves the API off and ssh on for this computer only - the same as the old defaults -
+                           and a y opens each to other computers.
+             Why         - the owner asked that Solo follow SD Core in how API and ssh access are managed (14 Nov 2026).
+             Does NOT    - Change the defaults, the ports, the install file, or --api and --ssh, which still take off, local or open.
+                           API on this computer only is set with --api local, or afterwards with remote.api; ssh off with --ssh off.
+
 13 Nov 26  A REFUSED SIGN-ON ENDS WITH EXIT STATUS 1 (as in SD Core for Linux, from the same day).
 
              What        - when SD refuses a session at sign-on (a wrong password, a session the LOGIN program will not admit),

@@ -729,15 +729,17 @@ fi
 
 # the API and ssh: the user's choice in every install, with or without a global password
 # (LSOLO 38 - they used to be forced open for a managed computer, ruling 22)
+# 14 Nov 26 dm  SD CORE'S TWO QUESTIONS (owner, 14 Nov 2026: "Solo should follow Core in management of API and SSH access", then, of the API's
+#               default, "Core's questions, API off"): "Allow ... access from other computers? (y/N)", where a y opens the listener to the
+#               network and anything else keeps what this computer alone had - the API OFF (Solo's default, which Core's "no" would have
+#               made local) and ssh this computer only.  --api and --ssh still take off, local or open, and the control file is unchanged.
+#               The explanations moved to GettingStarted 01 (installer text gives options and results).  test-install-access.sh runs it.
+# ACCESS-ASK-BEGIN
 if [ -z "$api" ]; then
   if [ "$interactive" -eq 1 ]; then
     say
-    say "The API lets programs on other computers (or this one) connect to SD over TLS 1.3 with your account"
-    say "password.  off = no listener; local = this computer only; open = reachable from the network."
-    [ "$managed" -eq 0 ] || say "An SD Core server manages this computer through the API: it can reach this computer only if the API is open."
-    read -r -p "API listener [off/local/open] (default off): " api < /dev/tty
-    api="${api:-off}"
-    case "$api" in off|local|open) ;; *) refuse "the API answer must be off, local or open (got '$api')" ;; esac
+    read -r -p "Allow API access from other computers? opens TCP port $api_port (y/N) " yn_api < /dev/tty || yn_api=""
+    case "$yn_api" in [yY]|[yY][eE][sS]) api="open" ;; *) api="off" ;; esac
   else
     api="off"
   fi
@@ -755,18 +757,13 @@ if [ -z "$ssh" ]; then
   if [ -n "$ssh_key" ]; then
     ssh="$ssh_default"
   elif [ "$interactive" -eq 1 ]; then
-    say
-    say "ssh straight into sd uses Solo's own listener on port $ssh_port (your Linux account and password, or a key; the machine's own ssh on"
-    say "port 22 is not used).  off = none; local = this computer only; open = reachable from the network."
-    if [ "$have_sshd" -eq 0 ] && [ "$skip_pkgs" -eq 0 ]; then
-      say "The ssh server program (sshd) is not installed here: local or open INSTALLS the openssh-server package with sudo (on Debian"
-      say "and Ubuntu that package also starts the computer's own ssh server on port 22).  Answer off to leave it out."
-    elif [ "$have_sshd" -eq 0 ]; then
-      say "The ssh server program (sshd) is not installed here and --skip-packages does not install it, so the default is off."
+    if [ "$ssh_default" = "off" ]; then
+      ssh="off"
+      warn "no ssh server program (sshd) here and --skip-packages: Solo's ssh is OFF.  Install the ssh server package, then: bash <tree>/tools/solo-ssh.sh setup <tree> && bash <tree>/tools/solo-service.sh ssh <tree> local"
+    else
+      read -r -p "Allow ssh access from other computers? opens TCP port $ssh_port (y/N) " yn_ssh < /dev/tty || yn_ssh=""
+      case "$yn_ssh" in [yY]|[yY][eE][sS]) ssh="open" ;; *) ssh="$ssh_default" ;; esac
     fi
-    read -r -p "ssh listener [off/local/open] (default $ssh_default): " ssh < /dev/tty
-    ssh="${ssh:-$ssh_default}"
-    case "$ssh" in off|local|open) ;; *) refuse "the ssh answer must be off, local or open (got '$ssh')" ;; esac
   else
     ssh="$ssh_default"
     if [ "$ssh" = "off" ]; then
@@ -774,6 +771,7 @@ if [ -z "$ssh" ]; then
     fi
   fi
 fi
+# ACCESS-ASK-END
 if [ "$managed" -eq 1 ] && { [ "$api" != "open" ] || [ "$ssh" != "open" ]; }; then
   warn "This computer has a global password, so an SD Core server is expected to manage it, but the API is $api and ssh is $ssh: the server reaches it only through what is open to the network."
 fi
