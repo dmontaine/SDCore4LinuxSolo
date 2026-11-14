@@ -37,6 +37,14 @@ second spelling not migrated, the Solo key options dropped, the cap raised, a ma
 old route not open, a managed tree with no ssh evidence forced open) and requires each to fail at
 least one row.  A CORRECT password is not tried here: it needs the
 owner's own, typed at ssh's prompt (probe-solo-ssh-password.sh).
+
+NO_NEW_PRIVS (14 Nov 26, S.233).  A process started with no_new_privs (NoNewPrivs: 1 in
+/proc/self/status, as an agent's shell is) passes it to the sshd it starts, so pam_unix's setgid
+helper unix_chkpwd cannot read /etc/shadow ("could not obtain user info"), and PAM's account
+check refuses EVERY login ("Access denied ... by PAM account configuration"): the good key too.
+The LOGIN rows then measure the environment, not the script, so they are not run; the run says
+why and exits 2.  Measured 14 Nov 26: 22 passed, 7 failed from such a shell; 29 passed, 0 failed
+from the same tree through systemd-run --user (NoNewPrivs: 0).
 """
 
 import os
@@ -57,6 +65,18 @@ HOME = os.path.expanduser("~")
 USER = os.environ.get("USER") or os.popen("id -un").read().strip()
 
 RESULTS = {"pass": 0, "fail": 0}
+LOGIN_NOT_RUN = []      # the reason, when the LOGIN rows could not measure anything here (S.233)
+
+
+def no_new_privs():
+    """True when this process has no_new_privs set (inherited by the sshd it would start)."""
+    try:
+        for line in open("/proc/self/status"):
+            if line.startswith("NoNewPrivs:"):
+                return line.split()[1] == "1"
+    except OSError:
+        pass
+    return False
 
 
 def say(s=""):
@@ -470,6 +490,12 @@ def pam_refusal_lines():
 
 
 def login_suite(tools, work, tree, keys, k, ssh_tool):
+    if no_new_privs():
+        why = ("this process has no_new_privs (NoNewPrivs: 1), which the sshd it starts inherits: unix_chkpwd cannot read "
+               "/etc/shadow and PAM's account check refuses every login, the good key included. Run it from an ordinary terminal.")
+        LOGIN_NOT_RUN.append(why)
+        say("  [----] LOGIN    NOT RUN: " + why)
+        return
     d = os.path.join(tree, "sshd")
     ak = os.path.join(d, "authorized_keys")
     conf = os.path.join(d, "sshd_config")
@@ -640,6 +666,9 @@ def main():
         say("\n%(pass)d passed, %(fail)d failed" % RESULTS)
         if RESULTS["fail"]:
             return 1
+        if LOGIN_NOT_RUN:
+            say("CANNOT RUN - the LOGIN rows: " + LOGIN_NOT_RUN[0])
+            return 2
         if not selftest:
             return 0
         red = 0
