@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  A SCRIPT THAT CAPTURES THE OUTPUT OF "sd-solo -start" NO LONGER WAITS UNTIL SD IS STOPPED.
+
+             What        - x=$(sd-solo -start), or "sd-solo -start | tee log", printed SD's start message and then never
+                           finished: the background daemon SD starts kept the script's pipe as its own output, so the script
+                           waited for the end of that output until "sd-solo -stop".  The daemon, the STARTUP command's process
+                           and a phantom now give back a pipe they were handed and write to /dev/null in its place.  Output
+                           sent to a file or a terminal is kept as before, and so is the journal when SD runs under systemd.
+                           Found by SD Core for Windows; carried from SD Core for Linux.
+             Why         - a start script or a monitoring check that read the start message hung.
+             Does NOT    - Change what "sd-solo -start" prints, where a phantom's own log goes (its COMO file, as before) or
+                           how SD runs under systemd.  Anything the daemon writes after it has started no longer reaches a pipe.
+
 14 Nov 26  THE AI CHOICE PAGE ASKS FOR A CUSTOM CONNECTION IN ONE FORM.
 
              What        - C on the AI choice page (tool.ai) used to ask the six fields of a custom connection one prompt after the

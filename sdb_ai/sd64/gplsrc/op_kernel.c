@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  Carried from SD Core (S.241): a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
  * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
  * 12 Nov 26 dm  S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): K_PHANTOM_NONCE (144), the secret a phantom() gives the
  *               process it starts in that process's environment (op_phantom builds the child's environment before the fork and starts it with execle).
@@ -1484,6 +1485,7 @@ void op_phantom() {
        now said in the error log rather than ignored.  */
     if (daemon(1, 1) != 0)
       log_message("phantom: daemon() failed; the phantom runs without detaching");
+    release_pipe_fds(); /* 14 Nov 26 S.241: a session run through a pipe must not hand that pipe to its phantom */
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/" SD_SERVER_NAME, sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should also be logged with more detail */
