@@ -60,7 +60,9 @@ strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
 # hook, which ptyrun.py hands on in its environment.
 export SDSOLO_TEST_API_PORT=14245
 # 14 Nov 26: ssh is given as --ssh off (Core's yes/no question cannot answer off, and this witness never wanted Solo's sshd); the API question is answered n.
-IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages --arg --ssh --arg off "$INSTALL" "$@"; }
+# --viewer none and --start menu: the reader question is asked only when this machine has a known PDF reader, and the start question has its own
+# free check (test-install-start.sh); both made the witness's prompts depend on the machine it runs on.  The shell and OS questions are answered n.
+IA() { local t="$1"; shift; python3 "$here/ptyrun.py" --timeout "$t" --arg --home --arg "$H" --arg --skip-packages --arg --ssh --arg off --arg --viewer --arg none --arg --start --arg menu "$INSTALL" "$@"; }
 
 # The answers, in the installer's order.  Each send waits for its prompt.
 answers() {   # answers CONTINUE-ANSWER [typed-global] [reload-answer]  (no second argument = the global password left blank;
@@ -68,6 +70,8 @@ answers() {   # answers CONTINUE-ANSWER [typed-global] [reload-answer]  (no seco
   if [ -n "${3:-}" ]; then
     printf '%s\n' expect:'Saved data was found: ' expect:'Reload your saved data and configuration into this new install\? \[Y/n\]' send:"$3"
   fi
+  printf '%s\n' expect:'Turn on the shell \(SH\) for your SD account\? \[y/N\]' send:n
+  printf '%s\n' expect:'Turn on OS access \(os\.execute, outside files, Python, micro\) for your SD account\? \[y/N\]' send:n
   printf '%s\n' expect:'Choose the account password: ' send:"$WEAK"
   printf '%s\n' expect:'The password must be'
   printf '%s\n' expect:'Choose the account password: ' send:"$ACC"
@@ -89,7 +93,7 @@ answers() {   # answers CONTINUE-ANSWER [typed-global] [reload-answer]  (no seco
     printf '%s\n' expect:'Global password \(leave blank if no SD Core server manages this computer\): ' send:
   fi
   printf '%s\n' expect:'Allow API access from other computers\? opens TCP port [0-9]+ \(y/N\) ' send:n
-  printf '%s\n' expect:'Enable it now\? \[Y/n\]' send:n
+  printf '%s\n' expect:'Keep SD running when you are signed out\? \[Y/n\]' send:n
   printf '%s\n' expect:'Ready to install:'
   printf '%s\n' expect:'Continue\? \[Y/n\]' send:"$1"
 }
