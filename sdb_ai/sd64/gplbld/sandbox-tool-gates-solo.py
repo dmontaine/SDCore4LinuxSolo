@@ -23,6 +23,8 @@
 #   G5   OS.EXECUTE and Remote files: ON with their words, off again, each changes its own field and no other
 #   G6   the page does not change by itself: a change by the verb shows after F5 and not before
 #   G7   AI (the helper running): ON with its word, off again, the helper's own reading form agrees; the helper stopped: the cell shows it and Enter says so
+#   G7x  (15 Nov 26, file transfer) the fifth row: End goes there, Enter shows set.xfer.access on and asks the word xfer, Esc changes nothing, the word turns field 22 yes on the
+#        disk and nothing else, a holder's page sees it at once, off again asks no word
 #   G8   F5, F1, a click on the [?], a click on a row; a window under 140 by 43 gets no page; the page ends when its input ends
 # NOT HELD: the first sign-on after a change on a REAL install, the help text itself (sandbox-docs.py's job on Core; here the words of the record), a real provider.
 import importlib.util
@@ -115,6 +117,14 @@ def reg_on():
     return tuple(v == "yes" for v in reg_fields())
 
 
+def xfer_field():
+    """Field 22 of the register record on the disk (ACC$XFER, the file transfer switch): 'yes', 'no' or ''."""
+    with open(sh.REG) as f:
+        lines = f.read().split("\n")
+    lines += [""] * (22 - len(lines))
+    return lines[21].strip().lower()
+
+
 def gate_word():
     """The AI helper's own gate, from set.ai's reading form: 'on', 'off' or None when it did not answer."""
     out = adm("set.ai")
@@ -153,7 +163,7 @@ class Page:
 
     def gates(self):
         out = []
-        for n in range(3, 7):
+        for n in range(3, 8):                        # 15 Nov 26: five gate rows (the file transfer gate is the fifth)
             ln = self.line(n)
             out.append(dict(name=ln[3:19].strip(), now=ln[19:33].strip(), reg=ln[33:43].strip(), dflt=ln[43:57].strip(), beyond=ln[57:68].strip(), when=ln[68:].strip().rstrip("|").strip()))
         return out
@@ -203,7 +213,7 @@ def mutate(name):
 
 def all_off():
     """The delivered state: every gate off (the register through the verbs, the AI's gate through set.ai)."""
-    adm("set.os.access sh off", "set.os.access os off", "set.net.access off", "set.ai gate off")
+    adm("set.os.access sh off", "set.os.access os off", "set.net.access off", "set.ai gate off", "set.xfer.access off")
 
 
 def section_g0():
@@ -228,17 +238,17 @@ def section_g1():
         dump(p.h)
         bail("tool.gates never drew its page in a plain session, so no row below can be believed")
     G = p.gates()
-    arow("G1a", "three boxes and a [?]; the headings; four gate rows in order: Shell, OS.EXECUTE, Remote files, AI",
+    arow("G1a", "three boxes and a [?]; the headings; five gate rows in order: Shell, OS.EXECUTE, Remote files, AI, File transfer",
          all(w in T for w in ("Gates of this account", "The row under the cursor", "Where this comes from")) and "[?]" in p.line(2)
-         and all(w in p.line(2) for w in ("Gate", "This session", "Register", "As delivered", "Beyond SD", "A change reaches you")) and [g["name"] for g in G] == ["Shell", "OS.EXECUTE", "Remote files", "AI"], repr(G))
-    arow("G1b", "THIS SESSION: Shell, OS.EXECUTE and Remote files are off (the kernel's answer for a session with everything off); AI cannot be read (-) with the helper stopped",
-         [g["now"] for g in G] == ["off", "off", "off", "-"], repr([g["now"] for g in G]))
-    arow("G1c", "REGISTER is shown to the administrator only: a dash for the three gates of the register, a dash for the AI that cannot be read", [g["reg"] for g in G] == ["-", "-", "-", "-"], repr([g["reg"] for g in G]))
-    arow("G1d", "as delivered every gate is off, every gate reaches beyond SD, and the page says when a change reaches you (next sign-on three times, at the next request for the AI)",
-         all(g["dflt"] == "off" and g["beyond"] == "yes" for g in G) and [g["when"] for g in G] == ["next sign-on", "next sign-on", "next sign-on", "at the next request"], repr(G))
+         and all(w in p.line(2) for w in ("Gate", "This session", "Register", "As delivered", "Beyond SD", "A change reaches you")) and [g["name"] for g in G] == ["Shell", "OS.EXECUTE", "Remote files", "AI", "File transfer"], repr(G))
+    arow("G1b", "THIS SESSION: Shell, OS.EXECUTE and Remote files are off (the kernel's answer for a session with everything off); AI cannot be read (-) with the helper stopped; File transfer off (its register field, read for every session)",
+         [g["now"] for g in G] == ["off", "off", "off", "-", "off"], repr([g["now"] for g in G]))
+    arow("G1c", "REGISTER is shown to the administrator only: a dash for the gates of the register, a dash for the AI that cannot be read", [g["reg"] for g in G] == ["-", "-", "-", "-", "-"], repr([g["reg"] for g in G]))
+    arow("G1d", "as delivered every gate is off, every gate reaches beyond SD, and the page says when a change reaches you (next sign-on three times, at the next request for the AI, at the next transfer)",
+         all(g["dflt"] == "off" and g["beyond"] == "yes" for g in G) and [g["when"] for g in G] == ["next sign-on", "next sign-on", "next sign-on", "at the next request", "at the next transfer"], repr(G))
     s1, s2, s3 = norm(p.line(8)), norm(p.line(9)), norm(p.line(10))
     arow("G1e", "the summary: whose session, how many gates are on (none), that only the administrator can change a gate, that the Register column is the administrator's",
-         "0 of 4 gates are on for this session" in s1 and "Only the administrator can change a gate (type admin). Nothing on this page can." in s2 and "shown to the administrator only" in s3, repr((s1, s2, s3)))
+         "0 of 5 gates are on for this session" in s1 and "Only the administrator can change a gate (type admin). Nothing on this page can." in s2 and "shown to the administrator only" in s3, repr((s1, s2, s3)))
     D = p.detail()
     arow("G1f", "the row under the cursor (Shell): off for this session, what it cannot do and what it still can, and the command the ADMINISTRATOR would use",
          "Shell [sh] - off for this session. You cannot use the SH verb and !" in D and "With it off you can still do everything inside SD" in D and "The administrator changes it with: set.os.access sh on" in D
@@ -278,8 +288,8 @@ def section_g2():
     new = audit_new(a0) or ""
     arow("G2a", "opening the page writes one audit line, 'tool start app=tool.gates', and no other", len(re.findall(r"tool start app=tool\.gates$", new, re.M)) == 1 and "tool run" not in new, repr(new[-200:]))
     G = p.gates()
-    arow("G2b", "THIS SESSION off, off, off for the three gates of the register; the AI's gate off (the helper answers: it is the helper's own setting)", [g["now"] for g in G] == ["off", "off", "off", "off"], repr(G))
-    arow("G2c", "REGISTER is shown to the administrator: off for every gate (the three register fields, and the helper's gate for the AI)", [g["reg"] for g in G] == ["off", "off", "off", "off"], repr(G))
+    arow("G2b", "THIS SESSION off, off, off for the three gates of the register; the AI's gate off (the helper answers: it is the helper's own setting)", [g["now"] for g in G] == ["off", "off", "off", "off", "off"], repr(G))
+    arow("G2c", "REGISTER is shown to the administrator: off for every gate (the register fields, and the helper's gate for the AI)", [g["reg"] for g in G] == ["off", "off", "off", "off", "off"], repr(G))
     s2, s3 = norm(p.line(9)), norm(p.line(10))
     arow("G2d", "the summary says who can change a gate and what the Register column is",
          "You are the administrator: Enter turns the gate on the cursor's row ON or off" in s2 and "The Register column is what the next sign-on will load" in s3, repr((s2, s3)))
@@ -319,8 +329,8 @@ def section_g3(p):
          G[0]["reg"] == "ON" and G[0]["now"] == "off" and "The register says ON and this session holds off: Shell reaches you next sign-on" in D and "Enter runs: set.os.access sh off" in D, repr((G[0], D[:300])))
     q = Page(admin=False)
     G2 = q.gates()
-    arow("G3g", "a NEW session (a holder's) loaded it at its sign-on: THIS SESSION says ON for Shell and off for the others, and counts 1 of 4",
-         G2[0]["now"] == "ON" and G2[1]["now"] == "off" and G2[2]["now"] == "off" and "1 of 4 gates are on for this session" in norm(q.line(8)), repr((G2, q.line(8))))
+    arow("G3g", "a NEW session (a holder's) loaded it at its sign-on: THIS SESSION says ON for Shell and off for the others, and counts 1 of 5",
+         G2[0]["now"] == "ON" and G2[1]["now"] == "off" and G2[2]["now"] == "off" and "1 of 5 gates are on for this session" in norm(q.line(8)), repr((G2, q.line(8))))
     q.quit()
 
 
@@ -346,7 +356,7 @@ def section_g5(p):
     run_gate(p, "os")
     new = audit_new(a0) or ""
     arow("G5a", "OS.EXECUTE ON with its word 'os': field 8 only, the audit line, the page: REGISTER on for OS.EXECUTE and for nothing else",
-         reg_on() == (False, True, False) and len(re.findall(r"set\.os\.access os on account=sduser$", new, re.M)) == 1 and [g["reg"] for g in p.gates()] == ["off", "ON", "off", "off"], repr((reg_fields(), p.gates(), new[-160:])))
+         reg_on() == (False, True, False) and len(re.findall(r"set\.os\.access os on account=sduser$", new, re.M)) == 1 and [g["reg"] for g in p.gates()] == ["off", "ON", "off", "off", "off"], repr((reg_fields(), p.gates(), new[-160:])))
     p.key("enter", 1.5)
     p.typed("r", 2.5)
     arow("G5b", "OS.EXECUTE off again: field 8 is no, nothing else moved", reg_on() == (False, False, False) and p.gates()[1]["reg"] == "off", repr((reg_fields(), p.gates())))
@@ -359,7 +369,7 @@ def section_g5(p):
     run_gate(p, "net")
     new = audit_new(a1) or ""
     arow("G5d", "Remote files ON: field 15 only, the audit line, the page: REGISTER on for Remote files and for nothing else",
-         reg_on() == (False, False, True) and len(re.findall(r"set\.net\.access on account=sduser$", new, re.M)) == 1 and [g["reg"] for g in p.gates()] == ["off", "off", "ON", "off"]
+         reg_on() == (False, False, True) and len(re.findall(r"set\.net\.access on account=sduser$", new, re.M)) == 1 and [g["reg"] for g in p.gates()] == ["off", "off", "ON", "off", "off"]
          and re.search(r"has NET yes", st(p.h)) is not None, repr((reg_fields(), p.gates(), new[-160:], st(p.h))))
     p.key("enter", 1.5)
     p.typed("r", 2.5)
@@ -383,6 +393,7 @@ def section_g6(p):
 def section_g7(p):
     say("\n--- G7: the AI gate (the helper running)")
     p.key("end", 0.7)
+    p.key("up", 0.7)                                 # 15 Nov 26: End is the file transfer row now; the AI is the one above it
     a0 = audit_off()
     arow("G7a", "the cursor is on the AI row: it is explained, with the tool.ai page named", "AI [ai] - off for this session" in p.detail() and "tool.ai" in p.detail() and "Enter runs: set.ai gate on" in p.detail(), p.detail()[:400])
     p.key("enter", 1.8)
@@ -407,6 +418,36 @@ def section_g7(p):
     T = norm(p.text())
     arow("G7g", "Enter on it says the helper could not be reached (message 11607), opens no box and writes no audit line", "The AI helper could not be reached" in st(p.h) and "Run this command" not in T and (audit_new(a1) or "") == "", repr((st(p.h), audit_new(a1))))
     ai.start_runner()
+
+
+def section_g7x(p):
+    """15 Nov 26, the Solo carry of SD Core's S.242: the file transfer gate, field 22 of the register, switched with set.xfer.access (owner: "Yes, set.xfer.access")."""
+    say("\n--- G7x: the file transfer gate (set.xfer.access)")
+    p.key("end", 0.7)
+    D = p.detail()
+    arow("G7xa", "End is the file transfer row: off for this session, what ON lets it do, that XFER must be 1 as well, and what Enter runs",
+         "File transfer [xfer] - off for this session" in D and "RECEIVE and SEND" in D and "XFER=1" in D and "Enter runs: set.xfer.access on" in D, D[:500])
+    a0 = audit_off()
+    p.key("enter", 1.8)
+    T = norm(p.text())
+    arow("G7xb", "Enter: the box shows set.xfer.access on and what ON allows, and asks for the word xfer (it reaches beyond SD)",
+         "set.xfer.access on" in T and "ON - File transfer: this account will be able to move plain-text files" in T and "its name has to be typed" in T, T[-700:])
+    p.key("esc", 1.2)
+    arow("G7xc", "Esc: field 22 is as it was and the audit trail has no set.xfer.access line", xfer_field() in ("", "no") and "set.xfer.access" not in (audit_new(a0) or ""), repr((xfer_field(), audit_new(a0))))
+    run_gate(p, "xfer")
+    new = audit_new(a0) or ""
+    G = p.gates()
+    arow("G7xd", "the word typed: field 22 is yes ON THE DISK and the other register fields did not move, the audit line, the page shows ON in both columns",
+         xfer_field() == "yes" and reg_on() == (False, False, False) and len(re.findall(r"set\.xfer\.access on account=sduser$", new, re.M)) == 1 and G[4]["now"] == "ON" and G[4]["reg"] == "ON",
+         repr((xfer_field(), reg_fields(), new[-160:], G[4])))
+    q = Page(admin=False)
+    Q = q.gates()
+    arow("G7xe", "a HOLDER's page sees it ON at once (no sign-on loads it: it is read each time), and still a dash in the Register column of the administrator's",
+         Q[4]["now"] == "ON" and Q[4]["reg"] == "-" and Q[0]["reg"] == "-", repr(Q))
+    q.quit()
+    p.key("enter", 1.5)
+    p.typed("r", 2.5)
+    arow("G7xf", "off again with no word asked: field 22 is no and the page shows off", xfer_field() == "no" and p.gates()[4]["now"] == "off", repr((xfer_field(), p.gates()[4])))
 
 
 def section_g8(p):
@@ -475,6 +516,7 @@ def main():
             if mutant is None:
                 section_g6(p)
                 section_g7(p)
+                section_g7x(p)
                 section_g8(p)
             else:
                 p.end()

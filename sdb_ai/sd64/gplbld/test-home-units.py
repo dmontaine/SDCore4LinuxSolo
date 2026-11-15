@@ -98,7 +98,7 @@ def checks(s):
     DEV_TILES = {"files": "tool.files", "voc": "tool.voc", "dict": "tool.dict", "query": "tool.query", "bulk": "tool.bulk", "catalog": "tool.catalog", "test": "tool.test"}
     cmds = re.findall(r"act = '(cmd:[^']*|terminal|switch|signout)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
     ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, tool.keys, my.menu, the development apps and the administrator pages), terminal or signout (Solo has no switch); the ONLY other action is a person's own program (H25)",
-       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "terminal", "cmd:tool.keys", "signout", "cmd:my.menu"] + ["cmd:" + v for v in list(ADMIN_TILES.values()) + list(DEV_TILES.values())]), repr(cmds))
+       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "terminal", "cmd:tool.keys", "signout", "cmd:my.menu", "cmd:receive"] + ["cmd:" + v for v in list(ADMIN_TILES.values()) + list(DEV_TILES.values())]), repr(cmds))
     ck("H4b ...execute is given only a sentence from that table or 'quit' (Solo has no LOGTO to run)",
        sorted(re.findall(r"execute ([^\n]+)", th)) == sorted(["sentence trapping aborts", "'quit'", "'quit'"]), repr(re.findall(r"execute ([^\n]+)", th)))     # 'quit' twice: sign out, and the confined account
     fin = between(th, "\nfinish:\n", "\nreturn")
@@ -191,7 +191,7 @@ def checks(s):
        "tiles.off" not in st_ and "'all'" not in st_ and "readu acc.rec from acc.f, who else" in st_ and "acc.rec<ACC$TILES.OFF> = new.list" in st_ and "write acc.rec to acc.f, who on error ok = @false" in st_
        and "sysmsg(11877, tile, state, who)" in st_ and "K$AUDIT, 'set.tile '" in st_ and "sysmsg(11883, tile)" in st_ and "standard = 'editor ide terminal keys signout files voc dict query bulk catalog test recent'" in st_)
     ck("H23c ...and the standard ids it knows are the ids of the table of tool_home that every session gets, and the menu management page offers the same list (Solo has no switch)",
-       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - set(ADMIN_TILES) - {"mymenu", "back"}) == sorted("editor ide terminal keys signout files voc dict query bulk catalog test".split())
+       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - set(ADMIN_TILES) - {"mymenu", "back", "receive"}) == sorted("editor ide terminal keys signout files voc dict query bulk catalog test".split())
        and re.findall(r"'([a-z]+)'", strip(s["tool_menus"]).split("tids = ", 1)[1].split("\n", 1)[0]) == "editor ide terminal keys signout files voc dict query bulk catalog test recent".split(), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
     adm = between(th, "   if is.admin then\n      bnd += 1", "\n   end\n")
     ck("H23d ...and the tiles that are not standard (the administrator's pages) are built for the administrator only (inside `if is.admin then`), each exactly once and running its page's verb",
@@ -228,6 +228,16 @@ def checks(s):
             leaks.append(prog_)
     ck("H28a every program that opens a possibly absent file READONLY (!home_entry, SET.START.DEFAULT, the menu management page, !viewlist, OSREAD) closes the file variable in its ELSE branch, so that an absent start.default does not leave an update lock on it",
        not leaks, repr(leaks))
+    xu = between(th, "\nxfer.usable:\n", "\nadd.tile:\n")
+    rcv = between(th, "   gosub xfer.usable\n   if xf.ok then", "\n   end\n")
+    ck("H86 (15 Nov 26, the Solo carry of SD Core's S.242) Receive files is built once, in both modes (in Solo the administrator is the same person in the same account), and only when "
+       "xfer.usable says RECEIVE would open a transfer; it runs receive and waits for a key after (pause 1); xfer.usable asks what RECEIVE asks, in its order - XFER is 1, the session is in the one "
+       "account (its user name), its switch exactly YES - and only reads.  It is not a set.tile tile: set.xfer.access off removes it",
+       th.count("id = 'receive' ;") == 1 and rcv.startswith("   gosub xfer.usable\n   if xf.ok then\n      id = 'receive' ;")
+       and re.search(r"id = 'receive' ;[^\n]*act = 'cmd:receive' ;[^\n]*pause = 1 ;", rcv) is not None
+       and xu.startswith("\nxfer.usable:\n   xf.ok = 0") and xu.find("if config('XFER') # 1 then return") < xu.find("if downcase(@who) # xf.acct then return")
+       < xu.find("if upcase(trim(xf.rec<ACC$XFER>)) # 'YES' then return") < xu.find("xf.ok = 1") and xu.find("if config('XFER') # 1 then return") > 0
+       and not re.search(r"^\s*(?:write[uv]?|delete|readu|execute)\b", xu, re.M), repr((rcv[:160], xu[:120])))
     return rows
 
 
@@ -287,6 +297,11 @@ MUTANTS = [
     ("MENU runs another program for every account", "menu.n", "$tool_home", "$exit"),
     ("MENU is missing from SDSYS's VOC", "menu.t", "$tool_home", ""),
     ("the sandbox no longer starts at the terminal", "sandbox-fromtree.py", "f.write(\"terminal\\n\")", "f.write(\"menu\\n\")"),
+    # 15 Nov 26, the Solo carry of S.242: the Receive files tile (H86)
+    ("the Receive tile is built whatever the switch says", "tool_home", "   gosub xfer.usable\n   if xf.ok then\n      id = 'receive' ;", "   gosub xfer.usable\n   if 1 then\n      id = 'receive' ;"),
+    ("the Receive tile does not wait for a key", "tool_home", "act = 'cmd:receive' ; pal = pal.tools ; size = 'n' ; pause = 1 ;", "act = 'cmd:receive' ; pal = pal.tools ; size = 'n' ; pause = 0 ;"),
+    ("the tile ignores the system switch", "tool_home", "   if config('XFER') # 1 then return\n", ""),
+    ("the tile is on unless the switch says no", "tool_home", "if upcase(trim(xf.rec<ACC$XFER>)) # 'YES' then return", "if upcase(trim(xf.rec<ACC$XFER>)) = 'NO' then return"),
 ]
 
 

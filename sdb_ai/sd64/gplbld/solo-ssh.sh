@@ -59,6 +59,13 @@
 # agent, port or X11 forwarding and no rc file, the pty sd needs.  The forced command is
 # in sshd_config (ForceCommand <tree>/bin/sd-solo), so no key can run anything else.
 #
+# FILE TRANSFER (15 Nov 2026, the Solo carry of SD Core's S.242): sshd_config also names the sftp
+# subsystem "Subsystem sftp <tree>/bin/sd-sftp".  Nothing exists at that path and nothing runs it:
+# with a ForceCommand, sshd runs sd-solo for an sftp request too, with SSH_ORIGINAL_COMMAND set to
+# that path, and sd-solo is then the confined transfer server (gplsrc/sd_sftp.c) - only while the
+# person's own SD session waits in RECEIVE or SEND, and only with XFER=1 and the account's switch on.
+# Without the line sshd refuses every sftp request itself, so nothing is opened by it alone.
+#
 # StrictModes is ON: sshd refuses the key file when it, its directory or any directory
 # up to the home directory is owned by someone else or writable by others (measured: 0666
 # and 0777 refused, 0664 and 0775 accepted).  setup checks the same walk and says which path
@@ -212,6 +219,7 @@ MaxAuthTries 6
 LoginGraceTime 30
 LogLevel INFO
 ForceCommand $H/bin/sd-solo
+Subsystem sftp $H/bin/sd-sftp
 CONFIG
   pam_state="the machine's sshd service (no SELinux)"
   if pam_ours; then

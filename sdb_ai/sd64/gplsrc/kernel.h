@@ -43,6 +43,11 @@ Public char* entry_dir init(NULL); /* Current directory on entry */
 Public bool is_bootstrap init(FALSE);  /* Bootstrap build (install process) */
 Public bool is_phantom init(FALSE);  /* Process is a phantom */
 Public bool is_sdApiSrvr init(FALSE); /* Process is a sdApiSrvr */
+/* 15 Nov 26 dm - S.242 stage 3 (Solo carry): this process is the file transfer server of an sftp request (sd_sftp.c xfer_detect()).  The
+   client's channel is on these two descriptors and nowhere else; 0 and 1 are /dev/null, so nothing SD prints reaches the client. */
+Public bool is_xfer init(FALSE);
+Public int xfer_fd_in init(-1);
+Public int xfer_fd_out init(-1);
 /* 20 Oct 26 SD Core for Linux Solo (owner's permission, "solo lock flag ok", a deviation from the Core template): the API server has accepted the SCRAM proof and
    K_SET_USERNAME has set the session's user name (op_kernel.c).  SD Core asks "before login" as `is_sdApiSrvr && geteuid() == 0` (its server is root until it
    becomes the user); Solo's server is never root, so op_tio.c asks `is_sdApiSrvr && !api_logged_in`.  False for every other process and until the login.   */

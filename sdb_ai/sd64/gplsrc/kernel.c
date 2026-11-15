@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Nov 26 dm  init_kernel() clears the file transfer slot of the cell it takes; the transfer server's @TTY is "sftp" (Solo carry of S.242).
  * 14 Nov 26 dm  init_kernel(): the unused m is gone (its reader, the GetUserName() call, was taken out for Solo; -Wunused-variable).  S.232.
  * 12 Nov 26 dm  S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): a phantom takes the secret its parent gave it out of its
  *               environment before anything it runs can inherit it (phantom_nonce_import, op_kernel.c).
@@ -203,6 +204,13 @@ retry_login:
     }
     my_uptr->lockwait_index = 0;
     my_uptr->ttyname[0] = '\0';
+    /* 15 Nov 26 dm - S.242 stage 3: no file transfer slot is open in a cell just taken (whatever the process before left) */
+    my_uptr->xfer_dir = 0;
+    my_uptr->xfer_flags = 0;
+    my_uptr->xfer_files = 0;
+    my_uptr->xfer_opened = 0;
+    my_uptr->xfer_last = 0;
+    my_uptr->xfer_bytes = 0;
 
     /* 14 Oct 26 dm - sheet items 24 and 29: the account is empty until the session enters one (a phantom's cell
        was given its parent's account when the parent reserved it, and keeps it).  And item 38: the peak number of
@@ -255,6 +263,10 @@ retry_login:
         unsetenv("SD_STARTUP");
         strcpy((char*)(my_uptr->ttyname), "startup");
       }
+
+      /* 15 Nov 26 dm - S.242 stage 3: the file transfer server of an sftp request (sd_sftp.c) is "sftp" in LISTU */
+      if (is_xfer)
+        strcpy((char*)(my_uptr->ttyname), "sftp");
     }
   }
 

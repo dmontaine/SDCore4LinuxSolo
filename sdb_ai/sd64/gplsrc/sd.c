@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 15 Nov 26 dm  main() calls xfer_detect() first; an sftp request Solo's own sshd sent here is the file transfer server (sd_sftp.c).  Solo carry
+ *               of SD Core's S.242.
  * 14 Nov 26 dm  sd_init(): a failed getcwd() gives an empty entry directory (it read an unset buffer); the build's warning.
  * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, the owner: US spelling in everything SD prints): "Unrecognized argument".
  * 11 Nov 26 dm  Solo carry S.216 gap 14 (SD Core S.80, c5ef414c): clean_stop() ends with sd_tls_relay_finish(): an API server waits for its TLS relay to deliver the last
@@ -102,6 +104,7 @@
 #include "locks.h"
 #include "keys.h"
 #include "sd_tls.h"
+#include "sd_sftp.h"
 
 #define BUILD_TARGET "64 Bit"
 
@@ -151,6 +154,10 @@ int main(int argc, char *argv[]) {
   }
 
   tio.term_type[0] = '\0';
+
+  /* 15 Nov 26 dm - S.242 stage 3.  FIRST, before anything can print: an sftp request that Solo's sshd sent here (no terminal,
+     SSH_ORIGINAL_COMMAND the Subsystem path) is the file transfer server, not a login.  Its channel is moved off descriptors 0 and 1. */
+  xfer_detect(argc);
 
  /* 20240126 mab add syslog */
  /* log startup and command line args */

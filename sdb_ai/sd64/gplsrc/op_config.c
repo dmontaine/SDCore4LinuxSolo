@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Nov 26 SD Core Solo for Linux (carried from SD Core's S.242): CONFIG() reads XFER, XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX and
+ *           XFERKIND; PCONFIG sets none of them.
  * 11 Nov 26 SD Core Solo for Linux (carried from SD Core, its 29 Oct 26 change S.88 3.7a): CONFIG() takes a name of up to 16 characters (op_config()'s buffer and
  *               the k_get_c_string limit; the setter is not touched).  SCREENTHEME is 11, so it was never found and the site theme never applied.
  * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
@@ -227,6 +229,21 @@ void op_config() {
  /* 20240219 mab create-account based on type (user / group / other) */
   else if (!strcmp(param, "USRDIR"))
     k_put_c_string(pcfg.usrdir, &result);
+  /* 15 Nov 26, S.242: the file transfer parameters, read only (PCONFIG does not set them: the transfer server reads sd.conf itself) */
+  else if (!strcmp(param, "XFER"))
+    result.data.value = pcfg.xfer;
+  else if (!strcmp(param, "XFERFILE"))
+    result.data.value = pcfg.xferfile;
+  else if (!strcmp(param, "XFERSLOT"))
+    result.data.value = pcfg.xferslot;
+  else if (!strcmp(param, "XFERWAIT"))
+    result.data.value = pcfg.xferwait;
+  else if (!strcmp(param, "XFERIDLE"))
+    result.data.value = pcfg.xferidle;
+  else if (!strcmp(param, "XFERMAX"))
+    result.data.value = pcfg.xfermax;
+  else if (!strcmp(param, "XFERKIND"))
+    k_put_c_string(pcfg.xferkind, &result);
   else if (!strcmp(param, "YEARBASE"))
     result.data.value = pcfg.yearbase;
   else {

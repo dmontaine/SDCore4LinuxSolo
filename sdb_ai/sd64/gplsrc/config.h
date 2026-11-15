@@ -21,6 +21,7 @@
  * rev 0.9.0 Jan 25 mab add create_user
  * 14 Sep 26 dm  S.18: api_login removed (APILOGIN retired).
  * 19 Oct 26 dm  netwait and netreply are 32 bit (verifier finding of the SDNet finish): a value in sd.conf is read into an int and a 16 bit field wrapped 65541 to 5 before rangecheck saw it.
+ * 15 Nov 26 dm  xfer, xferfile, xferslot, xferwait, xferidle, xfermax, xferkind - file transfer over the ssh login (delivered off); Solo carry of SD Core's S.242.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -100,6 +101,17 @@ struct PCFG  {
   char timezone[64+1];                  /* TIMEZONE: the zone the epoch functions use, null = the process's own TZ (15 Oct 26) */
 /* 20240219 mab create-account based on type (user / group / other) */  
   char usrdir[MAX_PATHNAME_LEN+1];      /* USRDIR:   Parent Directory for user accounts */
+  /* 15 Nov 26 dm - S.242 (carried from SD Core), file transfer over the ssh login (RECEIVE / SEND).  In Solo, as every PCFG value, read
+     from sd.conf at sd -start into the segment's template and copied by each process (bind_sysseg): a change takes effect at the next
+     start.  (SD Core reads sd.conf in every session since its W.11 F9; Solo has one Linux user, who owns the segment anyway.)  XFER is the
+     system-wide switch, delivered 0 (the register's ACC$XFER is the account's).  Sizes in kilobytes, times in seconds; the owner's defaults. */
+  int16_t xfer;                         /* XFER:     0 = no file transfer on this system, 1 = the account may if its switch is on */
+  int32_t xferfile;                     /* XFERFILE: largest file, kilobytes (10240) */
+  int32_t xferslot;                     /* XFERSLOT: most bytes one slot takes, kilobytes (102400) */
+  int32_t xferwait;                     /* XFERWAIT: seconds a slot waits for its first connection (600) */
+  int32_t xferidle;                     /* XFERIDLE: seconds a slot stays open after its last file closes (120) */
+  int32_t xfermax;                      /* XFERMAX:  seconds a slot may stay open at most, 0 = no ceiling (3600) */
+  char xferkind[128+1];                 /* XFERKIND: extensions a file must have, comma separated; null = any plain-text file */
   int16_t yearbase;                     /* YEARBASE: Two digit year start */
  };
 

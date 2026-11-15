@@ -4,8 +4,9 @@
     python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-toolgates-solo-units.py [--selftest]
 
 Core has two pages under this name (the administrator's matrix of every registered account against every gate, test-toolgates-units.py, and the holder's read-only view, test-toolmygates-units.py);
-Solo has one account and no modify.account, so it has ONE page with four rows (sh, os, net, ai) and two modes: it shows what the session may do to every session, and turns a gate ON or off through
-the three verbs that own the gates (set.os.access, set.net.access, set.ai gate) for the administrator.  This file holds that page against the three verbs, keys.h and int$keys.h.
+Solo has one account and no modify.account, so it has ONE page with five rows (sh, os, net, ai, and since 15 Nov 26 xfer, file transfer) and two modes: it shows what the session may do to every
+session, and turns a gate ON or off through the four verbs that own the gates (set.os.access, set.net.access, set.ai gate, set.xfer.access) for the administrator.  This file holds that page against
+the four verbs, keys.h and int$keys.h.
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT A GATE CHANGES***: that is `sandbox-tool-gates-solo.py`
 (a private SD, plain and administrator sessions on pseudo-terminals, the register on the disk, the helper's own reading form and the audit file as the evidence).  What a text check is for: the
@@ -32,6 +33,7 @@ FILES = {
     "setos": os.path.join(GPL, "setosacc"),
     "setnet": os.path.join(GPL, "setnetacc"),
     "setai": os.path.join(GPL, "setai"),
+    "setxfer": os.path.join(GPL, "setxferacc"),
     "keys": os.path.join(SDSYS, "syscom", "keys.h"),
     "ikeys": os.path.join(GPL, "int$keys.h"),
 }
@@ -97,9 +99,9 @@ def checks(raw):
        "administrator only, and reads only after that; there is no other K$AUDIT in the page (the three verbs write their own)",
        0 < i_open < i_adm < i_aud < i_read and re.search(r"call \$tk_open\('tool\.gates', '', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*stop\s*\n\s*end", pg) is not None
        and pg.count("K$AUDIT") == 1, "open %s adm %s audit %s read %s" % (i_open, i_adm, i_aud, i_read))
-    ck("GS3", "it runs THREE commands, set.os.access, set.net.access and set.ai, through $tk_run and nowhere else: one allow list, ONE call of $tk_run, directly after the confirm box and guarded by "
-       "res = 'run'; no execute, perform, chain, write, delete or sequential-file statement",
-       re.findall(r"\ballow = '([^']*)'", pg) == ["set.os.access set.net.access set.ai"] and pg.count("call $tk_run(allow, sent, out, st, err)") == 1
+    ck("GS3", "it runs FOUR commands, set.os.access, set.net.access, set.ai and set.xfer.access, through $tk_run and nowhere else: one allow list, ONE call of $tk_run, directly after the confirm box and "
+       "guarded by res = 'run'; no execute, perform, chain, write, delete or sequential-file statement",
+       re.findall(r"\ballow = '([^']*)'", pg) == ["set.os.access set.net.access set.ai set.xfer.access"] and pg.count("call $tk_run(allow, sent, out, st, err)") == 1
        and len(re.findall(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res = 'run' then\s*\n\s*call \$tk_run\(allow, sent, out, st, err\)", pg)) == 1
        and not re.search(r"^\s*(?:execute|os\.execute|perform|chain|write[uv]?|delete[uv]?|matwrite[u]?|openseq|writeseq|deleteseq)\b", pg, re.M),
        "run %d" % pg.count("call $tk_run("))
@@ -109,9 +111,18 @@ def checks(raw):
     cof = re.search(r"gcmd\.off = ([^\n]+)", pg)
     cons = re.findall(r"'([^']+)'", con.group(1)) if con else []
     cofs = re.findall(r"'([^']+)'", cof.group(1)) if cof else []
-    ck("GS4", "the table has four gates in this order: sh, os, net, ai; each gate's ON and OFF sentence is the verb's own words: set.os.access sh|os on|off, set.net.access on|off, set.ai gate on|off",
-       ids == ["sh", "os", "net", "ai"] and cons == ["set.os.access sh on", "set.os.access os on", "set.net.access on", "set.ai gate on"]
-       and cofs == ["set.os.access sh off", "set.os.access os off", "set.net.access off", "set.ai gate off"] and "NG = 4" in pg, repr((ids, cons, cofs)))
+    ck("GS4", "the table has five gates in this order: sh, os, net, ai, xfer; each gate's ON and OFF sentence is the verb's own words: set.os.access sh|os on|off, set.net.access on|off, set.ai gate on|off, "
+       "set.xfer.access on|off",
+       ids == ["sh", "os", "net", "ai", "xfer"] and cons == ["set.os.access sh on", "set.os.access os on", "set.net.access on", "set.ai gate on", "set.xfer.access on"]
+       and cofs == ["set.os.access sh off", "set.os.access os off", "set.net.access off", "set.ai gate off", "set.xfer.access off"] and "NG = 5" in pg, repr((ids, cons, cofs)))
+    sx = strip_bas(raw["setxfer"])
+    ck("GS4b", "15 Nov 26: set.xfer.access asks for the administrator first, takes ON or OFF and nothing after, writes ONLY field 22 (ACC$XFER, defined as 22 in keys.h), 'yes' or 'no', under a lock, and audits "
+       "in lower case",
+       sx.find("if not(kernel(K$ADMINISTRATOR, -1)) then") >= 0 and sx.find("if not(kernel(K$ADMINISTRATOR, -1)) then") < sx.find("openpath")
+       and "case upcase(word.1) = 'ON'  ; xf.want = @true" in sx and "case upcase(word.1) = 'OFF' ; xf.want = @false" in sx and "or word.2 # ''" in sx
+       and "if xf.want then acc.new<ACC$XFER> = 'yes' else acc.new<ACC$XFER> = 'no'" in sx and "readu acc.rec from acc.f, acc.name else" in sx
+       and len(re.findall(r"acc\.new<ACC\$[A-Z.]+>\s*=", sx)) == 2 and "'set.xfer.access ' : downcase(word.1) : ' account=' : acc.name" in sx
+       and define(raw["keys"], "ACC$XFER") == 22, repr(define(raw["keys"], "ACC$XFER")))
     so, sn, sa = strip_bas(raw["setos"]), strip_bas(raw["setnet"]), strip_bas(raw["setai"])
     ck("GS5", "those words are what the three verbs take, read off their sources: set.os.access takes SH or OS and ON or OFF in that order, set.net.access takes ON or OFF, set.ai takes GATE and on or off; "
        "each verb asks for the administrator by itself",
@@ -127,11 +138,15 @@ def checks(raw):
        and (define(raw["ikeys"], "K$SH"), define(raw["ikeys"], "K$OS.EXEC"), define(raw["ikeys"], "K$NET")) == (93, 94, 127)
        and "acc.rec<ACC$SH>" in so and "acc.rec<ACC$OS.EXEC>" in so and "acc.rec<ACC$NET>" in sn,
        repr((define(raw["keys"], "ACC$SH"), define(raw["keys"], "ACC$OS.EXEC"), define(raw["keys"], "ACC$NET"), define(raw["ikeys"], "K$SH"), define(raw["ikeys"], "K$OS.EXEC"), define(raw["ikeys"], "K$NET"))))
-    i_if = ra.find("   if adm then\n      openpath @sdsys:@ds:'accounts' to acc.f then")
-    ck("GS7", "THE REGISTER IS READ FOR THE ADMINISTRATOR ONLY: the one openpath of the register is inside 'if adm then', it reads the one record of the one account (sduser) and closes the file, and "
-       "a session that is not the administrator gets null for the three register states (a dash on the page)",
-       0 < i_if and pg.count("openpath") == 1 and "acc.name = 'sduser'" in pg and "read acc.rec from acc.f, acc.name then" in ra and "close acc.f" in ra and "reg.ok = 0" in ra
-       and ra.find("reg.ok = 0") < i_if and re.search(r"gnow = '' ; gset = ''", ra) is not None and ra.count("gset<") >= 4, "if at %d" % i_if)
+    i_if = ra.find("         if adm then\n            reg.ok = 1")
+    i_rd = ra.find("read acc.rec from acc.f, acc.name then")
+    ck("GS7", "THE REGISTER'S OTHER STATES ARE THE ADMINISTRATOR'S ONLY: the register is opened ONCE, the one record of the one account (sduser) is read and the file closed; the three register states "
+       "(gset 1-3, and reg.ok) are set only inside 'if adm then', so a session that is not the administrator gets null for them (a dash on the page).  15 Nov 26: the record is read for every session "
+       "because file transfer has no session copy - RECEIVE, SEND and the server read field 22 each time - and a non-administrator takes ONLY that field from it (gnow<5>)",
+       0 < i_rd < i_if and pg.count("openpath") == 1 and "acc.name = 'sduser'" in pg and "close acc.f" in ra and "reg.ok = 0" in ra
+       and ra.find("reg.ok = 0") < i_if and re.search(r"gnow = '' ; gset = ''", ra) is not None and ra.count("gset<") >= 4
+       and "gnow<5> = (if upcase(trim(xf.rec<ACC$XFER>)) = 'YES' then 1 else 0)" in ra and "if adm then gset<5> = gnow<5>" in ra
+       and all(ra.find(s) > i_if for s in ("gset<1> =", "gset<2> =", "gset<3> =")), "if at %d, read at %d" % (i_if, i_rd))
     ck("GS8", "THE ADMINISTRATOR IS ASKED OF THE KERNEL EACH TIME: read.all asks again (a session can type ADMIN while another page is up), and the Enter handler refuses before it builds a sentence",
        "adm = (if kernel(K$ADMINISTRATOR, -1) then 1 else 0)" in ra and re.search(r"^change:\s*\n\s*if not\(kernel\(K\$ADMINISTRATOR, -1\)\) then\s*\n\s*msg = '[^']*'\s*\n\s*return\s*\n\s*end", pg, re.M) is not None
        and pg.find("sent = (if on.now") > pg.find("^change:" if False else "change:\n"), "")
@@ -161,12 +176,12 @@ def checks(raw):
     # 9 rows by 138: rows 1-11, 12-25, 26-34, since a band starts where the one above ends), and every row the page draws is counted from its pane, so at 140 by 43 the gate
     # rows are at y 3-6, the summary at 8-10, 12 lines of explanation at 13-24 and 7 of source at 27-33, as before; a resize lays the panes out again.
     dly = block(pg, "declare.layout")
-    ck("GS14", "the layout fits the 140 by 43 frame: three panes declared 11, 14 and 9 rows by 138 (rows 1-11, 12-25, 26-34 at that size), four gate rows under the headings, the three summary lines "
+    ck("GS14", "the layout fits the 140 by 43 frame: three panes declared 11, 14 and 9 rows by 138 (rows 1-11, 12-25, 26-34 at that size), five gate rows under the headings (rows 2-6 of the box), the three summary lines "
        "below them, the explanation and the source filling their boxes, all counted from the pane; a resize asks the layout again",
        "ld<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 11 : @vm : 138 :" in dly and "ld<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 14 : @vm : 138 :" in dly
        and "ld<3> = 'source' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 :" in dly
        and "screen box at gat.x,gat.y size gat.w,gat.h" in dl and "screen box at row.x,row.y size row.w,row.h" in dl and "screen box at src.x,src.y size src.w,src.h" in dl
-       and "VIS = 4" in pg and "at tx,gat.y + 1 + r attr" in dlst and "at tx,gat.y + 7 attr" in dlst and "at tx,gat.y + 8 width" in dlst and "at tx,gat.y + 9 width" in dlst
+       and "VIS = 5" in pg and "at tx,gat.y + 1 + r attr" in dlst and "at tx,gat.y + 7 attr" in dlst and "at tx,gat.y + 8 width" in dlst and "at tx,gat.y + 9 width" in dlst
        and "for r = 1 to row.h - 2" in drow and "at row.x + 2,row.y + r width ww" in drow and "for r = 1 to src.h - 2" in dsrc and "at src.x + 2,src.y + r width ww" in dsrc
        and "call $tk_layout('refresh', ctx, '', lchg)\n            gosub get.rects" in pg)
     ck("GS15", "every gate is shown as off as delivered and as reaching beyond SD (nothing is on as delivered, and each one reaches the operating system or beyond SD), and the page says when a change reaches you: "
@@ -208,19 +223,22 @@ MUTANTS = [
     ("a second audit line", "GS2", sub("page", "   keys = ''\n", "   void kernel(K$AUDIT, 'tool x')\n   keys = ''\n")),
     ("the newvoc entry is missing", "GS1", setkey("newvoc", "")),
     ("the voc_template entry names another program", "GS1", sub("voc", "$tool_gates", "$tool_sessions")),
-    ("the page may run another command", "GS3", sub("page", "allow = 'set.os.access set.net.access set.ai'", "allow = 'set.os.access set.net.access set.ai sh'")),
+    ("the page may run another command", "GS3", sub("page", "allow = 'set.os.access set.net.access set.ai set.xfer.access'", "allow = 'set.os.access set.net.access set.ai set.xfer.access sh'")),
     ("the page runs a command itself", "GS3", sub("page", "      call $tk_run(allow, sent, out, st, err)\n", "      execute sent capturing out\n")),
     ("the box is skipped", "GS3", sub("page", "   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res = 'run' then", "   res = 'run'\n   if res = 'run' then")),
     ("the page writes a file", "GS3", sub("page", "   acc.name = 'sduser'", "   acc.name = 'sduser'\n   write 'x' to acc.f, 'y'")),
-    ("the gates are in the wrong order", "GS4", sub("page", "gids = 'sh' : @fm : 'os' : @fm : 'net' : @fm : 'ai'", "gids = 'os' : @fm : 'sh' : @fm : 'net' : @fm : 'ai'")),
+    ("the gates are in the wrong order", "GS4", sub("page", "gids = 'sh' : @fm : 'os' : @fm : 'net' : @fm : 'ai' : @fm : 'xfer'", "gids = 'os' : @fm : 'sh' : @fm : 'net' : @fm : 'ai' : @fm : 'xfer'")),
     ("os is switched with the sh word", "GS4", sub("page", "'set.os.access os on'", "'set.os.access sh on'")),
     ("net uses a word the verb does not take", "GS4", sub("page", "'set.net.access off'", "'set.net.access disable'")),
     ("ai uses another verb", "GS4", sub("page", "'set.ai gate off'", "'set.ai provider none'")),
-    ("a fifth gate", "GS4", sub("page", "NG = 4", "NG = 5")),
+    ("a sixth gate", "GS4", sub("page", "NG = 5", "NG = 6")),
+    ("xfer uses a word the verb does not take", "GS4", sub("page", "'set.xfer.access off'", "'set.xfer.access disable'")),
+    ("set.xfer.access does not ask for the administrator", "GS4b", sub("setxfer", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001)", "   if 0 then\n      stop sysmsg(2001)")),
+    ("set.xfer.access writes another field", "GS4b", sub("setxfer", "if xf.want then acc.new<ACC$XFER> = 'yes' else acc.new<ACC$XFER> = 'no'", "if xf.want then acc.new<ACC$NET> = 'yes' else acc.new<ACC$XFER> = 'no'")),
+    ("a non-administrator is given the register's other states", "GS7", sub("page", "         if adm then\n            reg.ok = 1", "         if 1 then\n            reg.ok = 1")),
     ("the register field of net is the os one", "GS6", sub("page", "acc.rec<ACC$NET>", "acc.rec<ACC$OS.EXEC>")),
     ("the page sets a gate in the kernel", "GS6", sub("page", "gnow<1> = (if kernel(K$SH, -1) then 1 else 0)", "gnow<1> = (if kernel(K$SH, 1) then 1 else 0)")),
     ("the helper is asked for something else", "GS6", sub("page", "kernel(K$AI.STATUS, 0)", "kernel(K$AI.STATUS, 1)")),
-    ("the register is read for every session", "GS7", sub("page", "   if adm then\n      openpath @sdsys:@ds:'accounts' to acc.f then", "   if 1 then\n      openpath @sdsys:@ds:'accounts' to acc.f then")),
     ("a second openpath", "GS7", sub("page", "   helper.ok = 0\n   hj = ''\n", "   openpath @sdsys:@ds:'accounts' to acc2.f then close acc2.f\n   helper.ok = 0\n   hj = ''\n")),
     ("the administrator is not asked again by read.all", "GS8", sub("page", "read.all:\n   adm = (if kernel(K$ADMINISTRATOR, -1) then 1 else 0)\n", "read.all:\n")),
     ("Enter does not refuse a holder", "GS8", sub("page", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      msg = 'Only the administrator can change a gate: type admin, then open this page again'\n      return\n   end\n", "")),

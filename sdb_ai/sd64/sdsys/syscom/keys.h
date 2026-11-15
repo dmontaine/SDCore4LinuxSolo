@@ -456,6 +456,10 @@
       *   (dropped 21 Oct 26) and must not use fields 20 and 21 for anything else without moving these.
       $define ACC$MCP          20    ;* an MCP agent may use the account through the launcher (yes/no; blank = no)
       $define ACC$MCP.WRITE    21    ;* the same agent may also run a sentence of its own, sd_run (yes/no; blank = no)
+      * 15 Nov 26 dm - FIELD 22, as in SD Core for Linux (S.242, carried): whether the account's person may move files over Solo's ssh login with
+      *   RECEIVE / SEND.  yes/no; BLANK MEANS NO (delivered off; XFER in sd.conf must be 1 as well).  The transfer server reads it at every
+      *   connection; no session holds it.
+      $define ACC$XFER         22    ;* may move files in and out over ssh with RECEIVE / SEND (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

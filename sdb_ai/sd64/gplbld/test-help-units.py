@@ -190,9 +190,9 @@ def checks(s):
        and "allow = 'logout unlock inhibit.login'" in tsn and tsn.count("allow = ") == 1 and "tool.sessions.page" in hts and "call $tk_wrap(lines<wi>, rtw, pieces)" in tsn and "rest[cut" not in tsn)
 
     tgn = strip(s["tool_gates"])
-    ck("P17e tool.gates: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only set.os.access, set.net.access and set.ai, and it wraps with $tk_wrap",
+    ck("P17e tool.gates: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only set.os.access, set.net.access, set.ai and set.xfer.access (15 Nov 26), and it wraps with $tk_wrap",
        "call $tk_help('mark', gat.x + gat.w - 5, gat.y + 1, 0, 0)" in tgn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)" in tgn and "call $tk_help('hit', mev, gat.x + gat.w - 5, gat.y + 1, hit.m)" in tgn
-       and "allow = 'set.os.access set.net.access set.ai'" in tgn and tgn.count("allow = ") == 1 and "tool.gates.page" in hts and "call $tk_wrap(lines<wi>, ww, pieces)" in tgn and "rest[cut" not in tgn)
+       and "allow = 'set.os.access set.net.access set.ai set.xfer.access'" in tgn and tgn.count("allow = ") == 1 and "tool.gates.page" in hts and "call $tk_wrap(lines<wi>, ww, pieces)" in tgn and "rest[cut" not in tgn)
     # 12 Nov 26 (S.221): the page's boxes are panes of $tk_layout, so the [?] and the wrap width are counted from the first pane (134, 2 and 134 at 140 by 43)
 
     # one wrapping loop

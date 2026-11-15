@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 15 Nov 26 dm  K_XFER (173), the file transfer slot and server (sd_sftp.c k_xfer()); carried from SD Core's S.242.
  * 14 Nov 26 dm  Carried from SD Core (S.241): a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
  * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
  * 12 Nov 26 dm  S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): K_PHANTOM_NONCE (144), the secret a phantom() gives the
@@ -97,6 +98,7 @@ void kr_wipe(void);        /* sd_keyring.c: empty the key ring of the XE convers
 #include <pwd.h>
 #include <grp.h>
 #include <unistd.h>
+#include "sd_sftp.h"
 
 Public bool case_sensitive;
 
@@ -1342,6 +1344,11 @@ void op_kernel() {
     case K_AI_CANCEL:
     case K_AI_STATUS:
       k_ai(action, descr, &result);
+      break;
+
+    /* 15 Nov 26 dm - S.242 stage 3: the file transfer slot (RECEIVE / SEND) and the transfer server's side of it; $internal only (sd_sftp.c) */
+    case K_XFER:
+      k_xfer(descr, &result);
       break;
 
     default:
