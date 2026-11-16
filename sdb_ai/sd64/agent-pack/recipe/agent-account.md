@@ -44,7 +44,7 @@ Use it when the agent needs the shell or OS access, or when it must not see your
 - **No scopes inside the account.** The agent can read, change and delete everything in `sduser`, and, with a switch on, everything its Linux user can reach. That is why production data belongs somewhere else, or behind shape 2.
 - **No protection if you turn a switch on later.** The switches are yours; a refusal that stops the agent today does not stop it after `set.os.access os on`.
 - **No audit of content.** The trail names what the agent did, not what it saw.
-- **No MCP door.** `sdctl` and `sd-mcp` are not built; the `.mcp.json` example in `templates/` shows the shape and does not work today. Over ssh or a pipe the agent is driving `sd-solo` itself, with commands piped to it, as `gplbld/sandbox-guide.py` does in a sandbox.
+- **No remote MCP door.** The local one exists, off as delivered: `solo-mcp.py` in the installation's `tools` folder, opened with `set.mcp on` (Getting Started, *The MCP Door*), offers read-only tools in your own account to a client started on this computer. A door reached over ssh (`sdctl`, `sd-mcp`) is not built, and the `.mcp.json` example in `templates/` shows the shape of that remote door and does not work today. Over ssh or a pipe the agent is driving `sd-solo` itself, with commands piped to it, as `gplbld/sandbox-guide.py` does in a sandbox.
 - **No protection against a prompt that persuades the agent to ask you for more.** When it asks for the administrator password, or for a switch to be turned on, the answer is yours, and the safe default is no.
 
 ## A checklist to keep in the project
