@@ -97,7 +97,12 @@ def checks(s):
        and not re.search(r"body<-1>[^\n]*\bcx\.(text|send)\b", ai) and not re.search(r"wr\.text = [^\n]*\bcx\.", ai), "")
     ck("A12 the app's words are cleaned like the person's: every offered action line goes through clean before the preview or the prompt", ordered(ask, "for i = 1 to dcount(a<4>, @vm)", "gosub clean", "acts<1, i> = ", "sysx = sysmsg(11635, app)"), "")
     ck("A13 the line is not drawn at all when the AI is not usable (the gate, a provider, a model and a key): read.status sets ai.on only after all four tests, and the other ops do nothing when it is 0",
-       ordered(ai, "read.status:", "if not(hj{'gate'}) then return", "hj{'provider'} = ''", "if not(hj{'key'}) then return", "ai.on = 1") and ai.count("if ai.on then") >= 6, "")
+       ordered(ai, "read.status:", "if not(hj{'gate'}) then", "hj{'provider'} = ''", "if not(hj{'key'}) then return", "ai.on = 1") and ai.count("if ai.on then") >= 6, "")
+    # 16 Nov 26 (carry of Core b5adf503, Windows row 303): the reason is kept - 'setup' from the start of read.status, 'gate' only at the gate test, '' only with
+    # ai.on = 1 - and 'why' gives it back without asking the helper again; ai.why is the LAST name of /tkai/.
+    ck("A13b read.status keeps why the AI is not usable ('setup' unless the gate is the reason, '' when usable), and the op 'why' returns it without reading the status again",
+       ordered(ai, "read.status:", "ai.why = 'setup'", "if not(hj{'gate'}) then\n      ai.why = 'gate'\n      return\n   end", "ai.on = 1\n   ai.why = ''")
+       and "      case op = 'why'\n         a = ai.why" in ai and "ai.fwho, ai.why\n" in ai, "")
     ck("A14 the wait gives up on Esc, on the cursor lock's way out and on an input that has ended, and cancels the request", ordered(ask, "screen key timeout 1 returning nm", "nm = 'esc' or nm = 'guardquit'", "ER$EOF", "kernel(K$AI.CANCEL, 0)"), "")
     mv = re.search(r"case op = 'move'\n(.*?)\n      case op = 'draw'", ai, re.S)
     mvb = mv.group(1) if mv else ""
@@ -225,6 +230,9 @@ MUTANTS = [
     ("Sign out is offered", "tool_home", "if ta[1, 4] = 'cmd:' or ta = 'terminal' then", "if ta[1, 4] = 'cmd:' or ta = 'terminal' or ta = 'signout' then", "H1"),
     ("the page's lines are fields", "tool_home", "ctxt := @vm : 'The person is '", "ctxt := @fm : 'The person is '", "H2"),
     ("the line is drawn without the AI", "tk_ai", "   if not(hj{'key'}) then return", "   null", "A13"),
+    # 16 Nov 26 (carry of Core b5adf503): the reason the AI is off
+    ("the gate is never named as the reason", "tk_ai", "      ai.why = 'gate'\n", "", "A13b"),
+    ("a usable AI keeps a reason", "tk_ai", "   ai.on = 1\n   ai.why = ''\n", "   ai.on = 1\n", "A13b"),
     # AI line stage 2 (24 Oct 2026): the first of these is marker 10 for --from=10
     ("an old text found twice is accepted", "tk_ai", "               case index(tbm, eo, 2) > 0\n", "               case @false\n", "E2"),
     ("a bad edit is only skipped, not the whole set", "tk_ai", "      note.p = sysmsg(11660, bad.why)\n      return\n", "      note.p = sysmsg(11660, bad.why)\n", "E1"),

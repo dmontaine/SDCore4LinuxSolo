@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+16 Nov 26  THE HOME SCREEN SAYS WHY THE AI CANNOT BE USED: THE AI SWITCH, OR A COMPUTER WITH NO AI SET UP.
+
+             What        - F6 and AI > Ask the AI on the home screen said "the AI is not on for this account" whenever the AI
+                           could not be used.  They now say that only when the AI's own switch is off (set.ai gate); when no AI
+                           provider, model or key is set up (as on a fresh install), they say "the AI is not set up on this
+                           computer (the administrator sets it up in AI)".
+             Why         - the message sent the person to the wrong place.  Found by SD Core for Windows; SD Core has it too.
+             Does NOT    - Change when the AI can be used, or what any other page says.
+
 16 Nov 26  THE FULL-SCREEN PAGES' FIELDS OPEN EMPTY; FIXED CHOICES ARE CHOSEN; THE AI LINE SHOWS THE WHOLE ANSWER.
 
              What        - every entry field of the pages now opens empty.  Where a field changes a value, the value in
