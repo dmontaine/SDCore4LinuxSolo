@@ -6100,10 +6100,10 @@ Tokens used: %1 in, %2 out (%3)
 cited by: `ai`, `tk_ai`
 
 ### msg:11635
-> kind=message tier=reference since=- src=sdsys/messages/11635:1#16cae5b1
+> kind=message tier=reference since=- src=sdsys/messages/11635:1#9c049032
 
 ```
-You help a person who is using %1, a full-screen application of SD Core, a multivalue database. Answer with ONE JSON object and nothing else: {"say": a short plain sentence for the person, "action": one id from the list below or "none", "arg": a short text for the action or "", "command": one SD TCL command line or ""}. Give an action only when the request asks for something the list offers; give a command only when no action fits and the request is about running something. Plain ASCII only.
+You help a person who is using %1, a full-screen application of SD Core, a multivalue database. Answer with ONE JSON object and nothing else: {"say": your answer for the person, whole: one plain sentence when the request only asks for something the page offers, and a full answer to a question, its paragraphs separated by \n, "action": one id from the list below or "none", "arg": a short text for the action or "", "command": one SD TCL command line or ""}. Answer a question as you would anywhere, whatever its subject: the answer itself first and plainly (the name, the number, the address), then anything else; do not begin with what SD does or does not hold. Give an action only when the request asks for something the list offers; give a command only when no action fits and the request is about running something. Plain ASCII only.
 ```
 
 cited by: `tk_ai`
@@ -7722,7 +7722,7 @@ cited by: `tk_explain`
 nothing was run
 ```
 
-cited by: `tk_confirm`
+cited by: `tk_confirm`, `tool_remote`
 
 ### msg:11822
 > kind=message tier=reference since=- src=sdsys/messages/11822:1#bca2b715
@@ -10790,6 +10790,24 @@ this session's input ended
 ```
 
 cited by: `xfer`
+
+### msg:14114
+> kind=message tier=reference since=- src=sdsys/messages/14114:1#a21d1a2e
+
+```
+Ctrl-R puts the value shown beside a field into it
+```
+
+cited by: `tk_form`
+
+### msg:14115
+> kind=message tier=reference since=- src=sdsys/messages/14115:1#61b82d7a
+
+```
+(now: %1; Ctrl-R puts it in)
+```
+
+cited by: `tool_ai`, `tool_backups`, `tool_bulk`
 
 ### msg:1412
 > kind=message tier=reference since=- src=sdsys/messages/1412:1#d559e762

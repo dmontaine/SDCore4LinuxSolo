@@ -65,6 +65,7 @@
 * 15 Nov 26 dm  The Solo carry of SD Core's S.242: Receive files, in the person's own tools, only where RECEIVE would open a transfer (xfer.usable asks what RECEIVE asks,
 *               in its order: XFER, the one account, its switch set by set.xfer.access); it runs RECEIVE and waits for a key after.  Unlike Core it is shown in both modes: in
 *               Solo the administrator is the same person in the same account, and RECEIVE works for it (Core's SDSYS has no transfer).
+* 16 Nov 26 dm  Carried from SD Core (96e72293; Windows row 327): after Follow up in the answer's box the AI line keeps the focus.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1264,6 +1265,7 @@ ask.ai:
    call $tk_ai('ask', ctx, actx, res)
    call $tk_ai('clear', ctx, '', '')
    aif = 0
+   if res<1> = 'follow' then gosub ai.focus.on           ;* 16 Nov 26 (Windows row 327): after Follow up the line keeps the focus, ready to type
    msg = res<5>
    begin case
       case res<1> = 'action'

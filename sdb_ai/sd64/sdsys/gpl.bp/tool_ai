@@ -25,6 +25,8 @@
 *               ($tk_layout) - drawn exactly as before at 140 by 43, and in a larger window the account box takes the extra rows and every box the extra columns; a resize is
 *               followed, and a resize while the setup box or the standing-text box is open lays the page out again behind the box (after.box, box.resized).  The
 *               Provider and Account boxes are named as focus boxes for $tk_frame's marks, as in Core.
+* 16 Nov 26 dm  Carried from SD Core (853870e6): S.239, the reopen routine nothing called is gone; S.244, the owner's page rules: C's entries and A's question
+*               open empty with the value in force beside them, an empty answer keeping it, and C's layout and authentication are choices, not typed.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -127,7 +129,7 @@ $include tk.h
    loop
       call $tk_menubar('draw', ctx, keys, pnames<pane>, '', '', mr)            ;* the bar first: it writes row 0 whole
       call $tk_frame(ctx, keys, pnames<pane>, msg)
-      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      call $tk_aipage('cursor', ctx, '', '', '', '')                      ;* the cursor in the AI line while it has the focus, else column 0 of the status line (Windows row 328)
       nm = ''
       screen key returning nm
       mr = ''
@@ -1151,12 +1153,14 @@ do.custom:
    * 14 Nov 26, S.238 (owner: "bring solo into parity with core"), carried from SD Core's S.88 (2b8ce4a1): one form with the six answers in view;
    *   a refusal names the first bad field and the form stays with what was typed (the six prompts named only the last bad field and lost the rest)
    spec = 'Custom AI connection' : @fm : '&Continue' : @fm : ''
-   spec<-1> = 'name' : @vm : 'Name' : @vm : 40 : @vm : 40
-   spec<-1> = 'url' : @vm : 'Address (https only)' : @vm : 100 : @vm : 300
-   spec<-1> = 'layout' : @vm : 'Layout: anthropic, openai' : @vm : 12 : @vm : 12
-   spec<-1> = 'auth' : @vm : 'Auth: bearer, x-api-key' : @vm : 12 : @vm : 12
-   spec<-1> = 'version' : @vm : 'Version header (- none)' : @vm : 24 : @vm : 40
-   spec<-1> = 'maxfield' : @vm : 'Length field' : @vm : 30 : @vm : 60
+   * S.244: the entries open empty with the value in force beside them, and an empty entry keeps it (2); the layout and the authentication are choices (1)
+   kp = @vm : '' : @vm : 1
+   spec<-1> = 'name' : @vm : 'Name' : @vm : 40 : @vm : 40 : kp
+   spec<-1> = 'url' : @vm : 'Address (https only)' : @vm : 100 : @vm : 300 : kp
+   spec<-1> = 'layout' : @vm : 'Layout' : @vm : '' : @vm : '' : @vm : 2 : @vm : '' : @vm : 'anthropic' : @sm : 'openai'
+   spec<-1> = 'auth' : @vm : 'Authentication' : @vm : '' : @vm : '' : @vm : 2 : @vm : '' : @vm : 'bearer' : @sm : 'x-api-key'
+   spec<-1> = 'version' : @vm : 'Version header (- none)' : @vm : 24 : @vm : 40 : kp
+   spec<-1> = 'maxfield' : @vm : 'Length field' : @vm : 30 : @vm : 60 : kp
    fv = v1 : @fm : v2 : @fm : v3 : @fm : v4 : @fm : v5 : @fm : v6
    call $tk_form('open', ctx, spec, fv, fo)
    if fo = 'no' then
@@ -1221,8 +1225,14 @@ do.dropcustom:
 
 * A: the file of certificate authorities the helper trusts (instead of the system store); a dash is the system store
 do.ca:
-   screen ask 'File of certificate authorities for a private CA (a dash is the system store)' width 100 value ca title 'Certificate authorities' returning cv else return
+   * S.244 (2): the field opens empty, the file in force is shown in the question and Ctrl-R puts it in; an empty answer changes nothing
+   ca.now = (if ca = '' then '-' else ca)
+   screen ask 'File of certificate authorities for a private CA, a dash for the system store ' : sysmsg(14115, ca.now) width 100 value '' title 'Certificate authorities' history ca.now returning cv else return
    cv = trim(cv)
+   if cv = '' then
+      msg = 'nothing changed'
+      return
+   end
    vw = cv
    vmax = 300
    gosub valid.word

@@ -122,7 +122,7 @@ $include tk.h
    loop
       call $tk_menubar('draw', ctx, keys, panes<pane>, '', '', mr)          ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, panes<pane>, msg)
-      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      call $tk_aipage('cursor', ctx, '', '', '', '')                      ;* the cursor in the AI line while it has the focus, else column 0 of the status line (Windows row 328)
       nm = ''
       screen key timeout 3 returning nm
       mr = ''
@@ -445,9 +445,9 @@ draw.row:
       screen text lines<r> at rwb.x + 2,rwb.y + r width rtw
    next r
    if pane = 1 then
-      s = 'L asks the selected session to end.  Tab changes to the locks.'
+      s = 'L asks the selected session to end.  F6 changes to the locks.'
    end else
-      s = 'U releases the selected lock.  Tab changes to the sessions.'
+      s = 'U releases the selected lock.  F6 changes to the sessions.'
    end
    screen text s at rwb.x + 2,rwb.y + rwb.h - 2 attr 'bold' width rtw
    return

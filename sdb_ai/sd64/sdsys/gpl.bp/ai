@@ -12,6 +12,8 @@
 *               whose size is still counted (Core 8 Nov, S.175).  NOT carried: the administrator's standing text (Core S.160), which Solo's helper has not got.
 * 23 Oct 26 dm  Solo carry 15: only the description of who may use it (the gate is set.ai gate on, not a Linux group); the code is Core's.
 * 23 Oct 26 dm  (Core) New.
+* 16 Nov 26 dm  Carried from SD Core (96e72293; Windows row 326, the owner: "Yes, follow it"): the request asks the kernel's ceiling, 100000 tokens, so
+*               set.ai limit max-tokens decides how long an answer may be (it could only shorten one below 1024).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -131,7 +133,7 @@ $include err.h
    end
 
 *  The request
-   reply = kernel(K$AI.START, system.text : @fm : 1024 : @fm : question)
+   reply = kernel(K$AI.START, system.text : @fm : 100000 : @fm : question)    ;* 16 Nov 26 (Windows row 326, the owner: "Yes, follow it"): the kernel's ceiling, so set.ai limit max-tokens decides
    if reply<1> # 'OK' then
       @system.return.code = -ER$FAILED
       if reply<2> = 'nohelper' then stop sysmsg(11607)

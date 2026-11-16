@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+16 Nov 26  THE FULL-SCREEN PAGES' FIELDS OPEN EMPTY; FIXED CHOICES ARE CHOSEN; THE AI LINE SHOWS THE WHOLE ANSWER.
+
+             What        - every entry field of the pages now opens empty.  Where a field changes a value, the value in
+                           force is shown beside it ("now: ...") and Ctrl-R puts it in to be edited; for most such fields an
+                           empty entry keeps it.  The '/' find box starts empty too, and Up or Ctrl-R brings back the last
+                           text.  A choice from a fixed set is chosen instead of typed: the API and ssh doors (off, local or
+                           open, from a list that starts on off), a server's file mode, the AI layout and authentication, a
+                           menu program's Wait for Enter.  The words a box asks you to type, open and restore, are shown in
+                           lower case and taken in either case.  The AI line's answer is shown whole, in paragraphs, in a box
+                           that scrolls; its cursor stands after what is typed, on every page; it keeps the focus after Follow up;
+                           a question is answered with the answer itself first; and how
+                           long an answer may be is set.ai limit max-tokens (1024 as delivered).  DeepSeek starts on the model
+                           deepseek-v4-flash.  The sessions page's key line says F6 changes between the sessions and the
+                           locks.  A grouped phantom whose parent has gone ends at once, and FSTAT.USER lists sessions in user
+                           number order.
+             Why         - the owner's rules for the pages, and the fixes SD Core made for them and for the AI line (the owner:
+                           "it should display the whole response"); deepseek-flash is not a DeepSeek model name.
+             Does NOT    - Change what any command does or checks, or what an AI answer may propose.
+
 15 Nov 26  FILE TRANSFER OVER SOLO'S SSH: RECEIVE, SEND AND SET.XFER.ACCESS.
 
              What        - two new commands move plain-text files between the account and another computer.
