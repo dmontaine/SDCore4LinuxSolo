@@ -53,6 +53,7 @@ def load():
     src["tool_sessions"] = read(os.path.join(GPL, "tool_sessions"))   # 24 Oct 26, carry 20: the sessions and locks page asks for tool.sessions.page
     src["tool_gates"] = read(os.path.join(GPL, "tool_gates"))         # 24 Oct 26, carry 20b: the gates page asks for tool.gates.page
     src["mymenu"] = read(os.path.join(GPL, "mymenu"))                 # 11 Nov 26, S.216: MY.MENU asks for tool.menus.mine (Core's record, carried)
+    src["tool_solojobs"] = read(os.path.join(GPL, "tool_solojobs"))   # 17 Nov 26, S.247: the scheduled jobs page (TOOL.JOBS) asks for tool.jobs.page
     for app in PAGE_APPS:
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 11 Nov 26, the TUI carry: each of these pages asks for its tool.<app>.page on F1
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
@@ -166,7 +167,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|sessions|gates|" + "|".join(PAGE_APPS) + r")\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["mymenu"]) + "".join("\n" + strip(s["tool_" + a]) for a in PAGE_APPS)))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|sessions|gates|jobs|" + "|".join(PAGE_APPS) + r")\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["mymenu"]) + "\n" + strip(s["tool_solojobs"]) + "".join("\n" + strip(s["tool_" + a]) for a in PAGE_APPS)))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     asked |= set(re.findall(r"\$tk_help\('box',\s*'(tool\.home\.[a-z-]+)'", strip(read(os.path.join(GPL, "tool_home")))))   # 12 Nov 26 (S.221): the home screen asks for tool.home.page
@@ -190,9 +191,14 @@ def checks(s):
        and "allow = 'logout unlock inhibit.login'" in tsn and tsn.count("allow = ") == 1 and "tool.sessions.page" in hts and "call $tk_wrap(lines<wi>, rtw, pieces)" in tsn and "rest[cut" not in tsn)
 
     tgn = strip(s["tool_gates"])
-    ck("P17e tool.gates: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only set.os.access, set.net.access, set.ai and set.xfer.access (15 Nov 26), and it wraps with $tk_wrap",
+    ck("P17e tool.gates: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only set.os.access, set.net.access, set.ai, set.xfer.access (15 Nov 26) and set.jobs.access "
+       "(17 Nov 26), and it wraps with $tk_wrap",
        "call $tk_help('mark', gat.x + gat.w - 5, gat.y + 1, 0, 0)" in tgn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)" in tgn and "call $tk_help('hit', mev, gat.x + gat.w - 5, gat.y + 1, hit.m)" in tgn
-       and "allow = 'set.os.access set.net.access set.ai set.xfer.access'" in tgn and tgn.count("allow = ") == 1 and "tool.gates.page" in hts and "call $tk_wrap(lines<wi>, ww, pieces)" in tgn and "rest[cut" not in tgn)
+       and "allow = 'set.os.access set.net.access set.ai set.xfer.access set.jobs.access'" in tgn and tgn.count("allow = ") == 1 and "tool.gates.page" in hts and "call $tk_wrap(lines<wi>, ww, pieces)" in tgn and "rest[cut" not in tgn)
+    tjn = strip(s["tool_solojobs"])
+    ck("P17f tool.jobs (17 Nov 26, S.247): a [?] at the end of the jobs box, F1 and ? and a click show tool.jobs.page, it runs only set.job, and it wraps with $tk_wrap",
+       "call $tk_help('mark', j.x + j.w - 5, j.y + 1, 0, 0)" in tjn and "call $tk_help('box', 'tool.jobs.page', hm, 0, 0)" in tjn and "call $tk_help('hit', mev, j.x + j.w - 5, j.y + 1, hit.jobs)" in tjn
+       and "allow = 'set.job'" in tjn and tjn.count("allow = ") == 1 and "tool.jobs.page" in hts and "call $tk_wrap(lines<wi>, m.tw, pieces)" in tjn)
     # 12 Nov 26 (S.221): the page's boxes are panes of $tk_layout, so the [?] and the wrap width are counted from the first pane (134, 2 and 134 at 140 by 43)
 
     # one wrapping loop
@@ -274,7 +280,9 @@ MUTANTS = [
     ("tool.sessions can run another command", "tool_sessions", "allow = 'logout unlock inhibit.login'", "allow = 'logout unlock inhibit.login sh'"),
     ("tool.gates loses its [?]", "tool_gates", "   call $tk_help('mark', gat.x + gat.w - 5, gat.y + 1, 0, 0)\n", ""),
     ("tool.gates calls $tk_help with too few arguments", "tool_gates", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.page', hm)"),
-    ("tool.gates can run another command", "tool_gates", "allow = 'set.os.access set.net.access set.ai'", "allow = 'set.os.access set.net.access set.ai sh'"),
+    ("tool.gates can run another command", "tool_gates", "allow = 'set.os.access set.net.access set.ai set.xfer.access set.jobs.access'", "allow = 'set.os.access set.net.access set.ai set.xfer.access set.jobs.access sh'"),
+    ("tool.jobs can run another command", "tool_solojobs", "allow = 'set.job'", "allow = 'set.job sh'"),
+    ("tool.jobs loses its [?]", "tool_solojobs", "   call $tk_help('mark', j.x + j.w - 5, j.y + 1, 0, 0)\n", ""),
     ("a help record names a page that is not there", "ht.tool.menus.pins", "06-administrator-commands", "no-such-page"),
     ("a help record has no title", "ht.tool.menus.pins", "Programs of the account's own\n", "\n"),
     ("a help record has a tab in it", "ht.tool.menus.starts-in", "Chooses what you see", "\tChooses what you see"),

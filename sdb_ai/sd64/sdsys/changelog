@@ -1,6 +1,42 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SCHEDULED JOBS: SET.JOB, RUN.JOB, SET.JOBS.ACCESS AND THE TOOL.JOBS PAGE.
+
+             What        - SD can now keep jobs of its own: SD commands of yours that run on a timer, unattended.
+                             set.job                                    lists the jobs, with each one's next and last run
+                             set.job add <name> <schedule> <command>    makes a job
+                             set.job change <name> <schedule> <command> changes one
+                             set.job delete <name>                      removes one
+                             set.job run <name>                         starts one now
+                           A schedule is every 5, 10, 15, 20 or 30 minutes, hourly, daily hh:mm, weekly mon..sun hh:mm or
+                           monthly 1..28 hh:mm, in the computer's time; the command is the rest of the line, as you would
+                           type it at the prompt.  Making or changing a job asks for your account password, typed at the
+                           terminal, every time.  Each job is a systemd user timer of yours (sd-solo-job-<name>) that starts
+                           sd-solo "run.job <name>", which signs in as every one-shot command does and runs the command the
+                           job was given.  The page tool.jobs shows the same list and does the same with N, C, D and R; its
+                           form has a masked field for the password.  A run missed while the computer was off is not made up.
+                           OFF AS DELIVERED: the administrator turns jobs on with set.jobs.access on (or the new Scheduled
+                           jobs row of tool.gates); while they are off no job can be made or run, and every job is refused
+                           at its next run.  The uninstaller removes the timers; when it keeps your data it keeps the job
+                           definitions too, and a reinstall that reloads them gives the jobs their timers back.
+             Why         - the owner: "since scheduled jobs is in core and useful in solo it should be in this release".
+                           Until now a job was a cron line or a timer you wrote yourself, which SD could not list or stop.
+             Does NOT    - Change how a one-shot sd-solo command signs in (the kept copy of the password, as before), so cron
+                           jobs you already have keep working; run anything as another user or as root; keep the password
+                           anywhere new.  A job adds no way in that a one-shot command does not already have: everything
+                           that runs as you can still run sd-solo itself.  Jobs run while your systemd user manager runs,
+                           which with linger on (the installer's default) is always.
+
+17 Nov 26  THE ADMINISTRATOR'S PASSWORD CHECKS NAME THEIR RECORDS IN LOWER CASE.
+
+             What        - admin, set.password and the sign-on name the credential records $admin and $global in lower
+                           case, as they are stored.  A test now holds the API sign-in path (the names it refuses before any
+                           password is checked).
+             Why         - found by SD Core Solo for Windows; on Linux the records were always lower case and the check
+                           already folded the name, so nothing changes at run time.
+             Does NOT    - Change any password, or who may sign in.
+
 16 Nov 26  THE HOME SCREEN SAYS WHY THE AI CANNOT BE USED: THE AI SWITCH, OR A COMPUTER WITH NO AI SET UP.
 
              What        - F6 and AI > Ask the AI on the home screen said "the AI is not on for this account" whenever the AI

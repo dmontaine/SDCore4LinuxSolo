@@ -54,11 +54,13 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 # sd-tls (clients pin it), the ssh server's directory sshd (its host key, which clients pin, and the authorized keys), the AI settings and keys ai, the SDNet
 # logins netlogins, and start.default (where sessions start).  A directory is kept only when it is a REAL directory and a file only when it is a regular file:
 # a link of any of these names goes with the installation, as a link called newvoc.mods always has.
+# 17 Nov 2026 (S.247, scheduled jobs): the job definitions $jobs too, on the same terms.  Their timers are removed with the other units; a reload's
+# install gives every kept definition its timer again (solo-stage.sh, set.job restore).
 # Returns find's status.  (An empty array is expanded with the + form: bash before 4.4 calls "${keep[@]}" unbound under set -u.)
 keep_prune() {
   local d="$1" n
   local -a keep=()
-  for n in newvoc.mods voc_removed.saved '$cred' sd-tls sshd ai netlogins; do
+  for n in newvoc.mods voc_removed.saved '$cred' '$jobs' sd-tls sshd ai netlogins; do
     if [ -d "$d/$n" ] && [ ! -L "$d/$n" ]; then keep+=(! -name "$n"); fi
   done
   for n in "$d"/audit "$d"/audit.* "$d"/start.default; do
@@ -192,7 +194,7 @@ user_manager_env() {   # user_manager_env RUNDIR: point systemctl --user at the 
 }
 unit_files_left() {   # unit_files_left UNITDIR: the Solo unit files and the links that enable them, one path per line (only names that begin sd-solo)
   local d="$1" f
-  for f in "$d"/sd-solo*.service "$d"/sd-solo*.socket "$d"/*.wants/sd-solo*.service "$d"/*.wants/sd-solo*.socket; do
+  for f in "$d"/sd-solo*.service "$d"/sd-solo*.socket "$d"/sd-solo*.timer "$d"/*.wants/sd-solo*.service "$d"/*.wants/sd-solo*.socket "$d"/*.wants/sd-solo*.timer; do
     if [ -e "$f" ] || [ -L "$f" ]; then printf '%s\n' "$f"; fi
   done
 }
@@ -200,8 +202,22 @@ remove_unit_files() {   # remove_unit_files UNITDIR
   local f
   while IFS= read -r f; do rm -f "$f"; done < <(unit_files_left "$1")
 }
+# 17 Nov 26 (S.247): the scheduled jobs' units (sd-solo-job-<name>.timer and .service, written by set.job) go FIRST, each timer disabled and stopped
+# and a running job stopped, so that no job starts while SD is being taken down; solo-service.sh does not know them.  Their definitions ($jobs) are
+# data: --keep-data keeps them and a reload's install gives them their timers again.
+remove_job_units() {   # remove_job_units UNITDIR
+  local d="$1" f
+  for f in "$d"/sd-solo-job-*.timer; do
+    if [ -e "$f" ] || [ -L "$f" ]; then systemctl --user disable --now "${f##*/}" >/dev/null 2>&1 || true; fi
+  done
+  for f in "$d"/sd-solo-job-*.service; do
+    if [ -e "$f" ] || [ -L "$f" ]; then systemctl --user stop "${f##*/}" >/dev/null 2>&1 || true; fi
+  done
+  rm -f "$d"/sd-solo-job-*.timer "$d"/sd-solo-job-*.service "$d"/*.wants/sd-solo-job-*.timer
+}
 remove_units_step() {   # remove_units_step TREE UNITDIR: 0 when no unit file of Solo's is left, 1 when one is
   local tree="$1" unitdir="$2" out rc
+  remove_job_units "$unitdir"
   if [ -f "$tree/tools/solo-service.sh" ]; then
     out="$(bash "$tree/tools/solo-service.sh" remove 2>&1)"; rc=$?
     printf '%s\n' "$out" | tail -2
@@ -284,6 +300,7 @@ if [ "$data" = "keep" ]; then
     if [ -f "$H/sd.conf" ]; then say "your configuration is in $H/sd.conf"; else warn "there is no $H/sd.conf to keep"; fi
     if [ -d "$H/newvoc.mods" ]; then say "your local VOC modifications are in $H/newvoc.mods"; fi
     if [ -d "$H/\$cred" ]; then say "your passwords, audit trail, keys and settings are kept with them (\$cred, audit, sd-tls, sshd, ai, netlogins, start.default)"; fi
+    if [ -d "$H/\$jobs" ]; then say "your scheduled jobs' definitions are kept in $H/\$jobs; their timers were removed, and a reload gives them back"; fi
     say "a new install into $H will offer to reload them, keeping the passwords; to remove them for good: rm -rf $H"
   else
     warn "there is no $H/user_accounts/sduser to keep"

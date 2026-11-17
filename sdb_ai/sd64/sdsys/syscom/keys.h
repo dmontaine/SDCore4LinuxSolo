@@ -460,6 +460,11 @@
       *   RECEIVE / SEND.  yes/no; BLANK MEANS NO (delivered off; XFER in sd.conf must be 1 as well).  The transfer server reads it at every
       *   connection; no session holds it.
       $define ACC$XFER         22    ;* may move files in and out over ssh with RECEIVE / SEND (yes/no; blank = no)
+      * 17 Nov 26 dm - FIELD 23, SOLO'S OWN (S.247; owner, 15 Nov: "since scheduled jobs is in core and useful in solo it should be in this release"):
+      *   whether SD's own scheduled jobs may be made and run.  yes/no; BLANK MEANS NO (delivered off).  The administrator switches it with
+      *   SET.JOBS.ACCESS ON / OFF; SET.JOB and RUN.JOB read it at every use, so OFF stops every job at its next run.  SD Core for Linux keeps
+      *   field 23 free for it (its own jobs are the administrator's, through the root helper).
+      $define ACC$JOBS         23    ;* SD's scheduled jobs (set.job, run.job) may be made and run (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

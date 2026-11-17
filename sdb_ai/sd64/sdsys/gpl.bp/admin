@@ -23,6 +23,9 @@
 * 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - adapted from SD Core Solo for
 *           Windows' gpl.bp/admin (SOLO 5).  Messages are 11002-11007 here
 *           (12002-12007 there).
+* 17 Nov 26 S.258 - the $cred ids passed to !CRED_VERIFY are written lower
+*           case ('$admin', '$global'), as they are stored; CRED_VERIFY folds
+*           its key, so nothing changes at run time.  The audit reason too.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -99,7 +102,7 @@ $include err.h
    end
    if not(has.admin) then
       display sysmsg(11007) ;* No administrator password is set on this system
-      void kernel(K$AUDIT, 'admin refused reason=no $ADMIN credential')
+      void kernel(K$AUDIT, 'admin refused reason=no $admin credential')
       stop
    end
 
@@ -107,12 +110,12 @@ $include err.h
    input pw HIDDEN
 
    ok = @false
-   call !CRED_VERIFY('$ADMIN', pw, ok)
+   call !CRED_VERIFY('$admin', pw, ok)
    via = 'admin'
    if not(ok) then
 *     A managed computer (b): the global password is the other key (ruling 12).
 *     With no global password there is no $GLOBAL record and CRED_VERIFY says no.
-      call !CRED_VERIFY('$GLOBAL', pw, ok)
+      call !CRED_VERIFY('$global', pw, ok)
       via = 'global'
    end
    pw = ''

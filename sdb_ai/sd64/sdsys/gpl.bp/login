@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm  S.258: the two !CRED_VERIFY calls name '$global' in lower case, as stored (CRED_VERIFY folds its key; no change at run time).
 * 14 Nov 26 dm  Compiler warnings: lgn.id and audit.account, set and never read in Solo, are gone (S.232).
 * 12 Nov 26 SD Core Solo for Linux - S.221: the rest of SD Core's S.88 phase 1 - a session with no terminal is linux (it relied on the login paragraph's TERM LINUX,
 *           which went the same day).
@@ -923,7 +924,7 @@ require.password:
          if pw.match then
             pw.via = 'account'
          end else
-            call !CRED_VERIFY('$GLOBAL', pw.text, pw.match)
+            call !CRED_VERIFY('$global', pw.text, pw.match)
             if pw.match then pw.via = 'global'
          end
       end
@@ -981,7 +982,7 @@ set.first.password:
 *     Ruling 19: equal to the global password, the master's logins would land
 *     in an ordinary session.
       pf.same = @false
-      call !CRED_VERIFY('$GLOBAL', pf.pw1, pf.same)
+      call !CRED_VERIFY('$global', pf.pw1, pf.same)
       if pf.same then
          display sysmsg(11027) ;* Use a password different from the global password.
          display sysmsg(10921, pf.try, pf.max) ;* That was attempt %1 of %2

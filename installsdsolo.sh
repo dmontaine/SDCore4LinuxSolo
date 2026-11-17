@@ -296,7 +296,8 @@ is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves
       # 9 Nov 26 (Solo carry 22): the saved copies of VOC records the update removed (voc_removed.saved) are kept on the same terms.
       newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       # 14 Nov 26 (S.234 N9, owner: "N9 same as core"): what SD Core's keep cycle keeps, on the same terms - a real directory, or a regular file, owned by this user.
-      '$cred'|sd-tls|sshd|ai|netlogins) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      # 17 Nov 26 (S.247): the scheduled jobs' definitions ($jobs) are kept data on the same terms.
+      '$cred'|'$jobs'|sd-tls|sshd|ai|netlogins) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       audit|audit.*|start.default) { [ -f "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       *) return 1 ;;
     esac

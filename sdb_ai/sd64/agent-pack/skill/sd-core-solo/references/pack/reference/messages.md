@@ -386,7 +386,7 @@ Insufficient memory to reallocate array chunk
 %1 already had that access; nothing changed
 ```
 
-cited by: `setnetacc`, `setosacc`, `setxferacc`
+cited by: `setjobsacc`, `setnetacc`, `setosacc`, `setxferacc`
 
 ### msg:10081
 > kind=message tier=reference since=- src=sdsys/messages/10081:1#cb0ce2a0
@@ -506,7 +506,7 @@ You cannot suspend your own account or the one you are standing in
 Unable to change the state of %1; its state in the register is unchanged
 ```
 
-cited by: `setnetacc`, `setosacc`, `setxferacc`
+cited by: `setjobsacc`, `setnetacc`, `setosacc`, `setxferacc`
 
 ### msg:10117
 > kind=message tier=reference since=- src=sdsys/messages/10117:1#ca57bb67
@@ -1269,7 +1269,7 @@ cited by: `login`
 Password:
 ```
 
-cited by: `login`
+cited by: `login`, `solojob`
 
 ### msg:11019
 > kind=message tier=reference since=- src=sdsys/messages/11019:1#fc2066fe
@@ -7722,7 +7722,7 @@ cited by: `tk_explain`
 nothing was run
 ```
 
-cited by: `tk_confirm`, `tool_remote`
+cited by: `tk_confirm`, `tool_remote`, `tool_solojobs`
 
 ### msg:11822
 > kind=message tier=reference since=- src=sdsys/messages/11822:1#bca2b715
@@ -10217,7 +10217,7 @@ cited by: `tk_findrow`
 No row holds %1.
 ```
 
-cited by: `mymenu`, `tool_sessions`
+cited by: `mymenu`, `tool_sessions`, `tool_solojobs`
 
 ### msg:14046
 > kind=message tier=reference since=- src=sdsys/messages/14046:1#9b307c40
@@ -11125,6 +11125,186 @@ Error merging sort data
 Cannot open sort work file '%s' (Errno %d)
 ```
 
+### msg:14929
+> kind=message tier=reference since=- src=sdsys/messages/14929:1#d7a6fba8
+
+```
+%1 job(s) given their timers again from the kept definitions
+```
+
+cited by: `solojob`
+
+### msg:14930
+> kind=message tier=reference since=- src=sdsys/messages/14930:1#16216284
+
+```
+The job definitions could not be read or written (%1); nothing was changed
+```
+
+cited by: `solojob`
+
+### msg:14931
+> kind=message tier=reference since=- src=sdsys/messages/14931:1#cd4cf4c5
+
+```
+   next run: %1; last run: %2
+```
+
+cited by: `solojob`
+
+### msg:14932
+> kind=message tier=reference since=- src=sdsys/messages/14932:1#40970842
+
+```
+run.job runs only as a job's own command, started by its timer or by set.job run
+```
+
+cited by: `runjob`
+
+### msg:14933
+> kind=message tier=reference since=- src=sdsys/messages/14933:1#5210e983
+
+```
+systemd did not do it (status %1); the lines above say why
+```
+
+cited by: `solojob`
+
+### msg:14934
+> kind=message tier=reference since=- src=sdsys/messages/14934:1#4e6c41eb
+
+```
+No scheduled job is defined
+```
+
+cited by: `solojob`
+
+### msg:14935
+> kind=message tier=reference since=- src=sdsys/messages/14935:1#e478bf6e
+
+```
+Job %1 is started
+```
+
+cited by: `solojob`
+
+### msg:14936
+> kind=message tier=reference since=- src=sdsys/messages/14936:1#1262470d
+
+```
+Job %1 is deleted
+```
+
+cited by: `solojob`
+
+### msg:14937
+> kind=message tier=reference since=- src=sdsys/messages/14937:1#1336484b
+
+```
+Job %1 is scheduled: %2
+```
+
+cited by: `solojob`
+
+### msg:14938
+> kind=message tier=reference since=- src=sdsys/messages/14938:1#e6adc3c2
+
+```
+No job is named %1; nothing was changed
+```
+
+cited by: `runjob`, `solojob`
+
+### msg:14939
+> kind=message tier=reference since=- src=sdsys/messages/14939:1#c88a1bee
+
+```
+A job named %1 already exists; nothing was changed
+```
+
+cited by: `solojob`
+
+### msg:14940
+> kind=message tier=reference since=- src=sdsys/messages/14940:1#aae209ad
+
+```
+Wrong password - no job was changed
+```
+
+cited by: `solojob`
+
+### msg:14941
+> kind=message tier=reference since=- src=sdsys/messages/14941:1#878ec041
+
+```
+Making or changing a job needs the account password, typed at a terminal
+```
+
+cited by: `solojob`
+
+### msg:14942
+> kind=message tier=reference since=- src=sdsys/messages/14942:1#6f793ca3
+
+```
+A job's command is one line of printable characters, at most 500 of them, and is not itself run.job or set.job
+```
+
+cited by: `solojob`, `tool_solojobs`
+
+### msg:14943
+> kind=message tier=reference since=- src=sdsys/messages/14943:1#e00382e3
+
+```
+The schedule is none of: every 5|10|15|20|30 minutes, hourly, daily hh:mm, weekly mon..sun hh:mm, monthly 1..28 hh:mm
+```
+
+cited by: `solojob`
+
+### msg:14944
+> kind=message tier=reference since=- src=sdsys/messages/14944:1#75192e8b
+
+```
+%1 is not a job name: 1 to 32 characters, a lower-case letter first, then lower-case letters, digits and dashes, not ending in a dash
+```
+
+cited by: `runjob`, `solojob`
+
+### msg:14945
+> kind=message tier=reference since=- src=sdsys/messages/14945:1#b6d90c0e
+
+```
+Syntax: set.job   or   set.job add|change name schedule command   or   set.job delete|run name
+```
+
+cited by: `solojob`
+
+### msg:14946
+> kind=message tier=reference since=- src=sdsys/messages/14946:1#aba220b2
+
+```
+Syntax: set.jobs.access   or   set.jobs.access on|off
+```
+
+cited by: `setjobsacc`
+
+### msg:14947
+> kind=message tier=reference since=- src=sdsys/messages/14947:1#60165795
+
+```
+SD's scheduled jobs (set.job, run.job) may be made and run: %1
+```
+
+cited by: `setjobsacc`, `solojob`
+
+### msg:14948
+> kind=message tier=reference since=- src=sdsys/messages/14948:1#7fee15dc
+
+```
+Scheduled jobs are off on this computer; the administrator turns them on with set.jobs.access on
+```
+
+cited by: `runjob`, `solojob`, `tool_solojobs`
+
 ### msg:14949
 > kind=message tier=reference since=- src=sdsys/messages/14949:1#2edd407f
 
@@ -11823,7 +12003,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 25 more
+cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 26 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

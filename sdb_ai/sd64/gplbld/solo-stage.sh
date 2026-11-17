@@ -555,7 +555,8 @@ if [ -n "$reloaddir" ]; then
   #            SD is stopped here.  Only a real directory or a regular file is taken: the installer's is_kept_tree refuses the folder otherwise.
   # RELOAD-KEPT-BEGIN
   #            $cred only when this stage was given no password file: passwords given with a reload replace the kept ones (the installer's rule).
-  for kept_item in '$cred' sd-tls sshd ai netlogins; do
+  #            17 Nov 26 (S.247): the scheduled jobs' definitions $jobs too; their timers are given back after the reload (JOBS-RESTORE, below).
+  for kept_item in '$cred' '$jobs' sd-tls sshd ai netlogins; do
     if [ "$kept_item" = '$cred' ] && [ -n "$pwfile$adminfile$globalfile" ]; then echo "solo-stage: passwords: set by this install, the kept ones not used"; continue; fi
     if [ -d "$reloaddir/$kept_item" ] && [ ! -L "$reloaddir/$kept_item" ]; then
       rm -rf "${H:?}/$kept_item" || fail "removing the new tree's $kept_item before the reload"
@@ -622,6 +623,19 @@ if [ -n "$reloaddir" ]; then
   printf '%s\n' "$ua_plain" | grep -qx '1 account(s) had their VOC updated from the shipped vocabulary.' \
     || fail "after the reload, UPDATE.ACCOUNTS ALL did not print '1 account(s) had their VOC updated ...'"
   convert_nocase
+  # 17 Nov 26 (S.247): the kept job definitions get their timers again (deletesdsolo.sh removed the units with the others).  A failure is said and the
+  #            reload goes on: the definitions are kept, and set.job lists each job "not scheduled" until it is set again.
+  # JOBS-RESTORE-BEGIN
+  if [ -d "$H/\$jobs" ] && [ ! -L "$H/\$jobs" ]; then
+    jr_out="$(sdi SET.JOB RESTORE 2>&1)" || true
+    jr_plain="$(printf '%s\n' "$jr_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+    if printf '%s\n' "$jr_plain" | grep -qE '^[0-9]+ job\(s\) given their timers again from the kept definitions$'; then
+      echo "solo-stage: jobs: $(printf '%s\n' "$jr_plain" | grep -E '^[0-9]+ job\(s\) given' | head -1)"
+    else
+      echo "solo-stage: jobs: the kept definitions were NOT given their timers: $(printf '%s\n' "$jr_plain" | tail -3 | tr '\n' ' ' | cut -c1-200)"
+    fi
+  fi
+  # JOBS-RESTORE-END
   echo "SOLO RELOAD DONE data=reloaded config=$reload_conf"
 fi
 
