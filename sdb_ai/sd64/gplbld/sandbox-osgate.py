@@ -23,6 +23,7 @@
 #               session" (op_sh.c's SD_SESSION=1, sd.c's test before any option), the control an SH echo that runs and shows SD_SESSION=1.
 # 17 Nov 26 dm  S.62 round 1, second test lane: --only (gate, netdirs, lanes); section netdirs (NETDIRS, LS3-kernel's twelve rows and their controls,
 #               the sandbox restarted on a rewritten sd.conf) and section lanes (cname, .S, the denied-verb fold, sdtic, settings_os, setconfig).
+# 17 Nov 26 dm  S.62 L4 S1: row LR2 - $cred mode 000 (it opens, the read of $global fails) makes [mode] say the record could not be read, not "not managed".
 # END-HISTORY
 #
 # THE LANE.  A plain session of sduser: sd-solo with the account password as the first line of the pipe (read from <dir>/account.pw,
@@ -969,8 +970,8 @@ def part_lanes():
         "   crt 'SETOS end ':n:' err=':err", "end", ""]))
     out = internal(["BASIC bp zzsetos", "RUN bp zzsetos"])
     m0 = mode_line(out) if has(out, r"^SETOS end [1-9]") else None
-    # "Cannot be opened" is $cred absent: SD's OPENPATH of a directory file whose mode is 000 SUCCEEDS (only the READ after it fails,
-    # and that READ has no ELSE in settings_os), which this lane's second run measured - so mode 000 is shown, not judged.
+    # "Cannot be opened" is $cred absent: SD's OPENPATH of a directory file whose mode is 000 SUCCEEDS (only the READ after it fails),
+    # which the second test lane of 17 Nov measured; row LR2 (17 Nov, L4 S1) judges what [mode] says then.
     aside = cred + ".zzaside"
     try:
         os.chmod(cred, 0)
@@ -984,10 +985,13 @@ def part_lanes():
         if os.path.lexists(aside) and not os.path.lexists(cred):
             os.rename(aside, cred)
         os.chmod(cred, mode0)
-    say("    NOT JUDGED: with $cred present but mode 000, [mode] says %r" % (m000,))
+    say("    with $cred present but mode 000, [mode] says %r" % (m000,))
     row("LR0 control: with $cred readable the report's [mode] (!settings_os) says 'not managed (no global password)'", m0 == "not managed (no global password)", "mode=%r" % m0)
     row("LR1: with $cred that cannot be opened (moved aside) [mode] says the register could not be read, with a status, not 'not managed'",
         bool(m1) and re.match(r"^unknown \(the credential register could not be read, status -?\d+\)$", m1) is not None, "mode=%r" % m1)
+    # 17 Nov 26 (S.62, L4 S1): $cred opens but the READ of $global fails for another reason than "no such record" (the directory is mode 000): not "not managed" either
+    row("LR2: with $cred present but mode 000 (it opens, the read fails) [mode] says the global password record could not be read, with a status, not 'not managed'",
+        bool(m000) and re.match(r"^unknown \(the global password record could not be read, status -?\d+ os error 13\)$", m000) is not None, "mode=%r" % m000)
 
     # LG: SET.CONFIG's two refusals print SD Core's numbers' texts (11932, 11931), the files renumbered from 14972 / 14973
     msgs = os.path.join(SD64, "sdsys", "messages")

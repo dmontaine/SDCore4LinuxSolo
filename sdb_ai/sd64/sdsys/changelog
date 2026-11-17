@@ -1,6 +1,33 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SETTINGS.REPORT SAYS WHEN THE GLOBAL PASSWORD RECORD COULD NOT BE READ.
+
+             What        - the [mode] section of settings.report says "unknown (the global password record could not be
+                           read, status N os error E)" when the credential register opens but reading its global
+                           password record fails for a reason other than "no such record" (the register's directory
+                           cannot be read, for example).
+             Why         - it said "not managed (no global password)" then, which reported a state SD had not seen.
+                           The case where the register cannot be opened at all was fixed earlier the same day.
+             Does NOT    - Change what is reported when the record is there (managed) or truly absent (not managed).
+
+17 Nov 26  THE "NO OS ACCESS" MESSAGE NAMES THE DIRECTORIES THE ADMINISTRATOR OPENED.
+
+             What        - a session with the OS switch off that names a file or directory outside the account by
+                           pathname is now told "<account> has no OS access, so outside its own account it can reach
+                           by pathname only a directory the administrator opened to it (the administrator can give it:
+                           set.os.access os on)".
+             Why         - since sd.conf's NETDIRS the administrator can list directories the account may still reach;
+                           the old words said nothing outside the account could be reached.
+             Does NOT    - Change what is refused or allowed; only the words.
+
+17 Nov 26  THE IDE'S HELP NO LONGER SAYS A RECORD WITH CHARACTERS OUTSIDE ASCII OPENS READ-ONLY.
+
+             What        - the IDE's help (F1) now says that a record holding bytes 128 to 247 is edited like any other
+                           and that the bytes are kept as they are.
+             Why         - that is what the IDE does; the help still described the read-only rule it replaced.
+             Does NOT    - Change the editor.
+
 17 Nov 26  SET.AI KEY NO LONGER SAYS A KEY IS SET WHEN THE HELPER'S CLIENT FAILED.
 
              What        - set.ai key <provider>, typed at the prompt or handed over by the AI page's setup dialog, now

@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (L4 S1): [mode] says the global password record could not be read when $cred opens but the read of $global fails for another reason than a missing record (ER$RNF with OS error 2).
 * 17 Nov 26 dm  S.62 (P-4440): [mode] says the credential register could not be read when $cred cannot be opened, not "not managed".
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 06 Oct 26 dm [mode] says "not managed (no global password)" where it said
@@ -44,6 +45,7 @@ subroutine settings_os(lines, err)
 $catalog !settings_os
 
 $include int$keys.h
+$include err.h
 
    lines = ''
    err = ''
@@ -61,7 +63,16 @@ $include int$keys.h
 * [mode]
    sec = 'not managed (no global password)'
    openpath @sdsys:@ds:'$cred' to cred.f then
-      read x from cred.f, '$global' then sec = 'managed (a global password is set)'
+      read x from cred.f, '$global' then
+         sec = 'managed (a global password is set)'
+      end else
+*        17 Nov 26 dm - S.62 (L4 S1): the register opened but the read failed for another reason than "no such record" (its directory
+*          cannot be read, for one): that says nothing about the mode either.  A directory file's READ says ER$RNF for both (measured
+*          on a $cred of mode 000), so the operating system's own error tells them apart: 2 (ENOENT) is a record that is not there.
+         rd.st = status()
+         rd.os = os.error()
+         if rd.st # ER$RNF or rd.os # 2 then sec = 'unknown (the global password record could not be read, status ':rd.st:' os error ':rd.os:')'
+      end
       close cred.f
    end else
 *     17 Nov 26 dm - S.62 (P-4440): a register that cannot be opened says nothing about the mode; say so instead of "not managed".
