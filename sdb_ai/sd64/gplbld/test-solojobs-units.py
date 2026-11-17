@@ -183,7 +183,8 @@ def checks(raw):
     i_ex = rn.find("execute jcmd")
     ck("J8", "RUN.JOB: only as the one-shot 'run.job NAME' (system(1026)), then the name rule, then the switch, then the definition; the start and the end are audited around the EXECUTE",
        0 < i_one < i_swr < rn.find("if jcmd = '' then") < i_ex and "one = trim(system(1026))" in rn
-       and rn.find("'run.job start name='") < i_ex < rn.find("'run.job end name='") and rn.count("execute ") == 1)
+       and rn.find("'run.job start name='") < i_ex < rn.find("'run.job end name='") and rn.count("execute ") == 1
+       and re.search(r"@system\.return\.code = 0\s*\n\s*execute jcmd", rn) is not None)        # 17 Nov 26: a command that sets no code is status 0 (witness-s247 J4b saw -1)
 
     # J9
     ck("J9", "RESTORE only for the installer's internal session",
@@ -247,6 +248,7 @@ MUTANTS = [
     ("a missed run is made up", "J6", sub("job", "tmr<-1> = 'Persistent=false'", "tmr<-1> = 'Persistent=true'")),
     ("the hand-over file is judged before it is removed", "J7", sub("job", "   ho.action = downcase(trim(ho.lines<1>))\n   if ho.action # 'add' and ho.action # 'change' then return", "   ho.action = downcase(trim(ho.lines<1>))\n   if ho.action # 'add' and ho.action # 'change' then return\n   cmd = \"rm -f '\" : ho.file : \"'\"")),
     ("run.job runs from any session", "J8", sub("run", "   if not(ok.call) then", "   if @false then")),
+    ("run.job leaves its own -1 as a command's status", "J8", sub("run", "   @system.return.code = 0\n   execute jcmd", "   execute jcmd")),
     ("restore for anyone", "J9", sub("job", "if not(kernel(K$INTERNAL, -1)) then stop sysmsg(14945)", "if @false then stop sysmsg(14945)")),
     ("the page may run another command", "J10", sub("page", "allow = 'set.job'", "allow = 'set.job sh'")),
     ("the password is shown as typed", "J10", sub("page", "@vm : 'Account password' : @vm : 34 : @vm : 64 : @vm : 1", "@vm : 'Account password' : @vm : 34 : @vm : 64 : @vm : ''")),

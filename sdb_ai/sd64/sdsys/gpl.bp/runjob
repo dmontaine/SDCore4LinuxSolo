@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 17 Nov 26 dm  New (S.247, with SET.JOB; see solojob for the owner's words and the design).
+* 17 Nov 26 dm  The return code is set to 0 before the EXECUTE, so a command that sets none is reported as status 0, not as this program's -1 (witness-s247 J4b).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -82,6 +83,9 @@ $include err.h
    end
 
    void kernel(K$AUDIT, 'run.job start name=' : jname : ' command=' : jcmd)
+*  17 Nov 26: zero first.  A command that sets no return code of its own (WHO, a paragraph) leaves the value standing, and it was this program's -ER$ARGS:
+*  the real-install witness saw "run.job end name=wjob status=-1" for a WHO that had run (witness-s247 J4b).
+   @system.return.code = 0
    execute jcmd
    rc = @system.return.code
    void kernel(K$AUDIT, 'run.job end name=' : jname : ' status=' : rc)
