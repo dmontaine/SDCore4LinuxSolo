@@ -100,7 +100,7 @@
 *           installs, removes and lists its ssh key; global session only; messages
 *           14975 and 14976 (Windows 12036 and 12037, same texts).
 * 30 Sep 26 SD Core Solo for Linux (LSOLO 15) - request 25 (SDConnectLocal) is
-*           refused (message 11021): it sends no password, ruling 21 requires
+*           refused (message 14910): it sends no password, ruling 21 requires
 *           one (Windows Solo bd59940).
 * 20 Sep 26 dm S.29 part 3: vb.scram's sdapi gate is BACK (10073, the port's
 *           number and text).  The owner's ruling of 18/19 Sep reverses S.28's
@@ -1324,7 +1324,7 @@ vb.local.login:
 *   retired request 24 is, with one message naming what to use instead, audited, and
 *   the connection ends.  The old body that followed was removed on 3 Oct 26
 *   (LSOLO 30).
-               abort.message = sysmsg(11021) ;* SDConnectLocal is not available... use SDConnect
+               abort.message = sysmsg(14910) ;* SDConnectLocal is not available... use SDConnect
                server.error = SV$ON.ERROR
                void kernel(K$AUDIT, 'api refused request=25 SDConnectLocal - disabled in SD Core Solo for Linux')
                done = @true
@@ -3127,7 +3127,7 @@ check.voc.edit:
                                                                      voc.refusal = voc_refusal(files(fno))
                                                                      if voc.refusal then
                                                                         server.error = SV$ERROR
-                                                                        error.msg = sysmsg(voc.refusal) ;* 11008 the VOC needs ADMIN / 11028 the global files need the global session
+                                                                        error.msg = sysmsg(voc.refusal) ;* 14897 the VOC needs ADMIN / 14915 the global files need the global session
                                                                         return
                                                                      end
                                                                      err = @false

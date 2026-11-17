@@ -25,7 +25,7 @@
 * 28 Oct 26 dm  S.87: multifiles are gone.  DELETE.FILE name,part is no longer a form (a comma after the name is an unexpected token, 2018), the question "Delete all data components of multifile?" (6133, with its C answer) and the removal of an emptied multifile directory (6137) are gone, and only the first value of field 2 is looked at.  6134 goes too.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 30 Sep 26 LSOLO 12  ruling 33: @SDSYS/global.bp.out, gcat and solo.policy are
-*               kept unless the session signed in with the global password (11028).
+*               kept unless the session signed in with the global password (14915).
 * 14 Sep 26 dm  6133 gains a cancel answer, C, which Enter takes (W.3, the
 *               port's ruling of 13 Sep 26).
 * 13 Sep 26 dm  The file name tries lower case, silently, before the upper-case
@@ -559,7 +559,7 @@ check.sdsys.file:
    sdsys.tail = downcase(sdsys.tail)
    if sdsys.tail = '@sdsys/global.bp.out' or sdsys.tail = '@sdsys/gcat' or sdsys.tail = '@sdsys/solo.policy' then
       if not(kernel(K$GLOBAL.SESSION, -1)) then
-         display sysmsg(11028) ;* The global catalogue can only be changed by the SD Core server
+         display sysmsg(14915) ;* The global catalogue can only be changed by the SD Core server
          skip.part = @true
          return
       end

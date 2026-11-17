@@ -10,7 +10,7 @@
 # daemon is running.  A PRIVATE sshd runs as the person running this: own host key, own
 # authorized_keys, 127.0.0.1, a high port, no PAM - the machine's sshd and ~/.ssh are
 # never touched.  What a "global session" means is measured by what only it may do:
-# DENY.VERBS (message 11030 for everyone else, as in verify-solo-global.sh).
+# DENY.VERBS (message 14917 for everyone else, as in verify-solo-global.sh).
 #
 # THE CONTROLS: G3 signs in over the same ssh with the ACCOUNT password and must be
 # REFUSED the same command; G5 shows the same config without its ForceCommand has a shell, so "no shell" (G4) cannot
@@ -114,11 +114,11 @@ else
 fi
 
 # ---- G2. ssh with the key and the GLOBAL password is a global session: DENY.VERBS answers
-# 'DENY.VERBS n:' (the list), the success wording; the refusal wording 11030 must be absent.
+# 'DENY.VERBS n:' (the list), the success wording; the refusal wording 14917 must be absent.
 o="$(ssh_feed "$W/sdkey" "$GLOBALPW" WHO DENY.VERBS OFF)"
 if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o" | grep -qE '^deny\.verbs [0-9]+:' \
    && ! printf '%s\n' "$o" | grep -qF "$M30"; then
-  leg "G2 ssh + global password = a global session" "WHO answers '<n> sduser' and DENY.VERBS lists ('DENY.VERBS n:'), no 11030" 0 "$(printf '%s\n' "$o" | grep -E '^deny\.verbs [0-9]+:' | head -1)"
+  leg "G2 ssh + global password = a global session" "WHO answers '<n> sduser' and DENY.VERBS lists ('DENY.VERBS n:'), no 14917" 0 "$(printf '%s\n' "$o" | grep -E '^deny\.verbs [0-9]+:' | head -1)"
 else
   leg "G2 ssh + global password = a global session" "WHO answers '<n> sduser' and DENY.VERBS lists ('DENY.VERBS n:')" 1 "$(printf '%s\n' "$o" | grep -v '^[[:space:]]*$' | tail -3 | tr '\n' ' ')"
 fi
@@ -127,9 +127,9 @@ fi
 o="$(ssh_feed "$W/sdkey" "$GOOD" WHO DENY.VERBS OFF)"
 if printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$o" | grep -qF "$M30" \
    && ! printf '%s\n' "$o" | grep -qE '^deny\.verbs [0-9]+:'; then
-  leg "G3 ssh + account password is NOT a global session" "WHO answers, DENY.VERBS refused with 11030" 0 "refused"
+  leg "G3 ssh + account password is NOT a global session" "WHO answers, DENY.VERBS refused with 14917" 0 "refused"
 else
-  leg "G3 ssh + account password is NOT a global session" "WHO answers, DENY.VERBS refused with 11030" 1 "$(printf '%s\n' "$o" | grep -v '^[[:space:]]*$' | tail -3 | tr '\n' ' ')"
+  leg "G3 ssh + account password is NOT a global session" "WHO answers, DENY.VERBS refused with 14917" 1 "$(printf '%s\n' "$o" | grep -v '^[[:space:]]*$' | tail -3 | tr '\n' ' ')"
 fi
 
 # ---- G4. the forced key has no shell: a command asked for over ssh is not run.

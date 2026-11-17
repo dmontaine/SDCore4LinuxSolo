@@ -324,8 +324,8 @@ def checks(srcs, messages_dir):
     pg = at(tf, "os_path_ok_for_account(fn)", tsf)
     pe = at(tf, "edit_os_path_refusal(fn, FALSE) != EDIT_NONE", tsf)
     ck("O8 a print file asks for the VOC AFTER the OS gate and BEFORE the open, of the ACCOUNT's session (a report is usually a $internal program, so no HDR_INTERNAL exemption), "
-       "and the refusal is message 11008",
-       0 < tsf < pg < pe < topen and "HDR_INTERNAL" not in tf[pg:topen] and "k_error(sysmsg(11008))" in tf[pe:topen], "gate %s, voc %s, open_file %s" % (pg, pe, topen))
+       "and the refusal is message 14897",
+       0 < tsf < pg < pe < topen and "HDR_INTERNAL" not in tf[pg:topen] and "k_error(sysmsg(14897))" in tf[pe:topen], "gate %s, voc %s, open_file %s" % (pg, pe, topen))
     ko = block(kn, "case K_EDIT_OS_OK: {", 800)
     ko = ko[:ko.find("} break;")] if "} break;" in ko else ko
     ck("O9 kernel(K_EDIT_OS_OK) starts at 0 (an empty or unreadable name is a refusal), the administrator gets 1, anybody else gets edit_os_path_refusal about the name with "
@@ -473,7 +473,7 @@ def checks(srcs, messages_dir):
             "10080": "%1 already had that access; nothing changed",
             "10102": "Account %1 has SH %2, OS.EXECUTE %3",
             "10114": "Unable to change the state of %1; its state in the register is unchanged",
-            "11008": "The VOC can only be changed after admin",
+            "14897": "The VOC can only be changed after admin",
             "11180": "%1 has no OS access",
             "11926": "Syntax: set.os.access"}
     for num, text in want.items():

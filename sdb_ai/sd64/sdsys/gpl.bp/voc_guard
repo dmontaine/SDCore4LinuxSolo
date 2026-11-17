@@ -26,7 +26,7 @@
 *           como, basic) and, through !voc_refusal, to the API server's record writes.
 * 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - the second half: SDSYS's gcat,
 *           global.bp.out and solo.policy need a global-password session
-*           (ruling 33, K$GLOBAL.SESSION; message 11028).
+*           (ruling 33, K$GLOBAL.SESSION; message 14915).
 * 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - the VOC half of SD Core Solo for
 *           Windows' gpl.bp/voc_guard (SOLO 5).
 * END-HISTORY
@@ -54,7 +54,7 @@
 * voc_write_refused() in C.  The dictionary, voc.dic, is not the VOC.
 *
 * Returns @true when the edit may go ahead: not a VOC, or ADMIN is on.  On
-* @false it has already said why (11008).
+* @false it has already said why (14897).
 *
 * END-DESCRIPTION
 *
@@ -71,7 +71,7 @@ $catalog !voc_guard
    n = voc_refusal(f)
    if n = 0 then return @true
 
-   display sysmsg(n) ;* 11008 The VOC can only be changed after ADMIN / 11028 The global catalogue can only be changed by the SD Core server
+   display sysmsg(n) ;* 14897 The VOC can only be changed after ADMIN / 14915 The global catalogue can only be changed by the SD Core server
    return @false
 end
 

@@ -1401,7 +1401,7 @@ stack.manipulation:
 *   like .S name.  .D and .Dn above only edit this session's command stack and
 *   stay ungated.
             if not(kernel(K$ADMINISTRATOR, -1)) then
-               display sysmsg(11008) ;* The VOC can only be changed after ADMIN
+               display sysmsg(14897) ;* The VOC can only be changed after ADMIN
                goto exit.stack.command
             end
             at.command = trimf(trimb(at.command))
@@ -1554,9 +1554,9 @@ stack.manipulation:
 * 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - RULING 27 (Solo for Windows): .S
 *   name NEEDS ADMIN ("they change VOC"), narrowing ruling 14's exemption for a
 *   saved sentence.  Before any record is read or locked, with voc_guard's
-*   message (11008).
+*   message (14897).
          if not(kernel(K$ADMINISTRATOR, -1)) then
-            display sysmsg(11008) ;* The VOC can only be changed after ADMIN
+            display sysmsg(14897) ;* The VOC can only be changed after ADMIN
             goto exit.stack.command
          end
 

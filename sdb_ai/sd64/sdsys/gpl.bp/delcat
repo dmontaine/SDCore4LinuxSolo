@@ -111,7 +111,7 @@ $include int$keys.h
    for gbl.i = 1 to gbl.count
       gbl.name = name.list<gbl.i>
       if global or index(prefix.chars, gbl.name[1,1], 1) then
-         stop sysmsg(11029) ;* ... changed only by SYNC.GLOBAL.CATALOG
+         stop sysmsg(14916) ;* ... changed only by SYNC.GLOBAL.CATALOG
       end
    next gbl.i
 

@@ -8,7 +8,7 @@ checked by. It is the Linux counterpart of the Windows Solo design note, written
 The client libraries are unchanged from the multiuser product's: **the wire
 protocol is too.** A network login is SCRAM-SHA-256 inside TLS 1.3, requests 47
 and 48, and nothing else. Request 24 (cleartext) is refused, and request 25
-(`SDConnectLocal`) is refused with message 11021.
+(`SDConnectLocal`) is refused with message 14910.
 
 ## What runs
 

@@ -1304,7 +1304,7 @@ int DLLEntry SDConnectLocal(char* account) {
      Solo tree does not have, so the forked "sd -Q -C" could not even be started, and
      the parent then waited on a pipe whose write end it holds open itself.  It now
      fails at once and says what to use.  (The server refuses request 25 as well,
-     apisrvr message 11021, for a client of the old library.) */
+     apisrvr message 14910, for a client of the old library.) */
   if (!FindFreeSession())
     return FALSE;
   ClearError;

@@ -204,7 +204,7 @@ else
 fi
 
 # ---- K10. the key the API installed really gets into sd over ssh, and the global password
-# makes that a global session (DENY.VERBS lists; the account password would be refused 11030).
+# makes that a global session (DENY.VERBS lists; the account password would be refused 14917).
 # Solo's real sshd_config, started the way the unit starts it, with ONE change: it reads the scratch
 # key file this script's requests wrote, and StrictModes is off because that file lives under /tmp.
 # (TRAP, measured 2 Oct 2026: sshd -e's log must go through a pipe, never to a regular file, or its

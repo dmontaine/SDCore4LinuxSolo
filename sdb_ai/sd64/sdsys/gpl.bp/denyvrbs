@@ -19,7 +19,7 @@
 *
 * START-HISTORY:
 * 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ported from SD Core Solo for
-*           Windows (rulings 34 and 36, SOLO 22).  Message 11030 here (12030
+*           Windows (rulings 34 and 36, SOLO 22).  Message 14917 here (12030
 *           there); VOC ids are lower case, so a listed name is read as such.
 * 28 Sep 26 SD Core Solo - new, rulings 34 and 36.
 * END-HISTORY
@@ -40,7 +40,7 @@
 *
 * WHO: a session signed in with the global password (K$GLOBAL.SESSION), and
 * the installer ("sd -internal DENY.VERBS SET ...", from the control file's
-* deny-verbs line).  Anyone else - ADMIN included - gets 11030; listing is the
+* deny-verbs line).  Anyone else - ADMIN included - gets 14917; listing is the
 * same, since the list is the server's business.
 *
 * WHERE: @SDSYS/solo.policy, record denied.verbs, one verb per line.  CPROC's
@@ -79,7 +79,7 @@ $include err.h
    @system.return.code = -ER$ARGS
 
    if not(kernel(K$GLOBAL.SESSION, -1)) and not(kernel(K$INTERNAL, -1)) then
-      display sysmsg(11030) ;* The denied verbs can only be listed or changed by the SD Core server
+      display sysmsg(14917) ;* The denied verbs can only be listed or changed by the SD Core server
       stop
    end
 

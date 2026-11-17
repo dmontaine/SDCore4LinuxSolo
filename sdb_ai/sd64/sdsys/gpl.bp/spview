@@ -581,7 +581,7 @@ delete.item:
 *   the prompt line as every complaint here does (voc_guard() would DISPLAY over the page).  $hold and every ordinary file pass, as before.
    refusal = voc_refusal(data.f)
    if refusal then
-      prompt.text = sysmsg(refusal) ;* 11008 The VOC needs ADMIN / 11028 the global files need the global session
+      prompt.text = sysmsg(refusal) ;* 14897 The VOC needs ADMIN / 14915 the global files need the global session
       gosub say.note                                 ;* 11 Nov 26 (S.117): the framed page's own note line, as SD Core's refusal is shown
       c = keycode()
       return

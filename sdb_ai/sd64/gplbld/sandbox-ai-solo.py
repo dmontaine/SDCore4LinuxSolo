@@ -256,14 +256,14 @@ def sec_setai():
     a1 = audit_off()
     out = adm("set.ai gate on")
     new = audit_new(a1)
-    row("A2 SET.AI GATE ON: 'The AI gate is now on' (11606), ai.conf holds exactly the line gate=yes, one audit line 'set.ai gate=on'",
-        msg(11606, "on") in out and "gate=yes" in settings() and len(re.findall(r"set\.ai gate=on$", new, re.M)) == 1, repr((out[-2:], conf(), new[-120:])))
+    row("A2 SET.AI GATE ON: 'The AI gate is now on' (14925), ai.conf holds exactly the line gate=yes, one audit line 'set.ai gate=on'",
+        msg(14925, "on") in out and "gate=yes" in settings() and len(re.findall(r"set\.ai gate=on$", new, re.M)) == 1, repr((out[-2:], conf(), new[-120:])))
     out = adm("set.ai")
     row("A2b the reading form now says gate: on", has(out, r"^\s+gate: on$"), repr(out[:4]))
     a1 = audit_off()
     out = adm("set.ai gate off")
-    row("A2c SET.AI GATE OFF: 11606 with off, the gate line is gone from ai.conf (off is the absence), one audit line",
-        msg(11606, "off") in out and not any(l.startswith("gate") for l in conf()) and len(re.findall(r"set\.ai gate=off$", audit_new(a1), re.M)) == 1, repr((out[-2:], conf())))
+    row("A2c SET.AI GATE OFF: 14925 with off, the gate line is gone from ai.conf (off is the absence), one audit line",
+        msg(14925, "off") in out and not any(l.startswith("gate") for l in conf()) and len(re.findall(r"set\.ai gate=off$", audit_new(a1), re.M)) == 1, repr((out[-2:], conf())))
     before = conf_text()
     a1 = audit_off()
     out = adm("set.ai gate maybe")

@@ -46,9 +46,9 @@ umask 077
 
 # --account-password-file FILE: the account password, one line, printable ASCII
 # (33-126).  For automation and tests; it goes to sd's INPUT, never a command
-# line.  Without it no password is set and every session is refused (11020).
+# line.  Without it no password is set and every session is refused (14909).
 # --admin-password-file FILE: the same for the administrator password (ADMIN).
-# Without it ADMIN answers 11007 and no administrator command can be unlocked.
+# Without it ADMIN answers 14896 and no administrator command can be unlocked.
 # --global-password-file FILE: the global password - its presence IS managed mode
 # (ruling 15).  Set AFTER the account password so the two records share a salt
 # (!CRED_SET's partner rule, ruling 19); it must differ from the account password.
@@ -414,7 +414,7 @@ if [ -n "$pwfile" ]; then
   echo "  credential register now holds: $(ls "$H/\$cred" | tr '\n' ' ')"
 else
   echo
-  echo "NOTE: no --account-password-file, so NO PASSWORD IS SET and every session will be refused (11020)."
+  echo "NOTE: no --account-password-file, so NO PASSWORD IS SET and every session will be refused (14909)."
 fi
 
 if [ -n "$adminfile" ]; then
@@ -427,7 +427,7 @@ if [ -n "$adminfile" ]; then
   printf '%s\n' "$ad_plain" | grep -q 'solo_password:' && fail "solo_password said: $(printf '%s\n' "$ad_plain" | grep 'solo_password:' | head -1)"
 else
   echo
-  echo "NOTE: no --admin-password-file, so ADMIN cannot be unlocked (11007)."
+  echo "NOTE: no --admin-password-file, so ADMIN cannot be unlocked (14896)."
 fi
 
 if [ -n "$globalfile" ]; then
@@ -445,7 +445,7 @@ if [ -n "$globalfile" ]; then
     echo "  the account and global records share a salt"
   else
     [ ! -e "$H/\$cred/sduser" ] || fail "no account password was given but \$cred/sduser exists"
-    echo "  no account password yet: the user sets it at the console on first login (11025)"
+    echo "  no account password yet: the user sets it at the console on first login (14912)"
   fi
 fi
 fi   # end of "not an upgrade"

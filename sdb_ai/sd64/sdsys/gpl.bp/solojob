@@ -479,7 +479,7 @@ ask.password:
       pw.why = 'no terminal'
       return
    end
-   crt sysmsg(11018) : ' ' :                                     ;* Password:
+   crt sysmsg(14907) : ' ' :                                     ;* Password:
    input pw.text HIDDEN
    crt
    pw.match = @false

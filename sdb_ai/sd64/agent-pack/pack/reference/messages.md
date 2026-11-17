@@ -1111,78 +1111,6 @@ after it.  Put anything the job needs to vary inside the paragraph or
 sentence being run.
 ```
 
-### msg:11002
-> kind=message tier=reference since=- src=sdsys/messages/11002:1#18fd123e
-
-```
-Administrator password:
-```
-
-cited by: `admin`
-
-### msg:11003
-> kind=message tier=reference since=- src=sdsys/messages/11003:1#e45d4fe3
-
-```
-Administrator commands unlocked for this session
-```
-
-cited by: `admin`
-
-### msg:11004
-> kind=message tier=reference since=- src=sdsys/messages/11004:1#ef735180
-
-```
-Administrator commands locked
-```
-
-cited by: `admin`
-
-### msg:11005
-> kind=message tier=reference since=- src=sdsys/messages/11005:1#5c288fff
-
-```
-Wrong password - administrator commands stay locked
-```
-
-cited by: `admin`
-
-### msg:11006
-> kind=message tier=reference since=- src=sdsys/messages/11006:1#93481ebd
-
-```
-Administrator commands are already unlocked
-```
-
-cited by: `admin`
-
-### msg:11007
-> kind=message tier=reference since=- src=sdsys/messages/11007:1#c616d63a
-
-```
-No administrator password is set on this system
-```
-
-cited by: `admin`
-
-### msg:11008
-> kind=message tier=reference since=- src=sdsys/messages/11008:1#a4b53043
-
-```
-The VOC can only be changed after admin (the administrator password)
-```
-
-cited by: `cproc`
-
-### msg:11009
-> kind=message tier=reference since=- src=sdsys/messages/11009:1#f49d6790
-
-```
-New password:
-```
-
-cited by: `login`, `set_password`
-
 ### msg:1101
 > kind=message tier=reference since=- src=sdsys/messages/1101:1#2761365f
 
@@ -1190,129 +1118,12 @@ cited by: `login`, `set_password`
 Needs dynamic file|as variable %s
 ```
 
-### msg:11010
-> kind=message tier=reference since=- src=sdsys/messages/11010:1#2b66867b
-
-```
-Confirm the new password:
-```
-
-cited by: `login`, `set_password`
-
-### msg:11011
-> kind=message tier=reference since=- src=sdsys/messages/11011:1#51076185
-
-```
-The passwords do not match - the password is unchanged
-```
-
-cited by: `login`, `set_password`
-
-### msg:11012
-> kind=message tier=reference since=- src=sdsys/messages/11012:1#092a16e7
-
-```
-Password changed
-```
-
-cited by: `set_password`
-
-### msg:11013
-> kind=message tier=reference since=- src=sdsys/messages/11013:1#e99eef56
-
-```
-Use letters, digits and punctuation only - the password is unchanged
-```
-
-cited by: `set_password`
-
-### msg:11014
-> kind=message tier=reference since=- src=sdsys/messages/11014:1#e7adc326
-
-```
-The account password must differ from the global password - it is unchanged
-```
-
-cited by: `set_password`
-
-### msg:11015
-> kind=message tier=reference since=- src=sdsys/messages/11015:1#8fe0d49b
-
-```
-%1 cannot have an account password
-```
-
-cited by: `set_password`
-
-### msg:11016
-> kind=message tier=reference since=- src=sdsys/messages/11016:1#c4b4f962
-
-```
-The password could not be stored (status %1)
-```
-
-cited by: `login`, `set_password`
-
-### msg:11017
-> kind=message tier=reference since=- src=sdsys/messages/11017:1#54c8bdac
-
-```
-A command given on the sd command line needs the account password on its input
-```
-
-cited by: `login`
-
-### msg:11018
-> kind=message tier=reference since=- src=sdsys/messages/11018:1#be81ab98
-
-```
-Password:
-```
-
-cited by: `login`, `solojob`
-
-### msg:11019
-> kind=message tier=reference since=- src=sdsys/messages/11019:1#fc2066fe
-
-```
-Wrong password
-```
-
-cited by: `login`
-
 ### msg:1102
 > kind=message tier=reference since=- src=sdsys/messages/1102:1#1df69603
 
 ```
 Expected array variable|%s
 ```
-
-### msg:11020
-> kind=message tier=reference since=- src=sdsys/messages/11020:1#26c01b71
-
-```
-This account has no password - install SD Core Solo for Linux again to set one
-```
-
-cited by: `login`
-
-### msg:11021
-> kind=message tier=reference since=- src=sdsys/messages/11021:1#00a34948
-
-```
-SDConnectLocal is not available in SD Core Solo for Linux - connect with SDConnect and the account password
-```
-
-cited by: `apisrvr`
-
-### msg:11022
-> kind=message tier=reference since=- src=sdsys/messages/11022:1#723ac32b
-
-```
-The new password could not be kept for commands given on the sd command line (status %1)
-```
-
-cited by: `login`, `set_password`
 
 ### msg:11023
 > kind=message tier=reference since=- src=sdsys/messages/11023:1#70816855
@@ -1328,129 +1139,12 @@ Not in the backup: %1
 Cannot create the backup directory %1: %2
 ```
 
-### msg:11025
-> kind=message tier=reference since=- src=sdsys/messages/11025:1#2aefaaff
-
-```
-This account has no password yet. Choose one now - SD Core Solo for Linux asks for it every time it is used.
-```
-
-cited by: `login`
-
-### msg:11026
-> kind=message tier=reference since=- src=sdsys/messages/11026:1#dbf8c049
-
-```
-This account has no password yet. Set it at this computer's keyboard first; until then only the global password is accepted.
-```
-
-cited by: `login`
-
-### msg:11027
-> kind=message tier=reference since=- src=sdsys/messages/11027:1#a7e65d45
-
-```
-Use a password different from the global password.
-```
-
-cited by: `login`
-
-### msg:11028
-> kind=message tier=reference since=- src=sdsys/messages/11028:1#99d2780c
-
-```
-The global catalog can only be changed by the SD Core server
-```
-
-cited by: `deletef`, `syncgcat`
-
-### msg:11029
-> kind=message tier=reference since=- src=sdsys/messages/11029:1#34b91eb2
-
-```
-The global catalog holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog
-```
-
-cited by: `catalog`, `delcat`
-
 ### msg:1103
 > kind=message tier=reference since=- src=sdsys/messages/1103:1#86315723
 
 ```
 Value not found where required|in %s
 ```
-
-### msg:11030
-> kind=message tier=reference since=- src=sdsys/messages/11030:1#5144a6ce
-
-```
-The denied verbs can only be listed or changed by the SD Core server
-```
-
-cited by: `denyvrbs`
-
-### msg:11031
-> kind=message tier=reference since=- src=sdsys/messages/11031:1#2705aa4c
-
-```
-Current password:
-```
-
-cited by: `set_password`
-
-### msg:11032
-> kind=message tier=reference since=- src=sdsys/messages/11032:1#21184a99
-
-```
-Wrong password - the password is unchanged
-```
-
-cited by: `set_password`
-
-### msg:11033
-> kind=message tier=reference since=- src=sdsys/messages/11033:1#07d15595
-
-```
-The global password can only be changed by the SD Core server
-```
-
-cited by: `set_password`
-
-### msg:11034
-> kind=message tier=reference since=- src=sdsys/messages/11034:1#f4f011a8
-
-```
-This computer has no global password - no SD Core server manages it
-```
-
-cited by: `set_password`
-
-### msg:11035
-> kind=message tier=reference since=- src=sdsys/messages/11035:1#923919f0
-
-```
-The global password must differ from the account and administrator passwords - the password is unchanged
-```
-
-cited by: `set_password`
-
-### msg:11036
-> kind=message tier=reference since=- src=sdsys/messages/11036:1#99b77027
-
-```
-Password set for account %1
-```
-
-cited by: `login`
-
-### msg:11037
-> kind=message tier=reference since=- src=sdsys/messages/11037:1#630b16f9
-
-```
-No password was set, and one is required. Start SD again to choose it.
-```
-
-cited by: `login`
 
 ### msg:11038
 > kind=message tier=reference since=- src=sdsys/messages/11038:1#c5871e66
@@ -5838,15 +5532,6 @@ Back from SED: %1 %2 is saved
 Back from SED: %1 %2 is as it was
 ```
 
-### msg:11606
-> kind=message tier=reference since=- src=sdsys/messages/11606:1#bc5b8856
-
-```
-The AI gate is now %1
-```
-
-cited by: `setai`
-
 ### msg:11607
 > kind=message tier=reference since=- src=sdsys/messages/11607:1#f3374397
 
@@ -8604,33 +8289,6 @@ cited by: `setnetacc`
 ssh is open for sdsys: it can sign in from other computers with its password,\nand nothing else stands between the network and the administrator.  Shut it\nagain with remote.sdsys off.
 ```
 
-### msg:11930
-> kind=message tier=reference since=- src=sdsys/messages/11930:1#f7b6c28d
-
-```
-set.pins {on | off}; set.pins alone says whether the account may add its own programs to the home screen
-```
-
-cited by: `setpins`
-
-### msg:11931
-> kind=message tier=reference since=- src=sdsys/messages/11931:1#c628fcfe
-
-```
-Own programs for %1 were already %2; nothing changed
-```
-
-cited by: `setpins`
-
-### msg:11932
-> kind=message tier=reference since=- src=sdsys/messages/11932:1#86147641
-
-```
-The permission to add programs to the home screen could not be written
-```
-
-cited by: `setpins`
-
 ### msg:11933
 > kind=message tier=reference since=- src=sdsys/messages/11933:1#45af3bfa
 
@@ -11111,6 +10769,87 @@ Invalid sort retrieval key count
 Error flushing sort data [%d]
 ```
 
+### msg:14891
+> kind=message tier=reference since=- src=sdsys/messages/14891:1#18fd123e
+
+```
+Administrator password:
+```
+
+cited by: `admin`
+
+### msg:14892
+> kind=message tier=reference since=- src=sdsys/messages/14892:1#e45d4fe3
+
+```
+Administrator commands unlocked for this session
+```
+
+cited by: `admin`
+
+### msg:14893
+> kind=message tier=reference since=- src=sdsys/messages/14893:1#ef735180
+
+```
+Administrator commands locked
+```
+
+cited by: `admin`
+
+### msg:14894
+> kind=message tier=reference since=- src=sdsys/messages/14894:1#5c288fff
+
+```
+Wrong password - administrator commands stay locked
+```
+
+cited by: `admin`
+
+### msg:14895
+> kind=message tier=reference since=- src=sdsys/messages/14895:1#93481ebd
+
+```
+Administrator commands are already unlocked
+```
+
+cited by: `admin`
+
+### msg:14896
+> kind=message tier=reference since=- src=sdsys/messages/14896:1#c616d63a
+
+```
+No administrator password is set on this system
+```
+
+cited by: `admin`
+
+### msg:14897
+> kind=message tier=reference since=- src=sdsys/messages/14897:1#a4b53043
+
+```
+The VOC can only be changed after admin (the administrator password)
+```
+
+cited by: `cproc`
+
+### msg:14898
+> kind=message tier=reference since=- src=sdsys/messages/14898:1#f49d6790
+
+```
+New password:
+```
+
+cited by: `login`, `set_password`
+
+### msg:14899
+> kind=message tier=reference since=- src=sdsys/messages/14899:1#2b66867b
+
+```
+Confirm the new password:
+```
+
+cited by: `login`, `set_password`
+
 ### msg:1490
 > kind=message tier=reference since=- src=sdsys/messages/1490:1#db94fdc1
 
@@ -11118,12 +10857,273 @@ Error flushing sort data [%d]
 Error merging sort data
 ```
 
+### msg:14900
+> kind=message tier=reference since=- src=sdsys/messages/14900:1#51076185
+
+```
+The passwords do not match - the password is unchanged
+```
+
+cited by: `login`, `set_password`
+
+### msg:14901
+> kind=message tier=reference since=- src=sdsys/messages/14901:1#092a16e7
+
+```
+Password changed
+```
+
+cited by: `set_password`
+
+### msg:14902
+> kind=message tier=reference since=- src=sdsys/messages/14902:1#e99eef56
+
+```
+Use letters, digits and punctuation only - the password is unchanged
+```
+
+cited by: `set_password`
+
+### msg:14903
+> kind=message tier=reference since=- src=sdsys/messages/14903:1#e7adc326
+
+```
+The account password must differ from the global password - it is unchanged
+```
+
+cited by: `set_password`
+
+### msg:14904
+> kind=message tier=reference since=- src=sdsys/messages/14904:1#8fe0d49b
+
+```
+%1 cannot have an account password
+```
+
+cited by: `set_password`
+
+### msg:14905
+> kind=message tier=reference since=- src=sdsys/messages/14905:1#c4b4f962
+
+```
+The password could not be stored (status %1)
+```
+
+cited by: `login`, `set_password`
+
+### msg:14906
+> kind=message tier=reference since=- src=sdsys/messages/14906:1#54c8bdac
+
+```
+A command given on the sd command line needs the account password on its input
+```
+
+cited by: `login`
+
+### msg:14907
+> kind=message tier=reference since=- src=sdsys/messages/14907:1#be81ab98
+
+```
+Password:
+```
+
+cited by: `login`, `solojob`
+
+### msg:14908
+> kind=message tier=reference since=- src=sdsys/messages/14908:1#fc2066fe
+
+```
+Wrong password
+```
+
+cited by: `login`
+
+### msg:14909
+> kind=message tier=reference since=- src=sdsys/messages/14909:1#26c01b71
+
+```
+This account has no password - install SD Core Solo for Linux again to set one
+```
+
+cited by: `login`
+
 ### msg:1491
 > kind=message tier=reference since=- src=sdsys/messages/1491:1#bb46d870
 
 ```
 Cannot open sort work file '%s' (Errno %d)
 ```
+
+### msg:14910
+> kind=message tier=reference since=- src=sdsys/messages/14910:1#00a34948
+
+```
+SDConnectLocal is not available in SD Core Solo for Linux - connect with SDConnect and the account password
+```
+
+cited by: `apisrvr`
+
+### msg:14911
+> kind=message tier=reference since=- src=sdsys/messages/14911:1#723ac32b
+
+```
+The new password could not be kept for commands given on the sd command line (status %1)
+```
+
+cited by: `login`, `set_password`
+
+### msg:14912
+> kind=message tier=reference since=- src=sdsys/messages/14912:1#2aefaaff
+
+```
+This account has no password yet. Choose one now - SD Core Solo for Linux asks for it every time it is used.
+```
+
+cited by: `login`
+
+### msg:14913
+> kind=message tier=reference since=- src=sdsys/messages/14913:1#dbf8c049
+
+```
+This account has no password yet. Set it at this computer's keyboard first; until then only the global password is accepted.
+```
+
+cited by: `login`
+
+### msg:14914
+> kind=message tier=reference since=- src=sdsys/messages/14914:1#a7e65d45
+
+```
+Use a password different from the global password.
+```
+
+cited by: `login`
+
+### msg:14915
+> kind=message tier=reference since=- src=sdsys/messages/14915:1#99d2780c
+
+```
+The global catalog can only be changed by the SD Core server
+```
+
+cited by: `deletef`, `syncgcat`
+
+### msg:14916
+> kind=message tier=reference since=- src=sdsys/messages/14916:1#34b91eb2
+
+```
+The global catalog holds the SD Core server's programs from global.bp.out and is changed only by sync.global.catalog
+```
+
+cited by: `catalog`, `delcat`
+
+### msg:14917
+> kind=message tier=reference since=- src=sdsys/messages/14917:1#5144a6ce
+
+```
+The denied verbs can only be listed or changed by the SD Core server
+```
+
+cited by: `denyvrbs`
+
+### msg:14918
+> kind=message tier=reference since=- src=sdsys/messages/14918:1#2705aa4c
+
+```
+Current password:
+```
+
+cited by: `set_password`
+
+### msg:14919
+> kind=message tier=reference since=- src=sdsys/messages/14919:1#21184a99
+
+```
+Wrong password - the password is unchanged
+```
+
+cited by: `set_password`
+
+### msg:14920
+> kind=message tier=reference since=- src=sdsys/messages/14920:1#07d15595
+
+```
+The global password can only be changed by the SD Core server
+```
+
+cited by: `set_password`
+
+### msg:14921
+> kind=message tier=reference since=- src=sdsys/messages/14921:1#f4f011a8
+
+```
+This computer has no global password - no SD Core server manages it
+```
+
+cited by: `set_password`
+
+### msg:14922
+> kind=message tier=reference since=- src=sdsys/messages/14922:1#923919f0
+
+```
+The global password must differ from the account and administrator passwords - the password is unchanged
+```
+
+cited by: `set_password`
+
+### msg:14923
+> kind=message tier=reference since=- src=sdsys/messages/14923:1#99b77027
+
+```
+Password set for account %1
+```
+
+cited by: `login`
+
+### msg:14924
+> kind=message tier=reference since=- src=sdsys/messages/14924:1#630b16f9
+
+```
+No password was set, and one is required. Start SD again to choose it.
+```
+
+cited by: `login`
+
+### msg:14925
+> kind=message tier=reference since=- src=sdsys/messages/14925:1#bc5b8856
+
+```
+The AI gate is now %1
+```
+
+cited by: `setai`
+
+### msg:14926
+> kind=message tier=reference since=- src=sdsys/messages/14926:1#f7b6c28d
+
+```
+set.pins {on | off}; set.pins alone says whether the account may add its own programs to the home screen
+```
+
+cited by: `setpins`
+
+### msg:14927
+> kind=message tier=reference since=- src=sdsys/messages/14927:1#c628fcfe
+
+```
+Own programs for %1 were already %2; nothing changed
+```
+
+cited by: `setpins`
+
+### msg:14928
+> kind=message tier=reference since=- src=sdsys/messages/14928:1#86147641
+
+```
+The permission to add programs to the home screen could not be written
+```
+
+cited by: `setpins`
 
 ### msg:14929
 > kind=message tier=reference since=- src=sdsys/messages/14929:1#d7a6fba8

@@ -17,8 +17,8 @@
 #               from <dir>/account.pw, never printed), so the VOC compared is the one an agent sees, `newvoc` whole, and a block of a
 #               voc:entry chunk that shows both layers is read at its FIRST fence (newvoc's); Core compares SDSYS's, the last.  Group 4
 #               (the printed syntax of create.account and modify.account) does not exist: Solo has neither verb.  Its place is taken
-#               by the wall messages: the text of the pack's msg:2001, msg:11008 and msg:11029 is what a session that has not typed
-#               `admin` is told by `config`, a `copy` into the VOC and `catalog ... global` (msg:11028 is not driven: `deletef` and
+#               by the wall messages: the text of the pack's msg:2001, msg:14897 and msg:14916 is what a session that has not typed
+#               `admin` is told by `config`, a `copy` into the VOC and `catalog ... global` (msg:14915 is not driven: `deletef` and
 #               `syncgcat` print it and neither is run here).
 # 11 Nov 26 dm  The null-case floor for shipped VOC records is 8, not 20.  Solo's newvoc held 27 records that are neither verbs nor
 #               keywords when the floor was set (F 8, PA 2, PH 2, Q 2, R 10, S 2, X 1); carry 22 area 1 (15767b9: SD Core's S.87
@@ -327,7 +327,7 @@ def main():
         group("voc^", "SDSYS'S OWN VOC RECORDS (every voc:entry chunk that quotes only voc_template, against SDSYS's VOC)", n_vocsys, table=expected_sys, pre="sys:")
 
     # the wall messages: what a session that has not typed `admin` is told is the text of the pack's message chunks
-    probes = (("2001", "config"), ("11008", "copy from bp to voc gzwall"), ("11029", "catalog bp gzwall global"))
+    probes = (("2001", "config"), ("14897", "copy from bp to voc gzwall"), ("14916", "catalog bp gzwall global"))
     with open(os.path.join(acct_dir, "bp", "gzwall"), "w") as f:
         f.write("program gzwall\n   crt 'gzwall'\nend\n")
     for num, cmd in probes:

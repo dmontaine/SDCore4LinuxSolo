@@ -38,7 +38,7 @@
 *           (its d236ac72 and bc54c53a).
 * 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ruling 33 (Windows Solo): the
 *           global catalogue is never written here (GLOBAL or a * ! _ $ name:
-*           message 11029) except by the internal session, which the
+*           message 14916) except by the internal session, which the
 *           bootstrap's $catalog directives are; a LOCAL entry no longer offers
 *           to remove a global one (3035).
 * 13 Sep 26 dm  The default source file is bp, not BP (plan M3 D3; the port's
@@ -155,7 +155,7 @@ $define CAT_PCODE  3
 * 30 Sep 26 LSOLO 12 - RULING 33: refused for every session, ADMIN or not; see
 *   the gate after the name parsing below.
             if not(kernel(K$INTERNAL, -1)) then
-               stop sysmsg(11029)  ;* ... changed only by SYNC.GLOBAL.CATALOG
+               stop sysmsg(14916)  ;* ... changed only by SYNC.GLOBAL.CATALOG
             end
 
          case keyword = KW$PCODE
@@ -267,7 +267,7 @@ $define CAT_PCODE  3
 *  13); syncgcat and op_dio3.c global_write_refused() exempt it the same way.
 
    if mode = CAT_GLOBAL and not(kernel(K$INTERNAL, -1)) then
-      stop sysmsg(11029)  ;* ... changed only by SYNC.GLOBAL.CATALOG
+      stop sysmsg(14916)  ;* ... changed only by SYNC.GLOBAL.CATALOG
    end
 
    * Open the object file

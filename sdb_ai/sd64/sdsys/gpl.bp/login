@@ -56,14 +56,14 @@
 *           backup or restore runs; !acc_hold decides.
 * 30 Sep 26 SD Core Solo for Linux (LSOLO 14) - Windows Solo SOLO 18: a managed
 *           account with no password yet sets its first one at the console
-*           (set.first.password; messages 11025-11027, 11036, 11037).
+*           (set.first.password; messages 14912-14914, 14923, 14924).
 * 20 Sep 26 dm THE BATCH GATE (S.40), PARITY WITH THE WINDOWS PORT.  Owner's
 *           ruling, 20 Sep 2026: a behavior prevented on one port must be
 *           prevented on both, the mechanism free to differ with the OS.  A
 *           single-command invocation ("sd '<command>'", system(1026)) is now
 *           admitted by an ELEVATED session as before, or by the account's own
 *           list in SDSYS batch.jobs (one command, no arguments, VOC type PA
-*           or S), refused otherwise (11000-11002).  See batch.permitted.
+*           or S), refused otherwise (11000 and 11001).  See batch.permitted.
 *           Before this, CPROC ran any command line unconditionally once the
 *           account was entered - Linux never had either half of what Windows
 *           built 22 Aug 2026 (its batch.jobs, PROJECT_STATUS.md 7 step 9).
@@ -852,7 +852,7 @@ require.password:
    end
    pw.rec = ''
    if not(pw.has.acct or pw.has.global) then
-      display sysmsg(11020) ;* This account has no password - install SD Core Solo for Linux again...
+      display sysmsg(14909) ;* This account has no password - install SD Core Solo for Linux again...
       pw.why = 'the account has no password'
       return
    end
@@ -861,7 +861,7 @@ require.password:
 *  INSTALLED FROM A CONTROL FILE HAS NO ACCOUNT PASSWORD UNTIL ITS FIRST LOGIN,
 *  and it is set AT THE CONSOLE ONLY: an interactive session, on a terminal, not
 *  over ssh.  Managed only ($global present), as the control file is; a
-*  tree with no global password and without its record still gets 11020 above.  Anywhere else the
+*  tree with no global password and without its record still gets 14909 above.  Anywhere else the
 *  session is told so, and the prompt below then accepts only the global
 *  password (the master's, ruling 19), as it always has.
    if not(pw.has.acct) and pw.has.global then
@@ -880,7 +880,7 @@ require.password:
          end
          return
       end
-      display sysmsg(11026) ;* This account has no password yet. Set it at this computer's keyboard first...
+      display sysmsg(14913) ;* This account has no password yet. Set it at this computer's keyboard first...
    end
 
 *  A ONE-SHOT TRIES THE KEPT PASSWORD FIRST.  $STORED in $cred is the account
@@ -908,14 +908,14 @@ require.password:
    end
 
    if not(pw.interactive) and pw.on.tty then
-      display sysmsg(11017) ;* A command given on the sd command line needs the password on its input
+      display sysmsg(14906) ;* A command given on the sd command line needs the password on its input
       pw.why = 'one-shot command with no password source'
       return
    end
 
    if pw.interactive and pw.on.tty then pw.tries = 3 else pw.tries = 1
    for pw.t = 1 to pw.tries
-      if pw.on.tty then display sysmsg(11018) : ' ' :  ;* Password:
+      if pw.on.tty then display sysmsg(14907) : ' ' :  ;* Password:
       input pw.text HIDDEN
       if pw.on.tty then display
       if pw.text # '' then
@@ -930,7 +930,7 @@ require.password:
       end
       pw.text = ''
       if pw.via # '' then exit
-      display sysmsg(11019) ;* Wrong password
+      display sysmsg(14908) ;* Wrong password
    next pw.t
 
    if pw.via = '' then
@@ -967,10 +967,10 @@ set.first.password:
    pf.max = 3
    pf.pw1 = ''
    pf.pw2 = ''
-   display sysmsg(11025) ;* This account has no password yet. Choose one now...
+   display sysmsg(14912) ;* This account has no password yet. Choose one now...
    display
    for pf.try = 1 to pf.max
-      display sysmsg(11009) : ' ' :  ;* New password:
+      display sysmsg(14898) : ' ' :  ;* New password:
       input pf.pw1 HIDDEN
       display
       if pf.pw1 = '' then exit
@@ -984,16 +984,16 @@ set.first.password:
       pf.same = @false
       call !CRED_VERIFY('$global', pf.pw1, pf.same)
       if pf.same then
-         display sysmsg(11027) ;* Use a password different from the global password.
+         display sysmsg(14914) ;* Use a password different from the global password.
          display sysmsg(10921, pf.try, pf.max) ;* That was attempt %1 of %2
          continue
       end
-      display sysmsg(11010) : ' ' :  ;* Confirm the new password:
+      display sysmsg(14899) : ' ' :  ;* Confirm the new password:
       input pf.pw2 HIDDEN
       display
       if pf.pw1 # pf.pw2 then
          pf.pw2 = ''
-         display sysmsg(11011) ;* The passwords do not match
+         display sysmsg(14900) ;* The passwords do not match
          display sysmsg(10921, pf.try, pf.max) ;* That was attempt %1 of %2
          continue
       end
@@ -1001,19 +1001,19 @@ set.first.password:
       pf.set = @false
       call !CRED_SET(upcase(initial.account), pf.pw1, pf.set)
       if not(pf.set) then
-         display sysmsg(11016, status()) ;* The password could not be stored (status %1)
+         display sysmsg(14905, status()) ;* The password could not be stored (status %1)
          exit
       end
       pf.kept = @false
       call !SOLO_STORE_PW(upcase(initial.account), pf.pw1, pf.kept)
-      if not(pf.kept) then display sysmsg(11022, status()) ;* ...could not be kept for commands given on the sd command line
-      display sysmsg(11036, initial.account) ;* Password set for account %1
+      if not(pf.kept) then display sysmsg(14911, status()) ;* ...could not be kept for commands given on the sd command line
+      display sysmsg(14923, initial.account) ;* Password set for account %1
       pf.ok = @true
       exit
    next pf.try
    pf.pw1 = ''
    pf.pw2 = ''
-   if not(pf.ok) then display sysmsg(11037) ;* No password was set, and one is required...
+   if not(pf.ok) then display sysmsg(14924) ;* No password was set, and one is required...
    return
 
 *

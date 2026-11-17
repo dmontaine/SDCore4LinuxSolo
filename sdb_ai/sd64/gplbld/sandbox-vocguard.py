@@ -38,10 +38,10 @@
 #                      (and voc_write_refused's) that IS a VOC, so the real VOC is not damaged by the probes;
 #   a global file      global.bp.out, which the account's VOC points at (@SDSYS/global.bp.out), a directory file.
 # Each verb is run against
-#   R  the VOC-named file as an ordinary user          -> refused (message 11008), nothing changed
+#   R  the VOC-named file as an ordinary user          -> refused (message 14897), nothing changed
 #   O  an ordinary file of the account (control)       -> works, the same command, the same effect
 #   A  the VOC-named file as the ADMINISTRATOR         -> works (ADMIN opens the VOC)
-#   G  global.bp.out as an ordinary user               -> refused (message 11028), nothing changed
+#   G  global.bp.out as an ordinary user               -> refused (message 14915), nothing changed
 #   GA global.bp.out as the ADMINISTRATOR              -> refused too (ADMIN is not enough for the global files, ruling 33)
 #   E  COPY and CLEAR.FILE on the VOC-named file       -> still refused (they asked !voc_guard before; it is a wrapper now)
 # The state before and after is read two ways: BASIC dumps every record of the files (a program run in the session itself, before
@@ -185,9 +185,9 @@ def part_text():
     # the rule itself lives in one place, in this order
     rule = code_of("voc_refusal")
     row("T voc_refusal  the global files are asked BEFORE the administrator test (ADMIN is not enough for them)",
-        before(rule, "k$global.session", "k$administrator") and "return 11028" in rule)
-    row("T voc_refusal  the VOC answer is 11008 and the function displays nothing",
-        "return 11008" in rule and "display" not in rule)
+        before(rule, "k$global.session", "k$administrator") and "return 14915" in rule)
+    row("T voc_refusal  the VOC answer is 14897 and the function displays nothing",
+        "return 14897" in rule and "display" not in rule)
     guard = code_of("voc_guard")
     row("T voc_guard    is voc_refusal and a display (it carries no copy of the rule)",
         "voc_refusal(f)" in guard and "display sysmsg(n)" in guard and "kernel(" not in guard)
@@ -196,7 +196,7 @@ def part_text():
     row("T bbproc    voc_refusal and voc_guard are in the bootstrap list (BASIC calls !voc_guard)",
         "src.list<-1> = 'voc_refusal'" in boot and "src.list<-1> = 'voc_guard'" in boot)
     # the message texts the runtime rows look for
-    for n in (11008, 11028):
+    for n in (14897, 14915):
         row("T message %d exists" % n, os.path.isfile(os.path.join(MSGS, str(n))))
 
 
@@ -465,10 +465,10 @@ def main():
     if len(args) != 1:
         bail("usage: sandbox-vocguard.py <dir> [--build]   |   sandbox-vocguard.py --text")
     boxdir = os.path.abspath(args[0])
-    for n in (11008, 11028):
+    for n in (14897, 14915):
         if not os.path.isfile(os.path.join(MSGS, str(n))):
             bail("message %d is not in %s" % (n, MSGS))
-    VOCMSG, GLBMSG = re.escape(text_of(11008)), re.escape(text_of(11028))
+    VOCMSG, GLBMSG = re.escape(text_of(14897)), re.escape(text_of(14915))
     say("sandbox-vocguard: sandbox  %s" % boxdir)
     say("sandbox-vocguard: tree     %s" % SD64)
     say("sandbox-vocguard: keyset   SDSOLOBOX_KEYSET=%s" % os.environ.get("SDSOLOBOX_KEYSET", "(unset, 0)"))
@@ -486,8 +486,8 @@ def main():
     say("sandbox-vocguard: binary   %s  (%s)" % (box.sd, subprocess.run(["stat", "-c", "%y", os.path.realpath(box.sd)],
                                                                           capture_output=True, text=True).stdout.strip()[:19]))
     say("sandbox-vocguard: account  sduser, home %s (ordinary login with the account password; ADMIN only where a row says so)" % box.acct)
-    say("sandbox-vocguard: messages 11008 = '%s'" % text_of(11008))
-    say("sandbox-vocguard:          11028 = '%s'" % text_of(11028))
+    say("sandbox-vocguard: messages 14897 = '%s'" % text_of(14897))
+    say("sandbox-vocguard:          14915 = '%s'" % text_of(14915))
 
     try:
         # ---- the fixture
@@ -560,7 +560,7 @@ def main():
                 detail = "refusal line %s; wording %s; effect %s" % ("yes" if refused else "no", "yes" if worked_text else "no",
                                                                        "yes" if changed else "no")
                 if kind == "R":
-                    row("%s R: ordinary user on a VOC-named file is refused (11008) and nothing changes" % cid,
+                    row("%s R: ordinary user on a VOC-named file is refused (14897) and nothing changes" % cid,
                         refused and not changed and not (oks(T, s) and worked_text), detail + "  " + excerpt(text))
                 else:
                     row("%s %s: %s works and does what it says" % (cid, kind, "the control" if kind == "O" else "ADMIN"),
@@ -576,7 +576,7 @@ def main():
             refused = has_line(text, VOCMSG)
             none_after = len(re.findall(r"(?m)^File has no trigger function$", text))
             if kind == "R":
-                row("settrig R: ordinary user on a VOC-named file is refused (11008) and no trigger is set",
+                row("settrig R: ordinary user on a VOC-named file is refused (14897) and no trigger is set",
                     refused and n_set == 0 and none_after >= 1, "refusal %s; trigger lines %d; 'no trigger' lines %d  %s" %
                     (refused, n_set, none_after, excerpt(text)))
             else:
@@ -636,7 +636,7 @@ def main():
                 detail = "refusal line %s; wording %s; effect on the disk %s" % ("yes" if refused else "no", "yes" if worked_text else "no",
                                                                                   "yes" if changed else "no")
                 if kind == "G":
-                    row("%s G: ordinary user on global.bp.out is refused (11028) and the directory is unchanged" % cid,
+                    row("%s G: ordinary user on global.bp.out is refused (14915) and the directory is unchanged" % cid,
                         refused and not changed and b == a and not (oks and worked_text), detail + "  " + excerpt(text))
                 else:
                     row("%s O: the control - the same command on an ordinary directory file works" % cid,
@@ -652,7 +652,7 @@ def main():
             text = box.session(cmds, admin=True)
             a = dir_snapshot(box.glob)
             refused = has_line(text, GLBMSG)
-            row("%s GA: the ADMINISTRATOR is refused on global.bp.out too (11028) - ADMIN is not the global session" % cid,
+            row("%s GA: the ADMINISTRATOR is refused on global.bp.out too (14915) - ADMIN is not the global session" % cid,
                 refused and b == a, "refusal %s; unchanged %s  %s" % (refused, b == a, excerpt(text)))
 
         # ---- E: the verbs that already asked !voc_guard still do, now that it is !voc_refusal and a display
@@ -669,7 +669,7 @@ def main():
                 row("%s E: the run printed two dumps" % cid, False, text[-300:])
                 continue
             refused = has_line(text, VOCMSG)
-            row("%s E: the older verb still refuses the VOC-named file (11008) and changes nothing" % cid,
+            row("%s E: the older verb still refuses the VOC-named file (14897) and changes nothing" % cid,
                 refused and not eff(b, a), "refusal %s; changed %s  %s" % (refused, eff(b, a), excerpt(text)))
 
         # ---- the two verbs that change the whole file last (they spoil the fixture)
@@ -691,7 +691,7 @@ def main():
             refused = has_line(text, VOCMSG)
             prompt = "will be cleared and overwritten" in text
             if kind == "R":
-                row("mapcat R: ordinary user on a VOC-named file is refused (11008), is not even asked to confirm, and nothing changes",
+                row("mapcat R: ordinary user on a VOC-named file is refused (14897), is not even asked to confirm, and nothing changes",
                     refused and not cleared and not prompt, "refusal %s; confirm prompt shown %s; file cleared %s  %s" %
                     (refused, prompt, cleared, excerpt(text)))
             else:

@@ -57,7 +57,7 @@ FILES = {
     "helptext/providers": os.path.join(SDSYS, "helptext", "tool.ai.providers"),
     "helptext/accounts": os.path.join(SDSYS, "helptext", "tool.ai.accounts"),
 }
-MSGS = list(range(11606, 11635))
+MSGS = list(range(11607, 11635)) + [14925]            # 14925 is the AI gate message, Solo's own since 17 Nov 26 (it was 11606, which SD Core uses for another)
 
 
 def read(path):
@@ -215,8 +215,8 @@ def checks(s, run_print=True):
     ck("S1 SET.AI is the administrator's: the test is the first statement that does anything", ordered(set_b, "program set.ai", "kernel(K$ADMINISTRATOR, -1)", "sysmsg(2001)", "ctl = env('SD_AI_CTL')"), "")
     ck("S2 the helper's client is <tree>/tools/sd-ai-ctl (@sdsys), SD_AI_CTL only for the tests, and a path with a character a command line may not carry is refused", "@sdsys : @ds : 'tools' : @ds : 'sd-ai-ctl'" in set_b and "env('SD_AI_CTL')" in set_b
        and "stop sysmsg(11607)" in set_b, "")
-    ck("S3 the gate word: set.ai gate on|off only, through the client, audited as set.ai gate=on|off after the helper said ok, and the message is 11606",
-       ordered(set_b, "case sub = 'gate' and n.words = 3", "qargs = \"'gate' '\" : gstate", "gosub run.ctl", "gosub need.ok", "'set.ai gate=' : gstate", "sysmsg(11606, gstate)"), "")
+    ck("S3 the gate word: set.ai gate on|off only, through the client, audited as set.ai gate=on|off after the helper said ok, and the message is 14925",
+       ordered(set_b, "case sub = 'gate' and n.words = 3", "qargs = \"'gate' '\" : gstate", "gosub run.ctl", "gosub need.ok", "'set.ai gate=' : gstate", "sysmsg(14925, gstate)"), "")
     ck("S4 every word of the sentence is checked against the allowed characters before anything is run", ordered(set_b, "okc = ", "for i = 2 to n.words", "sysmsg(11622", "begin case"), "")
     ck("S5 a key typed at the prompt never passes through SD: SET.AI KEY p hands the terminal to the client (os.execute with no capturing), the verb reads back only the listing", ordered(set_b, "sub = 'key' and n.words = 3", "os.execute \"'\" : ctl : \"' 'key' '\"", "check.key")
        and "capturing" not in set_b[set_b.find("sub = 'key' and n.words = 3"):set_b.find("sub = 'custom' and n.words = 3")], "")
@@ -264,9 +264,9 @@ def checks(s, run_print=True):
     ck("W1 ai is in every account's VOC (newvoc) and in SDSYS's (voc_template); set.ai and tool.ai too (Solo's single account is also the administrator: the program refuses the rest)",
        all(re.search(r"(?m)^\$%s$" % pg, s[k]) for k, pg in (("newvoc/ai", "ai"), ("voc_template/ai", "ai"), ("newvoc/set.ai", "setai"), ("voc_template/set.ai", "setai"), ("newvoc/tool.ai", "tool_ai"), ("voc_template/tool.ai", "tool_ai"))), "")
     bad = [n for n in MSGS if s["msgs"][n] is None]
-    ck("W2 messages 11606 to 11634 exist, each one line", not bad and all(len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS if s["msgs"][n] is not None), repr(bad))
-    ck("W3 the three Solo wordings: 11606 says the gate, 11609 names the gate word, 11625 names set.ai gate on",
-       s["msgs"][11606] == "The AI gate is now %1\n" and "set.ai {gate on|off |" in s["msgs"][11609] and "set.ai gate on" in s["msgs"][11625] and "modify.account" not in s["msgs"][11625], "")
+    ck("W2 messages 11607 to 11634 and 14925 exist, each one line", not bad and all(len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS if s["msgs"][n] is not None), repr(bad))
+    ck("W3 the three Solo wordings: 14925 says the gate, 11609 names the gate word, 11625 names set.ai gate on",
+       s["msgs"][14925] == "The AI gate is now %1\n" and "set.ai {gate on|off |" in s["msgs"][11609] and "set.ai gate on" in s["msgs"][11625] and "modify.account" not in s["msgs"][11625], "")
     ck("W4 no message of the block names a command word in capitals or a Linux group Solo does not make", not any(re.search(r"[A-Z]{3,}\.[A-Z]|sdaiusers|sdai\b", (s["msgs"][n] or "")) for n in MSGS), "")
     ck("W5 the help records say the weakness in plain words and name the Solo document page", "any process you run can talk to it" in s["helptext/accounts"] and "24-the-ai-helper" in s["helptext/accounts"]
        and "24-the-ai-helper" in s["helptext/providers"] and "sdai" not in s["helptext/providers"].replace("sdaiusers", "") and "sdaiusers" not in s["helptext/accounts"], "")

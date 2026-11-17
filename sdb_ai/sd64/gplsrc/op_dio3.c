@@ -418,9 +418,9 @@ void op_clrfile() {
     k_error(sysmsg(1403));
 
   if (voc_write_refused(fvar)) /* 29 Sep 26 LSOLO 6, ruling 14 */
-    k_error(sysmsg(11008));
+    k_error(sysmsg(14897));
   if (global_write_refused(fvar)) /* 30 Sep 26 LSOLO 12, ruling 33 */
-    k_error(sysmsg(11028));
+    k_error(sysmsg(14915));
 
   {
     /* Get exclusive access to the file_lock entry in the file table. Because

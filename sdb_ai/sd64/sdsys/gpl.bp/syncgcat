@@ -30,7 +30,7 @@
 *           stale entries are compared by their stored name, so an upper-case one goes.
 * 06 Oct 26 SD Core Solo for Linux (LSOLO 38) - no "standalone" mode: with no
 *           $global it says so in new words (the same on SD Core Solo for Windows).
-* 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ported; message 11028/11029,
+* 30 Sep 26 SD Core Solo for Linux (LSOLO 12) - ported; message 14915/14916,
 *           $cred record $global (lower case), catalogue names upper case.
 * 28 Sep 26 SD Core Solo - new, ruling 33.
 * END-HISTORY
@@ -59,7 +59,7 @@
 *     is deleted (an old *name entry from before 9 Nov 26 included).
 * THE ABSENCE OF A $ ! _ PREFIX IS THE WHOLE BOOKKEEPING.  Nothing else can put such an entry
 * in the global catalogue - CATALOG and DELETE.CATALOG refuse every global entry for every
-* session (11029), and every program SD ships has a $ ! or _ name - so those entries ARE this
+* session (14916), and every program SD ships has a $ ! or _ name - so those entries ARE this
 * command's, and SD's own programs are never touched.  A program catalogued locally under the
 * same name is found first.  An upgrade replaces gcat wholesale, which drops the server's
 * entries; the installer runs this afterwards and they come back from GLOBAL.BP.OUT, which an
@@ -67,7 +67,7 @@
 *
 * WHO MAY RUN IT: a session signed in with the global password
 * (K$GLOBAL.SESSION - over the API, as the server does, or at a prompt), and
-* the installer ("sd -internal").  Anyone else gets 11028, ADMIN included.
+* the installer ("sd -internal").  Anyone else gets 14915, ADMIN included.
 * On a computer with no global password (no $GLOBAL credential) there is nothing
 * to manage: it says so, changes nothing, and succeeds, so the installer can
 * call it whether or not the computer is managed.
@@ -103,7 +103,7 @@ $include err.h
    magic = 0
 
    if not(kernel(K$GLOBAL.SESSION, -1)) and not(kernel(K$INTERNAL, -1)) then
-      display sysmsg(11028) ;* The global catalogue can only be changed by the SD Core server
+      display sysmsg(14915) ;* The global catalogue can only be changed by the SD Core server
 * 07 Oct 26 - the owner's lower-case rule (PAL-24): the audit trail is lower case.
       void kernel(K$AUDIT, 'sync.global.catalog refused - not a global-password session')
       stop

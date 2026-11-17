@@ -32,7 +32,7 @@
 *    n = voc_refusal(file.var)
 *
 * Returns 0 when a change to the file F is allowed, otherwise the number of the message that says
-* why not (11008 the VOC needs ADMIN, 11028 the global catalogue and its siblings need a
+* why not (14897 the VOC needs ADMIN, 14915 the global catalogue and its siblings need a
 * global-password session).  Nothing is displayed.  See !voc_guard for what the rule is for and
 * why it is applied by BASIC programs: op_dio3.c refuses a user program's own write, but a verb
 * that is $internal passes the C test, so each $internal verb that changes a file its user
@@ -72,7 +72,7 @@ $include int$keys.h
       if sd.dir[len(sd.dir), 1] = '/' then sd.dir = sd.dir[1, len(sd.dir) - 1]
       if p = sd.dir : '/gcat' or p = sd.dir : '/global.bp.out' or p = sd.dir : '/solo.policy' then
          if kernel(K$GLOBAL.SESSION, -1) then return 0
-         return 11028 ;* The global catalogue can only be changed by the SD Core server
+         return 14915 ;* The global catalogue can only be changed by the SD Core server
       end
    end
 
@@ -82,7 +82,7 @@ $include int$keys.h
 
    if last # 'voc' then return 0
 
-   return 11008 ;* The VOC can only be changed after ADMIN
+   return 14897 ;* The VOC can only be changed after ADMIN
 end
 
 * END-CODE

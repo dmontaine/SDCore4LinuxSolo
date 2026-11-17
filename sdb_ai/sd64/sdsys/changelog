@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SOLO'S MESSAGE NUMBERS NO LONGER CLASH WITH SD CORE'S.
+
+             What        - 38 messages that only Solo has used numbers SD Core gives to other messages (for example 11002
+                           was "Administrator password:" here and a refusal about a paragraph there).  They now sit in
+                           Solo's own block, 14891 to 14928, in the same order and with the same text: the administrator
+                           and password messages (11002 to 11022 and 11025 to 11037 are now 14891 to 14924), the AI gate
+                           message (11606 is 14925) and the set.pins messages (11930 to 11932 are 14926 to 14928).
+             Why         - the same number must mean the same thing in SD Core, SD Core Solo and the Windows products; a
+                           program or a message file carried from one to another would otherwise print the wrong words.
+             Does NOT    - Change any text or any behaviour: what you read on the screen is the same.  A program of your
+                           own that cites one of these numbers with SYSMSG() needs the new number; a script that matches
+                           the words is unaffected.
+
 17 Nov 26  THE ACCOUNT HAS EXAMPLE PROGRAMS: THE FILE EXAMPLES.BP.
 
              What        - the account sduser now has its own file examples.bp of example programs, already compiled, so
@@ -744,7 +757,7 @@ Next release - in progress
                        subroutines !OSCOPY and !IOSCOPY (as the target), OPENSEQ with
                        WRITESEQ or CREATING (the file is opened read only), DELETESEQ,
                        OSPATH deleting or making a directory, a print file (SETPTR ...
-                       AS PATHNAME, then LIST ... LPTR: message 11008) and the socket
+                       AS PATHNAME, then LIST ... LPTR: message 14897) and the socket
                        trace file. Reading is not refused. The administrator (after
                        ADMIN) and an account with the OS switch on are not asked, as in
                        SD Core. Separately, deletesdsolo.sh --keep-data now leaves a

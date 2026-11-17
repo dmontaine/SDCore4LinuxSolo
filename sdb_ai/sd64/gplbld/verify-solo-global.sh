@@ -92,9 +92,9 @@ n29="$(count "$out" "$M29")"; n28="$(count "$out" "$M28")"
 n_obj="$(ls -A "$GBP" | wc -l)"
 if [ "$n29" -eq 2 ] && [ "$n28" -eq 2 ] && ! printf '%s\n' "$out" | grep -q 'sync global catalog done' \
    && [ "$n_obj" -eq 0 ]; then
-  leg "2 with ADMIN the global catalogue is still refused" "CATALOG GLOBAL and DELETE.CATALOG (11029) x2, SYNC and COPY (11028) x2, GLOBAL.BP.OUT empty" 0 "2 + 2 refusals"
+  leg "2 with ADMIN the global catalogue is still refused" "CATALOG GLOBAL and DELETE.CATALOG (14916) x2, SYNC and COPY (14915) x2, GLOBAL.BP.OUT empty" 0 "2 + 2 refusals"
 else
-  leg "2 with ADMIN the global catalogue is still refused" "11029 x2, 11028 x2, no DONE line, GLOBAL.BP.OUT empty" 1 "11029=$n29 11028=$n28 objects=$n_obj; $(last "$out")"
+  leg "2 with ADMIN the global catalogue is still refused" "14916 x2, 14915 x2, no DONE line, GLOBAL.BP.OUT empty" 1 "14916=$n29 14915=$n28 objects=$n_obj; $(last "$out")"
 fi
 
 # ---- 3. a user program's own write to GLOBAL.BP.OUT is refused in C, ADMIN or not.
@@ -162,9 +162,9 @@ rm -f "$BP/$SUB" "$BP/$CALL" "$OUT/$SUB" "$OUT/$CALL"
 # ---- 5. DENY.VERBS is refused to sduser even with ADMIN.
 out="$(asadmin DENY.VERBS 'DENY.VERBS ADD WHO')"
 if [ "$(count "$out" "$M30")" -eq 2 ] && ! printf '%s\n' "$out" | grep -qE '^deny\.verbs [0-9]+:'; then
-  leg "5 with ADMIN, DENY.VERBS is refused" "11030 x2, no 'DENY.VERBS n:' line" 0 "refused twice"
+  leg "5 with ADMIN, DENY.VERBS is refused" "14917 x2, no 'DENY.VERBS n:' line" 0 "refused twice"
 else
-  leg "5 with ADMIN, DENY.VERBS is refused" "11030 x2, no 'DENY.VERBS n:' line" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
+  leg "5 with ADMIN, DENY.VERBS is refused" "14917 x2, no 'DENY.VERBS n:' line" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
 fi
 
 # ---- 6. the server denies WHO, sduser is refused it, ADMIN runs it, the server allows it again.
@@ -250,9 +250,9 @@ fi
 out="$(asadmin 'SET.PASSWORD GLOBAL')"
 if [ "$(count "$out" 'The global password can only be changed by the SD Core server')" -eq 1 ] \
    && ! printf '%s\n' "$out" | grep -qx 'Password changed'; then
-  leg "9a with ADMIN, SET.PASSWORD GLOBAL is refused" "11033, no 'Password changed'" 0 "refused"
+  leg "9a with ADMIN, SET.PASSWORD GLOBAL is refused" "14920, no 'Password changed'" 0 "refused"
 else
-  leg "9a with ADMIN, SET.PASSWORD GLOBAL is refused" "11033, no 'Password changed'" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
+  leg "9a with ADMIN, SET.PASSWORD GLOBAL is refused" "14920, no 'Password changed'" 1 "$(printf '%s\n' "$out" | tail -3 | tr '\n' '|')"
 fi
 TMPG="${GLOBALPW}Zz9!"
 out="$(asglobal 'SET.PASSWORD GLOBAL' "$TMPG" "$TMPG")"

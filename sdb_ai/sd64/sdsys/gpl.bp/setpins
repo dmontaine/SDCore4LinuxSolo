@@ -43,7 +43,7 @@ $include err.h
    words = trim(@sentence)
    n.words = dcount(words, ' ')
    want = downcase(field(words, ' ', 2))
-   if n.words > 2 or (n.words = 2 and want # 'on' and want # 'off') then stop sysmsg(11930)         ;* set.pins {on | off}
+   if n.words > 2 or (n.words = 2 and want # 'on' and want # 'off') then stop sysmsg(14926)         ;* set.pins {on | off}
 
    openpath @sdsys : @ds : 'accounts' to acc.f else stop sysmsg(6003)
    readu acc.rec from acc.f, acc.name else
@@ -65,7 +65,7 @@ $include err.h
       release acc.f, acc.name
       close acc.f
       @system.return.code = 0
-      display sysmsg(11931, acc.name, want)             ;* Own programs for %1 were already %2; nothing changed
+      display sysmsg(14927, acc.name, want)             ;* Own programs for %1 were already %2; nothing changed
       stop
    end
 
@@ -76,7 +76,7 @@ $include err.h
    close acc.f
    if not(ok) then
       @system.return.code = -ER$FAILED
-      stop sysmsg(11932)                                ;* The permission could not be written
+      stop sysmsg(14928)                                ;* The permission could not be written
    end
 
    @system.return.code = 0

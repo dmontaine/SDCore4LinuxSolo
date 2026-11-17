@@ -28,8 +28,8 @@ SDSYS = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 PROGS = ("tool_home", "home_entry", "home_off", "home_pins", "mymenu", "tool_menus", "exit", "setstart", "settile", "setpins", "cproc", "sl_theme")
 # 11879 was "tiles off for every account": there is no such setting (per account only).  11867 (could not enter the account), 11868 and 11869 (MODIFY.ACCOUNT's start words) are SD Core's and
-# are not in Solo.  11930 to 11932 are Solo's own (SET.PINS).
-MSGS = tuple(str(n) for n in list(range(11863, 11867)) + list(range(11870, 11879)) + list(range(11880, 11887)) + [11930, 11931, 11932])
+# are not in Solo.  14926 to 14928 are Solo's own (SET.PINS).
+MSGS = tuple(str(n) for n in list(range(11863, 11867)) + list(range(11870, 11879)) + list(range(11880, 11887)) + [14926, 14927, 14928])
 
 
 def strip(src):
@@ -141,12 +141,12 @@ def checks(s):
        0 < ss.find("kernel(K$ADMINISTRATOR, -1)") < ss.find("stop sysmsg(2001)") < ss.find("openseq path overwrite to df else null") and "openseq path readonly to df then" in ss and "want = 'menu' or want = 'terminal'" in ss
        and "path = @sdsys : @ds : 'start.default'" in ss and "K$AUDIT, 'set.start.default ' : want" in ss and "case want = ''" in ss)
 
-    ck("H14 SET.PINS (Solo's MODIFY.ACCOUNT PINS-ON / PINS-OFF): the administrator is asked first (2001), the account is always sduser, a word other than on or off is refused (11930), and the record is read under the lock",
+    ck("H14 SET.PINS (Solo's MODIFY.ACCOUNT PINS-ON / PINS-OFF): the administrator is asked first (2001), the account is always sduser, a word other than on or off is refused (14926), and the record is read under the lock",
        0 < sp.find("kernel(K$ADMINISTRATOR, -1)") < sp.find("stop sysmsg(2001)") < sp.find("acc.name = 'sduser'") < sp.find("readu acc.rec from acc.f, acc.name else")
-       and "(n.words = 2 and want # 'on' and want # 'off')" in sp and "stop sysmsg(11930)" in sp)
-    ck("H14b ...it writes only field 18 of that record ('yes' or 'no', ONLY yes is on), says what it is when no word is given (11885), says already when nothing changes (11931), audits in lower case, and runs nothing",
+       and "(n.words = 2 and want # 'on' and want # 'off')" in sp and "stop sysmsg(14926)" in sp)
+    ck("H14b ...it writes only field 18 of that record ('yes' or 'no', ONLY yes is on), says what it is when no word is given (11885), says already when nothing changes (14927), audits in lower case, and runs nothing",
        sp.count("write ") == 1 and "acc.rec<ACC$PINS> = (if want = 'on' then 'yes' else 'no')" in sp and "write acc.rec to acc.f, acc.name on error ok = @false" in sp and "is.on = (upcase(trim(acc.rec<ACC$PINS>)) = 'YES')" in sp
-       and "sysmsg(11931, acc.name, want)" in sp and sp.count("sysmsg(11885, acc.name") == 2 and "K$AUDIT, 'set.pins ' : want : ' account=' : acc.name" in sp and "execute" not in sp and "stop sysmsg(11932)" in sp)
+       and "sysmsg(14927, acc.name, want)" in sp and sp.count("sysmsg(11885, acc.name") == 2 and "K$AUDIT, 'set.pins ' : want : ' account=' : acc.name" in sp and "execute" not in sp and "stop sysmsg(14928)" in sp)
 
     f = s["files"]
     ck("H15 the VOC: HOME and EXIT and the administrator's SET.START.DEFAULT, SET.TILE and SET.PINS in both places (Solo's administrator verbs are in newvoc as well as voc_template and refuse at run time)",
@@ -155,9 +155,9 @@ def checks(s):
        all(len(t.split("\n")) >= 3 and t.split("\n")[0][:1].upper() == "V" and t.split("\n")[2] == "$tool_home" for t in (s["menu.n"], s["menu.t"])), repr((s["menu.n"][:60], s["menu.t"][:20])))
     m = s["msgs"]
     ck("H15b ...and SET.TILE and MY.MENU are in both too", f["voc_template/set.tile"] and f["newvoc/set.tile"] and f["newvoc/my.menu"] and f["voc_template/my.menu"], repr(f))
-    ck("H16 messages 11863 to 11866, 11870 to 11878, 11880 to 11886 and 11930 to 11932 exist, each one line, none with a capital command word", all(m[n] and m[n].count("\n") == 1 for n in MSGS), repr([n for n in MSGS if not m[n] or m[n].count("\n") != 1]))
+    ck("H16 messages 11863 to 11866, 11870 to 11878, 11880 to 11886 and 14926 to 14928 exist, each one line, none with a capital command word", all(m[n] and m[n].count("\n") == 1 for n in MSGS), repr([n for n in MSGS if not m[n] or m[n].count("\n") != 1]))
     ck("H16b ...the ones the programs print say what the plan says", "terminal" in (m["11863"] or "") and "type exit to return to the home screen" in (m["11864"] or "")
-       and "{menu | terminal}" in (m["11870"] or "") and "%1" in (m["11871"] or "") and "%1" in (m["11873"] or "") and "set.pins" in (m["11930"] or "") and "%1" in (m["11931"] or "") and "%2" in (m["11931"] or ""))
+       and "{menu | terminal}" in (m["11870"] or "") and "%1" in (m["11871"] or "") and "%1" in (m["11873"] or "") and "set.pins" in (m["14926"] or "") and "%1" in (m["14927"] or "") and "%2" in (m["14927"] or ""))
     ck("H17 the sandbox starts at the terminal (start.default = terminal) because every pty suite types at the prompt, with the reason beside it",
        "os.path.join(box.sys, \"start.default\")" in s["sandbox-fromtree.py"] and "f.write(\"terminal\\n\")" in s["sandbox-fromtree.py"])
     st = strip(s["sl_theme"])

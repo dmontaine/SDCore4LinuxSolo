@@ -12,7 +12,7 @@
 * 11 Nov 26 dm  Carried from SD Core (S.160, 7 Nov 26, 74cf7001): SET.AI CONTEXT hex | - (the standing text sent first with every request), put to the wall's screen
 *               before the helper keeps it; messages 14011-14014 (shared with Core) and 11609's usage.  The code of the case is Core's.
 * 23 Oct 26 dm  Solo carry 15: the helper's client is <tree>/tools/sd-ai-ctl (Core: root-owned under /usr/local/lib); the word GATE ON | OFF is Solo's account gate (Core's is
-*               modify.account NAME ai-on, one per account); message 11606 says it.  Everything else is Core's program.
+*               modify.account NAME ai-on, one per account); message 14925 says it.  Everything else is Core's program.
 * 23 Oct 26 dm  (Core) New (S.69 step 2; the owner: "an ai choice page ... a checkbox for the currently selected provider ... the same model needs to be used by all accounts").
 * END-HISTORY
 *
@@ -91,7 +91,7 @@ $include err.h
          gosub run.ctl
          gosub need.ok
          void kernel(K$AUDIT, 'set.ai gate=' : gstate)
-         display sysmsg(11606, gstate)                                                    ;* The AI gate is now %1
+         display sysmsg(14925, gstate)                                                    ;* The AI gate is now %1
          @system.return.code = 0
 
       case sub = 'provider' and n.words = 3

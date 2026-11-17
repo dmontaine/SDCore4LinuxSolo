@@ -63,9 +63,9 @@ echo "  \$cred holds: $(ls "$H/\$cred" | tr '\n' ' ')"
 o="$(piped "$NEWPW" WHO)"
 n_msg="$(printf '%s\n' "$o" | grep -c -x "This account has no password yet. Set it at this computer's keyboard first; until then only the global password is accepted.")"
 if [ "$n_msg" -eq 1 ] && ! printf '%s\n' "$o" | grep -qE '^[0-9]+ sduser$' && [ ! -e "$H/\$cred/sduser" ]; then
-  leg "1 a piped session is not offered the prompt" "11026 shown, the password refused, still no \$cred/sduser" 0 "refused"
+  leg "1 a piped session is not offered the prompt" "14913 shown, the password refused, still no \$cred/sduser" 0 "refused"
 else
-  leg "1 a piped session is not offered the prompt" "11026 once, no WHO answer, no \$cred/sduser" 1 "msg=$n_msg; $(printf '%s\n' "$o" | tail -3 | tr '\n' '|')"
+  leg "1 a piped session is not offered the prompt" "14913 once, no WHO answer, no \$cred/sduser" 1 "msg=$n_msg; $(printf '%s\n' "$o" | tail -3 | tr '\n' '|')"
 fi
 
 # ---- 2. the global password opens the account, and setting nothing.
@@ -82,9 +82,9 @@ t="$(PR expect:'no password yet\. Set it at this' expect:'Password:' send:"$NEWP
 rc3=$?
 PRENV=()
 if [ "$rc3" -eq 0 ] && ! printf '%s\n' "$t" | grep -q 'Choose one now' && [ ! -e "$H/\$cred/sduser" ]; then
-  leg "3 an ssh session is not offered the prompt" "11026, the ordinary Password: prompt, the new password refused, no \$cred/sduser" 0 "refused"
+  leg "3 an ssh session is not offered the prompt" "14913, the ordinary Password: prompt, the new password refused, no \$cred/sduser" 0 "refused"
 else
-  leg "3 an ssh session is not offered the prompt" "11026 then Password: then Wrong password" 1 "rc=$rc3; $(printf '%s\n' "$t" | grep -E 'ptyrun:|Choose|Wrong' | tr '\n' '|')"
+  leg "3 an ssh session is not offered the prompt" "14913 then Password: then Wrong password" 1 "rc=$rc3; $(printf '%s\n' "$t" | grep -E 'ptyrun:|Choose|Wrong' | tr '\n' '|')"
 fi
 
 # ---- 4. at the console: weak, global-equal and mismatched passwords are refused, a good one accepted.
