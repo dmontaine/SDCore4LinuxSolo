@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1227, P-1228 (Solo carry of SD Core's fix): sd-solo refuses to start inside a shell SD started (SD_SESSION, op_sh.c); -D, -M, -SUSPEND and -RESUME name check_admin() (a no-op in Solo, as for -start and -stop); -TERM's value is bounded.
  * 15 Nov 26 dm  main() calls xfer_detect() first; an sftp request Solo's own sshd sent here is the file transfer server (sd_sftp.c).  Solo carry
  *               of SD Core's S.242.
  * 14 Nov 26 dm  sd_init(): a failed getcwd() gives an empty entry directory (it read an unset buffer); the build's warning.
@@ -338,6 +339,17 @@ Private bool comlin(int argc, char *argv[]) {
   int RxPipe;
   int TxPipe;
 
+  /* 17 Nov 26 dm - S.62 P-1228 (Solo carry of SD Core's fix).  ONE SD PER SESSION, the owner's rule of 15 Aug 26: somebody
+     who shells out of SD with SH must not be able to start a second one.  op_sh.c marks the shell that SH and OS.EXECUTE start
+     with SD_SESSION; seen here, before any option is read, every form of the command is refused, -status and --version
+     included.  A guard, not a boundary: the user can unset the variable in that shell.  The file transfer server
+     (xfer_detect(), called before this) is started by sshd and a scheduled job by the user's systemd manager; neither runs
+     inside such a shell. */
+  if (getenv("SD_SESSION") != NULL) {
+    fprintf(stderr, "SD is already running in this session - type exit to return to it.\n");
+    exit(1);
+  }
+
   for (arg = 1; (arg < argc) && (argv[arg][0] == '-'); arg++) {
     if (!stricmp(argv[arg], "-CLEANUP")) {
       cleanup();
@@ -389,8 +401,14 @@ Private bool comlin(int argc, char *argv[]) {
     } else if (!stricmp(argv[arg], "-QUIET")) {
       command_options |= CMD_QUIET;
     } else if (!stricmp(argv[arg], "-TERM")) {
-      if (++arg < argc)
+      if (++arg < argc) {
+        /* 17 Nov 26 dm - S.62 (Solo carry): bounded; an unbounded strcpy into the 32 + 1 byte term_type overran struct tio. */
+        if (strlen(argv[arg]) > sizeof(tio.term_type) - 1) {
+          fprintf(stderr, "sd: the terminal type is longer than %d characters\n", (int)(sizeof(tio.term_type) - 1));
+          exit(1);
+        }
         strcpy(tio.term_type, argv[arg]);
+      }
     } else if (!stricmp(argv[arg], "-I")) {    
 /* 20240702 mab Bootstrap build arg must be exactly "-I" */		  
         /* Bootstrap Install*/
@@ -419,6 +437,10 @@ Private bool comlin(int argc, char *argv[]) {
           break;
 
         case 'D': /* Diagnostic report */
+          /* 17 Nov 26 dm - S.62 P-1227 (Solo carry): -D, -M, -SUSPEND and -RESUME name check_admin(), as SD Core's do and as
+             -start and -stop do here.  In Solo check_admin() tests nothing (LSOLO 4, below): the one user owns the system,
+             so this changes nothing today; whether these four want a gate of their own in Solo is the owner's (S.62). */
+          check_admin();
           dump_sysseg(TRUE);
           exit(0);
 
@@ -435,6 +457,7 @@ Private bool comlin(int argc, char *argv[]) {
           exit(1);
 
         case 'M': /* Dump memory */
+          check_admin(); /* 17 Nov 26 dm - S.62 P-1227, see -D */
           dump_sysseg(FALSE);
           exit(0);
 
@@ -473,6 +496,7 @@ Private bool comlin(int argc, char *argv[]) {
 
         case 'R':
           if (!stricmp(argv[arg], "-RESUME")) {
+            check_admin(); /* 17 Nov 26 dm - S.62 P-1227, see -D */
             suspend_resume(FALSE);
             exit(0);
           }
@@ -490,6 +514,7 @@ Private bool comlin(int argc, char *argv[]) {
 
         case 'S':
           if (!stricmp(argv[arg], "-SUSPEND")) {
+            check_admin(); /* 17 Nov 26 dm - S.62 P-1227, see -D */
             suspend_resume(TRUE);
             exit(0);
           }

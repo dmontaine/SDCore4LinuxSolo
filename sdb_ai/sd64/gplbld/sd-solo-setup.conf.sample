@@ -110,13 +110,25 @@ reload-data=
 # os-access
 #   Whether to turn on the shell and OS access for the account (20 Oct 2026).  Both are OFF as
 #   delivered.  none = leave both as they are (off on a new account); sh = turn on the SH verb and
-#   "!"; os = turn on OS.EXECUTE, files and directories outside the account, the embedded Python,
-#   nano and micro; both = both.  Blank = ask on a terminal, and none when there is none.  Either
+#   "!"; os = turn on OS.EXECUTE, files and directories outside the account, the embedded Python
+#   and the editors that run outside SD; both = both.  Blank = ask on a terminal, and none when there is none.  Either
 #   switch lets whoever signs in do what the Linux user can do; the administrator can change them
 #   later (ADMIN, then set.os.access).
 #os-access=none
 
 os-access=
+
+# viewer
+#   A PDF reader the pdf command may start to show the documentation, even
+#   though the account has no OS access (23 Oct 2026): none, or the name of a
+#   reader found in /usr/bin, /usr/local/bin or /bin - evince, okular, zathura,
+#   atril, xreader, mupdf, qpdfview or xpdf.  Nothing is allowed unless it is
+#   named.  Blank = ask on a terminal when one of those readers is installed,
+#   and none when there is no terminal.  The administrator can change it later
+#   (ADMIN, then set.viewer).
+#viewer=evince
+
+viewer=
 
 # start
 #   Where a session starts (12 Nov 2026): menu = the home screen, terminal = the command prompt.

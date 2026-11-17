@@ -9,6 +9,8 @@
 * 23 Oct 26 dm  New.
 * 11 Nov 26 dm  S.176 carried: F6 and Shift-F6 (or Left and Right) change box, as on every page; Tab and Shift-Tab no longer do.  The key row, the opening line and
 *               the help lines say F6.
+* 17 Nov 26 dm  S.62 (P-1954, P-1953): the key loop parks the cursor through $tk_aipage 'cursor' (Windows row 328, as the other pages); an empty !viewlist answer
+*               is never taken for the reader's path.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -77,7 +79,7 @@ $include tk.h
 
    loop
       call $tk_frame(ctx, keys, pnames<pane>, msg)
-      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      call $tk_aipage('cursor', ctx, '', '', '', '')                      ;* 17 Nov 26, S.62 (P-1954): the pages' cursor rule (Windows row 328); with no AI line it is $sl_curat's column 0 of the status line
       nm = ''
       screen key returning nm
       begin case
@@ -347,7 +349,7 @@ name.of:
    next ci
    cand = ppath[cut + 1, 99]
    call !viewlist('find', cand, back, 0)
-   if back = ppath then pname = cand
+   if back # '' and back = ppath then pname = cand          ;* 17 Nov 26, S.62 (P-1953): an empty answer is never a match, as the Windows port has it
    return
 
 end

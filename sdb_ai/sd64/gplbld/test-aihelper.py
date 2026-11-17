@@ -671,8 +671,8 @@ def rows_ctl(env, fm):
         row("model openai gpt-test: ok", rc == 0 and out.strip() == "ok", repr((rc, out, err)))
         rc, out, err = run("key", "openai", stdin=KEY + "\n")
         kp = os.path.join(env.state, "keys", "openai")
-        row("key openai, the key on stdin (not a terminal): 'The key for openai is set.', the file holds it, mode 0600, and the key is in neither stdout nor stderr",
-            rc == 0 and out.strip() == "The key for openai is set." and open(kp).read().strip() == KEY and stat.S_IMODE(os.stat(kp).st_mode) == 0o600 and KEY not in out + err, repr((rc, out, err)))
+        row("key openai, the key on stdin (not a terminal): says nothing (set.ai prints the one line after it reads the key back - SD Core's Windows 309, S.62 P-1766), the file holds it, mode 0600, and the key is in neither stdout nor stderr",
+            rc == 0 and out.strip() == "" and open(kp).read().strip() == KEY and stat.S_IMODE(os.stat(kp).st_mode) == 0o600 and KEY not in out + err, repr((rc, out, err)))
         rc, out, err = run("show")
         row("show now: openai is [x] with its model, key set, and the key is not printed", rc == 0 and "[x] openai" in out and "model: gpt-test" in out and "key: set" in out and KEY not in out, repr(out))
         rc, out, err = run("show", "--json")

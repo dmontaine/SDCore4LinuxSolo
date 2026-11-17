@@ -23,6 +23,9 @@
 # 11 Nov 26 dm  [[fenced]] names the action ide, as SD Core's fake does: the Record editor tile (ced) is gone from the home screen (S.88 g-P1).
 # 11 Nov 26 dm  Carried from SD Core (S.170): GET <base>/models (the list of models, MODELS or the test's own, None for a 404); [[err400]] (DeepSeek's "Model Not
 #               Exist") and [[err400key]] (words that repeat the key and hold an escape sequence).
+# 17 Nov 26 dm  S.62 (P-1729, P-1730, P-1732), carried from SD Core: the page actions [[act_refresh]], [[act_type]], [[act_delete]], [[act_newfile]] (S.97),
+#               [[edit_wide]] (a 230-character line, S.88) and the dictionary form's [[fields_ok]] / [[fields_bad]] (S.97), so a suite run against Solo's
+#               sandbox finds the same answers as against SD Core's.  Answers only: nothing here changes what an existing mark answers.
 # END-HISTORY
 
 import http.server
@@ -48,6 +51,11 @@ JSON_REPLIES = {
     "act_terminal": '{"say": "Opening a terminal.", "action": "terminal", "arg": "", "command": ""}',
     "act_bad": '{"say": "Formatting the disk.", "action": "format-disk", "arg": "all", "command": ""}',
     "act_signout": '{"say": "Signing you out.", "action": "signout", "arg": "", "command": ""}',
+    # SD Core, 1 Nov 26 (S.97 stage 1): the actions of a toolkit PAGE: refresh and type are offered to the model, delete is a key of the page that is NOT
+    "act_refresh": '{"say": "Reading the page again.", "action": "refresh", "arg": "", "command": ""}',
+    "act_type": '{"say": "Changing the type shown.", "action": "type", "arg": "", "command": ""}',
+    "act_delete": '{"say": "Deleting the entry.", "action": "delete", "arg": "", "command": ""}',
+    "act_newfile": '{"say": "Making the file.", "action": "new", "arg": "zzaifile", "command": ""}',     # SD Core, 1 Nov 26 (S.97 stage 4): an editing action with an argument
     "cmd_list": '{"say": "List the files like this.", "action": "none", "arg": "", "command": "who.am.i"}',
     "cmd_tab": '{"say": "Odd command.", "action": "none", "arg": "", "command": "list\\tfiles"}',
     "cmd_long": '{"say": "A long one.", "action": "none", "arg": "", "command": "' + "x" * 300 + '"}',
@@ -67,9 +75,15 @@ JSON_REPLIES = {
     "edit_cmd": '{"say": "Run it.", "action": "none", "arg": "", "command": "who.am.i"}',
     "edit_empty": '{"say": "Nothing to change.", "action": "none", "arg": "", "command": "", "edits": []}',
     "edit_delete": '{"say": "Removed it.", "action": "none", "arg": "", "command": "", "edits": [{"old": "x = 1\\n", "new": ""}]}',
+    # SD Core, 28 Oct 26 (S.88 phase 2, S5): one new line of 230 characters, wider than the box, made of Z so that a count of the Z on the screen is a count of the characters shown
+    "edit_wide": '{"say": "A wide line.", "action": "none", "arg": "", "command": "", "edits": [{"old": "crt \'hello\'", "new": "' + "Z" * 230 + '"}]}',
     # CED's edits (AI line stage 3): the record is {"name":"widget","size":3,"tags":["a","b"]} and CED shows it as indented JSON, one element to a line
     "ced_ok": '{"say": "I raised the size.", "action": "none", "arg": "", "command": "", "edits": [{"old": "\\"size\\": 3", "new": "\\"size\\": 4"}]}',
     "ced_bad": '{"say": "A broken change.", "action": "none", "arg": "", "command": "", "edits": [{"old": "\\"size\\": 3", "new": "\\"size\\": ["}]}',
+    # SD Core, 3 Nov 26 (S.97, the dictionary form's AI line): values for the form's fields.  fields_ok is a whole D item; fields_bad has a Field # that is not a number (the form's own check
+    # refuses it), a key the form did not offer (the library leaves it out) and a heading that is good
+    "fields_ok": '{"say": "A date field.", "action": "none", "arg": "", "command": "", "fields": {"type": "D", "loc": "3", "conv": "D2", "head": "Joined", "fmt": "10 R"}}',
+    "fields_bad": '{"say": "Some values.", "action": "none", "arg": "", "command": "", "fields": {"type": "D", "loc": "abc", "nosuch": "x", "head": "Named"}}',
 }
 
 

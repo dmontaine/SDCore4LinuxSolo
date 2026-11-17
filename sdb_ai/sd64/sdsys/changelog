@@ -1,6 +1,163 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  THE API ENTERS AN ACCOUNT BY ITS REGISTERED NAME ONLY.
+
+             What        - an API client's SDLogto (and the account its login enters) must name the account as it is
+                           registered.  A name with no register record - a pathname included - is refused with the same
+                           "User not allowed in requested account" every refusal gives, and the audit trail says
+                           "account refused branch=1 no.path.in.register account=...".  LISTU now shows the account an
+                           API session is in.
+             Why         - SD Core and both Windows products already refuse an account named by a path; Solo refused one
+                           only because no user name holds a '/', and a name given as a path was entered without the
+                           register being read.
+             Does NOT    - Change anything for sduser named by its name, or what the API may do once in the account.
+
+17 Nov 26  A PROGRAM'S FILE WRITTEN BY PATHNAME IS HELD TO THE VOC RULE.
+
+             What        - three ways of writing a file by its operating-system path now ask the same question the VOC
+                           rule asks of a program's own OPENSEQ: an API client's OPENSEQ of a pathname, a delimited report
+                           written TO a pathname (LIST ... CSV TO / DELIMITER TO), and CONVERT.DATA's output file.  A path
+                           that leads into the account's VOC is refused without ADMIN ("The VOC can only be changed after
+                           admin"); the API opens such a file for reading only.  A delimited report written AS file id is
+                           checked against the file as opened, as REFORMAT's target is.
+             Why         - each of these runs inside SD's own trusted programs, so the kernel's own test was not made for
+                           them, and a report or an API client could change the VOC without the administrator password.
+             Does NOT    - Change a write to any other file, or need the OS switch for anything it did not need before.
+
+17 Nov 26  WRITELIST WORKS IN AN ACCOUNT THAT HAS NO SAVED LISTS YET.
+
+             What        - the first WRITELIST in an account makes the saved-lists file and its VOC entry through a small
+                           trusted routine, as SAVE.LIST does, so it no longer fails without ADMIN.
+             Why         - the VOC entry was written by WRITELIST's own routine, which the VOC rule refuses without ADMIN.
+             Does NOT    - Replace an existing $savedlists entry, or let WRITELIST write anything else into the VOC.
+
+17 Nov 26  "INVALID NAME" FOR A RECORD WHOSE FILE IS THERE UNDER A NAME SD CANNOT READ.
+
+             What        - LIST, COUNT and REFORMAT of a directory file report "'id' invalid name" when the record's file is
+                           in the directory under a name SD's own encoding cannot produce (a bare '%', say), instead of
+                           "'id' not found".
+             Why         - "not found" is the wrong answer for a file you can see in the directory; SD Core and the
+                           Windows products already say this.
+             Does NOT    - Read the file, or change what a record that really is absent reports.
+
+17 Nov 26  SET.PASSWORD GLOBAL MUST DIFFER FROM THE OTHER TWO, AND IS AUDITED.
+
+             What        - a new global password equal to the account password or the administrator password is refused
+                           ("The global password must differ from the account and administrator passwords"), and a
+                           change of the global password writes "global password set" to the audit trail.
+             Why         - the message always said so, but the global password was never compared; SD Core Solo for
+                           Windows does both.
+             Does NOT    - Change who may set the global password (the SD Core server's session only).
+
+17 Nov 26  THE SYSTEM DICTIONARIES ARE WRITTEN ONLY BY THE INSTALL OR THE ADMINISTRATOR.
+
+             What        - WRITE_INSTALL_DICTS runs only in the installer's internal step or for a session holding ADMIN.
+             Why         - its privilege test had been removed rather than mapped to Solo, so any session could rewrite the
+                           system dictionaries from the build data.
+             Does NOT    - Change an install: the installer's step passes the test.
+
+17 Nov 26  SMALLER FIXES.
+
+             What        - F1 at the command prompt draws the prompt again after its message (the cursor was left on a line
+                           of its own).  An AI answer of spaces and blank lines shows as an empty answer.  TOOL.AI has
+                           F6 (Switch box) on its key row and in View, the Provider menu's entries read as in SD Core, and
+                           the AI line may offer the box switch.  TOOL.JOBS refuses its hand-over folder if it is a link
+                           or not yours alone (it carries the password for a moment).  SET.MCP's "no password is kept"
+                           note looks at the kept password itself.  The configuration page describes GRPDIR and USRDIR
+                           as Solo has them (folders of the Solo installation, no create.account).  The remote access
+                           page's help says an account also needs the NET gate for an SDNet server.  LISTF WITH
+                           REPLICATION works (SD has no replication, so it selects nothing).  The settings report names
+                           sd-solo -stop and sd-solo -start.
+             Why         - parity with SD Core and SD Core Solo for Windows, found by the four-way audit.
+             Does NOT    - Open any access or change any default.
+
+17 Nov 26  SD-SOLO WILL NOT START INSIDE A SHELL THAT SD STARTED.
+
+             What        - typing sd-solo in a shell you reached from SD with SH (or one a program started with
+                           OS.EXECUTE) now prints "SD is already running in this session - type exit to return to it."
+                           and stops.  Every form of the command is refused there, sd-solo -status included.  And if the
+                           shell named by SH= or SH1= in sd.conf cannot be run, SH now ends with the status "could not
+                           be run" (127) instead of a second copy of the session carrying on behind the first.
+             Why         - one SD per terminal session, the owner's rule, as SD Core has it: an SD started inside SD's
+                           own shell leaves two sessions nested on one terminal.  The second part was a fault: the
+                           shell's child process fell through into SD's own code when the shell could not be started.
+             Does NOT    - Make a wall: the mark is an environment variable, SD_SESSION, in your own shell, and you can
+                           unset it.  Affect a scheduled job, the file transfer server or the API, which are not
+                           started from inside SH.
+
+17 Nov 26  OVER-LONG SH, SH1 AND STARTUP VALUES IN SD.CONF ARE REFUSED.
+
+             What        - a value of SH=, SH1= or STARTUP= longer than 80 characters now stops SD from starting with
+                           "SH value is longer than 80 characters." (or SH1, STARTUP).  sd-solo -term with a terminal
+                           type longer than 32 characters is refused the same way.
+             Why         - the value was copied into a field of 80 (or 32) characters with no limit, and a longer one
+                           overwrote the settings stored after it.
+             Does NOT    - Change a value that fits, or any other parameter.
+
+17 Nov 26  A DAMAGED TERMINFO FILE NO LONGER TAKES AWAY THE TERMINAL TYPE YOU HAD.
+
+             What        - TERM (or anything that sets the terminal type) naming an entry whose file is corrupt or cut
+                           short now fails and leaves the session with the terminal type it already had.
+             Why         - the old entry was thrown away before the new file was checked, so a bad file left the session
+                           with no terminal capabilities at all.
+             Does NOT    - Repair the file, or change what happens when the entry does not exist (that was already
+                           refused without touching the old type).
+
+17 Nov 26  THE PROFILER COUNTS A REFUSED WRITEV.
+
+             What        - the application event profiler now counts a WRITEV or WRITEVU when it is run, before SD
+                           decides whether it may write, as it already counted WRITE and DELETE.
+             Why         - a WRITEV refused (a VOC without ADMIN, the global catalogue, a remote file opened for
+                           reading) was left out of the count, so the profile did not show every write the program tried;
+                           SD Core counts it.
+             Does NOT    - Change what WRITEV writes or refuses.
+
+17 Nov 26  THE START FAILURE MESSAGE NAMES SD-SOLO.
+
+             What        - when SD cannot start its daemon, it now tells you to run "sd-solo -stop" (it said "sd -stop",
+                           the multi-user product's command, which is not installed with Solo); the journal line written
+                           when a stop has to end a process says "sd-solo -stop" too.
+             Why         - the message named a command you do not have.
+             Does NOT    - Change the start or the stop.
+
+17 Nov 26  THE AI KEY PROMPT SHOWS A STAR FOR EACH CHARACTER, AND SAYS "SET" ONCE.
+
+             What        - set.ai key <provider> now shows one * for each character typed or pasted at the
+                           "Key for <provider> (shown as *):" prompt, so a pasted key shows that it arrived.
+                           Backspace takes one back and Ctrl-U clears the line.  When the key is kept, "The key
+                           for <provider> is set" is printed once; it used to appear twice.
+             Why         - a long key pasted into a prompt that showed nothing gave no sign it had arrived, and
+                           the helper's client and set.ai each printed the same line.  The same change as SD Core
+                           for Linux's of 14 Nov 2026.
+             Does NOT    - Show the key, or any part of it: only its length is visible.  Change how the key is
+                           kept, or the AI page's setup dialog, which hands the key over without a prompt.
+
+17 Nov 26  THE INSTALL FILE SAMPLE DOCUMENTS VIEWER=.
+
+             What        - sd-solo-setup.conf.sample has a viewer item: none, or the name of a PDF reader
+                           (evince, okular, zathura, atril, xreader, mupdf, qpdfview or xpdf) the pdf command may
+                           start to show the documentation.  The installer already read this item; the sample did
+                           not mention it.  The os-access item no longer names nano, which is gone.
+             Why         - an unattended install could not learn from the sample that the reader can be chosen.
+             Does NOT    - Allow any reader unless it is named: a blank item still asks on a terminal and allows
+                           none without one.
+
+17 Nov 26  THE AI GUIDE AND KNOWLEDGE PACK NAME EVERY SWITCH SOLO HAS.
+
+             What        - the SD BASIC guide, the knowledge pack and the AI's standing text now say that,
+                           besides the shell and OS access switches, Solo has switches for another server opening
+                           its files (set.net.access), file transfer (set.xfer.access), scheduled jobs
+                           (set.jobs.access), the AI (set.ai gate) and the MCP door (set.mcp, set.mcp write), each
+                           off as delivered.  The standing text tells an agent where the installed guide, pack and
+                           user documentation are (agent-pack and docs/user in the installation directory).  The
+                           guide and the recipe agree that an agent that needs a switch belongs on a computer of
+                           its own.
+             Why         - the guide and pack said Solo had only two switches and "no other gate", and that the
+                           pack was not installed; both were wrong.
+             Does NOT    - Change any switch or its default: every one is still off as delivered and turned on
+                           only by the administrator.
+
 17 Nov 26  SOLO'S MESSAGE NUMBERS NO LONGER CLASH WITH SD CORE'S.
 
              What        - 38 messages that only Solo has used numbers SD Core gives to other messages (for example 11002

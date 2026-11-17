@@ -27,6 +27,11 @@ line whose wording appears only on its own path:
 instead of TCP - the same protocol, the socket sdclient.socket also listens
 on.  The "transport" line names what was actually connected to.
 
+--open-sdnet ACCOUNT;FILE (SD Core's S.73 item 1, carried 17 Nov 2026, S.62
+P-1761 to P-1763: Solo's apisrvr serves request 29) sends request 29, the
+SDNet open of an 'account;file' file, after the login and the account, and prints
+"open-sdnet X: OPENED ..." or "open-sdnet X: REFUSED server_error E status S: text".
+
 --pause SECONDS (added with S.13, 14 Sep 2026) waits after the login and the
 account and BEFORE the commands, so a command's output proves the connection
 survived whatever happened during the pause - REMOTE.API restarting the socket.
@@ -106,6 +111,7 @@ REQ_QUIT = 1
 REQ_GETERROR = 2
 REQ_ACCOUNT = 3
 REQ_EXECUTE = 21
+REQ_OPEN_SDNET = 29                 # 17 Nov 26 (S.62 P-1763, SD Core's S.73 item 1): --open-sdnet
 REQ_SSHKEY = 72      # LSOLO 19: SrvrSshKey, verb FM argument (49 until 11 Nov 26; 49 is now QMRevision, as in SD Core)
 FM = "�"        # the server's field mark (byte 0xFE) as this client decodes it
 REQ_LOGIN = 24
@@ -448,6 +454,17 @@ def after_login(sock, a):
             return 1
         say("account %s: entered" % a.account)
 
+    # 17 Nov 26 (S.62 P-1761, SD Core's S.73 item 1 of 3 Nov 26): request 29, open an 'account;file' file - the SDNet open no client library sends.  The answer is
+    #   printed as it came: server_error, status (3035 is the OS gate's refusal) and, on a refusal, the server's error text (request 2).  Judging it is the caller's.
+    for target in a.open_sdnet:
+        say("> request 29 (open SDNet file) %s" % target)
+        err, status, text = request(sock, REQ_OPEN_SDNET, target)
+        if err != 0:
+            _, _, detail = request(sock, REQ_GETERROR, "")
+            say("open-sdnet %s: REFUSED server_error %d status %d: %s" % (target, err, status, detail or text))
+        else:
+            say("open-sdnet %s: OPENED server_error 0 status %d file number %r" % (target, status, text))
+
     if a.pause > 0:
         say("pausing %gs before the commands" % a.pause)
         time.sleep(a.pause)
@@ -566,6 +583,8 @@ def main(argv):
                       help="c= with one bit of the binding flipped (must be refused)")
     mode.add_argument("--replay", action="store_true",
                       help="replay a captured client-final on a new connection (must be refused)")
+    ap.add_argument("--open-sdnet", action="append", default=[], metavar="ACCOUNT;FILE",
+                    help="after the login and the account, send request 29 for ACCOUNT;FILE (repeatable; SD Core's S.73 item 1, carried 17 Nov 26)")
     ap.add_argument("--sshkey", action="append", default=[], metavar="VERB[=ARGUMENT]",
                     help="LSOLO 19: send request 72, the ssh key (ADD=<public key line>, REMOVE=<SHA256:...>, "
                          "LIST) after login; may be given more than once, runs before COMMANDs")

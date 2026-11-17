@@ -18,6 +18,10 @@
 * 
 *  
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (CARRY-qproc, SD Core's P-1258, P-1286 to P-1288): a directory-file record whose file is there under a name SD's id
+*               encoding cannot produce (a bare '%') is reported "'id' invalid name" (14140, SD Core's number) and not "not found".
+* 17 Nov 26 dm  S.62 (P-1908, P-1909): a delimited report TO a pathname asks K$EDIT.OS.OK before the open (a report could be written over
+*               <account>/voc/<id> without ADMIN), and AS asks !voc_guard of the file as opened, as SD Core asks its edit gates there.
 * 14 Nov 26 dm  Compiler warnings: removed the unused assignments to bp.data.conv, json.count and sorted.sample.done; kept s.pos (LOCATE needs its SETTING variable).
 * 03 Nov 26 dm  Opus 10c: SELECT / LIST / COUNT ... BY end with the record id as the last ascending key, as SORT always had it, so equal keys come out in id order and not in the order the file gave them; not with SAVING UNIQUE (its last key must stay the one made unique).
 * 31 Oct 26 dm  The A and S dictionary item types are gone: such an item is 'unexpected type' (7275) like a C one, and an index made from one is never used, so a query on its field scans.
@@ -241,6 +245,7 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
    sampling = @false             ;* Process every n'th record...
    sample.interval = 1           ;* ...for this value of n
    not.found.list = ''           ;* Record not found
+   invalid.name.list = ''        ;* Record's file is there under a name SD cannot produce (17 Nov 26, S.62)
 
    absent.null = @false          ;* ABSENT.NULL keyword
    locking = @false              ;* LOCKING keyword
@@ -2371,6 +2376,15 @@ done:
       repeat
    end
 
+* 17 Nov 26 dm - S.62: see record.not.found.  Reported apart from the list above: the file IS there and its name is the problem.
+   if (list.command or count.command or reformat.command) and len(invalid.name.list) then
+      loop
+         printline = sysmsg(14140, remove(invalid.name.list, invalid.name.delim)) ;* '%1' invalid name
+         if qdisp(QD$EMIT, printline, 'X') then goto qdisp.error
+      while invalid.name.delim
+      repeat
+   end
+
    if lptr >= 0 and pageseq.id # '' then
       write qdisp(QD$GETP) to pageseq.f, pageseq.id
    end
@@ -3541,7 +3555,7 @@ get.csv.out.options:
 * still there; the caller truncates or goes to the end.
 
 open.csv.to:
-* 20 Oct 26 dm - THE SOLO OS SWITCH (SD Core's S.63, carried; SD Core also asks its S.64 edit gates here, which Solo does not have).  This
+* 20 Oct 26 dm - THE SOLO OS SWITCH (SD Core's S.63, carried; SD Core also asks its S.64 edit gates here, and Solo its VOC rule, below).  This
 *   program is $internal, so the kernel does not ask the OS-access gate for the OPENSEQ below, and the report is written, or appended,
 *   wherever the name points.  Asked here, as the session, BEFORE the file is opened, so a refusal has created, truncated and locked
 *   nothing (the overwrite question below is only reached by a path that passed).  APPENDING is the same open, so it is covered by the
@@ -3549,6 +3563,15 @@ open.csv.to:
    if not(kernel(K$PATH.OK, csv.pathname)) then
       @system.return.code = -ER$PERM
       display sysmsg(11180, @who) ;* %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname
+      goto exit.qproc
+   end
+
+* 17 Nov 26 dm - S.62 (P-1908): the pathname form of the VOC rule, which Solo's kernel has had since carry 19 (24 Oct 26) and SD Core
+*   asks here.  The OPENSEQ below is this $internal program's, so the kernel's own test of a user's OPENSEQ is not made for it, and a
+*   report written TO <account>/voc/<id> changed the VOC without ADMIN.  Asked before the open, so a refusal has touched nothing.
+   if not(kernel(K$EDIT.OS.OK, csv.pathname)) then
+      @system.return.code = -ER$PERM
+      display sysmsg(14897) ;* The VOC can only be changed after admin (the administrator password)
       goto exit.qproc
    end
 
@@ -3568,7 +3591,7 @@ open.csv.to:
 * ======================================================================
 * OPEN.CSV.AS  -  Open the record named by AS file id for a delimited report (20 Oct 26 dm, openQM 4: CSV and DELIMITER).  The file
 * is a directory file and the record is a file of it, so the report is written the way TO writes a file, with OPENSEQ.
-*   - (SD Core asks its S.64 and S.66 edit gates of the file here, with !edit_guard; Solo has no edit gates, so nothing is asked.)
+*   - SD Core asks its S.64 and S.66 edit gates of the file here, with !edit_guard; Solo asks its VOC rule, with !voc_guard (17 Nov 26).
 *   - OPENSEQ takes the record's update lock, as any write does.  A record another session holds is not waited for: it is named
 *     with the holder (message 1433) and nothing is written.  The lock goes when the file is closed at the end of the command.
 *   - A record that is there asks first (7305), unless NO.QUERY or APPENDING was given.
@@ -3586,6 +3609,12 @@ open.csv.as:
    end
    if fileinfo(csv.as.f, FL$TYPE) # FL$TYPE.DIR then
       display sysmsg(11851, csv.as.file) ;* AS needs a directory file: %1 is not one
+      goto exit.qproc
+   end
+* 17 Nov 26 dm - S.62 (P-1909): the file as opened is asked the VOC rule (voc_guard, as REFORMAT's target and PAGESEQ are), where SD
+*   Core asks !edit_guard: gcat, global.bp.out and solo.policy are directory files a VOC entry can name.  The reason is displayed there.
+   if not(voc_guard(csv.as.f)) then
+      @system.return.code = -ER$PERM
       goto exit.qproc
    end
    csv.lock.user = 0
@@ -7619,8 +7648,25 @@ record.not.found:
       goto exit.qproc
    end
 
-   locate id in not.found.list<1> setting i else
-      not.found.list<-1> = id
+* 17 Nov 26 dm - S.62 (CARRY-qproc, SD Core's P-1258, P-1286 to P-1288): TELL "THE RECORD IS NOT THERE" APART FROM "THE FILE IS
+*   THERE UNDER A NAME SD CANNOT PRODUCE" (the Windows port's PRE_RELEASE_FIXES 128, 2 Sep 26; not an OS matter).  A directory file
+*   stores ids as file names with the restricted characters escaped, and '%' is itself one (it encodes to %P), so a file dropped in
+*   from outside with a bare '%' in its name is listed but cannot be read back, and "not found" is the wrong answer for a file the
+*   user can see.  The file system is asked whether a file of exactly this id is in the directory; only on this failure path, and
+*   only for an id that names an entry of the directory itself (no '/', not . or ..), so the question can never reach a file outside it.
+   inv.name = @false
+   if is.dir and id # '' and index(id, @ds, 1) = 0 and id # '.' and id # '..' then
+      if ospath(fileinfo(data.f, FL$PATH) : @ds : id, OS$EXISTS) then inv.name = @true
+   end
+
+   if inv.name then
+      locate id in invalid.name.list<1> setting i else
+         invalid.name.list<-1> = id
+      end
+   end else
+      locate id in not.found.list<1> setting i else
+         not.found.list<-1> = id
+      end
    end
 
    return

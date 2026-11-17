@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1952): the hand-over folder is made only when it is not there and must then pass SD_FILE_PRIVATE (a real directory, this user's alone);
+*               a link or a shared folder is refused and nothing is written (the old mkdir -p and chmod followed a link), as the Windows port refuses it.
 * 17 Nov 26 dm  New (S.247; owner, 15 Nov 2026: "since scheduled jobs is in core and useful in solo it should be in this release", and of the plan, "your plan is fine",
 *               whose step 4 is "a tool.jobs page for Solo shaped like Core's Jobs view (one account)").  Made from SD Core's tool_jobs, its Jobs view only: Solo has
 *               no batch gate (LSOLO 6) and one account, so there is no Account commands view.  What differs from the template is forced by Solo: the jobs are the
@@ -580,7 +582,17 @@ hand.over:
    ho.err = ''
    hdir = @sdsys : @ds : '$jobsho'
    hf = hdir : @ds : 'req'
-   os.execute "umask 077; mkdir -p '" : hdir : "' && chmod 700 '" : hdir : "' && rm -f '" : hf : "'"
+* 17 Nov 26 dm - S.62 (P-1952): the folder is made only when it is not there (mkdir -m 700, which neither follows nor changes what is
+*   there; the chmod 700 is of the folder just made), and then it must be a real directory of this user's alone (SD_FILE_PRIVATE, as netcred
+*   asks of its own folder): a link or a folder somebody else can reach is refused and nothing is written, as the Windows port's page refuses
+*   it.  The password goes in this file.
+   if not(ospath(hdir, OS$EXISTS)) then os.execute "umask 077; mkdir -m 700 -- '" : hdir : "' && chmod 700 '" : hdir : "' 2>&1" capturing ho.out
+   if SDEXT(hdir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then
+      ho.err = "the hand-over folder is a link, or is not this Linux user's alone"
+      fpw = ''
+      return
+   end
+   os.execute "rm -f -- '" : hf : "'"
    openseq hf to kf else
       if status() then
          ho.err = 'the hand-over file could not be made'

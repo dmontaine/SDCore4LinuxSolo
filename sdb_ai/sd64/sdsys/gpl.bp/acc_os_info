@@ -5,6 +5,8 @@
 * START-HISTORY:
 * 02 Oct 26 dm Written for S.50 / LSOLO 20 (shared signature, mail
 *              2026-10-01T1030 / 1115 / 2026-10-02T1000 / 1045).
+* 17 Nov 26 dm S.62 (the audit's report on acc_os_info:42): the restart line names
+*              sd-solo -stop and sd-solo -start; there is no sd command in Solo.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -39,7 +41,7 @@ $include int$keys.h
       info<-1> = 'host: ':downcase(field(@hostname, '.', 1))
       info<-1> = 'accounts.root: ':field(usr, @ds, 1, dcount(usr, @ds) - 1)
       info<-1> = 'sd.version: ':system(1012)
-      info<-1> = 'restart: systemctl --user restart sd-solo.service (or: sd -stop, then sd -start)'
+      info<-1> = 'restart: systemctl --user restart sd-solo.service (or: sd-solo -stop, then sd-solo -start)'   ;* 17 Nov 26, S.62: Solo's command is sd-solo
       return
    end
 

@@ -12,6 +12,8 @@
 #
 # START-HISTORY:
 # 20 Oct 26 dm  Written for the Solo OS switch (owner, 20 Oct: two words like Core, SET.OS.ACCESS, the installer asks).
+# 17 Nov 26 dm  S.62 (P-1225, P-1226, P-1228): row B2 in the two SH-on states - sd-solo --version from SH refuses with "SD is already running in this
+#               session" (op_sh.c's SD_SESSION=1, sd.c's test before any option), the control an SH echo that runs and shows SD_SESSION=1.
 # END-HISTORY
 #
 # THE LANE.  A plain session of sduser: sd-solo with the account password as the first line of the pipe (read from <dir>/account.pw,
@@ -266,6 +268,16 @@ def main():
             row("%s: SH is refused (10053, once each, two commands): no sentinel on the disk, in the account either" % label,
                 refusals == 2 and not os.path.exists(os.path.join(OUT, "sh.sentinel"))
                 and not os.path.exists(os.path.join(ACCT, "own.sentinel")), "output=%r" % (out,))
+
+        # B2. one SD per session (17 Nov 26, S.62 P-1228): the shell SH starts carries SD_SESSION, and sd-solo started from it refuses before
+        #     it reads an option, --version included.  The control is the same shell's echo, which also shows the variable.
+        if sh_on:
+            # (SD's SH refuses a command holding '$' - "Error 2 executing operating system command" - so the variable is read with printenv)
+            out = session(["SH %s --version" % os.path.join(SYS, "bin", "sd-solo"), "SH echo zzshok", "SH printenv SD_SESSION"])
+            row("%s: sd-solo --version from SH says 'SD is already running in this session' and prints no version; the control SH echo runs and "
+                "the shell's SD_SESSION is 1" % label,
+                has(out, r"^SD is already running in this session - type exit to return to it\.$") and has(out, r"^zzshok$") and has(out, r"^1$")
+                and not any("Version" in ln for ln in out), "output=%r" % (out,))
 
         # C-D. OS.EXECUTE and every route to an OS path, in one program (a T line each)
         prog("ogroute", [

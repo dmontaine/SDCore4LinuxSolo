@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1797: the fork() failure message and the stop's SIGKILL journal line name Solo's command, sd-solo -stop (they said sd -stop, the multi-user product's).
  * 14 Nov 26 dm  Carried from SD Core (S.241): release_pipe_fds().  sdlnxd and the startup command kept the caller's fds 0-2 through daemon(1, 1),
  *               so a caller that captured "sd-solo -start" through a pipe never saw end of file until sd-solo -stop (found by the Windows port).
  *               After daemon() each of 0-2 that is a pipe is reopened on /dev/null; a file (a service's log) or a terminal is kept.
@@ -467,7 +468,7 @@ Private bool start_lnxd(void) {
      down here; clearing it is sd -stop's job, and the message says so. */
   if (cpid < 0) {
     fprintf(stderr, "Cannot start sdlnxd - fork() failed: %s\n", strerror(errno));
-    fprintf(stderr, "Run sd -stop to clear what this left behind.\n");
+    fprintf(stderr, "Run sd-solo -stop to clear what this left behind.\n"); /* 17 Nov 26 dm - S.62 P-1797: Solo's command */
     return FALSE;
   }
 
@@ -624,7 +625,7 @@ static int end_attached_survivors(void) {
     fclose(fp);
 
     if (attached && (kill(pid, SIGKILL) == 0)) {
-      syslog(LOG_WARNING, "sd -stop: process %d was still attached after SIGTERM and was ended with SIGKILL", (int)pid);
+      syslog(LOG_WARNING, "sd-solo -stop: process %d was still attached after SIGTERM and was ended with SIGKILL", (int)pid);
       ended++;
     }
   }

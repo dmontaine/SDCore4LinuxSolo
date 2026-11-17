@@ -42,6 +42,15 @@ sdb_ai/sd64/pcode_bld.log
 # nothing here.
 sdb_ai/sd64/gplbld/__pycache__/
 
+# The bootstrap compiler's work files. gplbld/bbcmp.py writes pass1 and pass2 in
+# its current directory (bbcmp.py:10498 and :10505) and reads them back in the
+# same run (pass2() and comp(), :10152); gplbld/solo-stage.sh:247 and :301-303
+# runs it from sdb_ai/sd64 three times, so each install leaves the passes of
+# whichever program it compiled last (pathtkn). A by-product, never source
+# (S.62, carried from SD Core for Linux P-1266, P-1267).
+sdb_ai/sd64/pass1
+sdb_ai/sd64/pass2
+
 # Editors.
 .vscode/
 

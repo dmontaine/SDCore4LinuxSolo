@@ -203,10 +203,10 @@ Unable to remove user %1 from group %s status: %2
 ```
 
 ### msg:10024
-> kind=message tier=reference since=- src=sdsys/messages/10024:1#587d66a0
+> kind=message tier=reference since=- src=sdsys/messages/10024:1#ee8e88de
 
 ```
-%1 is not a valid Linux Group
+%1 is not a valid Linux group
 ```
 
 ### msg:10025
@@ -10488,6 +10488,15 @@ Illegal file type for SELECT
 Error %d selecting records
 ```
 
+### msg:14140
+> kind=message tier=reference since=- src=sdsys/messages/14140:1#c35ec60e
+
+```
+'%1' invalid name
+```
+
+cited by: `qproc`
+
 ### msg:1415
 > kind=message tier=reference since=- src=sdsys/messages/1415:1#0b6a0adb
 
@@ -10830,7 +10839,7 @@ cited by: `admin`
 The VOC can only be changed after admin (the administrator password)
 ```
 
-cited by: `cproc`
+cited by: `convertdata`, `cproc`, `qproc`
 
 ### msg:14898
 > kind=message tier=reference since=- src=sdsys/messages/14898:1#f49d6790

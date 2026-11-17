@@ -9,8 +9,10 @@ OpenQM and ScarletDME through [sdb64](https://codeberg.org/stringdatabase/sdb64)
 SD Core Solo for Linux has every feature of the full SD Core for Linux except
 those that exist to serve more than one person: there is one account, named
 after the Linux user, and no commands to create accounts or grant access to
-them. It is the Linux counterpart of
-[SD Core Solo for Windows](https://github.com/dmontaine/SDCore4WindowsSolo).
+them. SD Core for Linux is the version the other SD Core versions follow; this
+edition follows its features and differs only where a single user's install
+requires it. [SD Core Solo for Windows](https://github.com/dmontaine/SDCore4WindowsSolo)
+is the Windows counterpart of this edition.
 
 **Version LS1.1-3, released 9 October 2026.** It started on 29 September 2026 as a copy
 of SD Core for Linux L1.1-1. The one-account model, the passwords and ADMIN, the
@@ -27,8 +29,8 @@ separate repository
 [SDCore4LinuxSoloDocs](https://github.com/dmontaine/SDCore4LinuxSoloDocs);
 [docs/SOLO_API.md](docs/SOLO_API.md) describes the API. **What has not been run,
 and is the owner's to run** (`sudo` paths, `loginctl enable-linger`, the firewall
-rule for an open ssh or API port, an install from the published branch) is listed in the
-documentation's page 19 and in `PROJECT_STATUS.md`.
+rule for an open ssh or API port, an install from the published branch) is listed in
+Getting Started, page 19, *Features the developers could not test*.
 
 SD Core is English only: it has no support for other languages or locales.
 
@@ -53,9 +55,16 @@ anything, if it is not. `bash ~/SDCoreSolo/tools/deletesdsolo.sh` removes it aga
 leaving your data and `sd.conf` where they are if you ask; a new install into that
 directory then offers to reload them (it asks for new passwords).
 
-**Requirements:** a 64-bit Linux with a systemd user manager and one of the
-Debian/Ubuntu families (the installer refuses any other, including Fedora, RHEL and RHEL's clones, Arch
-and openSUSE, before it changes anything); a user who can use `sudo`.
+## Requirements
+
+- A 64-bit Linux with a systemd user manager: Debian or Ubuntu (and their
+  derivatives). The installer refuses any other, including Fedora, RHEL and
+  RHEL's clones, Arch and openSUSE, before it changes anything.
+- A user who can use `sudo`.
+- An internet connection: the installer installs the build packages, downloads
+  this repository and compiles SD. It checks first and stops, changing nothing,
+  if the computer is offline.
+
 It can be installed beside the multi-user SD Core for Linux (since 2 Oct 2026: `sd-solo` and `sd` are separate commands).
 
 ## What it is for
@@ -76,14 +85,16 @@ install nobody sits at.
 
 ## Source
 
-This repository contains no binaries; everything is built from source.
+This repository contains no binaries; everything is built from source during the install.
 
 ## Related repositories
 
 - [SDCore4Linux](https://github.com/dmontaine/SDCore4Linux) — the multi-user
-  SD Core for Linux this edition is derived from.
+  SD Core for Linux this edition is derived from, and whose features it follows.
+- [SDCore4Windows](https://github.com/dmontaine/SDCore4Windows) — SD Core for
+  Windows, the multi-user Windows version.
 - [SDCore4WindowsSolo](https://github.com/dmontaine/SDCore4WindowsSolo) — the
-  Windows edition of Solo, whose features this one follows.
+  Windows edition of Solo.
 
 ## Licence
 

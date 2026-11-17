@@ -166,7 +166,8 @@ def checks(s, run_print=True):
        "THAT IS THE WEAKNESS" in s["sd-ai"] and "no safer" in s["sd-ai"], "")
     ck("H11 the client: the default socket is $XDG_RUNTIME_DIR/sd-solo-ai.sock (or /run/user/<uid>), SD_AI_SOCKET and --socket override, gate on|off is a set request with yes / no",
        'sd-solo-ai.sock' in ctl and "XDG_RUNTIME_DIR" in ctl and '"what": "gate"' in ctl and '"yes" if rest == ["on"] else "no"' in ctl and 'rest in (["on"], ["off"])' in ctl, "")
-    ck("H12 the client never takes a key as an argument and never prints it: getpass for a terminal, stdin otherwise", "getpass.getpass" in ctl and "sys.stdin.readline()" in ctl and 'print("The key for %s is set."' in ctl, "")
+    ck("H12 the client never takes a key as an argument and never prints it: one * a character for a terminal (getpass where the terminal cannot be set up), stdin otherwise, and nothing on success (set.ai prints 11615; S.62 P-1766)",
+       'read_key_stars("Key for %s (shown as *): " % rest[0])' in ctl and "getpass.getpass" in ctl and "sys.stdin.readline()" in ctl and 'print("The key for %s is set."' not in ctl, "")
     ck("H13 the test runner has no administrator and no group to replace and makes the socket mode 0600", "--admin-user" not in runner and "--gate-group" not in runner and "os.chmod(opts[\"--socket\"], 0o600)" in runner, "")
 
     # ------------------------------------------------------------------------------------------------ the units

@@ -27,6 +27,10 @@
 *               Provider and Account boxes are named as focus boxes for $tk_frame's marks, as in Core.
 * 16 Nov 26 dm  Carried from SD Core (853870e6): S.239, the reopen routine nothing called is gone; S.244, the owner's page rules: C's entries and A's question
 *               open empty with the value in force beside them, an empty answer keeping it, and C's layout and authentication are choices, not typed.
+* 17 Nov 26 dm  S.62 (P-1919, P-1920, P-1922, P-1931, P-1935, P-1936, P-1940, P-1941, P-1942): SD Core's frame where Solo had kept an older one: F6 'box' on
+*               the key row, View > Switch box, the AI line offered the box switch as well as refresh, the Provider menu's labels and mnemonics
+*               (Select this provider, Clear key, Drop custom provider, CA file, Limit), the page opening with no message, the body cleared from
+*               the frame's first body row, and the second "What this means" sentence in SD Core's shorter words.  The one account's own words stay.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -82,6 +86,7 @@ $include tk.h
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)                 ;* 17 Nov 26, S.62 (P-1922): F6 / Shift-F6 move between the boxes, on the key row as in SD Core (S.176)
    * Core S.170 / S.171: S is the one setup dialog (the key and the model); K and M are gone
    call $tk_keys('add', keys, 's', 'setup', 'setup', 'Provider', 1)
    call $tk_keys('add', keys, 'x', 'clear key', 'clearkey', 'Provider', 1)
@@ -95,18 +100,22 @@ $include tk.h
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc opens the menu bar, as on every page
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
-   call $tk_keys('menu', keys, 'change', '&Setting', '&Change the setting', '', '')
+   * 17 Nov 26, S.62 (P-1931, P-1936, P-1941, P-1920): the menus are SD Core's, labels and mnemonics, with View > Switch box
+   call $tk_keys('menu', keys, 'change', '&Provider', '&Select this provider', '', '')
    call $tk_keys('menu', keys, 'setup', '&Provider', '&Key and model (setup)', '', '')
-   call $tk_keys('menu', keys, 'clearkey', '&Provider', 'C&lear the key', '', '')
+   call $tk_keys('menu', keys, 'clearkey', '&Provider', 'Clear ke&y', '', '')
    call $tk_keys('menu', keys, 'custom', '&Provider', 'C&ustom provider', '', '')
-   call $tk_keys('menu', keys, 'dropcustom', '&Provider', '&Drop the custom provider', '', '')
-   call $tk_keys('menu', keys, 'ca', '&Provider', 'C&A file', '', '')
-   call $tk_keys('menu', keys, 'limit', '&Provider', 'L&imit', '', '')
+   call $tk_keys('menu', keys, 'dropcustom', '&Provider', '&Drop custom provider', '', '')
+   call $tk_keys('menu', keys, 'ca', '&Provider', 'CA &file', '', '')
+   call $tk_keys('menu', keys, 'limit', '&Provider', '&Limit', '', '')
    call $tk_keys('menu', keys, 'context', '&Provider', 'S&tanding text', '', '')
+   call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
    call $tk_std('keys', ctx, keys, '', '')                ;* Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
-   call $tk_keys('ai', keys, 'refresh', '', '', '', '')  ;* the AI line is offered only refresh: no change of a setting is proposed by it
+   * 17 Nov 26, S.62 (P-1942): the AI line is offered the box switch and refresh, as in SD Core (S.97): no change of a setting is proposed by it
+   call $tk_keys('ai', keys, 'pane', '', '', '', '')
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
    call $tk_aipage('init', ctx, keys, '', '', aout)
    if aout then gosub lay.declare                         ;* the AI line took the body's last row: the panes again (as SD Core's pages)
 
@@ -120,7 +129,7 @@ $include tk.h
    ci = 1                                                      ;* the account row under the cursor
    ta = 0                                                      ;* the account rows scrolled off the top
    gen = 0
-   msg = 'Enter selects the provider with the check box; S sets up its key and model'
+   msg = ''                                                    ;* 17 Nov 26, S.62 (P-1935): the page opens with no message, as SD Core's does (the key row names the keys)
    done = 0
 
    gosub read.all
@@ -242,6 +251,7 @@ lay.get:
    lay.id = 'effect'
    gosub lay.rect
    ef.x = lay.x ; ef.y = lay.y ; ef.w = lay.w ; ef.h = lay.h
+   body.y = ctx<TK.C.YBODY>                                     ;* 17 Nov 26, S.62 (P-1919): the body's first row, from the frame, as SD Core takes it
    tx = pr.x + 2
    tw = pr.w - 4
    mk.px = pr.x + pr.w - 5                                      ;* the [?] button of each of the two boxes that have one, at the right end of its first row
@@ -266,7 +276,7 @@ lay.rect:
 draw.all:
    cw = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
-   screen clear at 0,1 size cw,chh
+   screen clear at 0,body.y size cw,chh
    screen box at pr.x,pr.y size pr.w,pr.h title 'AI provider'
    screen box at dt.x,dt.y size dt.w,dt.h title 'The row under the cursor'
    screen box at ac.x,ac.y size ac.w,ac.h title 'May this account use the AI?'
@@ -315,7 +325,7 @@ draw.providers:
          end case
       end
    end
-   screen text s at tx,pr.y + 8 attr 'bold' width tw
+   screen text s at tx,pr.y + pr.h - 2 attr 'bold' width tw      ;* 17 Nov 26, S.62 (P-1921): the box's last row, as SD Core places it (the same row while the box is 10 high)
    call $tk_help('mark', mk.px, mk.py, 0, 0)
    return
 
@@ -391,7 +401,8 @@ draw.accounts:
 draw.effect:
    lines = ''
    lines<-1> = 'One provider and one model serve the account.  The AI is off as delivered: it needs a provider, its key (a default model comes with each named provider) and the ai gate turned on.'
-   lines<-1> = "S sets up the provider under the cursor: the key (shown as *) and the model, chosen from the provider's own list; the key is kept for the AI helper only and this page never shows it (set.ai key at the prompt keeps it out of SD altogether).  What the account sends leaves this machine for the provider checked above, over https with the certificate checked."
+   * 17 Nov 26, S.62 (P-1940): SD Core's sentence (two rows at 140 columns, so the box shows all of it), for the one account
+   lines<-1> = "S sets up the provider under the cursor: its key (shown as *) and its model, from the provider's own list.  The key is kept by the AI helper; what the account sends goes only to the provider checked above, over https."
    if pane = 1 then
       p = provs<pi>
       if p = sel then

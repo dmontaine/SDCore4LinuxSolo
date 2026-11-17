@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1221, P-1224 (Solo carry of SD Core's fix): SH=, SH1= and STARTUP= longer than their fields (80 characters) are refused by name; an unbounded strcpy overran struct PCFG / CONFIG.
  * 15 Nov 26 dm  XFER (delivered 0), XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX and XFERKIND, the file transfer parameters, per process,
  *               range-checked.  Solo carry of SD Core's S.242 (b9e63f17), as Core has them.
  * 14 Nov 26 dm  copy_section_name(): a [section] name is cut at 32 and always terminated (strncpy could leave it unterminated).  Solo carry S.232 (Core 64561d81).
@@ -324,10 +325,23 @@ struct CONFIG* read_config(char* errmsg) {
         pcfg.reccache = n;
       else if (sscanf(rec, "SAFEDIR=%d", &n) == 1)
         pcfg.safedir = (n != 0);
-      else if (strncmp(rec, "SH=", 3) == 0)
+      /* 17 Nov 26 dm - S.62 P-1221, P-1224 (Solo carry of SD Core's fix): SH= and SH1= were strcpy'd unbounded from rec
+         (up to 199 characters) into MAX_SH_CMD_LEN + 1 byte fields, overrunning the fields after them in struct PCFG.  An
+         over-long value is refused by name. */
+      else if (strncmp(rec, "SH=", 3) == 0) {
+        if (strlen(rec + 3) > MAX_SH_CMD_LEN) {
+          sprintf(errmsg, "SH value is longer than %d characters.", MAX_SH_CMD_LEN);
+          goto exit_read_config;
+        }
         strcpy(pcfg.sh, rec + 3);
-      else if (strncmp(rec, "SH1=", 4) == 0)
+      }
+      else if (strncmp(rec, "SH1=", 4) == 0) {
+        if (strlen(rec + 4) > MAX_SH_CMD_LEN) {
+          sprintf(errmsg, "SH1 value is longer than %d characters.", MAX_SH_CMD_LEN);
+          goto exit_read_config;
+        }
         strcpy(pcfg.sh1, rec + 4);
+      }
       else if (sscanf(rec, "SORTMEM=%d", &n) == 1)
         pcfg.sortmem = n * 1024L;
       else if (sscanf(rec, "SORTMRG=%d", &n) == 1)
@@ -336,8 +350,14 @@ struct CONFIG* read_config(char* errmsg) {
         strcpy(pcfg.sortworkdir, rec + 9);
       else if (strncmp(rec, "SPOOLER=", 8) == 0)
         strcpy(pcfg.spooler, rec + 8);
-      else if (strncmp(rec, "STARTUP=", 8) == 0)
+      else if (strncmp(rec, "STARTUP=", 8) == 0) {
+        /* 17 Nov 26 dm - S.62: the same unbounded strcpy as SH=, into the 80 + 1 byte startup field; refused by name. */
+        if (strlen(rec + 8) > sizeof(cfg->startup) - 1) {
+          sprintf(errmsg, "STARTUP value is longer than %d characters.", (int)(sizeof(cfg->startup) - 1));
+          goto exit_read_config;
+        }
         strcpy(cfg->startup, rec + 8);
+      }
       else if (strncmp(rec, "SCREENTHEME=", 12) == 0) {
         strncpy(pcfg.screentheme, rec + 12, sizeof(pcfg.screentheme) - 1);
         pcfg.screentheme[sizeof(pcfg.screentheme) - 1] = '\0';

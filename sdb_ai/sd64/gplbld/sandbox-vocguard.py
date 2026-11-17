@@ -6,7 +6,7 @@
 #   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-vocguard.py --text
 #
 # --only names verbs (dellist getlist sortlst savelst copylst-to copylst-del format cd reformat settrig fixdir generate como mapcat
-# createf): the runtime rows of those alone, which is how a mutant (one program's guard taken out of the sandbox's own copy) is run
+# createf writelist): the runtime rows of those alone, which is how a mutant (one program's guard taken out of the sandbox's own copy) is run
 # against its rows.  The fixture, S0 and part T always run.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (SDSOLOBOX_KEYSET picks its keys; unset is 0).  With --build it is built
@@ -30,6 +30,10 @@
 #               runtime rows say what CREATE.FILE does to a file that exists: nothing, for the VOC-named file and the control alike.
 #               Two more names the same carry removed: the verb CD (the program is run as COMPILE.DICT, the one name left for it) and
 #               the catalogued program $acomp that SET.TRIGGER was given (S.93; it is given $icomp).
+# 17 Nov 26 dm  S.62 (P-1960): part WL (--only=writelist), rows WL0-WL3 - WRITELIST in an ORDINARY session of an account whose $savedlists entry and $svlists
+#               directory have been taken away saves its lists (the pointer made by the $internal !mksavedlists), with the control that the same session's own
+#               program write to the VOC is refused (the write the old !writelist made); the account's entry and directory are put back and checked.
+#               The file !mksavedlists makes is a DYNAMIC hashed file (as the old CREATE.FILE made it), so the lists are read back with CT.
 # END-HISTORY
 #
 # WHAT IT MEASURES.  An ORDINARY session (the account password, no ADMIN, as the owner of a Solo installation uses it) in the
@@ -540,6 +544,10 @@ def main():
             bail("a control fact does not hold, so no verdict would mean anything:\n" + text[-600:] + "\n" + text2[-400:])
         row("S0 control: the VOC-named file is protected by DELETE and the ordinary file is not (the instrument can tell them apart)", True)
 
+        # ---- WL: WRITELIST in an account with no saved lists yet (17 Nov 26, S.62 P-1960)
+        if want("writelist"):
+            part_writelist(box)
+
         # ---- records: R, O, A
         say("\n--- R / O / A: verbs on a VOC-named file, an ordinary file, and the VOC-named file as the administrator --------")
         for cid, label, cmds, oks, effect in rec_cases():
@@ -747,6 +755,81 @@ def main():
     if passed + failed == 0:
         bail("no row ran - a broken test, not a pass")
     return 1 if failed else 0
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# WL: WRITELIST in an account that has no saved lists yet (17 Nov 26, S.62 P-1960).  !writelist is not $internal, so its own write of the
+# $savedlists VOC pointer, which it made the first time a list was saved in such an account, was refused by the kernel's VOC rule to every
+# session without ADMIN; the pointer is made by the $internal !mksavedlists now.  The account's own pointer and its empty $svlists
+# directory are taken away (as ADMIN, and on the disk) for the row and put back afterwards.
+
+WL_PROGS = {
+    # the probe: WRITELIST twice, the second with the pointer already made
+    "zzwl": "   ids = 'a':@fm:'b'\n   writelist ids to 'zzwl1'\n   crt 'WL1 DONE'\n   writelist 'c' to 'zzwl2'\n   crt 'WL2 DONE'\nend\n",
+    # the control: an ordinary program's own write to the VOC (the statement the old !writelist made) - refused by the kernel's VOC rule
+    "zzwlv": "   open 'voc' to v else crt 'VW novoc' ; stop\n   write 'X' to v, 'zzwlx' on error crt 'VW ONERROR ':status()\n   crt 'VW AFTER'\nend\n",
+    # ADMIN: keep the account's pointer aside as zzwlsave and take it out
+    "zzwlsv": "   open 'voc' to v else crt 'SV novoc' ; stop\n   read r from v, '$savedlists' then\n      write r to v, 'zzwlsave'\n"
+              "      delete v, '$savedlists'\n      crt 'SV SAVED'\n   end else crt 'SV NOENTRY'\nend\n",
+    # ADMIN: put it back exactly as it was, and take out what the probes may have left
+    "zzwlrs": "   open 'voc' to v else crt 'RS novoc' ; stop\n   read r from v, 'zzwlsave' then\n      write r to v, '$savedlists'\n"
+              "      delete v, 'zzwlsave'\n      crt 'RS RESTORED'\n   end else crt 'RS NOSAVE'\n   delete v, 'zzwlx'\nend\n",
+}
+
+
+def part_writelist(box):
+    say("\n--- WL: WRITELIST in an ordinary session of an account with no $savedlists entry and no $svlists file yet (S.62 P-1960) ----")
+    svl = os.path.join(box.acct, "$svlists")
+    aside = os.path.join(box.acct, "zzwlsvl")
+    for n, body in WL_PROGS.items():
+        box.bp(n, body)
+    orig = box.session(["CT VOC $savedlists"], admin=True)
+    out = box.session(["BASIC bp zzwlsv", "BASIC bp zzwlrs", "RUN bp zzwlsv"], admin=True)
+    moved = False
+    if os.path.isdir(svl) and not os.path.lexists(aside):
+        os.rename(svl, aside)
+        moved = True
+    try:
+        pre = box.session(["CT VOC $savedlists"])
+        null_ok = has_line(out, "SV SAVED") and has_line(pre, r"Record '\$savedlists' not found") and not os.path.lexists(svl)
+        say("    the account's pointer taken out (SV SAVED), CT finds no $savedlists, no $svlists on the disk: %s" % null_ok)
+        row("WL0 null case: the account has no $savedlists entry and no $svlists directory before the probe", null_ok, excerpt(out + pre))
+        # The file !mksavedlists makes is DYNAMIC (a hashed file, as the old !writelist's CREATE.FILE made it), not the directory file the
+        # account was delivered with, so the lists are read back through SD (CT), not from the disk.
+        text = box.session(["BASIC bp zzwl", "BASIC bp zzwlv", "RUN bp zzwl", "CT VOC $savedlists", "CT $savedlists zzwl1 zzwl2",
+                            "RUN bp zzwlv", "CT VOC zzwlx", "LISTU"])
+        lists = {}
+        for n in ("zzwl1", "zzwl2"):
+            m = re.search(r"(?m)^\$savedlists " + n + r"\n((?:\d+: .*\n?)+)", text)
+            lists[n] = [re.sub(r"^\d+: ", "", l) for l in m.group(1).strip().split("\n")] if m else None
+        ordinary = has_line(text, "Command requires administrator privileges")
+        made = re.search(r"(?m)^VOC \$savedlists\s*\n1: F.*\n2: \$svlists$", text) is not None
+        row("WL1 an ORDINARY session (LISTU refused) saves a list with WRITELIST: both WRITELISTs end (WL1 DONE, WL2 DONE), VOC $savedlists is made "
+            "(F, $svlists) and CT reads the lists back as a,b and c",
+            ordinary and has_line(text, "WL1 DONE") and has_line(text, "WL2 DONE") and made
+            and lists == {"zzwl1": ["a", "b"], "zzwl2": ["c"]} and "creating $savedlists" not in text,
+            "ordinary %s; pointer %s; lists %r  %s" % (ordinary, made, lists, excerpt(text)))
+        row("WL2 control: the same ordinary session's own write of a VOC record from a program is refused by the kernel (zzwlx not found) - "
+            "the write the old !writelist made itself",
+            has_line(text, r"Record 'zzwlx' not found") and not has_line(text, r"VOC zzwlx"), excerpt(text))
+    finally:
+        if moved:
+            # what the probe made in place of the moved directory: the dynamic file !mksavedlists created (its %0 / %1 and nothing else)
+            if os.path.isdir(svl) and not os.path.islink(svl) and set(os.listdir(svl)) <= {"%0", "%1"}:
+                shutil.rmtree(svl)
+            if not os.path.lexists(svl):
+                os.rename(aside, svl)
+        rs = box.session(["RUN bp zzwlrs", "CT VOC $savedlists"], admin=True)
+        def rec_block(t):
+            m = re.search(r"(?m)^VOC \$savedlists\n((?:\d+: .*\n?)+)", t)
+            return m.group(1).strip().split("\n") if m else None
+        o_rec, b_rec = rec_block(orig), rec_block(rs)
+        row("WL3 cleanup: the account's own $savedlists entry is back as it was and $svlists is the directory it was",
+            has_line(rs, "RS RESTORED") and o_rec is not None and o_rec == b_rec and os.path.isdir(svl) and not os.path.lexists(aside),
+            "before %r after %r  %s" % (o_rec, b_rec, excerpt(rs)))
+        for n in WL_PROGS:
+            for dd in ("bp", "bp.out"):
+                remove_exact(os.path.join(box.acct, dd), n)
 
 
 def excerpt(text):

@@ -20,6 +20,7 @@
 * 11 Nov 26 dm  New (S.211, SD Core for Linux Solo only; the owner, 26 Oct 26: "add a new pre-release task to the solo versions: mcp server", and 11 Nov 26: "i will let you
 *               make the decisions on the mcp server").  The plan is .claude/plan-solo-mcp-11nov.md.  SD Core for Linux has no MCP door (dropped 21 Oct 26), so this is a
 *               deviation from the Linux Core template with the owner's specific permission, listed for the parity audit.  Modelled on SET.PINS.
+* 17 Nov 26 dm  S.62 (P-1916): "no password kept" (14954) is judged on field 2 of $stored, the password, as the Windows port judges it.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -129,7 +130,7 @@ $include err.h
          read kept from cred.f, '$stored' else kept = ''
          close cred.f
       end
-      if kept = '' then display sysmsg(14954)
+      if kept<2> = '' then display sysmsg(14954)      ;* 17 Nov 26, S.62 (P-1916): field 2 is the password (!SOLO_STORE_PW); a record without one keeps none
    end
    stop
 

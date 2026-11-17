@@ -19,6 +19,10 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (CARRY-apisrvr; P-1904, P-1897, P-1901, P-1903): request 3 enters an account by its registered NAME only (a name with no
+*               register record, a path included, is refused with 10003 and audited branch=1, as SD Core and the Windows ports do); the
+*               user table's account is set on entry (K$SET.ACCOUNT, LISTU); an OPENSEQ by pathname asks K$EDIT.OS.OK, so an API client
+*               without ADMIN opens a VOC record named by its path for reading only; the version-1 credential's audit words are SD Core's.
 * 14 Nov 26 dm  S.234 BASIC review: a refused SCRAM login waits PWDELAY seconds (config('PWDELAY')), as SD Core's does, not a fixed 3.
 * 14 Nov 26 dm  S.234 N3 (Core-Solo parity audit), carried from SD Core's sheet 170 of 15 Oct: an API session runs the MASTER.LOGIN paragraph of the
 *               SDSYS VOC once, when it enters the account, before the account's LOGIN, as cproc does for a terminal or phantom session.
@@ -667,10 +671,11 @@ then execute 'ON.LOGTO' trapping aborts capturing response
 * 14 Sep 26 dm - LOWER CASE, GOING PAST THE PORT, which upcases (plan M: no
 *   account name exists in two casings).  WHO is set from this at the end, so
 *   an upcase here showed ZZREL1 over the API where CPROC's LOGTO shows zzrel1.
-*   A PATH is left as typed - a Linux path is case-sensitive, and upcasing one
-*   could only ever have missed it.
-new.account = cmnd
-if index(new.account, @ds, 1) = 0 then new.account = downcase(new.account)
+* 17 Nov 26 dm - S.62 (CARRY-apisrvr, SD Core's P-1274 to P-1278): AN ACCOUNT IS ENTERED BY ITS REGISTERED NAME ONLY.  A name
+*   holding a '/' used to be taken as a PATH and entered without a register read (the own-account test below refused it in Solo
+*   only because no user name holds a '/').  Every name is folded; one with no register record (a path never has one) is refused
+*   with 10003 and audited as branch=1, as SD Core and both Windows ports do.
+new.account = downcase(cmnd)
 
 old.account.path = account.path
 
@@ -680,7 +685,8 @@ if len(new.account) < 1 or len(new.account) > MAX.ACCOUNT.NAME.LEN then
    goto revert.to.old.account
 end
 
-account.path = new.account
+account.path = ''       ;* 17 Nov 26, S.62: set only from a register record (below); '' is refused
+acc.rec = ''            ;* 17 Nov 26, S.62: never judge entry on a record an earlier call read
 acc.suspended = @false
 * 20 Oct 26 dm - THE SOLO OS SWITCH (SD Core's S.63 second sitting: "api should read switches").  The account's SH and OS.EXECUTE
 *   switches are read here from its register record, as LOGIN reads them at sign-on, and are set only once the account has been entered
@@ -701,6 +707,16 @@ if index(new.account, @ds, 1) = 0 then
       end
       close acc.f
    end
+end
+
+* 17 Nov 26 dm - S.62: no register record (no such account, a name given as a path, an unreadable register) is refused here,
+*   before anything is entered; the caller sees 10003, as for every refusal of this routine, and the trail names the branch.
+if account.path = '' then
+   void kernel(K$AUDIT, 'account refused branch=1 no.path.in.register account=' : new.account)
+   server.error = SV$ERROR
+   error.msg = sysmsg(10003) ;* User not allowed in requested account
+   abort.message = error.msg
+   goto revert.to.old.account
 end
 
 * 20 Oct 26 dm - THE RULE FOR ENTERING AN ACCOUNT (a suspended account is not entered; the account must be the session's own, SDSYS never; every refusal
@@ -731,6 +747,7 @@ i = ospath("", os$flush.cache)
 account.path = ospath("", os$cwd)     ;* Ensure @PATH is absolute path
 initial.account.path = account.path   ;* Make WHO show only one element
 who = new.account
+void kernel(K$SET.ACCOUNT, who)   ;* 17 Nov 26, S.62 (P-1897, P-1901): the user table's account (LISTU), as login sets it for a terminal session and SD Core's apisrvr does
 
 voc = new.voc
 
@@ -1463,7 +1480,7 @@ vb.scram.first:
                   if scram.cred<CRED$VERSION> # SCRAM$CRED.VERSION then
                      scram.cred = ''
                      scram.gcred = ''
-                     scram.refuse.reason = 'credential is version 1 - run set.password'
+                     scram.refuse.reason = 'credential is not version 2 - run set.password'   ;* 17 Nov 26, S.62 (P-1903): SD Core's words
                      goto scram.bad.cred
                   end
                   scram.salt = scram.cred<CRED$SALT>
@@ -2694,7 +2711,7 @@ if os.id = '' then
       error.msg = sysmsg(11345, os.name) ;* %1 is not a file this account may open
       return
    end
-   os.edit.ok = @true   ;* Solo: there is no pathname form of !voc_refusal (SD Core asks K$EDIT.OS.OK here); see below
+   os.edit.ok = kernel(K$EDIT.OS.OK, os.name)   ;* 17 Nov 26, S.62 (P-1904): the pathname form of the VOC rule, which Solo's kernel has had since carry 19 (24 Oct 26), as SD Core asks it
 end else
    os.path = @false
    open os.name to os.tf else
@@ -2722,7 +2739,8 @@ end case
 *   asked here: a record of a file that !voc_refusal will not let this session change (the VOC without ADMIN; SDSYS's gcat,
 *   global.bp.out and solo.policy without the global session) is opened for reading only - nothing is made and nothing written (a
 *   write then takes the ELSE case).  Reading is not refused, because the default mode is read and write.  A bare pathname is held
-*   only to the OS switch (K$PATH.OK above), as a user program's OPENSEQ of a pathname is.
+*   to the OS switch (K$PATH.OK above) and, since 17 Nov 26 (S.62, P-1904), to the VOC rule's pathname form (K$EDIT.OS.OK): this
+*   program is $internal, so the kernel's own test of a user program's OPENSEQ is not made for it.
 if not(os.edit.ok) then os.m = 1
 
 loop

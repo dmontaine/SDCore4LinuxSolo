@@ -32,7 +32,7 @@ ERRLOG|int|0|||restart|live|The size of the error log in kilobytes; a value belo
 FDS|int|32767|||restart|live|A limit on the file descriptors SD uses; when it is not set there is no limit of SD's own.|no|Limits the file descriptors SD uses; SD checks no range: a mistake shows at the next start.
 FLTDIFF|float|0.0000000000291|||restart|live|Two floating point numbers closer together than this compare equal.|no|Changes how every program compares floating point numbers.
 FSYNC|bits|0|||restart|live|Flag bits that say when SD forces data to disk with fsync: a higher value is safer and slower.|no|Trades the safety of data against speed; flag bits that SD does not check.
-GRPDIR|path|/home/sd/group_accounts|||restart|live|The directory create.account puts a group account in.|no|A directory: group accounts are made there.
+GRPDIR|path||||restart|live|The parent directory of group accounts; when it is not set SD uses group_accounts in the Solo folder.|no|A directory: accounts are found there.
 GRPSIZE|int|4|1|8|restart|live|The group size, in kilobytes, of a hashed file made without one. 4 since 11 November 2026; an installed system keeps the value its sd.conf has until you change it.|yes|
 INTPREC|int|11|0|14|restart|live|How many digits of precision integer arithmetic and the INT function keep.|no|Changes the results of arithmetic in programs that already exist.
 LGNWAIT|int|0|0|32767|restart|live|Seconds a sign-on waits for a free user number when the user limit is reached; 0 refuses at once.|yes|
@@ -69,7 +69,7 @@ TEMPDIR|path||||restart|live|The directory for temporary files; when it is not s
 TERMINFO|path||||restart|live|An extra directory of terminfo definitions. The shipped definitions are found without it.|no|A directory: terminal definitions are read from there.
 USERPOOL|int|1023|0|16383|restart|live|The highest user number handed out; user numbers rotate through 1 to this value.|no|The highest user number: PHANTOMS is checked against it; a mistake stops SD.
 USPLIT|flag|0|0|1|restart|live|1 gives interactive sessions the lowest free user numbers and every other process (a phantom, an API session) the highest.|yes|
-USRDIR|path|/home/sd/user_accounts|||restart|live|The directory create.account puts a user account in.|no|A directory: user accounts are made there.
+USRDIR|path||||restart|live|The parent directory of user accounts; when it is not set SD uses user_accounts in the Solo folder.|no|A directory: accounts are found there.
 XFER|flag|0|0|1|restart|live|1 lets the account, when its switch is on, move files over Solo's ssh login with RECEIVE and SEND; 0, as delivered, refuses every transfer.|no|A door: 1 opens file transfer over ssh when the account's switch is on.
 XFERFILE|int|10240|1|1048576|restart|live|The largest file one transfer slot takes, in kilobytes; a bigger file is refused and discarded.|no|A transfer limit: raising it lets one file fill more of the disk.
 XFERIDLE|int|120|10|3600|restart|live|Seconds a transfer slot stays open after its last file has finished; a file still moving is never cut off.|no|A transfer limit: raising it keeps an unused slot open longer.

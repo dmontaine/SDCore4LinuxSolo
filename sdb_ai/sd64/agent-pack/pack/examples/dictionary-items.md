@@ -1046,6 +1046,20 @@ S
  1460537184
 ```
 
+### dict:item:voc.dic:replication
+> kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/voc.dic^replication:1#88c870c1
+
+Item `replication` of the shipped dictionary `voc.dic` (type I), in `gplbld/FILES_DICTS/voc.dic^replication`:
+
+```
+I Test if a file is exported for replication - SD has none, so always null (LISTF WITH REPLICATION)
+''
+
+Replication
+1L
+S
+```
+
 ### dict:item:voc.dic:trigger
 > kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/voc.dic^trigger:1#ab02bacf
 

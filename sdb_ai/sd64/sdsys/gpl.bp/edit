@@ -15,6 +15,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1906, P-1907): editor.opts, always empty since the nano --rcfile branch went (9 Nov 26), is gone; the command line is SD Core's.
 * 11 Nov 26 dm  SD Core for Linux Solo (owner: "Yes, Debian and Ubuntu only"; SD Core's S.105): find.pkg.mgr asks
 *               for apt-get only; the dnf, pacman and zypper branches went with the distributions they served.
 * 27 Oct 26 dm  S.87 batch 14: the NANO verb is gone; micro is the one external editor (editor.exe is always micro), and nano's syntax file and installer step are gone.
@@ -652,7 +653,6 @@ return
 * (9 Nov 26, Solo carry 22: Solo's LSOLO 16 nano --rcfile branch went with the NANO verb.)
 * ---------------------------------------------------------------------------
 place.syntax:
-   editor.opts = ''
    if editor.exe # 'micro' then return
    syntax.master = @sdsys : '/microcfg/syntax/sdbasic.yaml'
    syntax.home   = '"$HOME/.config/micro/syntax"'
@@ -733,7 +733,7 @@ process.record:
    crt @(-1) : 'Editing ' : trim(dict.text : ' ' : in.file.name) : ' ' :
    crt in.record.name
 
-   os.execute q : editor.path : q : editor.opts : ' ' : q : os.file : q
+   os.execute q : editor.path : q : ' ' : q : os.file : q
    rc = os.error()
 
    crt @(-1) :

@@ -38,7 +38,10 @@ end
 *
 * use var to name test files and records
 *
-fn = '/home/sd/user_accounts/xxxx/EXAMPLES_DATA'
+* 17 Nov 26 dm - S.62 P-1892: Solo has one account, so the file is the
+*   account's own EXAMPLES_DATA; it named SD Core's /home/sd/user_accounts,
+*   which Solo does not have.
+fn = @path : @ds : 'EXAMPLES_DATA'
 rec_id = 'xrate.csv'
 str_id = 'xrate_csv'
 

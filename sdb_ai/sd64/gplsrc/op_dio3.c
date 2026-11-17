@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1773, P-1774: op_writev() counts PROF_WRITE before the remote and VOC / global refusals, as SD Core does and as op_write() and op_delete() do here; P-1775: op_delete()'s last else braced as in SD Core.
  * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 (ef9d5946): WRITE and WRITEU ... CREATING.SEQKEY of a remote file go to the server (net_write_seqkey, requests 68 and 69).
  * 28 Oct 26 dm  S.87: net_pre_change_lock() can no longer ask a caller to wait (that was AUTOLOCK's): NETL_WAIT, its two arms and the retry_pc of op_write and op_delete are gone.
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone.
@@ -780,8 +781,9 @@ exit_op_delete:
     if (!keep_lock && (txn_id == 0) && (id_len != 0)) {
       unlock_record(fvar, id, id_len);
     }
-  } else if (!(op_flags & P_ON_ERROR))
+  } else if (!(op_flags & P_ON_ERROR)) {
     k_error(sysmsg(1405), process.status);
+  }
 }
 
 /* ======================================================================
@@ -1535,6 +1537,18 @@ void op_writev() {
 
   process.status = 0;
 
+  /* 17 Nov 26 dm - S.62 P-1773, P-1774: counted BEFORE the refusals, as SD Core counts WRITEV and as WRITE and DELETE are
+     counted here: the profiler counts the statements a program runs, refused or not. */
+  if (prof_mask & PROF_WRITE) /* WRITEV: the application event profiler (16 Oct 26); the file variable is third from the top */
+  {
+    DESCRIPTOR* prof_d = e_stack - 3;
+
+    while (prof_d->type == ADDR)
+      prof_d = prof_d->data.d_addr;
+    if (prof_d->type == FILE_REF)
+      ProfFile(PROF_WRITE, prof_d->data.fvar);
+  }
+
   /* 29 Sep 26 SD Core Solo for Linux (LSOLO 6), ruling 14.  Tested HERE, not
      left to op_write(): the recursive pcode below is $internal, so by the time
      it writes, the caller's program flags are gone.  A refusal drops the four
@@ -1564,16 +1578,6 @@ void op_writev() {
       k_dismiss();
       goto exit_op_writev;
     }
-  }
-
-  if (prof_mask & PROF_WRITE) /* WRITEV: the application event profiler (16 Oct 26); the file variable is third from the top */
-  {
-    DESCRIPTOR* prof_d = e_stack - 3;
-
-    while (prof_d->type == ADDR)
-      prof_d = prof_d->data.d_addr;
-    if (prof_d->type == FILE_REF)
-      ProfFile(PROF_WRITE, prof_d->data.fvar);
   }
 
   /* Push lock flag onto e-stack; zero for WRITEV, non-zero for WRITEVU */

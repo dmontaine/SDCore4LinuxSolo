@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1322: comment only - K_ASSUME_USER's note said APISRVR calls it; it does not.
  * 15 Nov 26 dm  K_XFER (173), the file transfer slot and server (sd_sftp.c k_xfer()); carried from SD Core's S.242.
  * 14 Nov 26 dm  Carried from SD Core (S.241): a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
  * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
@@ -458,7 +459,9 @@ void op_kernel() {
        already runs as the one Linux user who owns the tree, and the account
        an API client proves itself as (sduser) is not an OS user, so nothing
        is switched.  The call is kept because key 61 is shared with the other
-       ports and APISRVR calls it.  It answers 1 for an $internal caller with
+       ports.  (17 Nov 26 dm - S.62 P-1322: Solo's APISRVR does NOT call it
+       (apisrvr, LSOLO 6: "NO K$ASSUME.USER") and nothing else does; whether
+       the case goes is the owner's.)  It answers 1 for an $internal caller with
        a well-formed name and 0 otherwise - NEVER 1 while the process is root,
        so a root API server (which main() already refuses) could not pass
        itself off as having dropped anything.  It changes no uid, no gid and

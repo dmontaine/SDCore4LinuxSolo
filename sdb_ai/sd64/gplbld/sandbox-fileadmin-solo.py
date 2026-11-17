@@ -16,6 +16,9 @@
 #               the $cred directory is put back byte for byte at the end, so the sandbox is standalone again for the suites after this one.  The evidence is the DISK as an ordinary session
 #               of sduser reads it (ANALYZE.FILE, LIST.INDEX, COUNT, a program's CREATING.SEQKEY), never what the server said about itself.  SD Core's section E (the S.64 dict.edit gate by
 #               path) has no Solo counterpart: Solo has no edit gates.
+# 17 Nov 26 dm  S.62 (P-1913, P-1915): section W - SET.PASSWORD GLOBAL in a session signed in with the global password refuses a new global equal to the account or the
+#               administrator password (14922, $cred/$global unchanged, no audit line) and accepts a different one (14901, $global changed, 'global password set').  After U, so
+#               U1's list is untouched; N puts $cred back as before.
 # END-HISTORY
 #
 #   Z  NO global password (the delivered state): an account-password session asks 70, 71, 68, 69 and is refused each with 14964, audited, the disk unchanged; its reads and writes are served
@@ -25,6 +28,7 @@
 #   Q  request 71 (the FC$ keys) and requests 68 and 69 (the id the server's counter gives), by the global session
 #   R  what is refused before anything runs, even for the global session: a word the grammar does not take, an operation that is not one, a file number that is not open
 #   U  the audit trail gained exactly the lines of the run
+#   W  SET.PASSWORD GLOBAL, typed in a global-password session: equal to the account or administrator password refused (14922), a different one set and audited
 #   N  the global password taken away again ($cred put back): a new account-password session is refused as in Z
 
 import importlib.util
@@ -179,6 +183,21 @@ def restore_cred(snap):
     for fn, data in snap.items():
         with open(os.path.join(CRED, fn), "wb") as f:
             f.write(data)
+
+
+def gsess(lines, timeout=300):
+    """A session of sduser on a pipe signed in with the GLOBAL password (login tries the account password, then $global), the LINES typed after the TERM line, then OFF.
+    Returns the lines printed after the TERM line, every secret replaced; the echoed commands and blank lines left out."""
+    env = dict(os.environ, SD_CONFIG=os.path.join(BOX, "sd.conf"))
+    for k in ("SSH_CONNECTION", "SSH_TTY", "SDTEST_ADMIN"):
+        env.pop(k, None)
+    body = GPW + "\nTERM 200,9999\n" + "".join(c + "\n" for c in lines) + "OFF\n"
+    p = subprocess.run([os.path.join(SYS, "bin", "sd-solo")], input=body, cwd=SYS, env=env, capture_output=True, text=True, errors="replace", timeout=timeout)
+    out = ANSI.sub("", p.stdout + p.stderr).replace("\r", "")
+    for s in rq.SECRETS:
+        out = out.replace(s, "<secret>")
+    out = out.split(":TERM 200,9999", 1)[-1]
+    return [ln.rstrip() for ln in out.splitlines() if ln.strip() and not ln.startswith(":")]
 
 
 def set_global():
@@ -440,6 +459,41 @@ def main():
                 "admin request=70 op=create.file file=zzdirx", "admin request=70 op=delete.file file=zzdirx"]
         row("U1 the 'api refused ... global=off' and 'api admin ...' lines of the whole run are exactly these %d, in this order, all user=sduser (the refusals of Z and G1, then every verb that ran "
             "for the global session - V2a's refused build too, the line is written before the command - and nothing for the words the grammar refused)" % len(want), got == want, repr(got))
+
+        # ---- W. SET.PASSWORD GLOBAL (17 Nov 26, S.62 P-1913 / P-1915) -------------------------------------------------------------------------------------------------------------------
+        say("\n--- W. SET.PASSWORD GLOBAL in a global-password session: the account's and the administrator's password refused, a different one set and audited ---")
+        for w in list(af.WIRES):
+            w.close()
+        apw, upw = rq.secret("admin.pw"), rq.secret("account.pw")
+        npw = "Nw7-" + secrets.token_hex(8) + "-Kq"
+        rq.SECRETS.append(npw)
+        m14922, m14901, m14920 = af.msg(14922), af.msg(14901), af.msg(14920)
+
+        def glob_bytes():
+            try:
+                with open(os.path.join(CRED, "$global"), "rb") as f:
+                    return f.read()
+            except OSError:
+                return None
+
+        for wid, what, pw in (("W1", "the account password", upw), ("W2", "the administrator password", apw)):
+            g0, off_w = glob_bytes(), rq.audit_off()
+            out = gsess(["SET.PASSWORD GLOBAL", pw, pw])
+            g1, new = glob_bytes(), rq.audit_new(off_w)
+            say("      " + "\n      ".join(out[-3:]))
+            row("%s SET.PASSWORD GLOBAL with %s as the new global is refused (14922), $cred/$global is unchanged and no 'global password set' line is written" % (wid, what),
+                m14922 in "\n".join(out) and m14901 not in "\n".join(out) and g0 is not None and g0 == g1 and new is not None and "global password set" not in new,
+                repr((out[-3:], g0 == g1, (new or "")[-200:])))
+        g0, off_w = glob_bytes(), rq.audit_off()
+        out = gsess(["SET.PASSWORD GLOBAL", npw, npw])
+        g1, new = glob_bytes(), rq.audit_new(off_w)
+        say("      " + "\n      ".join(out[-3:]))
+        row("W3 control: the same command with a password unlike the other two says 'Password changed' (14901), $cred/$global changes, and the audit trail gains 'global password set'",
+            m14901 in "\n".join(out) and m14922 not in "\n".join(out) and g0 is not None and g1 is not None and g0 != g1 and rq.audit_has(new, r"global password set$"),
+            repr((out[-3:], g0 != g1, (new or "")[-200:])))
+        # the command in an ACCOUNT-password session: not the server, refused before any prompt (14920) - the gate in front of the rule above
+        out = ordinary("SET.PASSWORD GLOBAL")
+        row("W4 control: an account-password session is refused SET.PASSWORD GLOBAL before any prompt (14920)", m14920 in "\n".join(out) and "New password" not in "\n".join(out), repr(out[-3:]))
 
         # ---- N. the global password taken away again ----------------------------------------------------------------------------------------------------------------------------------------
         say("\n--- N. the global password is taken away again ($cred put back as it was): the delivered state ------------------------------------------")

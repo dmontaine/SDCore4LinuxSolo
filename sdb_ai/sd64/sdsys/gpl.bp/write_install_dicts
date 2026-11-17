@@ -23,6 +23,19 @@ CRT
 
 * 29 Sep 26 SD Core Solo for Linux (LSOLO 6) - the SYSTEM(27) # 0 "must be
 * root" test is gone; Solo never runs as root.  See BBPROC.
+* 17 Nov 26 dm - S.62 (P-1959): A PRIVILEGE TEST AGAIN, IN SOLO'S TERMS.  SD Core
+*   asks for root and SD Core Solo for Windows for the administrator flag
+*   (SYSTEM(1050)); the LSOLO 6 change dropped the test instead of mapping it, so
+*   any session could rewrite the system dictionaries from the build data.  The
+*   program runs only for a session holding the administrator flag, Windows
+*   Solo's test.  The install passes it: CPROC sets the flag for the internal
+*   door ("sd-solo -i" and "sd-solo -internal", which solo-stage.sh opens for
+*   bootstrap pass 3).  KERNEL() cannot be used here - this program is not
+*   $internal, and the compiler took KERNEL for an array (the first build of
+*   this change died at pass 3 with "Expected array variable KERNEL").
+IF NOT(SYSTEM(1050)) THEN
+   STOP 'Command requires administrator privileges'
+END
 
 OPENPATH DATA_PATH TO DP.FILEVAR ELSE
    CRT 'ERROR OPENING FILE: ':DATA_PATH

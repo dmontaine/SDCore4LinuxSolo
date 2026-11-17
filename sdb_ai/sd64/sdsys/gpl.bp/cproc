@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (CARRY-f1, SD Core's P-1281): the F1 help at the command prompt leaves the key loop, so the prompt is drawn again
+*           (Windows RELEASE_1.1 108).  SD Core's LOGTO change of the same day is not carried: Solo has no LOGTO.
 * 13 Nov 26 dm A refused login exits with status 1 (it was 0), so a script or job can tell refused from done; SD Core's change of the same day,
 *           carried from the Windows port (owner, 13 Nov 2026: "Yes, carry it").
 * 12 Nov 26 dm S.221, SD Core's W.11 F10 (26 Oct) carried (owner, 12 Nov 2026: "Carry F10"): a phantom reads its Xn, Dn and Ln records together
@@ -1157,6 +1159,10 @@ get.command.line:
             case n = K$F1 and at.command = ''
                s = ''
                gosub f1.help
+* 17 Nov 26 dm - S.62 (CARRY-f1, SD Core's P-1281): the message leaves the cursor on a line of its own and this loop does not
+*   know it, so nothing redrew the prompt and the cursor hung (the Windows port's RELEASE_1.1 108).  Leaving the inner loop runs
+*   the prompt again, as Ctrl-G and the Up and Down keys do.
+               exit
             case n >= 32
                if command.overlay then
                   if x <= len(at.command) then at.command[x, 1] = c

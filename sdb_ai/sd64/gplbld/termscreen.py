@@ -16,6 +16,7 @@
 # (only reverse video is kept), carriage return, newline (with scrolling), backspace and tab.  Everything else
 # (modes, colours, the keypad switch) is read and ignored.  START-HISTORY:
 # 12 Oct 26 dm  New, for sandbox-ced.py.
+# 17 Nov 26 dm  S.62 (P-1771, P-1772), carried from SD Core (S.98 H3): CSI H CSI J, the console's clear, is counted as a clear and keeps the screen before it.
 # END-HISTORY
 
 import re
@@ -147,6 +148,10 @@ class Screen:
                 for i in range(self.rows):
                     self.grid[i], self.rev[i] = self._blank_row()
             elif mode == 0:
+                if self.r == 0 and self.c == 0:
+                    # SD Core, 2 Nov 26 (S.98 H3): the clear of the linux, vt100 and vt220 entries is CSI H CSI J: an erase to the end of the screen from the top left cell is a whole clear
+                    self.before_clear = self.lines()
+                    self.clears += 1
                 for j in range(self.c, self.cols):
                     self.grid[self.r][j] = " "
                     self.rev[self.r][j] = False
@@ -283,4 +288,11 @@ if __name__ == "__main__":
     assert s.lines() == ["abcd", "xyz", ""] and s.rows == 3 and s.cols == 4, s.lines()
     s.resize(8, 5)
     assert s.lines() == ["abcd", "xyz", "", "", ""] and len(s.grid[0]) == 8, s.lines()
+    # SD Core, 2 Nov 26 (S.98 H3): the console's clear is CSI H CSI J (an erase to the end from the top left cell): counted as a clear; the same erase from any other cell is not
+    t = Screen(10, 3)
+    t.feed("\x1b[H\x1b[2Jone\x1b[2;1Htwo")
+    t.feed("\x1b[2;2H\x1b[J")
+    assert t.clears == 1 and t.lines() == ["one", "t", ""], (t.clears, t.lines())
+    t.feed("\x1b[H\x1b[J")
+    assert t.clears == 2 and t.before_clear == ["one", "t", ""] and t.lines() == ["", "", ""], (t.clears, t.before_clear, t.lines())
     print("termscreen: self-test passed")
