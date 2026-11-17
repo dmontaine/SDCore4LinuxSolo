@@ -527,7 +527,7 @@ examples_step() {
   if printf '%s\n' "$ex_plain" | grep -qE '^solo_examples: examples\.bp ready: [0-9]+ new, [0-9]+ changed, [0-9]+ the same, compiled [0-9]+ of [0-9]+, 0 failed[[:space:]]*$'; then
     echo "solo-stage: example programs: ready"
   else
-    echo "solo-stage: WARNING: the example programs were not put into the account (solo_examples did not report 0 failed); ADMIN, then RUN gpl.bp solo_examples"
+    echo "solo-stage: WARNING: the example programs were not put into the account (solo_examples did not report 0 failed); run the installer again to retry"   # 17 Nov 26: it said "ADMIN, then RUN gpl.bp solo_examples", which no session can do - the program is the installer's alone and SOURCE-GONE takes gpl.bp out of the VOC (seen by the Windows agent)
   fi
 }
 # EXAMPLES-END

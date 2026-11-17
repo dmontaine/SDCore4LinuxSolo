@@ -667,13 +667,16 @@ def sec_page():
     row("T10a X on a row with no key says so and runs nothing", "No key is set for Custom" in st(h), repr(st(h)))
     h.typed("c", idle=1.0)
     # 14 Nov 26, S.238 (carried from Core's S.88): one form (six entries, Tab between them, Return presses Continue); a refusal is said in the form, which stays until Esc
-    h.typed("\t".join(("Bad", "http://127.0.0.1/v1", "openai", "bearer", "", "max_tokens")) + "\r", idle=1.2)
+    # 17 Nov 26: the layout [ANTHROPIC | openai] and the authentication [BEARER | x-api-key] are selectors since the carry of Core's S.244 (Solo 10fcf2f), on
+    #   their first word while Custom is empty: ONE SPACE takes openai, as SD Core's sandbox-tool-ai.py types it.  This suite still typed the words, which a
+    #   selector does not take, so the connection was made with the anthropic layout and T11a (the sentence shown) went red; the page was right.
+    h.typed("\t".join(("Bad", "http://127.0.0.1/v1", " ", "", "", "max_tokens")) + "\r", idle=1.2)
     refused = "Not accepted: the address" in h.text()
     h.key("esc", idle=1.0)
     row("T10b an http address is refused by the form: 'Not accepted: the address', nothing changed", refused and not any(l.startswith("custom.") for l in conf()), repr((st(h), conf())))
     h.typed("c", idle=1.0)
     url = "https://127.0.0.1:%d/v1/chat/completions" % port
-    h.typed("\t".join(("MyLLM", url, "openai", "bearer", "", "max_tokens")) + "\r", idle=1.5)
+    h.typed("\t".join(("MyLLM", url, " ", "", "", "max_tokens")) + "\r", idle=1.5)
     T = h.text()
     row("T11a the whole sentence is shown before it runs: set.ai custom MyLLM <url> openai bearer - max_tokens, and the effect names the host",
         ("set.ai custom MyLLM " + url + " openai bearer - max_tokens") in re.sub(r"\s+", " ", T) or ("set.ai custom MyLLM" in T and "openai bearer - max_tokens" in T), T[-900:])
