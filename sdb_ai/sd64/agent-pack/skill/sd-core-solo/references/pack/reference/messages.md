@@ -750,14 +750,15 @@ update.accounts does not take '%1', so nothing has been changed.\n\nThe only wor
 cited by: `cproc`
 
 ### msg:10174
-> kind=message tier=reference since=- src=sdsys/messages/10174:1#19aff066
+> kind=message tier=reference since=- src=sdsys/messages/10174:1#f3ccbb1d
 
 ```
-SDSYS may be reached through the API only from this machine.
+SDSYS may be reached through the API from another computer only when the
+administrator has opened it.
 
 SDSYS can change every account on this system, and the API admits a
-connection on the SD password alone.  Run sd as the sdsys OS user on
-this machine instead.
+connection on the SD password alone.  It is shut as delivered; the
+administrator opens it for chosen addresses with remote.sdsys api on.
 ```
 
 ### msg:10176
@@ -1118,11 +1119,53 @@ sentence being run.
 Needs dynamic file|as variable %s
 ```
 
+### msg:11013
+> kind=message tier=reference since=- src=sdsys/messages/11013:1#830a1174
+
+```
+%1 contains a single quote, which SD cannot pass to Linux safely. Use a path without one.
+```
+
+### msg:11014
+> kind=message tier=reference since=- src=sdsys/messages/11014:1#21544be4
+
+```
+Counting the files in %1 failed (status %2): %3
+```
+
+### msg:11015
+> kind=message tier=reference since=- src=sdsys/messages/11015:1#008d011b
+
+```
+Making the archive %1 failed (status %2): %3
+```
+
+### msg:11016
+> kind=message tier=reference since=- src=sdsys/messages/11016:1#53d32085
+
+```
+%1 already exists. A backup never overwrites a file.
+```
+
+### msg:11017
+> kind=message tier=reference since=- src=sdsys/messages/11017:1#afc81877
+
+```
+Unpacking %1 failed (status %2): %3
+```
+
 ### msg:1102
 > kind=message tier=reference since=- src=sdsys/messages/1102:1#1df69603
 
 ```
 Expected array variable|%s
+```
+
+### msg:11022
+> kind=message tier=reference since=- src=sdsys/messages/11022:1#055bc3ff
+
+```
+The archive tool did not report %1, so the result cannot be checked. Nothing was kept.
 ```
 
 ### msg:11023
@@ -1132,11 +1175,20 @@ Expected array variable|%s
 Not in the backup: %1
 ```
 
+cited by: `acc_archive`
+
 ### msg:11024
 > kind=message tier=reference since=- src=sdsys/messages/11024:1#de7dc116
 
 ```
 Cannot create the backup directory %1: %2
+```
+
+### msg:11026
+> kind=message tier=reference since=- src=sdsys/messages/11026:1#bab16d6b
+
+```
+Saving the backup directory in sd.conf failed: %1
 ```
 
 ### msg:1103
@@ -1145,6 +1197,51 @@ Cannot create the backup directory %1: %2
 ```
 Value not found where required|in %s
 ```
+
+### msg:11030
+> kind=message tier=reference since=- src=sdsys/messages/11030:1#a2eb7f6a
+
+```
+Account %1
+```
+
+cited by: `upgrade_nocase`
+
+### msg:11031
+> kind=message tier=reference since=- src=sdsys/messages/11031:1#85313c64
+
+```
+%1 private catalog name(s) in %2 would be made lower case.
+```
+
+cited by: `upgrade_nocase`
+
+### msg:11032
+> kind=message tier=reference since=- src=sdsys/messages/11032:1#0c967c2c
+
+```
+'%1' and '%2' both exist in %3, so they were left as they are. Delete the one you do not need.
+```
+
+cited by: `upgrade_nocase`
+
+### msg:11034
+> kind=message tier=reference since=- src=sdsys/messages/11034:1#016f2112
+
+```
+%1 private catalog name(s) in %2 were made lower case.
+```
+
+cited by: `upgrade_nocase`
+
+### msg:11037
+> kind=message tier=reference since=- src=sdsys/messages/11037:1#f31910f8
+
+```
+Cannot open %1 (error %2). It was left as it is.
+```
+
+cited by: `upgrade_nocase`
 
 ### msg:11038
 > kind=message tier=reference since=- src=sdsys/messages/11038:1#c5871e66
@@ -8242,10 +8339,10 @@ Passages of SD's own documentation follow, each with its id in brackets. Use the
 cited by: `tk_ai`
 
 ### msg:11923
-> kind=message tier=reference since=- src=sdsys/messages/11923:1#d7b2d81f
+> kind=message tier=reference since=- src=sdsys/messages/11923:1#ed63822b
 
 ```
-remote.sdsys on | off\n\nON        opens ssh for sdsys: it can sign in from other computers with its\n          password.\nOFF       shuts ssh for sdsys again, as delivered.\n\nWith no keyword it reports the state and changes nothing.
+remote.sdsys {on | off}\nremote.sdsys ssh {on | off}\nremote.sdsys api {on address ... | off}\n\nON, SSH ON     opens ssh for sdsys: it can sign in from other computers with\n               its password.\nOFF, SSH OFF   shuts ssh for sdsys again, as delivered.\nAPI ON a ...   lets an API client at one of the addresses sign in as sdsys\n               with its SD password and be the administrator.  An address is\n               IPv4 or IPv6, or a range such as 192.168.1.0/24; at most 32.\nAPI ON ANY     the same from every address on the internet (a VPN into a\n               listed range is safer).\nAPI OFF        shuts the API to sdsys from other computers, as delivered.\n\nWith no keyword it reports the state and changes nothing.
 ```
 
 ### msg:11924
@@ -8288,6 +8385,24 @@ cited by: `setnetacc`
 ```
 ssh is open for sdsys: it can sign in from other computers with its password,\nand nothing else stands between the network and the administrator.  Shut it\nagain with remote.sdsys off.
 ```
+
+### msg:11931
+> kind=message tier=reference since=- src=sdsys/messages/11931:1#60187304
+
+```
+set.config parameter value (for example set.config cleanup 600); tool.config shows which parameters can be changed and the range of each
+```
+
+cited by: `setconfig`
+
+### msg:11932
+> kind=message tier=reference since=- src=sdsys/messages/11932:1#09bbf981
+
+```
+The parameter name has only letters and digits, up to 12 of them (for example cleanup)
+```
+
+cited by: `setconfig`
 
 ### msg:11933
 > kind=message tier=reference since=- src=sdsys/messages/11933:1#45af3bfa
@@ -11512,24 +11627,6 @@ cited by: `remotedoor`
 
 cited by: `remotedoor`
 
-### msg:14972
-> kind=message tier=reference since=- src=sdsys/messages/14972:1#09bbf981
-
-```
-The parameter name has only letters and digits, up to 12 of them (for example cleanup)
-```
-
-cited by: `setconfig`
-
-### msg:14973
-> kind=message tier=reference since=- src=sdsys/messages/14973:1#60187304
-
-```
-set.config parameter value (for example set.config cleanup 600); tool.config shows which parameters can be changed and the range of each
-```
-
-cited by: `setconfig`
-
 ### msg:14974
 > kind=message tier=reference since=- src=sdsys/messages/14974:1#877e0c48
 
@@ -11557,69 +11654,11 @@ The ssh key request was refused: %1
 
 cited by: `apisrvr`
 
-### msg:14977
-> kind=message tier=reference since=- src=sdsys/messages/14977:1#830a1174
-
-```
-%1 contains a single quote, which SD cannot pass to Linux safely. Use a path without one.
-```
-
-### msg:14978
-> kind=message tier=reference since=- src=sdsys/messages/14978:1#21544be4
-
-```
-Counting the files in %1 failed (status %2): %3
-```
-
-### msg:14979
-> kind=message tier=reference since=- src=sdsys/messages/14979:1#008d011b
-
-```
-Making the archive %1 failed (status %2): %3
-```
-
-### msg:14980
-> kind=message tier=reference since=- src=sdsys/messages/14980:1#53d32085
-
-```
-%1 already exists. A backup never overwrites a file.
-```
-
-### msg:14981
-> kind=message tier=reference since=- src=sdsys/messages/14981:1#afc81877
-
-```
-Unpacking %1 failed (status %2): %3
-```
-
-### msg:14982
-> kind=message tier=reference since=- src=sdsys/messages/14982:1#055bc3ff
-
-```
-The archive tool did not report %1, so the result cannot be checked. Nothing was kept.
-```
-
-### msg:14983
-> kind=message tier=reference since=- src=sdsys/messages/14983:1#70816855
-
-```
-Not in the backup: %1
-```
-
-cited by: `acc_archive`
-
 ### msg:14984
 > kind=message tier=reference since=- src=sdsys/messages/14984:1#40f377b2
 
 ```
 SD Core Solo for Linux puts a restore in place at its next start, not while it runs (%1).
-```
-
-### msg:14985
-> kind=message tier=reference since=- src=sdsys/messages/14985:1#de7dc116
-
-```
-Cannot create the backup directory %1: %2
 ```
 
 ### msg:14986
@@ -11629,13 +11668,6 @@ Cannot create the backup directory %1: %2
 You cannot write to the backup directory %1: %2
 ```
 
-### msg:14987
-> kind=message tier=reference since=- src=sdsys/messages/14987:1#bab16d6b
-
-```
-Saving the backup directory in sd.conf failed: %1
-```
-
 ### msg:14988
 > kind=message tier=reference since=- src=sdsys/messages/14988:1#edefb7e4
 
@@ -11643,56 +11675,11 @@ Saving the backup directory in sd.conf failed: %1
 The backup directory %1 cannot be used: %2
 ```
 
-### msg:14989
-> kind=message tier=reference since=- src=sdsys/messages/14989:1#a2eb7f6a
-
-```
-Account %1
-```
-
-cited by: `upgrade_nocase`
-
-### msg:14990
-> kind=message tier=reference since=- src=sdsys/messages/14990:1#85313c64
-
-```
-%1 private catalog name(s) in %2 would be made lower case.
-```
-
-cited by: `upgrade_nocase`
-
-### msg:14991
-> kind=message tier=reference since=- src=sdsys/messages/14991:1#0c967c2c
-
-```
-'%1' and '%2' both exist in %3, so they were left as they are. Delete the one you do not need.
-```
-
-cited by: `upgrade_nocase`
-
-### msg:14992
-> kind=message tier=reference since=- src=sdsys/messages/14992:1#016f2112
-
-```
-%1 private catalog name(s) in %2 were made lower case.
-```
-
-cited by: `upgrade_nocase`
-
 ### msg:14993
 > kind=message tier=reference since=- src=sdsys/messages/14993:1#5b73358d
 
 ```
 %1 file(s) named by an account's VOC lie under SDSYS and were left as they are. SDSYS's own files are made new by the install; convert one yourself with configure.file no.case if you need to:
-```
-
-cited by: `upgrade_nocase`
-
-### msg:14994
-> kind=message tier=reference since=- src=sdsys/messages/14994:1#f31910f8
-
-```
-Cannot open %1 (error %2). It was left as it is.
 ```
 
 cited by: `upgrade_nocase`

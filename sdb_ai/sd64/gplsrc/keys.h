@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1322: K_ASSUME_USER (61) removed - a no-op with no caller in Solo (owner, 17 Nov 26); 61 is SD Core's key and never reused here.
  * 15 Nov 26 dm  K_XFER (173), the file transfer slot and server (Solo carry of SD Core's S.242); 174 reserved for Windows' K$OS.SDSYS.USER.
  * 12 Nov 26 dm  Solo: K_SHARED_REF (130) and K_SHARED_ONCE (131) removed - no caller, and the kernel answers neither (Windows Solo re-audit).
  * 02 Nov 26 dm  S.96 M6: K_MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
@@ -224,12 +225,15 @@
    number: append a record to the audit trail.  57 is free here because the
    parity audit moved this tree's own 57-59 to 90-92 for exactly this key.    */
 #define K_AUDIT              57
-/* 14 Sep 26 dm - W.4 SCRAM phase 3.  The Windows port's K_SET_USERNAME and
-   K_ASSUME_USER, at the port's numbers: after APISRVR's SCRAM proof succeeds,
-   set the session user name and become that user.  Both $internal only; see
-   op_kernel.c.  GPL.BP/INT$KEYS.H carries the same two numbers.             */
+/* 14 Sep 26 dm - W.4 SCRAM phase 3.  The Windows port's K_SET_USERNAME, at
+   the port's number: after APISRVR's SCRAM proof succeeds, set the session
+   user name.  $internal only; see op_kernel.c.  GPL.BP/INT$KEYS.H carries the
+   same number.                                                              */
 #define K_SET_USERNAME       60
-#define K_ASSUME_USER        61
+/* 61 is SD Core's K_ASSUME_USER (become the authenticated user).  Solo had it as
+   a no-op with no caller (there is no one to become: the API server already runs
+   as the one Linux user); removed 17 Nov 26 (S.62 P-1322, owner: "REMOVE the
+   definitions and RETIRE the numbers (never reused)").  61 is never reused in Solo. */
 /* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: the LOGIN itself must be
    sdsys.  kernel(K$LOGIN.UID, 'user') answers 1 when the kernel's audit
    loginuid - set once by PAM at login, inherited by every descendant,

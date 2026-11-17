@@ -31,6 +31,7 @@
 *               the key row, View > Switch box, the AI line offered the box switch as well as refresh, the Provider menu's labels and mnemonics
 *               (Select this provider, Clear key, Drop custom provider, CA file, Limit), the page opening with no message, the body cleared from
 *               the frame's first body row, and the second "What this means" sentence in SD Core's shorter words.  The one account's own words stay.
+* 17 Nov 26 dm  S.62 (P-4666): the setup box no longer raises ctx<TK.C.GEN> a second time after after.box has raised it (SD Core's shape).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -758,9 +759,7 @@ do.setup:
    repeat
    kv = ''
    screen hide sf
-   gosub after.box
-   gen += 1
-   ctx<TK.C.GEN> = gen
+   gosub after.box                                             ;* 17 Nov 26 S.62 (P-4666): after.box raises ctx<TK.C.GEN>; the second raise here is gone, as in SD Core
    if su.done then
       msg = (if key.done then 'The key for ' : nm.s : ' is set' else 'The key is unchanged')
       if mv # cur then                                         ;* cur is the model in use (the one set, else the default)

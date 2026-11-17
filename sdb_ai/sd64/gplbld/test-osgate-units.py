@@ -181,8 +181,10 @@ def checks(srcs, messages_dir):
        and "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')" in pia)
     ck("C6 a '..' tail that cannot be resolved is refused, and so is an account rooted at /",
        'strcmp(p + 1, "..") == 0' in rgp and "root_len == 1" in rgp)
-    ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment",
-       re.search(r"bool os_path_ok_for_account\(const char \*name\) \{\s*if \(os_gate_open\(\)\)\s*return TRUE;\s*return path_inside_dir\(NULL, name\);", sh))
+    # 17 Nov 26 (S.62): NETDIRS is asked last, after containment (test-netdirs-units.py holds what it does)
+    ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment, then (17 Nov 26) NETDIRS",
+       re.search(r"bool os_path_ok_for_account\(const char \*name\) \{\s*if \(os_gate_open\(\)\)\s*return TRUE;\s*if \(path_inside_dir\(NULL, name\)\)\s*return TRUE;\s*"
+                 r"return path_in_netdirs\(name\);", sh))
     ck("C8 os_path_open_ok: an $internal program is trusted, anyone else is asked",
        re.search(r"bool os_path_open_ok\(const char \*name\) \{\s*if \(process\.program\.flags & HDR_INTERNAL\)\s*return TRUE;\s*"
                  r"return os_path_ok_for_account\(name\);", sh))
@@ -517,7 +519,7 @@ MUTANTS = [
     ("sh() takes the stack before it refuses", "C1", swap("op_sh.c", "if (!os_permitted())\n    k_error(sysmsg(10054), process.username);", "k_get_string(descr);")),
     ("os_gate_open() trusts an $internal program", "C4", sub("op_sh.c", "return (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC)) != 0;", "return (process.program.flags & HDR_INTERNAL) || (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC)) != 0;")),
     ("containment compares without a component boundary", "C5", sub("op_sh.c", "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')", "1")),
-    ("os_path_ok_for_account always says yes", "C7", sub("op_sh.c", "  return path_inside_dir(NULL, name);", "  return TRUE;")),
+    ("os_path_ok_for_account always says yes", "C7", sub("op_sh.c", "  if (path_inside_dir(NULL, name))\n    return TRUE;", "  return TRUE;")),
     ("OPENSEQ asks after the port test", "C9", swap("op_seqio.c", "if (!os_path_open_ok(file_name)) {\n      process.status = ER_PERM;\n      goto exit_op_openseq;\n    }", "if (is_port(file_name)) /* Opening a port */")),
     ("OPENPATH is asked even for a VOC-named file (the wrong half of the test)", "C12", sub("op_dio1.c", "if (!map_name && !os_path_open_ok(pathname)) {", "if (map_name && !os_path_open_ok(pathname)) {")),
     ("kernel(K_SH) lets any caller set the flag", "C13", sub("op_kernel.c", "if (process.program.flags & HDR_INTERNAL) {\n          if (n > 0)\n            my_uptr->flags |= USR_SH;", "if (1) {\n          if (n > 0)\n            my_uptr->flags |= USR_SH;")),
@@ -545,7 +547,7 @@ MUTANTS = [
     ("!OSCOPY asks about the source, which is only read", "O10", sub("_oscopy", "end else if not(kernel(K$EDIT.OS.OK, target)) then", "end else if not(kernel(K$EDIT.OS.OK, source)) then")),
     ("!IOSCOPY does not ask about the target", "O11", sub("_ioscopy", "   if not(kernel(K$EDIT.OS.OK, target)) then", "   if 0 then")),
     ("the SH verb refuses after the metacharacter test", "B2", swap("cproc", "if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then\n      display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell\n      return\n   end\n",
-                                                                    "display sysmsg(5240, 2) ;* Error xx executing operating system command\n      return\n   end\n")),
+                                                                    "display sysmsg(5240, 2) ;* Error xx executing operating system command\n         return\n      end\n   end\n")),
     ("LOGIN loads the switches from the wrong field", "B3", sub("login", "upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES'", "upcase(trim(acc.rec<ACC$SH>)) = 'YES'")),
     ("a blank register field turns the switch ON (the null case)", "B3", sub("login", "upcase(trim(acc.rec<ACC$SH>)) = 'YES'", "upcase(trim(acc.rec<ACC$SH>)) # 'NO'")),
     ("the editors outside SD no longer need os", "B14", sub("edit", "if kernel(K$OS.EXEC, -1) then", "if 1 then")),

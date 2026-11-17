@@ -53,6 +53,9 @@
 *      change owner there; Solo has one user, so it converts such a file.)
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1955 to P-1958; owner, 17 Nov 26: "DO it"): the walk's messages take SD Core's numbers for the same texts -
+*               14989 -> 11030, 14990 -> 11031, 14991 -> 11032, 14992 -> 11034, 14994 -> 11037; the text of each is unchanged.
+*               14993 has no SD Core twin and stays.
 * 18 Oct 26 SD Core Solo for Linux (LSOLO 52): the rebuild carries the sequential id counter
 *           of WRITE ... CREATING.SEQKEY to the new file (the full product's 15 Oct change,
 *           SD Core for Linux 5315c65, merge base c0802d7).  Solo's own messages for this
@@ -174,7 +177,7 @@ $include err.h
 *   acc.path are set.  There is no owner to switch to (LINUX SOLO 1): this program
 *   runs as the user who owns the account.
 do.account.as.user:
-   crt sysmsg(14989, reg.name)    ;* Account %1
+   crt sysmsg(11030, reg.name)    ;* Account %1
    this.acct = acc.path
    this.is.sdsys = @false
    gosub do.account.at
@@ -197,7 +200,7 @@ fix.cat.names:
             if ospath(cat.dir : @ds : lc.name, OS$EXISTS) then
                * a warning, not a failure: both are kept, so nothing is lost and
                * nothing is wrong with the walk - the administrator deletes one
-               crt sysmsg(14991, cat.name, lc.name, cat.dir)   ;* %1 and %2 both exist in %3; left as they are
+               crt sysmsg(11032, cat.name, lc.name, cat.dir)   ;* %1 and %2 both exist in %3; left as they are
             end else
                if check.only then
                   cat.ren += 1
@@ -215,7 +218,7 @@ fix.cat.names:
       close cat.f
    end
    if cat.ren then
-      if check.only then crt sysmsg(14990, cat.ren, cat.dir) else crt sysmsg(14992, cat.ren, cat.dir)
+      if check.only then crt sysmsg(11031, cat.ren, cat.dir) else crt sysmsg(11034, cat.ren, cat.dir)
    end
    return
 
@@ -226,10 +229,10 @@ do.account.at:
    file.list = ''
    seen.real = ''                  ;* @fm: real paths already judged in THIS account (several F-records may name one file)
 * 07 Oct 26 - ON ERROR (the full product's first real install died with error 3001 on an
-*   open that ELSE does not catch): a VOC that cannot be opened is reported (14994) and
+*   open that ELSE does not catch): a VOC that cannot be opened is reported (11037) and
 *   counted, and the walk goes on.
    openpath this.acct:@ds:'voc' to acct.voc on error
-      crt sysmsg(14994, this.acct:@ds:'voc', status())   ;* Cannot open %1 (error %2); left as it is
+      crt sysmsg(11037, this.acct:@ds:'voc', status())   ;* Cannot open %1 (error %2); left as it is
       err.count += 1
       return
    end else return                 ;* no VOC at this path; nothing to do
@@ -325,7 +328,7 @@ convert.one:
       return
    end
    openpath one.path to old.fu on error
-      crt sysmsg(14994, one.path, status())   ;* Cannot open %1 (error %2); left as it is
+      crt sysmsg(11037, one.path, status())   ;* Cannot open %1 (error %2); left as it is
       err.count += 1
       return
    end else return    ;* not a file we can open; skip

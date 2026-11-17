@@ -18,6 +18,7 @@
   	  * 
   	  * 
 	  * START-HISTORY:
+	  * 17 Nov 26 dm S.62 P-1322: K$ASSUME.USER (61) removed (no caller in Solo, owner 17 Nov 26); the number is not reused.
 	  * 2 Nov 26 dm  DEFAULT.DEPTH 43 (was 42), with gplsrc/tio.h DEFAULT_DEPTH (owner: "Change to 43").
 	  * 27 Oct 26 dm S.87 batch 13: $define for OS$OPEN, as # no longer starts a directive.
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -153,9 +154,9 @@
 * 11 Sep 26 dm - PORT_ADOPTION 13.  The port's K$AUDIT, at the port's number.
 *   The caller passes what happened; C stamps who.  Must match gplsrc/keys.h.
       $define K$AUDIT           57       ;* Append a record to the audit trail
-      * 14 Sep 26 dm - the Windows port's two, at its numbers (W.4 SCRAM phase 3)
+      * 14 Sep 26 dm - the Windows port's number (W.4 SCRAM phase 3)
       $define K$SET.USERNAME    60       ;* Set the session user name ($internal)
-      $define K$ASSUME.USER     61       ;* Become the authenticated user ($internal)
+      * 61 is SD Core's K$ASSUME.USER - removed from Solo 17 Nov 26 (S.62 P-1322, no caller); never reused in Solo.  Must match gplsrc/keys.h.
 * 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: the login itself must be
 *   sdsys - "sudo -u sdsys sd" and "su - sdsys" arrive as the sdsys OS user
 *   on a local session, but the login that started them was somebody else's.

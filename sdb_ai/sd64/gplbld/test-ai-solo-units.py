@@ -228,6 +228,17 @@ def checks(s, run_print=True):
        ordered(hb, "hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'", "gosub drop.handover", "stop sysmsg(11610",
                "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "gosub drop.handover", "gosub check.key", "if not(key.found) then")
        and "capturing" not in hb and "drop.handover: os.execute \"rm -f '\" : hand.f : \"'\" return" in re.sub(r"\s+", " ", set_b), hb[:120])
+    # 17 Nov 26 (S.62): both key forms read the client's exit status BEFORE the listing, the audit line and 11615 - a client that failed while a key was
+    # stored earlier made SET.AI say the new key was set and audit it.  check.key stays as the second test.
+    tb = set_b[set_b.find("case sub = 'key' and n.words = 3"):set_b.find("case sub = 'custom' and n.words = 3")]
+    ck("S5b set.ai key p and p handover stop with 11608 when the client's exit status (os.error()) is not 0, before 'show', check.key, the audit line and 11615; "
+       "the hand-over file is dropped before that stop",
+       ordered(tb, "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "if os.error() # 0 then", "@system.return.code = -ER$FAILED",
+               "stop sysmsg(11608, 'nokey', 'the key was not set')", "qargs = \"'show'\"", "gosub check.key", "if not(key.found) then",
+               "'set.ai key set provider=' : prov", "sysmsg(11615, prov)")
+       and ordered(hb, "\"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "key.stat = os.error()", "gosub drop.handover", "if key.stat # 0 then",
+                   "@system.return.code = -ER$FAILED", "stop sysmsg(11608, 'nokey', 'the key was not set')", "qargs = \"'show'\"", "gosub check.key",
+                   "if not(key.found) then", "'set.ai key set provider=' : prov : ' from=page'", "sysmsg(11615, prov)"), tb[:120])
     ck("S7 set.ai models p lists through the client; set.ai model warns (14016, 14018) only after the model was set; run.ctl does not take a helper's refusal for an unreachable helper",
        "qargs = \"'models' '\" : prov : \"'\"" in set_b and ordered(set_b, "case sub = 'model' and n.words = 4", "gosub need.ok", "sysmsg(11613", "gosub list.models", "sysmsg(14016", "sysmsg(14018")
        and "trim(out<1>)[1, 7] # 'error: '" in set_b, "")
@@ -299,6 +310,10 @@ MUTANTS = [
     ("the gate word is not audited", "setai", "         void kernel(K$AUDIT, 'set.ai gate=' : gstate)\n", "", "S3"),
     # 11 Nov 26 (carried from SD Core S.170 / S.171)
     ("the hand-over file is kept", "setai", "drop.handover:\n   os.execute \"rm -f '\" : hand.f : \"'\"\n", "drop.handover:\n", "S6"),
+    ("the typed key's exit status is not read", "setai", "         if os.error() # 0 then\n", "         if 0 then\n", "S5b"),
+    ("the hand-over's exit status is not read", "setai", "         if key.stat # 0 then\n", "         if 0 then\n", "S5b"),
+    ("the hand-over's exit status is read after the file is dropped", "setai", "         key.stat = os.error()\n         gosub drop.handover\n",
+     "         gosub drop.handover\n         key.stat = os.error()\n", "S5b"),
     ("the hand-over is captured", "setai", "\"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "\"' < '\" : hand.f : \"' 2>&1\" capturing junk", "S6"),
     ("the model's warning is given before the model is set", "setai", "            gosub list.models\n            if ml.ok and ml.n > 0 then\n               gosub find.model",
      "            if ml.ok and ml.n > 0 then\n               gosub find.model", "S7"),

@@ -332,3 +332,24 @@ messages/6848
 #
 # LS2.0-0, 12 Nov 26 (S.221, parity audit finding 10): a message about the sdsys OS user, which Solo has not got; no program cites it (SD Core deleted it in d5aeaaf6).
 messages/10191
+#
+# LS2.0-0, 17 Nov 26 (S.62, the owner: "DO it, and mail Windows the mapping"): Solo's own numbers for texts SD Core carries under its own
+# numbers go back to SD Core's (14972 -> 11932, 14973 -> 11931, 14977 -> 11013, 14978 -> 11014, 14979 -> 11015, 14980 -> 11016,
+# 14981 -> 11017, 14982 -> 11022, 14983 -> 11023, 14985 -> 11024, 14987 -> 11026, 14989 -> 11030, 14990 -> 11031, 14991 -> 11032,
+# 14992 -> 11034, 14994 -> 11037); the Solo-numbered files go and their numbers are never reused.
+messages/14972
+messages/14973
+messages/14977
+messages/14978
+messages/14979
+messages/14980
+messages/14981
+messages/14982
+messages/14983
+messages/14985
+messages/14987
+messages/14989
+messages/14990
+messages/14991
+messages/14992
+messages/14994

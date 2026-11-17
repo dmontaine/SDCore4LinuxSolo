@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 (P-0505, P-0506): with no SDSYS in sd.conf the SDSYS directory is the Solo home (GetDefaultSysdir), as in Solo for Windows.
  * 11 Nov 26 dm  Solo carry S.216 gap 21 (SD Core S.186, the owner: US spelling in everything SD prints): "Unrecognized capability name".
  * 10 Sep 26 dm  Parity audit: buffers reset for every entry, and sdtic exits 1
  *               when any entry failed (the Windows port's fix; UPSTREAM_FIXES 9).
@@ -202,6 +203,7 @@ bool more;
 /* External routines */
 
 bool GetConfigPath(char* inipath);
+bool GetDefaultSysdir(char* buff, int buff_len);
 
 /* Internal routines */
 
@@ -284,6 +286,12 @@ int main(int argc, char* argv[]) {
 
     if (!read_config())
       goto abort;
+
+    /* 17 Nov 26 dm - S.62 (P-0505, P-0506): Solo's sd.conf names no SDSYS (LSOLO 3), so the home itself is the default
+       (inipath.c GetDefaultSysdir), as SD Core Solo for Windows' sdtic does.  Without it an installed sdtic run with no -p
+       always stopped here.  No home (a development run) still stops with the message. */
+    if ((sysdir[0] == '\0') && !GetDefaultSysdir(sysdir, sizeof(sysdir)))
+      sysdir[0] = '\0';
 
     if (sysdir[0] == '\0') {
       printf("Unable to locate SDSYS directory\n");

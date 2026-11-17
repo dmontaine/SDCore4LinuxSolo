@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 NETDIRS (carried from SD Core): netdirs_report() (op_sh.c), called by start_sd().
  * 11 Nov 26 dm  Solo carry S.216 gap 13 (SD Core S.88 phase 2 and its review): prototypes of show_unsafe_byte(), show_safe_text() and show_ts_safe() (op_lock.c),
  *               the one rule for showing another session's text; the two Core lines follow.
  * 28 Oct 26 dm  S.88 phase 2: the comment of the one rule names its new users (profiler.c, object.c hsm_dump(), op_kernel.c K_SHOW_SAFE).
@@ -468,6 +469,7 @@ bool os_gate_open(void);
 bool os_path_ok_for_account(const char * name);
 bool os_path_inside(const char * rootdir, const char * name);   /* 21 Oct 26, Solo carry 10: geometry only, for K_PATH_IN */
 bool os_path_open_ok(const char * name);
+void netdirs_report(void);   /* 17 Nov 26, S.62: NETDIRS judged at sd-solo -start, each entry it ignores named */
 /* 24 Oct 26, Solo carry 19: the OS-path routes to the VOC (SD Core's S.64 names, VOC only).  EDIT_VOC: no component of the path below the account's directory may name a VOC. */
 #define EDIT_NONE 0
 #define EDIT_VOC  1

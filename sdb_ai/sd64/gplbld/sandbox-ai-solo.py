@@ -312,6 +312,36 @@ def sec_setai():
     h.end()
     out = adm("set.ai")
     row("A8d the reading form shows the key as set and prints no key", has(out, r"key: set") and not any(KEY in l for l in out), repr(out[:8]))
+    # A8e / A8f (17 Nov 26, S.62): a client that FAILS for 'key' while a key is ALREADY set.  SD_AI_CTL points at a wrapper in the sandbox that exits 3 for
+    # 'key' and runs the real client for every other word (so 'show' still says "key: set").  SET.AI must read the client's exit status: the refusal 11608,
+    # no 11615, no 'set.ai key set' audit line, the key file unchanged.  A8c above is the control (the real client sets a key and all three appear).
+    wrap = os.path.join(box(), "ai", "ctl-failkey")
+    put(wrap, "#!/bin/sh\nif [ \"$1\" = key ]; then echo 'ctl-failkey: refused key' >&2; exit 3; fi\nexec '%s' \"$@\"\n" % os.path.join(HERE, "sd-ai-ctl"))
+    os.chmod(wrap, 0o700)
+    real_ctl = os.environ["SD_AI_CTL"]
+    before_key = open(kp, "rb").read() if os.path.exists(kp) else None
+    hand = os.path.join(sysdir(), "$aikey", "key")
+    try:
+        os.environ["SD_AI_CTL"] = wrap
+        a1 = audit_off()
+        out = adm("set.ai key anthropic")
+        new = audit_new(a1)
+        row("A8e with a key already set, a client that fails for 'key' (exit 3): SET.AI refuses (11608 nokey), does NOT say 11615, writes no 'set.ai key set' "
+            "audit line, and the key file is unchanged",
+            before_key is not None and msg(11608, "nokey", "the key was not set") in out and msg(11615, "anthropic") not in out
+            and "set.ai key set" not in new and open(kp, "rb").read() == before_key, repr((out[-4:], new[-160:])))
+        os.makedirs(os.path.dirname(hand), exist_ok=True)
+        put(hand, "hand-over-key-zz\n")
+        a1 = audit_off()
+        out = adm("set.ai key anthropic handover")
+        new = audit_new(a1)
+        row("A8f the same through the hand-over file: 11608, no 11615, no 'set.ai key set' line, the key file unchanged, and the hand-over file removed all the same",
+            msg(11608, "nokey", "the key was not set") in out and msg(11615, "anthropic") not in out and "set.ai key set" not in new
+            and open(kp, "rb").read() == before_key and not os.path.exists(hand), repr((out[-4:], new[-160:], os.path.exists(hand))))
+    finally:
+        os.environ["SD_AI_CTL"] = real_ctl
+        if os.path.exists(hand):
+            os.remove(hand)
     os.remove(kp)
 
 

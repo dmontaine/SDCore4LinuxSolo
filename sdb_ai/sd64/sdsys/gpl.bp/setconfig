@@ -8,6 +8,8 @@
 *               SD Core's program of the same name hands the write to its root helper (sd-elevate conf-set), because its sd.conf is root's file in /etc.  Solo has no
 *               root helper and its sd.conf is the user's own file in the Solo folder, so this program does the helper's part itself: the list and the ranges are read
 *               from config.table, the file is rewritten beside itself and renamed, the file as it was is kept as sd.conf.bak, and the result is read back.
+* 17 Nov 26 dm  S.62 (P-1884, P-1885; owner, 17 Nov 26: "DO it"): the usage and the name refusal take SD Core's numbers for the same texts,
+*               14973 -> 11931 and 14972 -> 11932; the text of each is unchanged.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -50,7 +52,7 @@ $include err.h
    end
 
    words = trim(@sentence)
-   if dcount(words, ' ') # 3 then stop sysmsg(14973)             ;* set.config parameter value
+   if dcount(words, ' ') # 3 then stop sysmsg(11931)             ;* set.config parameter value
 
    pname = upcase(field(words, ' ', 2))
    pval = field(words, ' ', 3)
@@ -61,7 +63,7 @@ $include err.h
    for i = 1 to len(pname)
       if index(good, pname[i, 1], 1) = 0 then ok = @false
    next i
-   if not(ok) then stop sysmsg(14972)                            ;* The parameter name has only letters and digits
+   if not(ok) then stop sysmsg(11932)                            ;* The parameter name has only letters and digits
    ok = (len(pval) >= 1 and len(pval) <= 7)
    for i = 1 to len(pval)
       if index('0123456789', pval[i, 1], 1) = 0 then ok = @false

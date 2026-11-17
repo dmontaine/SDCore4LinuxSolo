@@ -1,6 +1,118 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SET.AI KEY NO LONGER SAYS A KEY IS SET WHEN THE HELPER'S CLIENT FAILED.
+
+             What        - set.ai key <provider>, typed at the prompt or handed over by the AI page's setup dialog, now
+                           looks at how the helper's client ended.  If the client failed, set.ai stops with "The AI
+                           helper refused: nokey (the key was not set)", prints no "The key for <provider> is set" and
+                           writes no audit line.
+             Why         - set.ai judged the outcome only by asking the helper whether a key exists.  When a key from
+                           an earlier time was already stored and the client failed to store the new one, it said the
+                           key was set and audited it, although nothing had changed.  SD Core for Windows found this in
+                           its own product; SD Core for Linux and Solo had the same fault.
+             Does NOT    - Change what happens when the client succeeds, or how the key is kept.
+
+17 Nov 26  NETDIRS: DIRECTORIES OUTSIDE THE ACCOUNT THAT IT MAY STILL REACH WITHOUT THE OS SWITCH.
+
+             What        - a new sd.conf parameter, NETDIRS, lists directories separated by semicolons, for example
+                           NETDIRS=/srv/sales;/srv/shared.  While the account's OS switch is off (SET.OS.ACCESS), a
+                           session may then read and write files in those directories, and below them, by pathname -
+                           OPENSEQ, OPENPATH, OPENTEMP, DIR(), OSPATH, DIGEST of a file, DELETESEQ, a print file, a
+                           socket trace, and the system programs that ask the same question for you (the IDE, !IOSCOPY,
+                           IMPORT.DATA, CONVERT.DATA, the API) - exactly as it already may inside the account's own folder.  Nothing is listed as delivered: there is no
+                           NETDIRS line in sd.conf, and the account is then held to its own folder as before.  SD reads
+                           sd.conf when it starts, so a change takes effect the next time SD is started (sd-solo -stop,
+                           then sd-solo -start); each entry it ignores is named then in the error log and the system log.
+             Why         - data that lives in a folder outside the account could be reached only by turning the OS
+                           switch on, which opens the whole machine, as far as your Linux user reaches, to every
+                           session of the account.  NETDIRS opens named folders only.  The three other versions have, or
+                           gain on the same day, the same parameter.  FILLING IT IS A LOOSENING: every session of the
+                           account without the OS switch, on every route (terminal, ssh, phantom, API), can then read,
+                           change, create and delete files in the listed folders, as far as your Linux permissions allow.
+             Does NOT    - Change anything for the administrator or with the OS switch on, which reach every path
+                           already.  Give SH or OS.EXECUTE, or relax the VOC rule or what the AI line may send.  Accept an
+                           entry that is not an absolute path, is not an existing folder, is the root folder, or holds or
+                           lies inside the SD Core Solo folder (where sd.conf, the account, the passwords, the ssh server,
+                           the AI key and the tools live), the system directory, the folder of sd.conf, USRDIR, GRPDIR or
+                           a registered account's folder: such an entry is ignored.  Follow a link out of a listed folder
+                           to somewhere unlisted: names are resolved before they are compared, case counts, and
+                           /data/xkey is not inside /data/x.  Take a value longer than 191 characters: SD refuses to
+                           start, with "NETDIRS value is longer than 191 characters."  Show the list to programs:
+                           CONFIG('NETDIRS') does not read it.  Let set.config or tool.config change it: it is edited in
+                           sd.conf by hand.
+
+17 Nov 26  CNAME STORES A RENAMED FILE UNDER A LOWER-CASE NAME.
+
+             What        - CNAME old TO NEW writes the file's VOC entry under the new name in lower case, and refuses
+                           ("xx is already defined in your VOC") a new name that exists in any case, or that differs from
+                           the old name only in case.
+             Why         - every other name SD makes is lower case, so no file can exist in two casings; a rename that
+                           only changed the case wrote over the old entry and then deleted it, losing the file's only
+                           VOC entry.
+             Does NOT    - Rename anything on disk differently, or change renaming the records of a file.
+
+17 Nov 26  .S SAVES A NEW SENTENCE UNDER A LOWER-CASE NAME.
+
+             What        - a sentence or paragraph saved from the command stack with .S name takes a lower-case VOC id
+                           when the name is new; saving over an existing record keeps that record's id.
+             Why         - VOC ids are lower case everywhere else; .S kept the case it was typed in.
+             Does NOT    - Change what is saved, or the overwrite question.
+
+17 Nov 26  A DENIED VERB IS DENIED WHATEVER CASE ITS VOC RECORD NAMES ITS PROGRAM IN.
+
+             What        - the install's deny list (DENY.VERBS) denies a verb whose VOC record runs the same program as a
+                           listed verb even when the two records spell the program name in different cases.
+             Why         - the comparison of the program names was case sensitive, so a verb made with an upper-case
+                           program name escaped the denial of the verb it copied; SD Core Solo for Windows folds the case.
+             Does NOT    - Deny anything that runs a different program, or change ADMIN, OFF, QUIT and LO, which are never
+                           denied.
+
+17 Nov 26  A PHANTOM THAT CANNOT START SAYS WHY IN THE ERROR LOG.
+
+             What        - when a PHANTOM's new process cannot run bin/sd-solo (or the path is too long), the error log
+                           says "phantom: cannot start a phantom ..." with the reason.
+             Why         - the phantom vanished without a word: the process has no terminal of its own.
+             Does NOT    - Change how a phantom starts or what PHANTOM returns.
+
+17 Nov 26  THE HOME SCREEN SHOWS NO TILE FOR A PAGE THE ACCOUNT CANNOT RUN.
+
+             What        - a tile for one of SD's own pages (a tool.* command) is left off the home screen when that
+                           command is not in the account's VOC; it appears once the command is there.
+             Why         - a tile must never offer a command the account cannot run.  Every page Solo ships today is in
+                           its VOC, so a current install shows the same tiles as before.
+             Does NOT    - Ask anything of a pinned tile, whose sentence may start with a catalogued program.
+
+17 Nov 26  SETTINGS.REPORT SAYS WHEN IT CANNOT TELL WHETHER THE COMPUTER IS MANAGED.
+
+             What        - the [mode] section says "unknown (the credential register could not be read, status N)" when
+                           the register of passwords cannot be opened.
+             Why         - it said "not managed (no global password)", a statement it had no ground for.
+             Does NOT    - Change the report when the register can be read.
+
+17 Nov 26  SDTIC FINDS THE SOLO FOLDER WITHOUT BEING TOLD.
+
+             What        - sdtic, the terminfo compiler, uses the Solo folder as the system directory when sd.conf names
+                           none, which Solo's sd.conf never does.
+             Why         - run without -p it always stopped with "Unable to locate SDSYS directory".
+             Does NOT    - Change sdtic when -p or SDSYS= is given.
+
+17 Nov 26  SMALL CORRECTIONS OF WORDING.
+
+             What        - the API's refusal in the system log says "cannot derive the TLS directory beside <sd.conf>";
+                           the configuration page's SORTWORK line says a missing or unset directory falls back to TEMPDIR;
+                           the sample installer answer file says the passwords are kept with reloaded data.
+             Why         - each said something the product does not do.
+             Does NOT    - Change any behaviour.
+
+17 Nov 26  MESSAGES TAKE SD CORE'S NUMBERS.
+
+             What        - sixteen messages of the backup, configuration and lower-case upgrade programs now carry the
+                           numbers SD Core gives the same texts (for example 14977 is now 11013); two unprinted messages,
+                           10174 and 11923, carry SD Core's current texts.
+             Why         - a message number now means the same text in both Linux products.
+             Does NOT    - Change the wording of any message a Solo program prints.
+
 17 Nov 26  THE API ENTERS AN ACCOUNT BY ITS REGISTERED NAME ONLY.
 
              What        - an API client's SDLogto (and the account its login enters) must name the account as it is

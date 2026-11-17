@@ -8,6 +8,8 @@
 *              Core for Windows by mail, 2026-10-02T2000 and T2030).  LINUX SOLO ONLY:
 *              the full product has its own file of this name (it needs a root step
 *              for /etc/sd.conf), and so has the Windows port.
+* 17 Nov 26 dm S.62 (owner, 17 Nov 26: "DO it"): the messages take SD Core's numbers for the same texts - 14985 -> 11024,
+*              14987 -> 11026; the text of each is unchanged.  14986 and 14988 have no SD Core twin and stay.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -79,7 +81,7 @@ $include int$keys.h
             return
          end
          if index(conf, "'", 1) then
-            err = 14987:@vm:conf:' has a single quote in its name'
+            err = 11026:@vm:conf:' has a single quote in its name'
             return
          end
 
@@ -88,7 +90,7 @@ $include int$keys.h
             out = ''
             os.execute "mkdir -p -m 0700 '":d:"' 2>&1" capturing out
             if not(ospath(d, OS$EXISTS)) then
-               err = 14985:@vm:d:@vm:convert(@fm, ' ', out)
+               err = 11024:@vm:d:@vm:convert(@fm, ' ', out)
                return
             end
          end
@@ -132,14 +134,14 @@ $include int$keys.h
             close f
          end
          if stat # 0 or n # 1 or last # d then
-            err = 14987:@vm:convert(@fm, ' ', out):' (the file holds ':n:' BACKUPDIR line(s))'
+            err = 11026:@vm:convert(@fm, ' ', out):' (the file holds ':n:' BACKUPDIR line(s))'
             return
          end
          dir = d
          return
 
       case 1
-         err = 14987:@vm:'unknown mode ':mode
+         err = 11026:@vm:'unknown mode ':mode
          return
    end case
 
@@ -156,7 +158,7 @@ read.conf:
       repeat
       close f
    end else
-      err = 14987:@vm:conf:' cannot be read (status ':status():')'
+      err = 11026:@vm:conf:' cannot be read (status ':status():')'
    end
    return
 

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1322: the K_ASSUME_USER (61) case removed - a no-op with no caller (owner, 17 Nov 26); 61 is never reused in Solo.
+ * 17 Nov 26 dm  S.62 CARRY-phantom (SD Core's P-4608): a phantom child whose exec of bin/sd-solo fails (or whose path is too long) writes why to the error log.
  * 17 Nov 26 dm  S.62 P-1322: comment only - K_ASSUME_USER's note said APISRVR calls it; it does not.
  * 15 Nov 26 dm  K_XFER (173), the file transfer slot and server (sd_sftp.c k_xfer()); carried from SD Core's S.242.
  * 14 Nov 26 dm  Carried from SD Core (S.241): a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
@@ -437,47 +439,9 @@ void op_kernel() {
       k_put_c_string(process.username, &result);
       break;
 
-    /* 14 Sep 26 dm - W.4 SCRAM phase 3.  BECOME THE AUTHENTICATED USER - the
-       port's K_ASSUME_USER, whose Windows body is an S4U logon.  HERE THE API
-       SERVER IS A ROOT PROCESS (sdclient@.service, sd -n -q) AND BECOMING THE
-       USER IS WHAT login_user's PASSWORD PATH ALREADY DOES: initgroups, then
-       setgid, then setuid, in that order, while still root (linuxio.c,
-       S.15).  No password is involved - SCRAM never gives the server one.
-
-       IT ANSWERS 1 OR 0 AND 0 MUST BE FATAL TO THE CALLER: a session that
-       carries on believing it is the user while still root is worse than one
-       that never started.  APISRVR refuses the login on 0.
-
-       $internal ONLY, like K_SET_USERNAME, so an ordinary BASIC program cannot
-       ask to become somebody else.  AND NEVER uid 0: no SCRAM login may end
-       as root, whatever the register holds.  The drop is checked by reading
-       the uids back, not assumed from the calls' return codes.  No way back
-       to root is offered.                                                   */
-    /* 29 Sep 26 SD Core Solo for Linux (LSOLO 4) - THERE IS NO ONE TO BECOME.
-       The paragraph above describes the multi-user server, a root process
-       that took an OS user's identity after SCRAM.  In Solo the API server
-       already runs as the one Linux user who owns the tree, and the account
-       an API client proves itself as (sduser) is not an OS user, so nothing
-       is switched.  The call is kept because key 61 is shared with the other
-       ports.  (17 Nov 26 dm - S.62 P-1322: Solo's APISRVR does NOT call it
-       (apisrvr, LSOLO 6: "NO K$ASSUME.USER") and nothing else does; whether
-       the case goes is the owner's.)  It answers 1 for an $internal caller with
-       a well-formed name and 0 otherwise - NEVER 1 while the process is root,
-       so a root API server (which main() already refuses) could not pass
-       itself off as having dropped anything.  It changes no uid, no gid and
-       no group.                                                            */
-    case K_ASSUME_USER:
-      {
-        char uname[MAX_USERNAME_LEN + 1];
-
-        result.data.value = 0;
-        if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
-            (process.program.flags & HDR_INTERNAL) &&
-            (geteuid() != 0)) {
-          result.data.value = 1;
-        }
-      }
-      break;
+    /* 17 Nov 26 dm - S.62 P-1322: key 61, SD Core's K_ASSUME_USER, is gone from Solo (owner, 17 Nov 26: "REMOVE the
+       definitions and RETIRE the numbers (never reused)").  Here it was a no-op with no caller: Solo's API server already
+       runs as the one Linux user, so there is no one to become (apisrvr, LSOLO 6).  An unknown key is refused below. */
 
     /* 03 Oct 26 SD Core Solo for Linux (LSOLO 30) - key 65, K_LOGIN_UID (does the
        kernel's audit loginuid belong to the named user?), is gone: its one caller
@@ -1498,14 +1462,22 @@ void op_phantom() {
     release_pipe_fds(); /* 14 Nov 26 S.241: a session run through a pipe must not hand that pipe to its phantom */
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/" SD_SERVER_NAME, sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
-      /* TODO: this should also be logged with more detail */
       /* 16 Oct 26 (openQM 280): this is the CHILD.  It used to report the error and go on through the rest of the function as
          a second copy of the program that called PHANTOM, with the user cell reserved for a phantom that never started. */
+      /* 17 Nov 26 dm - S.62 CARRY-phantom (SD Core's P-4608): said in the error log (the child has no terminal of its own). */
+      log_message("phantom: cannot start a phantom - the path of bin/" SD_SERVER_NAME " is too long");
       _exit(1);
     }
     sprintf(option, "-p%d", phantom_user_index);
     execle(path, path, option, (char *)NULL, child_env); /* 12 Nov 26 F10 (S.221): with the environment made above */
-    _exit(1); /* execle() only returns when it failed: the same */
+    /* execle() only returns when it failed.  17 Nov 26 dm - S.62 CARRY-phantom (SD Core's P-4608): the failure goes to the
+       error log, as the Windows port reports it, rather than the phantom vanishing without a word. */
+    {
+      char phantom_msg[MAX_PATHNAME_LEN + 128];
+      snprintf(phantom_msg, sizeof(phantom_msg), "phantom: cannot start a phantom from %s - %s", path, strerror(errno));
+      log_message(phantom_msg);
+    }
+    _exit(1);
   } else if (cpid == -1) { /* Error */
     *(UMap(uptr->uid)) = 0;
     uptr->uid = 0; /* Release reserved user cell */

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 CARRY-cname (Core P-4641): a renamed file's new name is stored lower case, and a name that exists in any case is refused (6151).
 * 28 Oct 26 dm  S.87: multifiles are gone.  The refusal "Renaming of multifiles is not supported" (6148) goes, and the parser key PARSER$MFILE is now PARSER$GET.TOKEN, so old,new always splits at the comma.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
 *               dictionary read folds case, as typed then lower then upper.
@@ -132,9 +133,23 @@ rename.file:
       stop sysmsg(6150, old.file.name) ;* VOC entry for 'xx' is not a file description
    end
 
-   readvu s from voc.f, new.file.name, 0 then
+* 17 Nov 26 dm - S.62 CARRY-cname (SD Core for Linux P-4641; the Windows port's RELEASE_1.1 5).  THE NEW NAME IS LOWER CASE,
+*   AND IS REFUSED IF IT EXISTS IN ANY CASE (no file can exist in two casings).  A new name that folds to the old one is
+*   refused too: the write below would land on the old record and the delete after it would remove the only copy.  The VOC
+*   folds case itself (NOCASE), so the three spellings are tested as well for a VOC that does not.
+   new.typed = new.file.name
+   new.file.name = downcase(new.typed)
+
+   if new.file.name = downcase(old.file.name) then
       stop sysmsg(6151, new.file.name) ;* xx is already defined in your VOC
    end
+
+   clash.ids = new.typed : @fm : new.file.name : @fm : upcase(new.typed)
+   for clash.i = 1 to 3
+      readvu s from voc.f, clash.ids<clash.i>, 0 then
+         stop sysmsg(6151, clash.ids<clash.i>) ;* xx is already defined in your VOC
+      end
+   next clash.i
 
    if type = 'Q' then
       display sysmsg(6152) ;* This is a Q-pointer. The operating system files will not be renamed.

@@ -21,7 +21,7 @@ The 12 conversion codes the docs' examples use most (field 3 of a dictionary ite
 - `XE` - Encrypted value — XE
 
 ### core:dict-types
-> kind=core.digest tier=core since=- src=docs:User/markdown/33-sd-dicts-structure.md:35#9b6b4980
+> kind=core.digest tier=core since=- src=docs:User/markdown/33-sd-dicts-structure.md:34#9b6b4980
 
 The dictionary item types (field 1 starts with the letter). Each type is the chunk `dict:type:<T>`.
 
@@ -114,7 +114,7 @@ The VOC record types (field 1, character 1, is the type). Each type is the chunk
 | `D` | descriptor | a data descriptor, which is what dictionary records are |
 
 ### core:walls
-> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:162#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:182#ef1e8155
+> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:168#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:187#ef1e8155
 
 Solo has ONE account, `sduser`, and no gate words. Its switches are each OFF as delivered and turned on by the administrator, after `admin`, with a verb of its own: the shell (`sh`, `!`) and OS access (`os.execute`, a path outside the account, the embedded Python and the editors that run outside SD) with `set.os.access`; another SD server opening this account's files with `set.net.access`; file transfer (`receive`, `send`) with `set.xfer.access`; scheduled jobs with `set.jobs.access`; the AI with `set.ai gate`; and the MCP door with `set.mcp` (its write tool with `set.mcp write`). What limits a session is below, quoted from Solo's own pages (`GettingStarted/markdown/12-security.md`, `GettingStarted/markdown/06b-operating-system-access.md`).
 
@@ -137,6 +137,7 @@ you**, or `root`, from reading or changing the files directly.
 | Administrator commands | refused until `admin`. The eight that had no check of their own — `CONFIG`, `LISTU`, `LIST.LOCKS`, `LIST.READU`, `LOCK`, `CLEAR.LOCKS`, `SET.DATE`, `CLEAN.ACCOUNT` — are gated too. See Administrator commands |
 | The VOC | direct edits need `admin`; the global catalog is changed by nobody in a session |
 | The shell and OS access | refused until the administrator turns the `sh` or `os` switch on with `set.os.access`: off on a new install unless you answered yes when the installer asked, and kept as they were on an upgrade (off on one from LS1.1-3) — see Operating system access |
+| `NETDIRS` | a door in `sd.conf`, **no line as delivered**: folders outside the account, separated by semicolons, that a session with the `os` switch off may still read and write by pathname. Listing one is a loosening for every session of the account, on every route — see Configuration |
 | The NET gate | API request 29 (open an `account;file` file for a client) is refused until the administrator sets `NETFILES=2` in `sd.conf` and turns the gate on with `set.net.access on`: both off as delivered; and a VOC pointer that leads out of the account is refused unless the account has the `os` switch on — see API access |
 | File transfer | an sftp program on another computer can put text files into the account's file `xfer.in` and take them from `xfer.out`, over Solo's ssh (port 4251). **Off twice as delivered**: `XFER=1` in `sd.conf` (read when Solo starts) and `set.xfer.access on`. Opening it means a program that knows your Linux password can bring files into the account while you wait in `receive`; it sees only that one folder, only plain text, within the size limits (`XFERFILE`, `XFERSLOT`) and only while the transfer is open. **The SD account password is not asked of the sftp connection** (it has no terminal to give it): what stands in for it is that nothing moves unless your own session, which did give it, is waiting in `receive` or `send` at that moment — see *Moving Files In and Out* in the User documentation |
 | Scheduled jobs | SD's own jobs (`set.job`) run one of your SD commands on a systemd timer of yours. **Off as delivered**: `set.jobs.access on`, and off refuses every job at its next run. A job is made or changed only with the account password typed at that moment; it runs as a one-shot command does, signed in with the kept copy of the password, so it adds no way in that `sd-solo` itself does not already give — see Scheduled jobs |
@@ -169,6 +170,12 @@ to ask for the password. Turning a switch on is therefore not a small thing:
 whoever signs in to SD, at the keyboard, over ssh or through the API, can do
 what your Linux user can do.
 
+**One narrower door for files only.** With the `os` switch off, an `sd.conf` line
+`NETDIRS=/srv/sales;/srv/shared` lets the account read and write files in the folders it
+names, and below them, by pathname, without turning the switch on. None is listed as
+delivered, and listing one is a loosening for every session of the account. See
+Configuration.
+
 **A filter on the command, not on you**
 
 **`sh` refuses a command that contains a shell metacharacter or a line
@@ -185,8 +192,7 @@ Error 2 executing operating system command
 turned into two by accident — a record id or a variable pasted into it — and it
 is applied the same way to everyone. A plain command with arguments is fine:
 `sh ls -la`, `sh grep -c error /var/log/messages`. **A bare `sh`, with nothing
-after it, starts an interactive shell** (the filter is for a typed command; until
-7 November 2026 it refused an empty one too); `exit` brings you back to the SD
+after it, starts an interactive shell** (the filter is for a typed command); `exit` brings you back to the SD
 prompt. It needs the `sh` switch like any other `sh`.
 
 **`OS.EXECUTE` is not filtered**

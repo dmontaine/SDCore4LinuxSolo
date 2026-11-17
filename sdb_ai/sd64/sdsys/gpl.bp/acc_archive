@@ -12,6 +12,8 @@
 * 05 Oct 26 dm MANIFEST mode, for RESTORE.ACCOUNT LATEST (owner, 5 Oct 2026: the last
 *              backup that CONTAINS the account, found by looking).  A new mode of an
 *              agreed helper: SD Core for Windows is told in the same mail as the verb.
+* 17 Nov 26 dm S.62 (owner, 17 Nov 26: "DO it"): the messages take SD Core's numbers for the same texts - 14977 -> 11013,
+*              14979 -> 11015, 14980 -> 11016, 14981 -> 11017, 14982 -> 11022, 14983 -> 11023; the text of each is unchanged.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -31,7 +33,7 @@
 *    err      '' or the message number then its arguments (value marks).
 *
 *    Anything the archiver skipped (a symlink, a device) is named on the
-*    terminal (14983).  A path holding a single quote is refused (14977).
+*    terminal (11023).  A path holding a single quote is refused (11013).
 *
 * END-DESCRIPTION
 *
@@ -49,7 +51,7 @@ $include int$keys.h
    archiver = "python3 '":@sdsys:@ds:"bin":@ds:"sd-accarchive'"
 
    if index(zip.path:@sdsys, "'", 1) then
-      err = 14977:@vm:zip.path ;* contains a single quote
+      err = 11013:@vm:zip.path ;* contains a single quote
       return
    end
 
@@ -68,7 +70,7 @@ $include int$keys.h
 * ======================================================================
 create.archive:
    if ospath(zip.path, OS$EXISTS) then
-      err = 14980:@vm:zip.path  ;* already exists; a backup never overwrites
+      err = 11016:@vm:zip.path  ;* already exists; a backup never overwrites
       return
    end
 
@@ -79,7 +81,7 @@ create.archive:
       aname = entries<i,1>
       src = entries<i,2>
       if index(src:aname, "'", 1) then
-         err = 14977:@vm:src
+         err = 11013:@vm:src
          return
       end
       if aname[1,9] = 'accounts/' then
@@ -93,7 +95,7 @@ create.archive:
       end
    next i
    if manifest.src = '' or pairs = '' then
-      err = 14979:@vm:zip.path:@vm:'':@vm:'no manifest or no account to pack'
+      err = 11015:@vm:zip.path:@vm:'':@vm:'no manifest or no account to pack'
       return
    end
 
@@ -116,13 +118,13 @@ create.archive:
    nl = dcount(log.lines, @fm)
    for j = 1 to nl
       if log.lines<j>[1,8] = 'SKIPPED ' then
-         crt sysmsg(14983, log.lines<j>[9,999]) ;* Not in the backup: %1
+         crt sysmsg(11023, log.lines<j>[9,999]) ;* Not in the backup: %1
       end
    next j
 
    if stat # 0 then
       void ospath(zip.path, OS$DELETE)
-      err = 14979:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', log.lines)
+      err = 11015:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', log.lines)
       return
    end
 
@@ -144,7 +146,7 @@ create.archive:
       next j
       if not(found) then
          void ospath(zip.path, OS$DELETE)
-         err = 14982:@vm:aname ;* The archive tool did not report %1
+         err = 11022:@vm:aname ;* The archive tool did not report %1
          return
       end
    next i
@@ -154,14 +156,14 @@ create.archive:
 extract.archive:
    target = entries<1>
    if target = '' or index(target, "'", 1) then
-      err = 14977:@vm:target
+      err = 11013:@vm:target
       return
    end
    out = ''
    os.execute archiver:" extract '":zip.path:"' '":target:"' 2>&1" capturing out
    stat = os.error()
    if stat # 0 then
-      err = 14981:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      err = 11017:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
       return
    end
    n = dcount(out, @fm)
@@ -171,7 +173,7 @@ extract.archive:
          counts<-1> = field(line, ' ', 3):@vm:field(line, ' ', 4):@vm:field(line, ' ', 5):@vm:field(line, ' ', 2)
       end
    next j
-   if counts = '' then err = 14982:@vm:zip.path
+   if counts = '' then err = 11022:@vm:zip.path
    return
 
 * ======================================================================
@@ -180,11 +182,11 @@ manifest.archive:
    os.execute archiver:" manifest '":zip.path:"' 2>&1" capturing out
    stat = os.error()
    if stat # 0 then
-      err = 14981:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      err = 11017:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
       return
    end
    if out = '' then
-      err = 14982:@vm:zip.path
+      err = 11022:@vm:zip.path
       return
    end
    counts = out

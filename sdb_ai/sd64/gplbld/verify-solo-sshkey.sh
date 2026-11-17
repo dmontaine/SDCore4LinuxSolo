@@ -135,7 +135,7 @@ else
   leg "K3 ADD twice" "PRESENT, still one Solo line" 1 "field4='$(field "$o" 4)' lines=$(ours)"
 fi
 
-# ---- K4. four keys are allowed; the fifth is refused 14977 and nothing changes.
+# ---- K4. four keys are allowed; the fifth is refused (14976, the CAP reason) and nothing changes.
 for k in b c d; do api "$GLOBALPW" --sshkey "ADD=$(keyline $k)" >/dev/null; done
 before="$(sha256sum "$AK" | cut -d' ' -f1)"
 o="$(api "$GLOBALPW" --sshkey "ADD=$(keyline e)")"
@@ -143,7 +143,7 @@ after="$(sha256sum "$AK" | cut -d' ' -f1)"
 if [ "$(ours)" -eq 4 ] && printf '%s\n' "$o" | grep -qF "ssh-key ADD: REFUSED: $M43" && [ "$before" = "$after" ]; then
   leg "K4 the cap" "4 Solo lines, the fifth refused '$M43', file unchanged" 0 "refused"
 else
-  leg "K4 the cap" "4 Solo lines, the fifth refused 14977, file unchanged" 1 "lines=$(ours) $(printf '%s\n' "$o" | grep -E 'ssh-key' | head -1)"
+  leg "K4 the cap" "4 Solo lines, the fifth refused '$M43', file unchanged" 1 "lines=$(ours) $(printf '%s\n' "$o" | grep -E 'ssh-key' | head -1)"
 fi
 
 # ---- K5. LIST names all four.

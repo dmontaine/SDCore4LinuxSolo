@@ -700,7 +700,7 @@ that reads `V`, `K`, `F` and so on rather than the raw field 1.
 
 
 ### dict:type:D
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:43#b24c4128 src2=docs:User/markdown/33-sd-dicts-structure.md:55#66330705
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:42#b24c4128 src2=docs:User/markdown/33-sd-dicts-structure.md:54#66330705
 
 Dictionary record type `D` - direct: references a field number in the data record
 
@@ -789,7 +789,7 @@ separately. There is no association record.
 
 
 ### dict:type:E
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:44#83cbb345
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:43#83cbb345
 
 Dictionary record type `E` - element: like `D`, but field 2 is the **path** of an element of a **data collection** record instead of a field number — see SD TCL - Data Collection Files
 
@@ -798,7 +798,7 @@ Field 1 of the dictionary record starts with `E`.
 `E` is laid out like `D`, but field 2 is the path of an element of a data collection record instead of a field number: see dict:type:D and the collection files page.
 
 ### dict:type:I
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:45#3b9dad7c src2=docs:User/markdown/33-sd-dicts-structure.md:135#9cfd06ce
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:44#3b9dad7c src2=docs:User/markdown/33-sd-dicts-structure.md:134#9cfd06ce
 
 Dictionary record type `I` - indirect: an expression that returns a value — a virtual field
 
@@ -862,7 +862,7 @@ I-type record and is empty in a D-type record.
 
 
 ### dict:type:L
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:46#bf8273ae src2=docs:User/markdown/33-sd-dicts-structure.md:224#21a15621
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:45#bf8273ae src2=docs:User/markdown/33-sd-dicts-structure.md:223#21a15621
 
 Dictionary record type `L` - link: names another file and how to find the record in it, so that a query or an I-type can use its fields as `link%item`
 
@@ -936,7 +936,7 @@ message that names the link or the item.
 
 
 ### dict:type:PH
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:47#d160d751 src2=docs:User/markdown/33-sd-dicts-structure.md:212#42bb257f
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:46#d160d751 src2=docs:User/markdown/33-sd-dicts-structure.md:211#42bb257f
 
 Dictionary record type `PH` - phrase: a stored fragment substituted into a query command line
 
@@ -957,7 +957,7 @@ phrase is scoped to the file whose dictionary holds it.
 
 
 ### dict:type:X
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:48#7317ef26 src2=docs:User/markdown/33-sd-dicts-structure.md:289#f1c700c1
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:47#7317ef26 src2=docs:User/markdown/33-sd-dicts-structure.md:288#f1c700c1
 
 Dictionary record type `X` - text: miscellaneous data — not a field definition
 
@@ -972,7 +972,7 @@ in the dictionary.
 
 
 ### dict:types
-> kind=dict.types tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:35#9b6b4980
+> kind=dict.types tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:34#9b6b4980
 
 **The dictionary record types**
 
@@ -1042,7 +1042,7 @@ column heading defaults to the field name in upper case.
 
 
 ### dict:what
-> kind=dict.overview tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:19#4fb6bc8e
+> kind=dict.overview tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:18#4fb6bc8e
 
 **What a dictionary is**
 

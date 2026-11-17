@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-4440): [mode] says the credential register could not be read when $cred cannot be opened, not "not managed".
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 06 Oct 26 dm [mode] says "not managed (no global password)" where it said
 *              "standalone" (LSOLO 38: one install, no standalone mode).
@@ -62,6 +63,9 @@ $include int$keys.h
    openpath @sdsys:@ds:'$cred' to cred.f then
       read x from cred.f, '$global' then sec = 'managed (a global password is set)'
       close cred.f
+   end else
+*     17 Nov 26 dm - S.62 (P-4440): a register that cannot be opened says nothing about the mode; say so instead of "not managed".
+      sec = 'unknown (the credential register could not be read, status ':status():')'
    end
    hdr = '[mode]' ; gosub add.section
 

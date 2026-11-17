@@ -100,8 +100,9 @@ enable-linger=
 #   What to do when the install folder holds data that "deletesdsolo.sh --keep-data"
 #   left there (the account's files and sd.conf): yes = use them in the new
 #   install, no = move them aside to <folder>.kept-<time> (never deleted) and
-#   install clean.  Passwords are not kept, so the install still asks for (or is
-#   given) new ones.  Blank = ask on a terminal, and reload when there is none.
+#   install clean.  The passwords are kept with the data, so a reload asks for
+#   none; password files given with the reload replace the kept ones.  Blank = ask
+#   on a terminal, and reload when there is none.
 #   It does nothing when nothing was kept, so one file can serve many computers.
 #reload-data=yes
 

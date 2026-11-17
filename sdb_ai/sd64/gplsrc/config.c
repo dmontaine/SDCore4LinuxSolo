@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 NETDIRS (the owner's decision of 17 Nov, carried from SD Core): NETDIRS=dir;dir into pcfg.netdirs, empty by default, read at
+ *               sd-solo -start as every parameter; a value over MAX_NETDIRS_LEN (191), or a NETDIRS line too long for the 199-character line buffer,
+ *               is refused by name and never cut.
  * 17 Nov 26 dm  S.62 P-1221, P-1224 (Solo carry of SD Core's fix): SH=, SH1= and STARTUP= longer than their fields (80 characters) are refused by name; an unbounded strcpy overran struct PCFG / CONFIG.
  * 15 Nov 26 dm  XFER (delivered 0), XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX and XFERKIND, the file transfer parameters, per process,
  *               range-checked.  Solo carry of SD Core's S.242 (b9e63f17), as Core has them.
@@ -54,6 +57,7 @@
  *  GRPSIZE=n     Default group size when creating a dynamic file
  *  MAXIDLEN=63   Maximum record id len
  *  MUSTLOCK=1    Must hold update or file lock to write or delete record
+ *  NETDIRS=d;d   Directories outside its account a session without the OS switch may reach (none; 17 Nov 26, S.62)
  *  NETFILES=0    Allow remote files?
  *                  0x0001   Allow outgoing NFS
  *                  0x0002   Allow incoming Q_M_Net
@@ -123,6 +127,7 @@ struct CONFIG* read_config(char* errmsg) {
   int n;
   int numlocks_asked = 100; /* NUMLOCKS as written: cfg->numlocks is int16 and would wrap before it was checked */
   bool status = FALSE;
+  bool line_whole;   /* 17 Nov 26, S.62: the line fitted in rec (NETDIRS is refused when it did not) */
   int n2;
   int hi_user;
   struct stat statbuf;
@@ -166,6 +171,7 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.objmem = 0;                /* OBJMEM:   Max loaded object size */
   pcfg.netwait = 5;               /* NETWAIT:  Seconds to wait for a connection to a remote SDNet server (19 Oct 26, K8d; the plan's 5) */
   pcfg.netreply = 30;             /* NETREPLY: Seconds to wait for each reply of a remote SDNet server (the plan's 30) */
+  pcfg.netdirs[0] = '\0';         /* NETDIRS:  17 Nov 26, S.62: none - a session held to its account reaches nothing outside it */
   pcfg.pwdelay = 3;               /* PWDELAY:  Seconds after a failed network login.  SD's own 3 (openQM's is 5) */
   pcfg.sdclient_mode = 0;         /* SDCLIENT: Client capabilities */
   pcfg.reccache = 0;              /* RECCACHE: Record cache size */
@@ -228,8 +234,19 @@ struct CONFIG* read_config(char* errmsg) {
   }
 
   while (fgets(rec, 200, fu) != NULL) {
+    /* 17 Nov 26 dm - S.62, NETDIRS: was the whole line read?  fgets() stops at 199 characters and the rest of a longer line comes back as the
+       next record.  A line of exactly 199 has its newline still waiting, which is taken here, so only a longer line is "not whole".  Only
+       NETDIRS acts on it (refused by name below); every other parameter is read as it always was. */
+    line_whole = TRUE;
     if ((p = strchr(rec, '\n')) != NULL)
       *p = '\0';
+    else {
+      int c = getc(fu);
+      if ((c != EOF) && (c != '\n')) {
+        ungetc(c, fu);
+        line_whole = FALSE;
+      }
+    }
 
     if ((rec[0] == '#') || (rec[0] == '\0'))
       continue;
@@ -286,6 +303,16 @@ struct CONFIG* read_config(char* errmsg) {
         pcfg.maxrlock = n;
       else if (sscanf(rec, "MUSTLOCK=%d", &n) == 1)
         pcfg.must_lock = n != 0;
+      /* 17 Nov 26 dm - S.62, NETDIRS (carried from SD Core; Windows' parameter).  The text as written; op_sh.c splits it at ";", judges each
+         directory and asks it only for a session the OS switch holds to its account.  Too long is refused by name, as SH= is: a cut value
+         could end in a shorter directory, which would admit more than was written.  Read here, at sd-solo -start; a change needs a restart. */
+      else if (strncmp(rec, "NETDIRS=", 8) == 0) {
+        if (!line_whole || (strlen(rec + 8) > MAX_NETDIRS_LEN)) {
+          sprintf(errmsg, "NETDIRS value is longer than %d characters.", MAX_NETDIRS_LEN);
+          goto exit_read_config;
+        }
+        strcpy(pcfg.netdirs, rec + 8);
+      }
       else if (sscanf(rec, "NETFILES=%d", &n) == 1)
         cfg->netfiles |= n;
       else if (sscanf(rec, "NETWAIT=%d", &n) == 1)

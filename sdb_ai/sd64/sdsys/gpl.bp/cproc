@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (CARRY-dot-s, SD Core's P-4649, P-4642): .S saves a NEW sentence under a lower-case id; an existing record keeps its id.
+* 17 Nov 26 dm S.62 (P-4646, P-4644): the denied-verb check compares the program field (field 3) of the two VOC records folded to lower
+*           case, as SD Core Solo for Windows does, so a verb whose record names its program in another case is denied alike.
 * 17 Nov 26 dm S.62 (CARRY-f1, SD Core's P-1281): the F1 help at the command prompt leaves the key loop, so the prompt is drawn again
 *           (Windows RELEASE_1.1 108).  SD Core's LOGTO change of the same day is not carried: Solo has no LOGTO.
 * 13 Nov 26 dm A refused login exits with status 1 (it was 0), so a script or job can tell refused from done; SD Core's change of the same day,
@@ -1584,6 +1587,12 @@ stack.manipulation:
                end
             until upcase(s[1,1]) = "Y"
             repeat
+         end else
+* 17 Nov 26 dm - S.62 CARRY-dot-s (SD Core's P-4649 / P-4642; the Windows port's RELEASE_1.1 5).  A NEW saved sentence's id
+*   is lower case; an existing record (found in any case: the VOC folds case) keeps its id.  The lock the readvu left on the
+*   name as typed is given back.
+            release voc, arg1
+            arg1 = downcase(arg1)
          end
 
          voc.rec = if arg2 = arg3 then "S" else "PA"
@@ -3820,7 +3829,9 @@ check.denied.verb:
 *        one-verb list ever matched.
          locate dv.name in dv.rec<1> setting dv.pos then verb.denied = @true
          if not(verb.denied) then
-            dv.key = upcase(voc.rec<2>) : @vm : voc.rec<3> : @vm : voc.rec<4>
+* 17 Nov 26 dm - S.62 (P-4646, P-4644): field 3 (the program, or the internal number) is folded on both sides, as SD Core
+*   Solo for Windows does: a VOC record naming $QPROC and one naming $qproc run the same program, so they deny alike.
+            dv.key = upcase(voc.rec<2>) : @vm : downcase(voc.rec<3>) : @vm : voc.rec<4>
             dv.n = dcount(dv.rec, @fm)
             dv.i = 0
             loop
@@ -3830,7 +3841,7 @@ check.denied.verb:
 *              VOC ids are lower case here; the list holds upper-case names.
                read dv.other from voc, downcase(dv.rec<dv.i>) else dv.other = ''
                if upcase(dv.other<1>)[1,1] = 'V' then
-                  if upcase(dv.other<2>) : @vm : dv.other<3> : @vm : dv.other<4> = dv.key then
+                  if upcase(dv.other<2>) : @vm : downcase(dv.other<3>) : @vm : dv.other<4> = dv.key then
                      verb.denied = @true
                   end
                end

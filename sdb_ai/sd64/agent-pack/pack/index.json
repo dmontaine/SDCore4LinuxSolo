@@ -3911,7 +3911,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 1242
+"words": 1339
 },
 "dict:chaining": {
 "kind": "dict.conv",
@@ -5458,7 +5458,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 43
+"words": 54
 },
 "msg:10176": {
 "kind": "message",
@@ -5768,6 +5768,41 @@
 "tier": "reference",
 "words": 7
 },
+"msg:11013": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 19
+},
+"msg:11014": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
+"msg:11015": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 10
+},
+"msg:11016": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
+"msg:11017": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 8
+},
 "msg:1102": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -5775,12 +5810,19 @@
 "tier": "reference",
 "words": 5
 },
+"msg:11022": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
 "msg:11023": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 7
+"words": 10
 },
 "msg:11024": {
 "kind": "message",
@@ -5789,12 +5831,54 @@
 "tier": "reference",
 "words": 9
 },
+"msg:11026": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 10
+},
 "msg:1103": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
 "words": 8
+},
+"msg:11030": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 7
+},
+"msg:11031": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
+"msg:11032": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 26
+},
+"msg:11034": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:11037": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
 },
 "msg:11038": {
 "kind": "message",
@@ -11611,7 +11695,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 36
+"words": 118
 },
 "msg:11924": {
 "kind": "message",
@@ -11647,6 +11731,20 @@
 "since": "-",
 "tier": "reference",
 "words": 31
+},
+"msg:11931": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"msg:11932": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
 },
 "msg:11933": {
 "kind": "message",
@@ -14301,20 +14399,6 @@
 "tier": "reference",
 "words": 21
 },
-"msg:14972": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 21
-},
-"msg:14973": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
 "msg:14974": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -14336,68 +14420,12 @@
 "tier": "reference",
 "words": 12
 },
-"msg:14977": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 19
-},
-"msg:14978": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:14979": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
-},
-"msg:14980": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:14981": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 8
-},
-"msg:14982": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
-"msg:14983": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
-},
 "msg:14984": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
 "words": 21
-},
-"msg:14985": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 9
 },
 "msg:14986": {
 "kind": "message",
@@ -14406,13 +14434,6 @@
 "tier": "reference",
 "words": 11
 },
-"msg:14987": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
-},
 "msg:14988": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -14420,47 +14441,12 @@
 "tier": "reference",
 "words": 10
 },
-"msg:14989": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 7
-},
-"msg:14990": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 16
-},
-"msg:14991": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 26
-},
-"msg:14992": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
-},
 "msg:14993": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
 "words": 40
-},
-"msg:14994": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 16
 },
 "msg:1500": {
 "kind": "message",
@@ -25877,7 +25863,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1684
+"words": 1674
 },
 "sys:ikeys:lgn$": {
 "kind": "sys.keys",
@@ -26230,6 +26216,13 @@
 "words": 25
 },
 "sys:param:mustlock": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"sys:param:netdirs": {
 "kind": "sys.param",
 "part": "reference/system.md",
 "since": "-",
@@ -28829,7 +28822,7 @@
 "tcl:set.ai": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 121
 },
@@ -29706,7 +29699,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 79
+"words": 75
 },
 "voc:type:R": {
 "kind": "voc.type",
@@ -29741,7 +29734,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 243
+"words": 241
 }
 },
 "pack_format": 1
