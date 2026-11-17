@@ -280,8 +280,8 @@ def checks(s, run_print=True):
     ck("W3 the three Solo wordings: 14925 says the gate, 11609 names the gate word, 11625 names set.ai gate on",
        s["msgs"][14925] == "The AI gate is now %1\n" and "set.ai {gate on|off |" in s["msgs"][11609] and "set.ai gate on" in s["msgs"][11625] and "modify.account" not in s["msgs"][11625], "")
     ck("W4 no message of the block names a command word in capitals or a Linux group Solo does not make", not any(re.search(r"[A-Z]{3,}\.[A-Z]|sdaiusers|sdai\b", (s["msgs"][n] or "")) for n in MSGS), "")
-    ck("W5 the help records say the weakness in plain words and name the Solo document page", "any process you run can talk to it" in s["helptext/accounts"] and "24-the-ai-helper" in s["helptext/accounts"]
-       and "24-the-ai-helper" in s["helptext/providers"] and "sdai" not in s["helptext/providers"].replace("sdaiusers", "") and "sdaiusers" not in s["helptext/accounts"], "")
+    ck("W5 the help records say the weakness in plain words and name the Solo document page", "any process you run can talk to it" in s["helptext/accounts"] and "24a-setting-up-the-ai-helper" in s["helptext/accounts"]
+       and "24a-setting-up-the-ai-helper" in s["helptext/providers"] and "sdai" not in s["helptext/providers"].replace("sdaiusers", "") and "sdaiusers" not in s["helptext/accounts"], "")
     return rows
 
 
