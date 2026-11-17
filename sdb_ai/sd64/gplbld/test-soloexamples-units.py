@@ -10,8 +10,9 @@ and REMOVE.EXAMPLES, LOGTO into each account) is not Solo's: Solo has one accoun
   E2  gpl.bp/solo_examples is the installer's alone (K$INTERNAL before it opens anything), reads the account sduser from the register, has no LOGTO, writes
       its two temporary VOC entries BEFORE the first compile and deletes them AFTER the last, keeps programs it does not ship, judges every compile on the
       compiler's success line, and ends on the line the stage anchors on
-  E3  solo-stage.sh's EXAMPLES block is there once, before SYNC.GLOBAL.CATALOG and SOURCE-GONE, is run after a fresh account and again after a reload of
-      kept data, warns and goes on when solo_examples does not report 0 failed
+  E3  solo-stage.sh's EXAMPLES block is there once, before SYNC.GLOBAL.CATALOG and SOURCE-GONE, is run by a fresh stage AND BY AN UPGRADE (the call is at the
+      top level, outside the "not an upgrade" branch: the owner, 17 Nov 2026, "all four versions need to add examples.bp to every account during upgrade")
+      and again after a reload of kept data, warns and goes on when solo_examples does not report 0 failed
   E4  there is NO verb: no load.examples, remove.examples or solo_examples VOC record, and no loadexamples or removeexamples program
 It cannot say a program compiles or runs: the Solo sandbox (sandbox-fromtree.py all, then RUN gpl.bp solo_examples) did that on 17 Nov 2026.
 """
@@ -85,6 +86,16 @@ def checks(raw):
     cn = st.find("  convert_nocase\n")
     ck("E3c", "examples_step is called twice: after the fresh account, and again after a reload's convert_nocase",
        len(calls) == 2 and cn >= 0 and calls[1] > cn and calls[0] < st.find("Syncing the global catalogue"))
+    # 17 Nov 26 - the owner, in the Windows chat: "yes all four versions need to add examples.bp to every account during upgrade".  The first call is
+    # reached by a fresh stage AND by --upgrade only while it stays at the top level, after the end of the "not an upgrade" branch.
+    marker = 'fi   # end of "not an upgrade"'
+    mk = st.find(marker)
+    seg = st[mk + len(marker):calls[0]] if mk >= 0 and calls else ""
+    top_if = len(re.findall(r"^if ", seg, re.M))
+    top_fi = len(re.findall(r"^fi\b", seg, re.M))
+    line0 = st[st.rfind("\n", 0, calls[0]) + 1:st.find("\n", calls[0])] if calls else ""
+    ck("E3d", "AN UPGRADE GETS IT TOO: the first call is at the top level, after the end of the 'not an upgrade' branch and inside no if (%d opened, %d closed since)" % (top_if, top_fi),
+       st.count(marker) == 1 and calls and mk < calls[0] and line0 == "examples_step" and top_if == top_fi and top_if > 0, repr((mk, calls[:1], line0, top_if, top_fi)))
     ck("E4", "no verb: no load.examples, remove.examples or solo_examples record in voc_template or newvoc, no loadexamples or removeexamples program",
        all(v is None for v in raw["verbs"].values()) and all(v is None for v in raw["progs"].values()), repr([k for k, v in list(raw["verbs"].items()) + list(raw["progs"].items()) if v is not None]))
     return rows
@@ -111,6 +122,9 @@ MUTANTS = [
     ("the closing line changes", "E2e", sub("prog", "' failed'", "' fail'")),
     ("the stage block runs another program", "E3a", sub("stage", "sdi RUN gpl.bp solo_examples", "sdi RUN gpl.bp solo_account")),
     ("the stage fails the install on a bad examples run", "E3b", sub("stage", "    echo \"solo-stage: WARNING: the example programs were not put", "    fail \"the example programs were not put")),
+    ("the examples are put in on a fresh install only, not on an upgrade", "E3d",
+     lambda raw: dict(raw, stage=raw["stage"].replace("examples_step\n\n# Ruling 33", "\n# Ruling 33", 1).replace('fi   # end of "not an upgrade"', 'examples_step\nfi   # end of "not an upgrade"', 1))),
+    ("the examples call is put under an upgrade test", "E3d", sub("stage", "examples_step\n\n# Ruling 33", "if [ \"$upgrade\" -eq 0 ]; then\n  examples_step\nfi\n\n# Ruling 33")),
     ("no examples after a reload", "E3c", sub("stage", "  examples_step                                  #", "  :                                              #")),
     ("load.examples is given to the account", "E4", lambda raw: dict(raw, verbs=dict(raw["verbs"], **{os.path.join("newvoc", "load.examples"): "V\nCA\n$loadexamples\n"}))),
 ]
