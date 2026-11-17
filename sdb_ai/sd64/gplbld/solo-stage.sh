@@ -513,6 +513,26 @@ else
   echo "solo-stage: PDF reader: none allowed$([ -z "$viewer" ] || echo " (WARNING: $viewer was asked for and was not allowed; ADMIN, then set.viewer add pdf $viewer)")"
 fi
 
+# 17 Nov 26 (S.261; the owner: "just include examples.bp in the single account, no need to load or remove"): THE EXAMPLE PROGRAMS.  The account's file examples.bp holds
+#            the shipped programs of the examples directory, compiled; gpl.bp/solo_examples makes it from this session, as solo_account makes the account (Solo has no
+#            LOGTO and no verb for it).  An upgrade and a reload run it again: a shipped program is replaced, one the person added is kept.  A failure says so in a WARNING
+#            line and the stage goes on, as the context help does.  Before SOURCE-GONE, which takes the gpl.bp VOC entry this runs through.
+# EXAMPLES-BEGIN
+examples_step() {
+  echo
+  echo "Putting the example programs into the account ($SD -internal RUN gpl.bp solo_examples)"
+  ex_out="$(sdi RUN gpl.bp solo_examples 2>&1)" || true
+  ex_plain="$(printf '%s\n' "$ex_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  printf '%s\n' "$ex_plain" | tail -2
+  if printf '%s\n' "$ex_plain" | grep -qE '^solo_examples: examples\.bp ready: [0-9]+ new, [0-9]+ changed, [0-9]+ the same, compiled [0-9]+ of [0-9]+, 0 failed[[:space:]]*$'; then
+    echo "solo-stage: example programs: ready"
+  else
+    echo "solo-stage: WARNING: the example programs were not put into the account (solo_examples did not report 0 failed); ADMIN, then RUN gpl.bp solo_examples"
+  fi
+}
+# EXAMPLES-END
+examples_step
+
 # Ruling 33: the SD Core server's programs in GLOBAL.BP.OUT go into the global
 # catalogue, last, whether or not there is a global password (without one it says so and succeeds).
 echo
@@ -623,6 +643,7 @@ if [ -n "$reloaddir" ]; then
   printf '%s\n' "$ua_plain" | grep -qx '1 account(s) had their VOC updated from the shipped vocabulary.' \
     || fail "after the reload, UPDATE.ACCOUNTS ALL did not print '1 account(s) had their VOC updated ...'"
   convert_nocase
+  examples_step                                  # 17 Nov 26 (S.261): the kept account may be from a release with no examples.bp
   # 17 Nov 26 (S.247): the kept job definitions get their timers again (deletesdsolo.sh removed the units with the others).  A failure is said and the
   #            reload goes on: the definitions are kept, and set.job lists each job "not scheduled" until it is set again.
   # JOBS-RESTORE-BEGIN

@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  THE ACCOUNT HAS EXAMPLE PROGRAMS: THE FILE EXAMPLES.BP.
+
+             What        - the account sduser now has its own file examples.bp of example programs, already compiled, so
+                           "run examples.bp cs01.hello" works at once.  It holds the five programs of the SD Text User
+                           Interface - Programmer's Guide (hello, menus, notes, browse, stock) and 23 programs of a first
+                           course in programming, cs01.hello to cs23.bank: variables, decisions, loops, FizzBuzz, tables,
+                           subroutines, recursion, arrays, dynamic arrays, strings, word counts, primes, Euclid's
+                           algorithm, sorting, searching, a stack and a queue, files, a guessing game, dates and a small
+                           ledger.  The installer makes the file and compiles the programs, and an upgrade or a reload of
+                           kept data refreshes the shipped ones.  A program you add to examples.bp under another name is
+                           kept.
+             Why         - the owner: "there should be a examples.bp file available to all users that contains those
+                           programs and a set of training programs typical for a Computer Science 101 course", and for
+                           Solo "just include examples.bp in the single account, no need to load or remove".
+             Does NOT    - Add a command: SD Core for Linux has load.examples and remove.examples for its many accounts;
+                           Solo has one account and the installer does the work.  Open any access: examples.bp is an
+                           ordinary program file of your account.  Keep a change you make to a shipped program in
+                           examples.bp itself: an upgrade puts the shipped programs back, so copy one to bp to change it.
+
 17 Nov 26  SCHEDULED JOBS: SET.JOB, RUN.JOB, SET.JOBS.ACCESS AND THE TOOL.JOBS PAGE.
 
              What        - SD can now keep jobs of its own: SD commands of yours that run on a timer, unattended.
