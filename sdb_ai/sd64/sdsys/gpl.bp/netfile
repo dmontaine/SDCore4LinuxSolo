@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 18 Nov 26 dm  S.62, carried from SD Core for Linux: operation 1 is named analyze.file (the verb's one name since S.87), as the server's audit line.
 * 11 Nov 26 dm  Solo carry of SD Core's S.73 item 3 and D1 (ef9d5946, 7fd83ad3), the two entries below carried word for word, on the owner's decision of 11 Nov 26.  The wall on the SERVER is
 *               the server's own: a SD Core server's groups sdfileswrite and sdfilesadmin (11521 / 11524), a Solo server's global-password session (14964); the client cannot tell them apart and
 *               does not need to (the ON ERROR reply's text is shown).
@@ -1074,7 +1075,7 @@ act.admin:
    end
    opname = ''
    if opn >= 1 and opn <= 9 and opn # 7 and opn # 8 then
-      opname = field('analyse.file,configure.file,create.index,build.index,delete.index,disable.index,,create.file,delete.file', ',', opn)
+      opname = field('analyze.file,configure.file,create.index,build.index,delete.index,disable.index,,create.file,delete.file', ',', opn)
    end
    if opname = '' then
       txt = b ; gosub clean.text
