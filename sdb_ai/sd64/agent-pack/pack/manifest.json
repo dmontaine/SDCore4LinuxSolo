@@ -36,7 +36,7 @@
   },
   "core.digest": {
    "chunks": 5,
-   "sha256": "aefa39707b9ef8d3e1f26c13c2848ef3a5273473e2179c82d038b4dc6b7a96dc"
+   "sha256": "1c43dc2990b34d95a5e73b8f89bcc0dca03f647c90aa247c06b6ecd2dcc6d781"
   },
   "core.start": {
    "chunks": 1,
@@ -80,7 +80,7 @@
   },
   "message": {
    "chunks": 2992,
-   "sha256": "29ee3382087ed477823da9b06319becfd896b681758de31e80c615537b6d3e0a"
+   "sha256": "4eb4ad6f6eb84059fc9307391c67bb25ab8ce19848fcbb92435f4427cbcda901"
   },
   "sys.keys": {
    "chunks": 41,
@@ -100,7 +100,7 @@
   },
   "tcl.verb": {
    "chunks": 212,
-   "sha256": "d3fb26391be2b9174cba569c969de742f716a253e255c80d5490f07a81569a27"
+   "sha256": "54f7b41ae9a82e847f54828bd52ec70c52821e2ba945a6d278fc82412b1a426e"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -128,8 +128,8 @@
  "parts": {
   "core.md": {
    "chunks": 6,
-   "sha256": "6a74fad19ad051e80db511ddad404fd58b156d29b0d71a51c7966db30d0dee63",
-   "words": 2744
+   "sha256": "b2ffc200b6a7443933672071efc055be9262665a4e5fa07304283518c9826877",
+   "words": 2742
   },
   "examples/dictionary-items.md": {
    "chunks": 69,
@@ -142,7 +142,7 @@
    "words": 625
   },
   "index.json": {
-   "sha256": "d8a98afd2405fa91c8f3459a8a9138ed89bc3e24f175d0b5b67e6c37730ca301"
+   "sha256": "8b48640421e0886ead0c3de0ea0c20286700a7565d8183a017636d9b1b51270a"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -166,8 +166,8 @@
   },
   "reference/messages.md": {
    "chunks": 2992,
-   "sha256": "03830e3f2941be28e236532a3979f2d8687011f138c58e417e2b3d9b865b6b2b",
-   "words": 39149
+   "sha256": "5b95972fb43b17efd87ba591a83dbb5378d419649b4cd08468d7d743922a79bc",
+   "words": 39146
   },
   "reference/system-keys.md": {
    "chunks": 41,
@@ -186,8 +186,8 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 216,
-   "sha256": "ec5fe6d8984913508fa3bec60df7a341b821cb151c34b0e673e203cfb34e8225",
-   "words": 9918
+   "sha256": "d75df82fcbb2a8b1d51f7af7f3fcab03bb897b2f79b598db16333ec6db6cdf1c",
+   "words": 9916
   },
   "reference/voc.md": {
    "chunks": 12,

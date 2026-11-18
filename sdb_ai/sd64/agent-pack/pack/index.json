@@ -3897,7 +3897,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 274
+"words": 272
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -9119,7 +9119,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 34
+"words": 31
 },
 "msg:11515": {
 "kind": "message",
@@ -26892,7 +26892,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 45
+"words": 43
 },
 "tcl:config": {
 "kind": "tcl.verb",
