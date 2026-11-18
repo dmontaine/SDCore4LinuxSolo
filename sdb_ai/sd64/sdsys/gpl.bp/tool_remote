@@ -5,13 +5,15 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Nov 26 dm  S.62 P-6780: the unreachable sdsys login view is gone (do.sdsys, the view 6 cases of the list, its title and its explanation, sd.out), as in
+*               Windows Solo: Solo has no sdsys and no remote.sdsys, and nothing called it.  Behaviour unchanged.
 * 17 Nov 26 dm  S.62 P-4630 (Q9), carried from SD Core for Linux 10767826: confirm.and.run says 14172 (Making the change (a few seconds)...) on the status line before the command runs.
 * 17 Nov 26 dm  S.62 (P-4669, Q9, the owner's rule of 12 Nov 26, carried from SD Core for Linux): read.all says 14150 (Reading the settings (a few seconds)...) on
 *               the status line before the reports run, so the screen does not look frozen; the page's own message comes back after.
 * 11 Nov 26 dm  SOLO'S SHAPE (S.117; the owner, 11 Nov 2026: "Yes, that shape").  Four views, keys 1 to 4: doors, servers, connected, TLS.  The routes view and the sdsys
 *               login view are not offered (Solo has one account and no sdsys): their keys, menu entries and AI offers are gone, REMOTE.SDSYS is not on the list of
-*               commands and the accounts' routes are not read.  THEIR CODE BELOW (read.accounts, route.line, do.sdsys, the cases of views 2 and 6) IS LEFT IN PLACE
-*               AND UNREACHABLE, so that this file still merges with SD Core's.  Each door is off, local or open (Solo's REMOTE.API and REMOTE.SSH, over the user's
+*               commands and the accounts' routes are not read.  THEIR CODE BELOW (read.accounts, route.line, the case of view 2) IS LEFT IN PLACE
+*               AND UNREACHABLE, so that this file still merges with SD Core's (the sdsys login view's code went on 18 Nov 26, as in Windows Solo).  Each door is off, local or open (Solo's REMOTE.API and REMOTE.SSH, over the user's
 *               own systemd units: no firewall, no sudo); the two dialogs are one routine, do.door.
 * 02 Nov 26 dm  S.106: the authenticator code is removed (owner: password only for this release).  The sdsys login view reports whether sshd lets sdsys in; O opens it (REMOTE.SDSYS ON,
 *               after a box wanting the word OPEN) and F shuts it (OFF); R (recovery codes) and L (the code at the console) are gone.
@@ -44,7 +46,6 @@
 *                      CONNECT step shows the key the server presents and asks whether to trust it.
 *     4  connected     every session now, by the door it came through: the user number, the kind (user, api, sdnet, phantom), the login user, the account and where it came from.
 *     5  TLS           this machine's own TLS identity as SETTINGS.REPORT gives it: the certificate fields and the public-key hash another SD server pins.  Never the private key.
-*     6  sdsys login   REMOTE.SDSYS with no keyword: whether sshd lets sdsys in with its password.  O opens it and F shuts it, each after a box, O's wanting the word OPEN.
 *   Keys: Up, Down, PgUp, PgDn, Home, End; F5 reads again; F1 or ? or a click on the [?] explains the page; Ctrl-Q leaves.  A click on a row puts the cursor there.
 *
 *   WHAT IT RUNS.  Through the routines, each only after its box was answered Run (Cancel is what Enter chooses): REMOTE.API and REMOTE.SSH (to report, and to change after the box),
@@ -114,7 +115,7 @@ $include tk.h
    gosub lay.declare                                            ;* the panes; VR (the list rows on the screen) and DV (the explanation rows) come from them
    view = 1
    rowtxt = '' ; nrows = 0 ; hdr = ''
-   api.out = '' ; ssh.out = '' ; sd.out = ''
+   api.out = '' ; ssh.out = ''
    defs = '' ; nsrv = 0
    udata = '' ; nsess = 0
    unames = '' ; nu = 0
@@ -188,7 +189,7 @@ read.all:
    cmd = 'remote.ssh'
    gosub run.report
    ssh.out = rep
-   sd.out = ''                                                 ;* Solo: no sdsys login to report, and no accounts' routes to read (one account)
+   * Solo: no sdsys login to report, and no accounts' routes to read (one account)
    call !netdefs('READ', defs, nderr)
    if nderr # '' then defs = ''
    nsrv = dcount(defs, @fm)
@@ -294,11 +295,6 @@ build.rows:
             gosub session.line
             rowtxt<-1> = sline
          next i
-      case view = 6
-         hdr = 'What the machine says (REMOTE.SDSYS, with no keyword)'
-         for i = 1 to dcount(sd.out, @fm)
-            if trim(sd.out<i>) # '' then rowtxt<-1> = sd.out<i>
-         next i
       case 1
          hdr = 'The certificate and public-key lines of SETTINGS.REPORT [api]; the private key is never read'
          for i = 1 to dcount(tls.lines, @fm)
@@ -402,7 +398,6 @@ draw.all:
    if view = 3 then t.list = 'SDNet servers'
    if view = 4 then t.list = 'Connected now'
    if view = 5 then t.list = 'TLS identity of this machine'
-   if view = 6 then t.list = 'The sdsys login over ssh'
    screen box at lst.x,lst.y size lst.w,lst.h title t.list
    screen box at det.x,det.y size det.w,det.h title 'About this view'
    gosub draw.top
@@ -437,7 +432,7 @@ draw.list:
       s = ''
       if kk <= nrows then s = rowtxt<kk>
       rat = 'normal'
-      if kk = ci and kk <= nrows and view # 1 and view # 5 and view # 6 then rat = 'highlight'
+      if kk = ci and kk <= nrows and view # 1 and view # 5 then rat = 'highlight'
       screen text s[1, tw] at tx,lst.y + 1 + r attr rat width tw
    next r
    return
@@ -484,10 +479,6 @@ draw.detail:
             end case
          next k
          lines<-1> = k.user : ' user, ' : k.api : ' api, ' : k.sdnet : ' sdnet, ' : k.ph : ' phantom.'
-      case view = 6
-         lines<-1> = "sdsys may sign in over ssh only when the administrator opens that door, and then with its password alone. sdsys-arm says whether sshd lets sdsys in; it is shut as delivered."
-         lines<-1> = 'O opens the door (remote.sdsys on) after a box that wants the word open typed: nothing but the sdsys password then stands between the network and the administrator, so open it only on a machine whose password is long and used nowhere else.'
-         lines<-1> = "F shuts the door again (REMOTE.SDSYS OFF). The machine's sudo user can do the same from any shell: sudo /usr/local/sbin/sd-elevate sdsys-ssh on or off."
       case 1
          lines<-1> = 'The certificate the API presents, and the hash of its public key: that hash is what another SD server pins in its definition of this machine (SET.SERVER ... pin).'
          lines<-1> = 'Give the public-key hash to the administrator of the other machine by a way you trust. The certificate fingerprint changes when it is renewed; the public-key hash does not.'
@@ -710,22 +701,6 @@ do.door:
 do.ssh:
    door.verb = 'remote.ssh' ; door.name = 'The ssh door' ; door.what = 'the ssh server of SD' ; door.port = 4251
    gosub do.door
-   return
-
-* O and F on the sdsys login view (S.95 stage 1b, S.106).  The words are fixed here, never typed.  Both run through the routine after their box; O, which loosens, wants OPEN typed.
-do.sdsys:
-   typed = ''
-   el = ''
-   if nm = 'o' then
-      sent = 'remote.sdsys on'
-      typed = 'open'
-      el<-1> = "sshd is opened for the sdsys user: it can then sign in from other computers with its password, with no forwarding, straight into SD as the administrator."
-      el<-1> = 'Nothing but that password stands between the network and the administrator. Shut again with F.'
-   end else
-      sent = 'remote.sdsys off'
-      el<-1> = 'sshd is shut to sdsys: it can sign in only at this machine, as delivered.'
-   end
-   gosub confirm.and.run
    return
 
 * X: forget the server under the cursor

@@ -70,8 +70,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
-- **`clear.select`** {*list.no*}
-- **`compile.dict`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict data`** *file* {*i-type* …}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
+- **`compile.dict`** {**`dict`** | **`data`**} *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
 - **`copy from`** {**`dict`**} *src* {**`to`** {**`dict`**} *tgt*} {*id* …} {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
 - **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*} {**`server`** *server* {**`as`** *remote.name*}}
@@ -81,6 +80,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`delete.index`** *file* *field* … | **`all`**
 - **`display`** *text*
 - **`ed`** {**`dict`**} *file* {*id* … | **`creating.seqkey`**}
+- **`format`** {*file*} {*record*} {**`case`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`home`**  —  the home screen: tiles for the account's tools, a terminal and sign out
 - **`ide`** {*file* *record*}
@@ -114,7 +114,7 @@ The VOC record types (field 1, character 1, is the type). Each type is the chunk
 | `D` | descriptor | a data descriptor, which is what dictionary records are |
 
 ### core:walls
-> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:169#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:188#ef1e8155
+> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:172#bde23caa src5=docs:GettingStarted/markdown/06b-operating-system-access.md:193#ef1e8155
 
 Solo has ONE account, `sduser`, and no gate words. Its switches are each OFF as delivered and turned on by the administrator, after `admin`, with a verb of its own: the shell (`sh`, `!`) and OS access (`os.execute`, a path outside the account, the embedded Python and the editors that run outside SD) with `set.os.access`; another SD server opening this account's files with `set.net.access`; file transfer (`receive`, `send`) with `set.xfer.access`; scheduled jobs with `set.jobs.access`; the AI with `set.ai gate`; and the MCP door with `set.mcp` (its write tool with `set.mcp write`). What limits a session is below, quoted from Solo's own pages (`GettingStarted/markdown/12-security.md`, `GettingStarted/markdown/06b-operating-system-access.md`).
 
@@ -138,7 +138,7 @@ you**, or `root`, from reading or changing the files directly.
 | The VOC | direct edits need `admin`; the global catalog is changed by nobody in a session |
 | The shell and OS access | refused until the administrator turns the `sh` or `os` switch on with `set.os.access`: off on a new install unless you answered yes when the installer asked, and kept as they were on an upgrade — see Operating system access |
 | `NETDIRS` | a door in `sd.conf`, **no line as delivered**: folders outside the account, separated by semicolons, that a session with the `os` switch off may still read and write by pathname. Listing one is a loosening for every session of the account, on every route — see Configuration |
-| The NET gate | API request 29 (open an `account;file` file for a client) is refused until the administrator sets `NETFILES=2` in `sd.conf` and turns the gate on with `set.net.access on`: both off as delivered; and a VOC pointer that leads out of the account is refused unless the account has the `os` switch on — see API access |
+| The NET gate | **off as delivered**: `set.net.access on` is what lets the account open a file held on another SD server (a VOC pointer of type `N`, to a server the administrator has defined with `set.server`). Turning it on lets the account's programs read that server's files, and change them only where the server is defined as `write`. `NETFILES` in `sd.conf` (0 as delivered) must be 2 before an API client may open an `account;file` file here (request 29), and a VOC pointer that leads out of the account is refused unless the account has the `os` switch on — see Not in SD Core and API access |
 | File transfer | an sftp program on another computer can put text files into the account's file `xfer.in` and take them from `xfer.out`, over Solo's ssh (port 4251). **Off twice as delivered**: `XFER=1` in `sd.conf` (read when Solo starts) and `set.xfer.access on`. Opening it means a program that knows your Linux password can bring files into the account while you wait in `receive`; it sees only that one folder, only plain text, within the size limits (`XFERFILE`, `XFERSLOT`) and only while the transfer is open. **The SD account password is not asked of the sftp connection** (it has no terminal to give it): what stands in for it is that nothing moves unless your own session, which did give it, is waiting in `receive` or `send` at that moment — see *Moving Files In and Out* in the User documentation |
 | Scheduled jobs | SD's own jobs (`set.job`) run one of your SD commands on a systemd timer of yours. **Off as delivered**: `set.jobs.access on`, and off refuses every job at its next run. A job is made or changed only with the account password typed at that moment; it runs as a one-shot command does, signed in with the kept copy of the password, so it adds no way in that `sd-solo` itself does not already give — see Scheduled jobs |
 | The daemon | runs as you, never as root; SD refuses to start as root |
@@ -176,24 +176,26 @@ names, and below them, by pathname, without turning the switch on. None is liste
 delivered, and listing one is a loosening for every session of the account. See
 Configuration.
 
-**A filter on the command, not on you**
+**One rule about the shape of the command, for everybody**
 
-**`sh` refuses a command that contains a shell metacharacter or a line
-break** — `;` `|` `&` `$` `` ` `` `<` `>`:
+**The verb refuses a command that contains `;`, `|`, `&`, `$`, a backquote,
+`<`, `>` or a newline**, before anything runs:
 
 ```
 :sh echo alpha-beta | grep alpha
 Error 2 executing operating system command
-:sh echo hi; ls /somewhere
+:sh echo gamma > zzsh.txt
 Error 2 executing operating system command
 ```
 
-**That is a sanitizer, not a permission.** It stops a one-line command being
-turned into two by accident — a record id or a variable pasted into it — and it
-is applied the same way to everyone. A plain command with arguments is fine:
-`sh ls -la`, `sh grep -c error /var/log/messages`. **A bare `sh`, with nothing
-after it, starts an interactive shell** (the filter is for a typed command); `exit` brings you back to the SD
-prompt. It needs the `sh` switch like any other `sh`.
+That is a sanitizer on what a one-line command may look like — a safety
+measure against an accidental injection, not a permission — and it applies
+to everyone, the administrator included. **No pipe, no redirection, no chaining and no variable
+expansion is available from the prompt.** What an account that has the switch can do about that is
+the obvious thing: write the work into a script file and run the script
+(`sh ./nightly`). The script's own contents are not filtered. This is why
+turning `sh` on is a decision to give a person a shell on the computer, not a
+decision to give them a restricted one.
 
 **`OS.EXECUTE` is not filtered**
 

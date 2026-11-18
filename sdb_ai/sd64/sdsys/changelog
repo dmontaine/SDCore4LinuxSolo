@@ -1,6 +1,39 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  EVERY AUDIT RECORD IS ALSO WRITTEN TO THE SYSTEM JOURNAL.
+
+             What        - each record SD writes to the audit trail (the audit file in the Solo folder) is also sent to
+                           the system journal, as "sd-audit <the record>", under the name sd_Log, at the authpriv
+                           facility.  journalctl -t sd_Log | grep sd-audit lists them; journalctl -t sd_Log -o verbose
+                           shows, for each, the user id and process id the journal itself recorded for the sender.
+             Why         - the audit file belongs to you, so any program you run (or a client signed in as you) could
+                           change or truncate it; the journal is kept by the system and cannot be rewritten by your
+                           programs, so it is the copy to compare the file with.  SD Core for Linux does the same.
+             Does NOT    - Change the audit file, its lines or its rotation; stop anything when the journal cannot be
+                           reached (the copy is simply not made); or send anything off the computer.
+
+18 Nov 26  SET.FILE MAKES A NEW POINTER UNDER A LOWER-CASE NAME.
+
+             What        - when SET.FILE writes a new Q-pointer in the VOC, its name is lower case: the default QFILE
+                           becomes qfile, and a name you type in capitals is written in lower case.
+             Why         - SD keeps every name in lower case so that no name exists in two spellings; a new QFILE was
+                           still written in capitals when the VOC had neither spelling.  SD Core for Linux does the
+                           same.
+             Does NOT    - Rename a pointer that is already in the VOC: an existing one is found and kept as it is.
+
+18 Nov 26  THREE ADMINISTRATOR COMMANDS SAY SO IN THE VOC, AND SOME TEXTS USE US SPELLING.
+
+             What        - the VOC descriptions of backup.account, restore.account and settings.report end
+                           "(administrator)", as set.backup.directory's does; the configuration page's text for
+                           SCREENTHEME says "color", for SDSYS "global catalog", for DUMPDIR what the shipped file does
+                           (it leaves DUMPDIR unset, and a process dump is written in the Solo folder); the help of the
+                           files page says "A analyzes the file".  The bootstrap's messages name voc_template in lower
+                           case.  The shipped sd.conf's opening comment says what it means for you, without project notes.
+             Why         - the three verbs need the administrator, and their descriptions no longer said so; the texts
+                           follow SD's US spelling and say what Solo does.
+             Does NOT    - Change what any command does; analyse.file keeps its name.
+
 17 Nov 26  SD-SOLO --VERSION NAMES ITS OWN COMMAND.
 
              What        - sd-solo --version prints "SD Core Solo for Linux (sd-solo) Version ...".

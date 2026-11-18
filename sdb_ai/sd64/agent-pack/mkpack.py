@@ -1158,7 +1158,7 @@ def core_chunks(ctx, voc, since, shapes, chunks_so_far):
         ds, do = DocSections(ctx, SEC), DocSections(ctx, OSA)
         h1, b1, l1 = ds.section(r"^The position in one paragraph")
         h2, b2, l2 = ds.section(r"^What ships secured")
-        h3, b3, l3 = do.section(r"^A filter on the command")
+        h3, b3, l3 = do.section(r"^One rule about the shape of the command")    # 18 Nov 26 (S.62): the page took the template's heading
         h4, b4, l4 = do.section(r"is not filtered")
         h5, b5, l5 = do.section(r"^The two switches")      # 20 Oct 26 (the OS switch): the shell and OS access are two switches, off as delivered
         # 17 Nov 26 (S.62 P-1304, P-1306): nano is gone (27 Oct 26), and Solo has more switches than these two: set.net.access, set.xfer.access,

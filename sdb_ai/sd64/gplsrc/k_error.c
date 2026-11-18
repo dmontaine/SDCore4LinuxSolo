@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Nov 26 dm  S.62 (P-6770 to P-6773, carried from SD Core for Linux, W.11 F4 option B): audit_message() also sends each record to the
+ *               system journal (syslog, LOG_AUTHPRIV | LOG_NOTICE, "sd-audit <record>"), after the file and outside ERRLOG_SEM.
  * 14 Nov 26 dm  log_message(): the error log's truncate and write are tested (a failure has nowhere to be logged; said so).
  * 06 Nov 26 dm  S.152: removed what nothing called (found by linking with --gc-sections): op_illegal2 (no dispatch table
  *               names it) and the DescrError helpers k_dh_error, k_null_id and k_strnum_len; the DescrError list is one
@@ -83,6 +85,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <linux/fs.h>
+#include <syslog.h>
 
 extern jmp_buf k_exit;
 extern char* month_names[];
@@ -982,6 +985,18 @@ void audit_message(char* msg) {
   }
 
   EndExclusive(ERRLOG_SEM);
+
+  if (bytes > 0) {
+    /* 18 Nov 26 dm - S.62 (W.11 F4, option B, carried from SD Core for Linux).  The same record goes to the system journal.  The file
+       is the Solo user's own, so any program or client running as that user can rewrite it; the journal is the one copy that user
+       cannot change, and its daemon records the uid and pid of the process that sent the message, which the sender cannot choose
+       (_UID and _PID in `journalctl -t sd_Log -o verbose`; search for the text sd-audit).  AUTHPRIV so that the usual rsyslog rules
+       also keep it in a root-only text log.  After the semaphore is released: a syslog socket that stalls must not hold the one every
+       session's logging waits on.  The record is the argument, never the format.  Made whether or not the file could be written:
+       when it could not, this is the only copy.  Silent, like the file: it never fails the trail. */
+    buff[bytes - 1] = '\0';
+    syslog(LOG_AUTHPRIV | LOG_NOTICE, "sd-audit %s", buff);
+  }
 }
 
 /* ======================================================================

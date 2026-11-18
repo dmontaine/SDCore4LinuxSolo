@@ -14,21 +14,9 @@ edition follows its features and differs only where a single user's install
 requires it. [SD Core Solo for Windows](https://github.com/dmontaine/SDCore4WindowsSolo)
 is the Windows counterpart of this edition.
 
-**Version LS1.1-3, released 9 October 2026.** It started on 29 September 2026 as a copy
-of SD Core for Linux L1.1-1. The one-account model, the passwords and ADMIN, the
-API login, the systemd user service, ssh into `sd`, the installer, the in-place
-upgrade (`bash installsdsolo.sh --upgrade`), the managed-mode server controls
-(global catalogue, denied commands) and the account password chosen at first
-login are built and have been run on one machine. LS1.1-2 added, for a managed
-installation, the API request that lets the server install its own ssh key
-(request 49 then, request 72 from LS2.0-0) and first-use pinning of the server's TLS certificate by the client
-library; both are described in [docs/SOLO_API.md](docs/SOLO_API.md). LS1.1-3 gives Solo its
-own ssh listener on port 4251 (your Linux account name and password, or a key if you add one; run by you with no root, nothing changed in the
-machine's own sshd, so Solo and the multi-user SD Core can both be reached by ssh). The documentation is
-listed under *Documentation* below. **What has not been run,
-and is the owner's to run** (`sudo` paths, `loginctl enable-linger`, the firewall
-rule for an open ssh or API port, an install from the published branch) is listed in
-Getting Started, page 19, *Features the developers could not test*.
+**Version LS1.1-3, released 9 October 2026.** SD Core Solo for Linux started on
+29 September 2026 as a copy of SD Core for Linux L1.1-1.
+See `sdb_ai/sd64/sdsys/changelog` for what each release contains.
 
 SD Core is English only: it has no support for other languages or locales.
 
@@ -63,7 +51,7 @@ directory then offers to reload them (it asks for new passwords).
   this repository and compiles SD. It checks first and stops, changing nothing,
   if the computer is offline.
 
-It can be installed beside the multi-user SD Core for Linux (since 2 Oct 2026: `sd-solo` and `sd` are separate commands).
+It can be installed beside the multi-user SD Core for Linux (`sd-solo` and `sd` are separate commands).
 
 ## What it is for
 

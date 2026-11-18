@@ -390,7 +390,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 40
+"words": 41
 },
 "basic:func:dir": {
 "kind": "basic.function",
@@ -1202,7 +1202,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 59
+"words": 60
 },
 "basic:func:osrename": {
 "kind": "basic.internal",
@@ -2413,7 +2413,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 16
 },
 "basic:stmt:dparse": {
 "kind": "basic.statement",
@@ -2952,7 +2952,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 35
+"words": 43
 },
 "basic:stmt:os.execute": {
 "kind": "basic.statement",
@@ -2966,21 +2966,21 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 26
 },
 "basic:stmt:osread": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 31
+"words": 32
 },
 "basic:stmt:oswrite": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 27
+"words": 28
 },
 "basic:stmt:overlay": {
 "kind": "basic.clause",
@@ -3897,7 +3897,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 275
+"words": 274
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -3911,7 +3911,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 1332
+"words": 1403
 },
 "dict:chaining": {
 "kind": "dict.conv",
@@ -26493,7 +26493,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 55
+"words": 62
 },
 "tcl:analyse.index": {
 "kind": "tcl.verb",
@@ -26570,7 +26570,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 49
+"words": 50
 },
 "tcl:basic": {
 "kind": "tcl.verb",
@@ -26892,7 +26892,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 48
+"words": 45
 },
 "tcl:config": {
 "kind": "tcl.verb",
@@ -27200,7 +27200,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 73
+"words": 89
 },
 "tcl:display.like": {
 "kind": "tcl.keyword",
@@ -27389,7 +27389,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 70
+"words": 86
 },
 "tcl:force": {
 "kind": "tcl.keyword",
@@ -28075,7 +28075,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 72
+"words": 64
 },
 "tcl:no.catalog": {
 "kind": "tcl.keyword",
@@ -28103,7 +28103,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 64
+"words": 58
 },
 "tcl:no.nulls": {
 "kind": "tcl.keyword",
@@ -28572,7 +28572,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 49
+"words": 50
 },
 "tcl:restore.voc": {
 "kind": "tcl.verb",
@@ -28740,7 +28740,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 52
+"words": 50
 },
 "tcl:set.date": {
 "kind": "tcl.verb",
@@ -28759,7 +28759,7 @@
 "tcl:set.file": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 41
 },
@@ -28887,7 +28887,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 45
+"words": 46
 },
 "tcl:sh": {
 "kind": "tcl.verb",
@@ -29153,7 +29153,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 98
+"words": 96
 },
 "tcl:tool.dict": {
 "kind": "tcl.verb",
@@ -29307,7 +29307,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 50
+"words": 35
 },
 "tcl:using": {
 "kind": "tcl.keyword",

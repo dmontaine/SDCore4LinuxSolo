@@ -150,7 +150,7 @@ def checks(srcs):
     ck("S5 the kernel sets the flag only for a $internal program and only on a session that holds USR_ADMIN (op_kernel.c K_GLOBAL_SESSION)",
        "process.program.flags & HDR_INTERNAL" in kg and "(n > 0) && (my_uptr->flags & USR_ADMIN)" in kg and "my_uptr->flags |= USR_GLOBAL" in kg, kg[:200])
     fa = block(api, "vb.fileadmin:", "fa.check.words:")
-    # 11 Nov 26: operation 1 is analyze.file - the verb the VOC still has (analyse.file is in sdsys/voc_removed since S.87; SD Core's apisrvr still says analyse.file, a defect there)
+    # 11 Nov 26: operation 1 is analyze.file - the verb the VOC still has (analyse.file is in sdsys/voc_removed since S.87; SD Core's apisrvr says analyze.file too since 17 Nov 26, S.62 P-1896)
     ck("S6 vb.fileadmin chooses the verb by the OPERATION NUMBER from a fixed list (1 analyze.file, the spelling the VOC holds; 7 empty) and names the file by file.names, never by the text it was sent",
        "field('analyze.file,configure.file,create.index,build.index,delete.index,disable.index,,create.file,delete.file', ',', fa.op)" in fa and "fa.name = file.names<fno>" in fa
        and "fa.cmd = fa.verb" in fa, fa[:120])
@@ -190,7 +190,7 @@ def checks(srcs):
     ck("C2 the handler's five operations have the same numbers in netfiles.c and netfile.h: ADMIN 20, CREATEFILE 21, FCONTROL 22, SEQKEY 23, INDEXQ 24",
        all(mdef.get(a) == n and bdef.get(b) == n for a, b, n in pairs), repr([(a, mdef.get(a), bdef.get(b)) for a, b, n in pairs]))
     na, nf_, nq = cfunc(nfc, "int net_admin("), cfunc(nfc, "int net_fcontrol("), cfunc(nfc, "int net_index_query(")
-    ck("C3 net_admin asks net_gate (PEEK for analyse.file, ADMIN otherwise) before it sends; net_fcontrol the same (PEEK for key 6); net_index_query asks no change gate",
+    ck("C3 net_admin asks net_gate (PEEK for analyze.file, ADMIN otherwise) before it sends; net_fcontrol the same (PEEK for key 6); net_index_query asks no change gate",
        0 < at(na, "net_gate(fvar, (op == 1) ? NETG_PEEK : NETG_ADMIN") < at(na, "net_change_result(") and 0 < at(nf_, "net_gate(fvar, (key == 6) ? NETG_PEEK : NETG_ADMIN") < at(nf_, "net_change_result(")
        and "net_gate" not in nq and "NF_INDEXQ" in nq, (na[:80], nf_[:80]))
     ck("C4 NETG_ADMIN is 6 in sd.h and every new entry point is declared there", re.search(r"#define\s+NETG_ADMIN\s+6\b", c["sd.h"]) is not None

@@ -18,6 +18,7 @@
 * 
 *  
 * START-HISTORY:
+* 18 Nov 26 dm  S.62, carried from SD Core for Linux: the comment beside sysmsg(11180) quotes the message as it now reads.
 * 17 Nov 26 dm  S.62 (CARRY-qproc, SD Core's P-1258, P-1286 to P-1288): a directory-file record whose file is there under a name SD's id
 *               encoding cannot produce (a bare '%') is reported "'id' invalid name" (14140, SD Core's number) and not "not found".
 * 17 Nov 26 dm  S.62 (P-1908, P-1909): a delimited report TO a pathname asks K$EDIT.OS.OK before the open (a report could be written over
@@ -3562,7 +3563,7 @@ open.csv.to:
 *   same test.
    if not(kernel(K$PATH.OK, csv.pathname)) then
       @system.return.code = -ER$PERM
-      display sysmsg(11180, @who) ;* %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname
+      display sysmsg(11180, @who) ;* %1 has no OS access, so outside its own account it can reach by pathname only a directory the administrator opened to it
       goto exit.qproc
    end
 

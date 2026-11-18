@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Nov 26 dm  S.62 P-1785: the second #include <sys/stat.h> (after sys/shm.h) is gone; the one with the other system headers stays, as in SD Core for Linux.
  * 17 Nov 26 dm  S.62 P-4325: apply_pending_restore() prints "A restore is pending - putting it in place before SD starts." before the swap, as Windows Solo does.
  * 17 Nov 26 dm  S.62 NETDIRS (carried from SD Core): start_sd() calls netdirs_report() after audit_rotate(), so each NETDIRS entry SD ignores is named once at sd-solo -start.
  * 17 Nov 26 dm  S.62 P-1797: the fork() failure message and the stop's SIGKILL journal line name Solo's command, sd-solo -stop (they said sd -stop, the multi-user product's).
@@ -73,7 +74,6 @@ void UnlockSemaphore(int semno);
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <sys/stat.h>
 
 void dump_config(void);
 Private void apply_pending_restore(void);
