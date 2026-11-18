@@ -16,7 +16,7 @@
 # below) is refused.
 #
 # The ACCOUNT password is deliberately not here.  When a global-password IS
-# given here (a computer an SD Core server manages), the person who first runs sd
+# given here (a computer an SD Core server manages), the person who first runs sd-solo
 # at this computer's keyboard chooses the account password.  Give the installer
 # --account-password-file FILE as well if you want it set at install time.
 # When there is no global-password the installer asks for the account password.
