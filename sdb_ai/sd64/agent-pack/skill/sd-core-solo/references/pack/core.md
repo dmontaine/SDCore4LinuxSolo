@@ -21,7 +21,7 @@ The 12 conversion codes the docs' examples use most (field 3 of a dictionary ite
 - `XE` - Encrypted value — XE
 
 ### core:dict-types
-> kind=core.digest tier=core since=- src=docs:User/markdown/33-sd-dicts-structure.md:34#9b6b4980
+> kind=core.digest tier=core since=- src=docs:User/markdown/33-sd-dicts-structure.md:35#9b6b4980
 
 The dictionary item types (field 1 starts with the letter). Each type is the chunk `dict:type:<T>`.
 
@@ -114,7 +114,7 @@ The VOC record types (field 1, character 1, is the type). Each type is the chunk
 | `D` | descriptor | a data descriptor, which is what dictionary records are |
 
 ### core:walls
-> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:172#bde23caa src5=docs:GettingStarted/markdown/06b-operating-system-access.md:193#ef1e8155
+> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:188#bde23caa src5=docs:GettingStarted/markdown/06b-operating-system-access.md:209#ef1e8155
 
 Solo has ONE account, `sduser`, and no gate words. Its switches are each OFF as delivered and turned on by the administrator, after `admin`, with a verb of its own: the shell (`sh`, `!`) and OS access (`os.execute`, a path outside the account, the embedded Python and the editors that run outside SD) with `set.os.access`; another SD server opening this account's files with `set.net.access`; file transfer (`receive`, `send`) with `set.xfer.access`; scheduled jobs with `set.jobs.access`; the AI with `set.ai gate`; and the MCP door with `set.mcp` (its write tool with `set.mcp write`). What limits a session is below, quoted from Solo's own pages (`GettingStarted/markdown/12-security.md`, `GettingStarted/markdown/06b-operating-system-access.md`).
 
@@ -138,7 +138,7 @@ you**, or `root`, from reading or changing the files directly.
 | The VOC | direct edits need `admin`; the global catalog is changed by nobody in a session |
 | The shell and OS access | refused until the administrator turns the `sh` or `os` switch on with `set.os.access`: off on a new install unless you answered yes when the installer asked, and kept as they were on an upgrade — see Operating system access |
 | `NETDIRS` | a door in `sd.conf`, **no line as delivered**: folders outside the account, separated by semicolons, that a session with the `os` switch off may still read and write by pathname. Listing one is a loosening for every session of the account, on every route — see Configuration |
-| The NET gate | **off as delivered**: `set.net.access on` is what lets the account open a file held on another SD server (a VOC pointer of type `N`, to a server the administrator has defined with `set.server`). Turning it on lets the account's programs read that server's files, and change them only where the server is defined as `write`. `NETFILES` in `sd.conf` (0 as delivered) must be 2 before an API client may open an `account;file` file here (request 29), and a VOC pointer that leads out of the account is refused unless the account has the `os` switch on — see Not in SD Core and API access |
+| The NET gate | **off as delivered**: `set.net.access on` is what lets the account open a file held on another SD server (a VOC pointer of type `N`, to a server the administrator has defined with `set.server`). Turning it on lets the account's programs read that server's files, and change them only where the server is defined as `write`. `NETFILES` in `sd.conf` (0 as delivered) must have bit 2 set before an API client may open an `account;file` file here (request 29), and a VOC pointer that leads out of the account is refused unless the account has the `os` switch on — see Not in SD Core and API access |
 | File transfer | an sftp program on another computer can put text files into the account's file `xfer.in` and take them from `xfer.out`, over Solo's ssh (port 4251). **Off twice as delivered**: `XFER=1` in `sd.conf` (read when Solo starts) and `set.xfer.access on`. Opening it means a program that knows your Linux password can bring files into the account while you wait in `receive`; it sees only that one folder, only plain text, within the size limits (`XFERFILE`, `XFERSLOT`) and only while the transfer is open. **The SD account password is not asked of the sftp connection** (it has no terminal to give it): what stands in for it is that nothing moves unless your own session, which did give it, is waiting in `receive` or `send` at that moment — see *Moving Files In and Out* in the User documentation |
 | Scheduled jobs | SD's own jobs (`set.job`) run one of your SD commands on a systemd timer of yours. **Off as delivered**: `set.jobs.access on`, and off refuses every job at its next run. A job is made or changed only with the account password typed at that moment; it runs as a one-shot command does, signed in with the kept copy of the password, so it adds no way in that `sd-solo` itself does not already give — see Scheduled jobs |
 | The daemon | runs as you, never as root; SD refuses to start as root |
@@ -155,10 +155,10 @@ you arrived and what you unlocked*, not about which account you are in.
 | Switch | What it lets the account do |
 |---|---|
 | **`sh`** | the `sh` verb |
-| **`os`** | `OS.EXECUTE`; `OPENSEQ`, `OPENPATH`, `DIR()`, `DELETESEQ`, `OPENTEMP`, `DIGEST` of a file and the file-system keys of `OSPATH()` on a path **outside the account's own directory**; a print unit's pathname (`SETPTR ... AS PATHNAME`, `SETPU`, a CSV report's `TO` pathname) and its `SPOOLER` command outside it; the embedded Python; the editor `micro`; and a VOC pointer to a file outside the account |
+| **`os`** | `OS.EXECUTE`; `OPENSEQ`, `OPENPATH`, `DIR()`, `DELETESEQ`, `OPENTEMP`, `DIGEST` of a file and the file-system keys of `OSPATH()` on a path **outside the account's own directory**; a print unit's pathname (`SETPTR ... AS PATHNAME`, `SETPU`, a CSV report's `TO` pathname) and its `SPOOLER` command outside it; the pathname of a socket trace log (`set.socket.mode` with `skt$info.trace`) outside it; the embedded Python; the editor `micro`; and a VOC pointer to a file outside the account |
 
-**Both are off as delivered, on a new install and on an upgrade unless you said
-yes when the installer asked.** The account's own directory is never asked
+**Both are off as delivered on a new install unless you said yes when the
+installer asked; an upgrade keeps the switches the installation has.** The account's own directory is never asked
 about: inside it everything works whatever the switches say. **The
 administrator needs no switch**: after `admin` the session passes both for as
 long as it lasts.

@@ -72,7 +72,7 @@ name rather than by path.
 
 
 ### voc:type:K
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:254#4f0b8cdd
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:253#4f0b8cdd
 
 **The K record — a keyword**
 
@@ -82,7 +82,7 @@ name rather than by path.
 002  26
 ```
 
-This is `#`, the comment keyword. Field 2 is the keyword number the query
+This is `ne`, the not-equal keyword. Field 2 is the keyword number the query
 processor uses. Keywords are not commands in their own right; they are
 the words the query processor — `LIST`, `SELECT`, `SORT` and the rest —
 recognizes inside a command line. `all` is `K` with number 5; `and` is `K`.
@@ -110,7 +110,7 @@ supplier` parse.
 
 
 ### voc:type:PA
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:219#9486a7c4
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:218#9486a7c4
 
 **The PA record — a paragraph**
 
@@ -150,7 +150,7 @@ in the command instead.
 
 
 ### voc:type:PH
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:236#7acc327c
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:235#7acc327c
 
 **The PH record — a phrase**
 
@@ -173,7 +173,7 @@ in the command instead.
 
 
 ### voc:type:Q
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:176#b10fccd2
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:175#b10fccd2
 
 **The Q record — an indirect pointer**
 
@@ -191,7 +191,7 @@ followed under the same rules, so a chain cannot reach where its links alone cou
 
 
 ### voc:type:R
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:189#7919279b
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:188#7919279b
 
 **The R record — a remote record reference**
 
@@ -215,7 +215,7 @@ keywords, `"PA"` paragraphs, `"PH"` phrases, `"Q"` Q-pointers, `"R"` R-records,
 
 
 ### voc:type:S
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:208#e478fff6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:207#e478fff6
 
 **The S record — a sentence**
 
@@ -271,10 +271,9 @@ and field 4 — so two names that dispatch identically are denied together.
 
 `IN` verbs are numbered, and the numbers are positional in the command
 processor's dispatch list. Several names share one: `off` and `quit` are
-both internal verb 1, and `clr` is internal verb 2. (`cs` for `clr`, and the
-run-together `cleardata`, `clearinput`, `clearprompts` and `clearselect` for
-`clear.data` and the rest, were second names for the same numbers and were
-removed in 2.0-0.)
+both internal verb 1, and `clr` is internal verb 2. The `clear.data`,
+`clear.input`, `clear.prompts` and `clear.select` verbs are internal verbs 19,
+25, 20 and 6.
 
 **The four keyword-verbs**
 
@@ -289,7 +288,7 @@ a marginal verb.
 
 
 ### voc:type:X
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:287#f1c700c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:286#f1c700c1
 
 **The X record — text**
 
