@@ -32,6 +32,10 @@
 *               (Select this provider, Clear key, Drop custom provider, CA file, Limit), the page opening with no message, the body cleared from
 *               the frame's first body row, and the second "What this means" sentence in SD Core's shorter words.  The one account's own words stay.
 * 17 Nov 26 dm  S.62 (P-4666): the setup box no longer raises ctx<TK.C.GEN> a second time after after.box has raised it (SD Core's shape).
+* 17 Nov 26 dm  S.62 round 2 (P-1923 to P-1925, P-1927 to P-1930, P-1932 to P-1934, P-1937, P-1939): SD Core's layout of the same code, behaviour unchanged at
+*               140 by 43: the panes are declared once, after the AI line has taken its row; the text inside the boxes starts at tx (pr.x + 2, every box being
+*               at column 1); F5 sits after Ctrl-K and F6 repaints the boxes' contents (redraw) as SD Core's does; model.text sits before the layout; the
+*               mouse rows are counted from (box.y + 1).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -82,7 +86,6 @@ $include tk.h
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.ai')
-   gosub lay.declare
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
@@ -118,14 +121,14 @@ $include tk.h
    call $tk_keys('ai', keys, 'pane', '', '', '', '')
    call $tk_keys('ai', keys, 'refresh', '', '', '', '')
    call $tk_aipage('init', ctx, keys, '', '', aout)
-   if aout then gosub lay.declare                         ;* the AI line took the body's last row: the panes again (as SD Core's pages)
 
-   provs ='anthropic' : @fm : 'openai' : @fm : 'google' : @fm : 'deepseek' : @fm : 'custom'
+   provs = 'anthropic' : @fm : 'openai' : @fm : 'google' : @fm : 'deepseek' : @fm : 'custom'
    nprov = dcount(provs, @fm)                                  ;* the rows of the Provider box; the last is Custom
    lnames = 'requests-hour' : @fm : 'tokens-day' : @fm : 'timeout' : @fm : 'bytes-request' : @fm : 'bytes-reply' : @fm : 'max-tokens'
    pnames = 'Provider' : @fm : 'Account'
 
-   pane = 1                                                    ;* (VISA, the account rows on the screen, is the layout's: lay.get; 5 at 140 by 43, and Solo has one account)
+   gosub lay.declare                                           ;* the panes, after the AI line has taken its row; VISA (the account rows on the screen), DV and EV come from them
+   pane = 1                                                   ;* (VISA, the account rows on the screen, is the layout's: lay.get; 5 at 140 by 43, and Solo has one account)
    pi = 1                                                      ;* the provider row under the cursor
    ci = 1                                                      ;* the account row under the cursor
    ta = 0                                                      ;* the account rows scrolled off the top
@@ -222,6 +225,16 @@ read.accounts:
       if hj{'gate'} then ast = 1                       ;* (no short-circuit in SD BASIC: the status is only asked of when it was read)
    end
    ci = 1
+   return
+
+* A row of the Provider box: the model it will ask, for the table and the summary.  In: r.  Out: mod.s - the model set, else the provider's default with (default)
+* after it, else (not set)
+model.text:
+   mod.s = pmod<r>
+   if mod.s = '' then
+      mod.s = pdef<r>
+      if mod.s = '' then mod.s = '(not set)' else mod.s := ' (default)'
+   end
    return
 
 * The page's four boxes as panes of $tk_layout (SD Core's S.88 L2, carried 12 Nov 26): each size is the box drawn at 140 by 43 (the body is 138 by 39; the boxes add up to 38,
@@ -372,12 +385,12 @@ draw.detail:
    end
    gosub wrap.lines
    for r = 1 to DV
-      screen text fmt(lines<r>, tw : 'L') at dt.x + 2,dt.y + r width tw
+      screen text fmt(lines<r>, tw : 'L') at tx,dt.y + r width tw
    next r
    return
 
 draw.accounts:
-   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at ac.x + 2,ac.y + 1 attr 'header' width tw      ;* (one row in Solo)
+   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at tx,ac.y + 1 attr 'header' width tw      ;* (one row in Solo)
    if ci <= ta then ta = ci - 1
    if ci > ta + VISA then ta = ci - VISA
    if ta < 0 then ta = 0
@@ -387,14 +400,14 @@ draw.accounts:
       if k <= an then
          s = fmt(anm<k>, '24L') : fmt(auser<k>, '24L') : (if ast<k> = 1 then 'ON ' else 'off') : (if asusp<k> then '   (suspended)' else '')
       end
-      screen text s at ac.x + 2,ac.y + 1 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
+      screen text s at tx,ac.y + 1 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
    next r
    if ast = 1 then
       s = 'The gate is ON: this account can send text to the provider.  Enter turns the gate off.'
    end else
       s = 'The gate is off (as delivered): nothing can be sent to the provider.  Enter turns the gate on.'
    end
-   screen text s at ac.x + 2,ac.y + ac.h - 2 attr 'bold' width tw          ;* the account box's last row (31 at 140 by 43)
+   screen text s at tx,ac.y + ac.h - 2 attr 'bold' width tw          ;* the account box's last row (31 at 140 by 43)
    call $tk_help('mark', mk.ax, mk.ay, 0, 0)
    return
 
@@ -416,7 +429,7 @@ draw.effect:
    end
    gosub wrap.lines
    for r = 1 to EV
-      screen text fmt(lines<r>, tw : 'L') at ef.x + 2,ef.y + r width tw
+      screen text fmt(lines<r>, tw : 'L') at tx,ef.y + r width tw
    next r
    return
 
@@ -432,16 +445,6 @@ wrap.lines:
       end
    next wi
    lines = wrapped
-   return
-
-* A row of the Provider box: the model it will ask, for the table and the summary.  In: r.  Out: mod.s - the model set, else the provider's default with (default)
-* after it, else (not set)
-model.text:
-   mod.s = pmod<r>
-   if mod.s = '' then
-      mod.s = pdef<r>
-      if mod.s = '' then mod.s = '(not set)' else mod.s := ' (default)'
-   end
    return
 
 * The row of the provider whose id is in lpid (1 when it is none of them)
@@ -483,10 +486,6 @@ on.key:
          if pane = 1 then gosub select.provider else gosub toggle.gate
       case nm = 'f1' or nm = '?'
          gosub help.here
-      case nm = 'f5'
-         gosub read.all
-         gosub draw.all
-         msg = 'read the machine again'
       case nm = 'ctrl-t'                    ;* the theme, kept for the person - the same on every page ($tk_std)
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
@@ -498,11 +497,15 @@ on.key:
          call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)
+      case nm = 'f5'
+         gosub read.all
+         gosub draw.all
+         msg = 'read the machine again'
       case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
          call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 2, ap)         ;* F6 / Shift-F6 go round the two boxes and the AI line; AI > Ask the AI goes to the line
          if ap<1> > 0 and ap<1> # pane then
             pane = ap<1>
-            gosub draw.all
+            gosub redraw
          end
          msg = ap<2>
       case nm = 'ctrl-q'
@@ -570,11 +573,11 @@ on.mouse:
       my = mev<4>
       begin case
          case mx >= pr.x + 1 and mx <= pr.x + pr.w - 2 and my >= pr.y + 2 and my <= pr.y + 1 + nprov
-            pi = my - pr.y - 1
+            pi = my - (pr.y + 1)
             pane = 1
             gosub redraw
          case mx >= ac.x + 1 and mx <= ac.x + ac.w - 2 and my >= ac.y + 2 and my <= ac.y + 1 + VISA
-            if ta + my - ac.y - 1 <= an then ci = ta + my - ac.y - 1
+            if ta + my - (ac.y + 1) <= an then ci = ta + my - (ac.y + 1)
             pane = 2
             gosub redraw
       end case

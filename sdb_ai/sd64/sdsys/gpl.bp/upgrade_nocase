@@ -53,6 +53,7 @@
 *      change owner there; Solo has one user, so it converts such a file.)
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-4913, carried from SD Core for Linux 10767826: when the scan file or the work file cannot be made, the report names the file that was left (10184).
 * 17 Nov 26 dm  S.62 (P-1955 to P-1958; owner, 17 Nov 26: "DO it"): the walk's messages take SD Core's numbers for the same texts -
 *               14989 -> 11030, 14990 -> 11031, 14991 -> 11032, 14992 -> 11034, 14994 -> 11037; the text of each is unchanged.
 *               14993 has no SD Core twin and stays.
@@ -404,6 +405,7 @@ convert.one:
    create.file scan.path dynamic flags FL$FLAGS.NOCASE on error null
    openpath scan.path to scan.fu else
       crt sysmsg(6170) : ' (' : scan.path : ')'
+      crt sysmsg(10184, one.path)   ;* File: %1 - 17 Nov 26 (S.62 P-4913): name the file that was left, not only the work file that failed
       close old.fu
       err.count += 1
       return
@@ -468,6 +470,7 @@ convert.one:
       close new.fu
       if not(ospath(new.path, OS$DELETE)) then
          crt sysmsg(6168) : ' (' : new.path : ')'
+         crt sysmsg(10184, one.path)   ;* File: %1 - 17 Nov 26 (S.62 P-4913): and the file it left
          close old.fu
          err.count += 1
          return
@@ -477,6 +480,7 @@ convert.one:
    create.file new.path dynamic flags FL$FLAGS.NOCASE on error null
    openpath new.path to new.fu else
       crt sysmsg(6170) : ' (' : new.path : ')'
+      crt sysmsg(10184, one.path)   ;* File: %1 - 17 Nov 26 (S.62 P-4913): and the file it left
       close old.fu
       err.count += 1
       return

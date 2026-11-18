@@ -61,12 +61,12 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 7. A statement in this pack that the guide marks `unverified` has no probe behind it. Compile and run a small test before you rely on it.
 
 ### core:tcl-verbs
-> kind=core.digest tier=core since=- src=docs:tools/tcl-syntax-shapes.txt:25#eb31e34a
+> kind=core.digest tier=core since=- src=docs:tools/tcl-syntax-shapes.txt:220#eb31e34a
 
 The 30 verbs the User pages 19-24 and the tutorial use most (counted in their examples), each as its syntax line; a verb's full chunk is `tcl:<verb>`.
 
 - **`admin`** | **`admin off`**
-- **`analyse.index`** *file* {*index* {**`statistics`**} {**`detail`**}} {**`lptr`** {*n*}} {**`no.page`**}
+- **`analyze.file`** {**`dict`**} *file* {**`statistics`**} {**`lptr`**}
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
@@ -79,7 +79,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`ct`** {**`dict`**} *file* {*id* … | **`*`**} {**`(options`**}
 - **`delete`** {**`dict`**} *file* {*id* …} {**`no.query`**}
 - **`delete.index`** *file* *field* … | **`all`**
-- **`disable.index`** *file* *index* … | **`all`**
 - **`display`** *text*
 - **`ed`** {**`dict`**} *file* {*id* … | **`creating.seqkey`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
@@ -89,11 +88,12 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`list.index`** *file* {*field* …}
 - **`off`**
 - **`run`** {*file*} *record* {*arguments*}
+- **`save.list`** *list* {**`from`** *list.no*}
 - **`scan`** {**`dict`**} *file* {*selection*} {*id* …} {**`all`**} {**`no.case`**} {**`all.match`** | **`no.match`**} {**`strings`** *file* *record*} **`for`** *"text"* …
 - **`search`** {**`dict`**} *file* {*selection*}
 - **`select`** {**`dict`**} *file* {*selection*} {*list.no*}
 - **`selectindex`** {**`dict`**} *file* *index* {*value*} {**`to`** *n*}
-- **`set.trigger`** *file* *name* {*modes*}
+- **`set.os.access`** | **`set.os.access sh on`** | **`set.os.access sh off`** | **`set.os.access os on`** | **`set.os.access os off`**
 - **`sort`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 
 ### core:voc-types
@@ -114,7 +114,7 @@ The VOC record types (field 1, character 1, is the type). Each type is the chunk
 | `D` | descriptor | a data descriptor, which is what dictionary records are |
 
 ### core:walls
-> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:168#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:187#ef1e8155
+> kind=core.digest tier=core since=- src=docs:GettingStarted/markdown/12-security.md:8#80ab4a86 src2=docs:GettingStarted/markdown/12-security.md:35#971666f3 src3=docs:GettingStarted/markdown/06b-operating-system-access.md:10#d27475d1 src4=docs:GettingStarted/markdown/06b-operating-system-access.md:169#5b496812 src5=docs:GettingStarted/markdown/06b-operating-system-access.md:188#ef1e8155
 
 Solo has ONE account, `sduser`, and no gate words. Its switches are each OFF as delivered and turned on by the administrator, after `admin`, with a verb of its own: the shell (`sh`, `!`) and OS access (`os.execute`, a path outside the account, the embedded Python and the editors that run outside SD) with `set.os.access`; another SD server opening this account's files with `set.net.access`; file transfer (`receive`, `send`) with `set.xfer.access`; scheduled jobs with `set.jobs.access`; the AI with `set.ai gate`; and the MCP door with `set.mcp` (its write tool with `set.mcp write`). What limits a session is below, quoted from Solo's own pages (`GettingStarted/markdown/12-security.md`, `GettingStarted/markdown/06b-operating-system-access.md`).
 
@@ -134,9 +134,9 @@ you**, or `root`, from reading or changing the files directly.
 | | |
 |---|---|
 | Every session | asks the account password |
-| Administrator commands | refused until `admin`. The eight that had no check of their own — `CONFIG`, `LISTU`, `LIST.LOCKS`, `LIST.READU`, `LOCK`, `CLEAR.LOCKS`, `SET.DATE`, `CLEAN.ACCOUNT` — are gated too. See Administrator commands |
+| Administrator commands | refused until `admin`. The eight that had no check of their own — `config`, `listu`, `list.locks`, `list.readu`, `lock`, `clear.locks`, `set.date`, `clean.account` — are gated too. See Administrator commands |
 | The VOC | direct edits need `admin`; the global catalog is changed by nobody in a session |
-| The shell and OS access | refused until the administrator turns the `sh` or `os` switch on with `set.os.access`: off on a new install unless you answered yes when the installer asked, and kept as they were on an upgrade (off on one from LS1.1-3) — see Operating system access |
+| The shell and OS access | refused until the administrator turns the `sh` or `os` switch on with `set.os.access`: off on a new install unless you answered yes when the installer asked, and kept as they were on an upgrade — see Operating system access |
 | `NETDIRS` | a door in `sd.conf`, **no line as delivered**: folders outside the account, separated by semicolons, that a session with the `os` switch off may still read and write by pathname. Listing one is a loosening for every session of the account, on every route — see Configuration |
 | The NET gate | API request 29 (open an `account;file` file for a client) is refused until the administrator sets `NETFILES=2` in `sd.conf` and turns the gate on with `set.net.access on`: both off as delivered; and a VOC pointer that leads out of the account is refused unless the account has the `os` switch on — see API access |
 | File transfer | an sftp program on another computer can put text files into the account's file `xfer.in` and take them from `xfer.out`, over Solo's ssh (port 4251). **Off twice as delivered**: `XFER=1` in `sd.conf` (read when Solo starts) and `set.xfer.access on`. Opening it means a program that knows your Linux password can bring files into the account while you wait in `receive`; it sees only that one folder, only plain text, within the size limits (`XFERFILE`, `XFERSLOT`) and only while the transfer is open. **The SD account password is not asked of the sftp connection** (it has no terminal to give it): what stands in for it is that nothing moves unless your own session, which did give it, is waiting in `receive` or `send` at that moment — see *Moving Files In and Out* in the User documentation |
@@ -155,7 +155,7 @@ you arrived and what you unlocked*, not about which account you are in.
 | Switch | What it lets the account do |
 |---|---|
 | **`sh`** | the `sh` verb |
-| **`os`** | `OS.EXECUTE`; `OPENSEQ`, `OPENPATH`, `DIR()`, `DELETESEQ`, `OPENTEMP`, `DIGEST` of a file and the file-system keys of `OSPATH()` on a path **outside the account's own directory**; a print unit's pathname (`SETPTR ... AS PATHNAME`, `SETPU`, a CSV report's `TO` pathname) and its `SPOOLER` command outside it; the embedded Python; the editors `nano` and `micro`; and a VOC pointer to a file outside the account |
+| **`os`** | `OS.EXECUTE`; `OPENSEQ`, `OPENPATH`, `DIR()`, `DELETESEQ`, `OPENTEMP`, `DIGEST` of a file and the file-system keys of `OSPATH()` on a path **outside the account's own directory**; a print unit's pathname (`SETPTR ... AS PATHNAME`, `SETPU`, a CSV report's `TO` pathname) and its `SPOOLER` command outside it; the embedded Python; the editor `micro`; and a VOC pointer to a file outside the account |
 
 **Both are off as delivered, on a new install and on an upgrade unless you said
 yes when the installer asked.** The account's own directory is never asked

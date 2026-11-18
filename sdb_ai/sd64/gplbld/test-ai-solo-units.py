@@ -233,7 +233,7 @@ def checks(s, run_print=True):
     tb = set_b[set_b.find("case sub = 'key' and n.words = 3"):set_b.find("case sub = 'custom' and n.words = 3")]
     ck("S5b set.ai key p and p handover stop with 11608 when the client's exit status (os.error()) is not 0, before 'show', check.key, the audit line and 11615; "
        "the hand-over file is dropped before that stop",
-       ordered(tb, "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "if os.error() # 0 then", "@system.return.code = -ER$FAILED",
+       ordered(tb, "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "key.stat = os.error()", "if key.stat # 0 then", "@system.return.code = -ER$FAILED",      # 17 Nov 26 (S.62 P-5126): kept in key.stat first, as SD Core does
                "stop sysmsg(11608, 'nokey', 'the key was not set')", "qargs = \"'show'\"", "gosub check.key", "if not(key.found) then",
                "'set.ai key set provider=' : prov", "sysmsg(11615, prov)")
        and ordered(hb, "\"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "key.stat = os.error()", "gosub drop.handover", "if key.stat # 0 then",
@@ -310,8 +310,9 @@ MUTANTS = [
     ("the gate word is not audited", "setai", "         void kernel(K$AUDIT, 'set.ai gate=' : gstate)\n", "", "S3"),
     # 11 Nov 26 (carried from SD Core S.170 / S.171)
     ("the hand-over file is kept", "setai", "drop.handover:\n   os.execute \"rm -f '\" : hand.f : \"'\"\n", "drop.handover:\n", "S6"),
-    ("the typed key's exit status is not read", "setai", "         if os.error() # 0 then\n", "         if 0 then\n", "S5b"),
-    ("the hand-over's exit status is not read", "setai", "         if key.stat # 0 then\n", "         if 0 then\n", "S5b"),
+    ("the typed key's exit status is not read", "setai", "as SD Core does).\n         if key.stat # 0 then\n", "as SD Core does).\n         if 0 then\n", "S5b"),
+    ("the hand-over's exit status is not read", "setai", "before the listing, the audit line and 11615.\n         if key.stat # 0 then\n",
+     "before the listing, the audit line and 11615.\n         if 0 then\n", "S5b"),
     ("the hand-over's exit status is read after the file is dropped", "setai", "         key.stat = os.error()\n         gosub drop.handover\n",
      "         gosub drop.handover\n         key.stat = os.error()\n", "S5b"),
     ("the hand-over is captured", "setai", "\"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "\"' < '\" : hand.f : \"' 2>&1\" capturing junk", "S6"),

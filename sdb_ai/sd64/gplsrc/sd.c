@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1227, P-1229, carried from SD Core for Linux 10767826: -CLEANUP and -U name check_admin() (a no-op in Solo: no root,
+ *               no sdsys user; Core asks for one of them); -INTERNAL refuses an account other than SDSYS (as both Windows products do).
+ * 17 Nov 26 dm  S.62 P-4611: --version says "(sd-solo)", the command's name, where it said "(sd)", SD Core's command (as Windows Solo prints it).
  * 17 Nov 26 dm  S.62 P-1227, P-1228 (Solo carry of SD Core's fix): sd-solo refuses to start inside a shell SD started (SD_SESSION, op_sh.c); -D, -M, -SUSPEND and -RESUME name check_admin() (a no-op in Solo, as for -start and -stop); -TERM's value is bounded.
  * 15 Nov 26 dm  main() calls xfer_detect() first; an sftp request Solo's own sshd sent here is the file transfer server (sd_sftp.c).  Solo carry
  *               of SD Core's S.242.
@@ -352,6 +355,10 @@ Private bool comlin(int argc, char *argv[]) {
 
   for (arg = 1; (arg < argc) && (argv[arg][0] == '-'); arg++) {
     if (!stricmp(argv[arg], "-CLEANUP")) {
+      /* 17 Nov 26 dm - S.62 P-1227 (carried from SD Core for Linux 10767826, in Solo's form): names check_admin(), as SD Core
+         Solo for Windows does.  SD Core asks for root or the sdsys OS user here; Solo has neither, and check_admin() tests
+         nothing (LSOLO 4, below): every session in Solo's user table is the one user's own. */
+      check_admin();
       cleanup();
       exit(0);
     } else if (!stricmp(argv[arg], "-INTERNAL")) {
@@ -478,6 +485,7 @@ Private bool comlin(int argc, char *argv[]) {
           break;
 
         case 'U': /* Show users */
+          check_admin(); /* 17 Nov 26 dm - S.62 P-1227, see -CLEANUP */
           show_users();
           exit(0);
 
@@ -559,8 +567,9 @@ Private bool comlin(int argc, char *argv[]) {
           } else if (!stricmp(argv[arg], "--VERSION")) {
 /* rev 0.9.1 Mar 25 return to single rev track */            
 /* 30 Sep 26 SD Core Solo for Linux (LSOLO 2) - the product's name, as Solo for
-   Windows prints "SD Core Solo for Windows (sd) Version WS1.1-1".            */
-            printf("SD Core Solo for Linux (sd) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
+   Windows prints it.  17 Nov 26 dm - S.62 P-4611: the name in brackets is the
+   command, sd-solo, as Windows Solo prints "(sd-solo)".                      */
+            printf("SD Core Solo for Linux (sd-solo) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
 /* 09 Sep 26 dm - PRE_RELEASE 21.  A developer build must be identifiable
    without running anything privileged, because the ONE thing it changes is a
    privilege check.  Anything that reports a version - a bug report, a
@@ -578,6 +587,17 @@ Private bool comlin(int argc, char *argv[]) {
           goto unrecognised;
       }
     }
+  }
+
+  /* 17 Nov 26 dm - S.62 P-1229 (carried from SD Core for Linux 10767826).  INTERNAL MODE IS FOR SDSYS AND NOTHING ELSE, as on
+     SD Core for Windows and SD Core Solo for Windows: an internal session in the one account (sduser) has no business it could
+     legitimately conduct, and naming it is refused rather than quietly redirected.  With no account named the session already
+     lands in SDSYS: CPROC makes every internal session the administrator (the installer's door, ruling 13), whom LOGIN takes to
+     SDSYS when no account is named.  So SDSYS is not forced here, as SD Core does not force it.  The bootstrap (-I) names no
+     account, and nothing the installer or solo-stage.sh runs names one with -internal. */
+  if (internal_mode && (forced_account != NULL) && stricmp(forced_account, "SDSYS")) {
+    fprintf(stderr, "sd: -internal may only be used with the SDSYS account\n");
+    exit(1);
   }
 
   /* Anything else on the command line is considered to be a command

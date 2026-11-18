@@ -3,7 +3,7 @@
 
     python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-toolsessions-solo-units.py [--selftest]
 
-Core's test-toolsessions-units.py, adapted: Solo puts its administrator verbs in newvoc AND voc_template (SS1), the help record names Solo's page 06a-sessions-and-locks (SS12), and the
+Core's test-toolsessions-units.py, adapted: Solo puts its administrator verbs in newvoc AND voc_template (SS1), the help record names Solo's page 06a1-task-locks-and-forcing-a-lock-open (SS12), and the
 page must not tell the administrator to "sign in as SDSYS" - Solo has no such sign-in, ADMIN is typed after sign-on, so only the session that set inhibit.login and its phantoms get past
 it (SS17).
 
@@ -126,7 +126,7 @@ def checks(raw):
        len(re.findall(r"call \$tk_run\(allow, sent, out, stat, err\)[\s\S]*?gosub first\.line[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", pg)) == 3 and "trim(out<oi>) # ''" in block(pg, "first.line") and "for oi = 1 to dcount(out, @fm)" in block(pg, "first.line"))
     ck("SS12", "the page has a [?] and F1, ? and a click show tool.sessions.page, whose record exists with a title, a documentation page and a body",
        pg.count("'tool.sessions.page'") == 2 and "call $tk_help('mark', ssn.x + ssn.w - 5, ssn.y + 1, 0, 0)" in pg and "call $tk_help('hit', mev, ssn.x + ssn.w - 5, ssn.y + 1, hit.m)" in pg
-       and raw["help"].split("\n")[0].strip() != "" and raw["help"].split("\n")[1].strip() == "gettingstarted-06a-sessions-and-locks" and raw["help"].split("\n")[2].strip() != "")
+       and raw["help"].split("\n")[0].strip() != "" and raw["help"].split("\n")[1].strip() == "gettingstarted-06a1-task-locks-and-forcing-a-lock-open" and raw["help"].split("\n")[2].strip() != "")
     dl = block(pg, "draw.all")
     dsn = block(pg, "draw.sessions")
     dlk = block(pg, "draw.locks")
@@ -208,7 +208,7 @@ MUTANTS = [
     ("a key queues something else", "SS10", sub("page", "call $tk_keys('add', keys, 'i', 'logins', 'inhibit', '', 1)", "call $tk_keys('add', keys, 'i', 'logins', 'inhibit', '', 1)\n   call $tk_keys('add', keys, 'a', 'all', 'all', '', 1)")),
     ("the page shows its old rows after a command", "SS11", sub("page", "         msg = (if said # '' then said[1, 130] else 'asked user ' : uid : ' to end; the list is read again every three seconds')\n      end\n      gosub read.all\n      gosub draw.all", "         msg = (if said # '' then said[1, 130] else 'asked user ' : uid : ' to end; the list is read again every three seconds')\n      end\n      gosub draw.all")),
     ("the help key names a record that does not exist", "SS12", sub("page", "call $tk_help('box', 'tool.sessions.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-t'", "call $tk_help('box', 'tool.sessions.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-t'")),
-    ("the help record names no page", "SS12", sub("help", "06a-sessions-and-locks", "")),
+    ("the help record names no page", "SS12", sub("help", "06a1-task-locks-and-forcing-a-lock-open", "")),
     ("the locks box overruns the explanation", "SS13", sub("page", "ld<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 14", "ld<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 15")),
     ("a lock row is drawn on the border", "SS13", sub("page", "   screen text s at lck.x + 2,lck.y + lck.h - 2 attr 'bold' width ltw", "   screen text s at lck.x + 2,lck.y + lck.h - 1 attr 'bold' width ltw")),
     ("API before SDNet", "SS14", sub("page", "      case bitand(flg, USR$SDNET)\n         kind = 'sdnet'\n      case bitand(flg, USR$SDVBSRVR)\n         kind = 'api'", "      case bitand(flg, USR$SDVBSRVR)\n         kind = 'api'\n      case bitand(flg, USR$SDNET)\n         kind = 'sdnet'")),

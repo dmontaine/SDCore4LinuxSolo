@@ -19,6 +19,11 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62, carried from SD Core for Linux 10767826: request 70's comment names operation 1 analyze.file (the list and the audit
+*               line already did).  Core's group.lookup.failed audit words have no counterpart here: Solo asks no group (no is_grp_member).
+* 17 Nov 26 dm  S.62 (P-1900): cproc.date / cproc.time are set after the request gates, just before the dispatch, where SD Core sets them (nothing on a
+*               refused request reads them).  P-1895, P-1899, P-1902: master.login.done takes SD Core's place in /$APISRVR/ (apisrvr is its only
+*               declarer) and is set, with file.names, after tty in the first-time block, as SD Core does.
 * 17 Nov 26 dm  S.62 (CARRY-apisrvr; P-1904, P-1897, P-1901, P-1903): request 3 enters an account by its registered NAME only (a name with no
 *               register record, a path included, is refused with 10003 and audited branch=1, as SD Core and the Windows ports do); the
 *               user table's account is set on entry (K$SET.ACCOUNT, LISTU); an OPENSEQ by pathname asks K$EDIT.OS.OK, so an API client
@@ -226,18 +231,16 @@ common /$APISRVR/ logged.in,          ;* Process is logged in
 files(100),         ;* Array of file variables
 file.names,         ;* 11 Nov 26 (SD Core's S.73 item 3): the name each open file was opened under, field = file number (a dictionary as "dict name"); request 70 names its file by it
 logging,            ;* Logging network traffic?
+master.login.done,  ;* The MASTER.LOGIN paragraph has been run (it is run once per session)
 seqfiles(SEQ.MAX),  ;* Sequential files opened by vb.openseq, numbered SEQ.BASE + their index (sheet 441)
 seq.state(SEQ.MAX), ;* 1 while the slot holds an open sequential file
-seq.unbuf(SEQ.MAX), ;* 1 when it was opened unbuffered: every line written is flushed
-master.login.done   ;* 14 Nov 26, S.234 N3: the MASTER.LOGIN paragraph has been run (once per session)
+seq.unbuf(SEQ.MAX)  ;* 1 when it was opened unbuffered: every line written is flushed
 
 * If this is the first time through, initialise various things in
 * the SYSCOM common block.
 
 if not(kernel(K$CPROC.LEVEL,0)) then
    abort.message = ""
-   file.names = ''            ;* 11 Nov 26, SD Core's S.73 item 3: no file is open yet
-   master.login.done = @false ;* 14 Nov 26, S.234 N3: MASTER.LOGIN is run once, at the first entry to the account (vb.account)
 
    parser = "!PARSER"          ;* Command parser subroutine
 
@@ -288,6 +291,8 @@ if not(kernel(K$CPROC.LEVEL,0)) then
    abort.code = 0
 
    tty = 'apisrvr'
+   master.login.done = @false      ;* MASTER.LOGIN is run once, at the first entry to the account (vb.account)
+   file.names = ''            ;* 11 Nov 26, SD Core's S.73 item 3: no file is open yet
 
    openpath "voc" to voc else
       abort.message = sysmsg(2026) ;* Cannot open VOC
@@ -396,9 +401,6 @@ loop
       end
    end
 
-   cproc.date = date()
-   cproc.time = time()
-
 * 11 Nov 26 dm - THE ADMINISTRATION SET (68 to 71: a write under the file's own counter, a verb run on the server, FCONTROL) needs a session signed in with the GLOBAL password: the owner's
 *   rule of 11 Nov 26 for the carry of SD Core's S.73 item 3 ("the whole purpose of the global admin password is that a server can administer solo").  SD Core asks its group sdfilesadmin
 *   here (!apifilesok, files-only logins); Solo has no such group, and the global password is what it has for the master server.  Asked of the kernel at every request (it is set at
@@ -412,6 +414,9 @@ loop
          goto return.status.set
       end
    end
+
+   cproc.date = date()
+   cproc.time = time()
 
    on action + 1 gosub vb.illegal.action,
    vb.quit,           ;*   1   Quit
@@ -2915,7 +2920,7 @@ return
 * In:  operation (short integer), file number (short integer; 0 for the operation that names no open file), the verb's words (text)
 * Out: what the verb printed (captured); an ON ERROR reply with its own text for a refusal
 *
-* THE VERB IS CHOSEN BY THE OPERATION NUMBER AND NEVER FROM THE TEXT: 1 analyse.file, 2 configure.file, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index,
+* THE VERB IS CHOSEN BY THE OPERATION NUMBER AND NEVER FROM THE TEXT: 1 analyze.file, 2 configure.file, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index,
 * 8 create.file, 9 delete.file (7 is free: there is no enable.index, build.index switches an index on again).  The file an operation works on is NAMED BY THE OPEN FILE
 * (the name it was opened under, kept in file.names), so the caller cannot name a file it did not open; operation 8 names a NEW file, in the first word of the text.
 * The words are checked by fa.check.words before anything runs: letters, digits and . _ - only, single blanks, at most 200 characters, never PATHNAME, LPTR, FORCE or
@@ -2936,8 +2941,8 @@ if config("SDCLIENT") # 0 or kernel(K$SDNET, -1) then
 end
 fa.verb = ''
 if fa.op >= 1 and fa.op <= 9 then
-*  11 Nov 26: operation 1 runs ANALYZE.FILE.  SD Core's text says analyse.file, which S.87 took out of every VOC (sdsys/voc_removed/analyse.file), so on SD Core and on the
-*  first run of this carry the request answered "analyse.file is not in your VOC" (sandbox-fileadmin-solo.py G3).  The audit line names the verb that ran.
+*  11 Nov 26: operation 1 runs ANALYZE.FILE (S.87 took the British spelling out of every VOC, sdsys/voc_removed/analyse.file), and the audit line names
+*  the verb that runs; SD Core's list says the same since 17 Nov 26 (S.62 P-1896, P-1898).
    fa.verb = field('analyze.file,configure.file,create.index,build.index,delete.index,disable.index,,create.file,delete.file', ',', fa.op)
 end
 if fa.verb = '' then

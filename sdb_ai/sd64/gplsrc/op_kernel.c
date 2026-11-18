@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1776: #include "sd_sftp.h" with the other SD headers, as in SD Core (layout only).
  * 17 Nov 26 dm  S.62 P-1322: the K_ASSUME_USER (61) case removed - a no-op with no caller (owner, 17 Nov 26); 61 is never reused in Solo.
  * 17 Nov 26 dm  S.62 CARRY-phantom (SD Core's P-4608): a phantom child whose exec of bin/sd-solo fails (or whose path is too long) writes why to the error log.
  * 17 Nov 26 dm  S.62 P-1322: comment only - K_ASSUME_USER's note said APISRVR calls it; it does not.
@@ -93,6 +94,7 @@
 #include "options.h"
 #include "dh_int.h"
 #include "locks.h"
+#include "sd_sftp.h"
 
 extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
 void kr_wipe(void);        /* sd_keyring.c: empty the key ring of the XE conversion */
@@ -101,7 +103,6 @@ void kr_wipe(void);        /* sd_keyring.c: empty the key ring of the XE convers
 #include <pwd.h>
 #include <grp.h>
 #include <unistd.h>
-#include "sd_sftp.h"
 
 Public bool case_sensitive;
 

@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-5126): the prompt form of set.ai key keeps os.error() in key.stat before it tests it, as SD Core's does; no change of behaviour.
 * 17 Nov 26 dm  S.62: set.ai key reads the client's exit status (os.error()) after both forms; a client that failed no longer reports an earlier key
 *               as set (11608 and nothing audited, before the listing, check.key, the audit line and 11615; the hand-over file is still dropped first).
 * 11 Nov 26 dm  Carried from SD Core (owner, 11 Nov 2026: "Carry Core's dialog"): google is a provider and MODEL - goes back to the provider's starting model (e1061f73);
@@ -190,8 +191,9 @@ $include err.h
          if index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])
 *        The terminal is handed to the helper's client and nothing is captured: the key is typed there, never read by SD.  What happened is then read back, not assumed.
          os.execute "'" : ctl : "' 'key' '" : prov : "' 2>&1"
-*        17 Nov 26 dm - S.62: the client's exit status first, as in the hand-over form above.
-         if os.error() # 0 then
+         key.stat = os.error()
+*        17 Nov 26 dm - S.62: the client's exit status first, as in the hand-over form above (P-5126: kept in key.stat, as SD Core does).
+         if key.stat # 0 then
             @system.return.code = -ER$FAILED
             stop sysmsg(11608, 'nokey', 'the key was not set')                             ;* The AI helper refused: %1 (%2)
          end

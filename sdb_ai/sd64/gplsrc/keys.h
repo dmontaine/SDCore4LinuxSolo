@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-5992, P-5106, P-5107 (the owner's decision, as SD Core): K_REAL_USER (90) removed - no program asked it and the kernel no longer answered it; 90 is retired, never reused.
  * 17 Nov 26 dm  S.62 P-1322: K_ASSUME_USER (61) removed - a no-op with no caller in Solo (owner, 17 Nov 26); 61 is SD Core's key and never reused here.
  * 15 Nov 26 dm  K_XFER (173), the file transfer slot and server (Solo carry of SD Core's S.242); 174 reserved for Windows' K$OS.SDSYS.USER.
  * 12 Nov 26 dm  Solo: K_SHARED_REF (130) and K_SHARED_ONCE (131) removed - no caller, and the kernel answers neither (Windows Solo re-audit).
@@ -258,15 +259,14 @@
    sd_sftp.c k_xfer() has the arguments and answers.  173, the number SD Core and Windows use.  GPL.BP/INT$KEYS.H carries the same number.  */
 #define K_XFER               173
 /* 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER (its row 310); not implemented here and not given to anything else. */
-/* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
-   which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
    AND K_WINPID (its keys.h), so these three - which the port does not have -
    move to 90-92, a block clear of the port's 0-64.  A key number is compiled
    into every BASIC program that calls KERNEL, so the same number meaning two
    things in the two systems is drift of the same kind as a message number.
    GPL.BP/INT$KEYS.H must carry the same three numbers.                        */
-#define K_REAL_USER          90
+/* 90 was K_REAL_USER (PRE_RELEASE 20, the real person behind a sudo session) - the kernel stopped answering it with the
+   teardown (S.26) and nothing asked it; the definition was removed 17 Nov 26 (S.62 P-5106, the owner's decision): do not reuse */
 /* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
    are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
    own Linux permissions, and the kernel no longer carries those keys.

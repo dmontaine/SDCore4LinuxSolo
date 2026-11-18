@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-1279, carried from SD Core for Linux 10767826: sets the administrator flag after the installed-system test; BCOMP accepts $INTERNAL only from the administrator.
 * 14 Nov 26 dm  Compiler warning: removed the unused assignment to inp_ln in inp_sub (its only caller is commented out).
 * 28 Oct 26 dm  S.87: the call of $BCOMP no longer passes the is.ctype argument (the C dictionary item type is gone).
 * 18 Oct 26 dm  voc_refusal and voc_guard join the bootstrap list: BASIC calls !voc_guard (Solo carry A, owner's ruling B).
@@ -163,6 +164,12 @@ if ospath(@sdsys:@ds:'gpl.bp.out/login',OS$EXISTS) then
    crt 'System Already Installed?'
    goto abort.bbproc
 end
+
+* 17 Nov 26 dm - S.62 P-1279 (carried from SD Core for Linux 10767826, in Solo's form): BCOMP accepts $INTERNAL only from the
+*   administrator now, and this process is building the system: it holds the flag for the programs it compiles.  Set from here
+*   because no CPROC or LOGIN has run (sd-solo -i starts $bbproc).  SD Core sets it after its root test; Solo has no root, so
+*   it is set after the test above, which refuses on an installed system - the only bootstrap that reaches here is a first one.
+void kernel(K$ADMINISTRATOR, 1)
 
 unload.object               ;* Unload inactive object code
 

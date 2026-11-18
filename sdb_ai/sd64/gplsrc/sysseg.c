@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-4325: apply_pending_restore() prints "A restore is pending - putting it in place before SD starts." before the swap, as Windows Solo does.
  * 17 Nov 26 dm  S.62 NETDIRS (carried from SD Core): start_sd() calls netdirs_report() after audit_rotate(), so each NETDIRS entry SD ignores is named once at sd-solo -start.
  * 17 Nov 26 dm  S.62 P-1797: the fork() failure message and the stop's SIGKILL journal line name Solo's command, sd-solo -stop (they said sd -stop, the multi-user product's).
  * 14 Nov 26 dm  Carried from SD Core (S.241): release_pipe_fds().  sdlnxd and the startup command kept the caller's fds 0-2 through daemon(1, 1),
@@ -411,6 +412,9 @@ Private void apply_pending_restore(void) {
                home, marker) >= (int)sizeof(cmd))
     return;
 
+  /* 17 Nov 26 dm - S.62 P-4325: a status line before the wait (the swap moves the whole account), as Windows Solo prints it
+     (the owner's rule of a line before a wait, OWNER-ANSWERS 17 Nov Q9). */
+  printf("A restore is pending - putting it in place before SD starts.\n");
   fflush(stdout);
   rc = system(cmd);
   if (rc != 0)

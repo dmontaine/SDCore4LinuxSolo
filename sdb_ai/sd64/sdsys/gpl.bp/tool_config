@@ -6,6 +6,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-4630 (Q9), carried from SD Core for Linux 10767826: before SET.CONFIG runs, the status line says 14172 (Making the change (a few seconds)...).
+* 17 Nov 26 dm  S.62 (P-5127, Q9, the owner's rule of 12 Nov 26, carried from SD Core for Linux): the status line says 14150 (Reading the settings (a few seconds)...)
+*               before the report's !settings_os, so the screen does not look frozen while it runs.
 * 14 Nov 26 dm  Compiler warning: the "Not changed here" SCREEN MSGBOX no longer keeps its answer in bx, which nothing read (RETURNING and ELSE are optional).
 * 12 Nov 26 dm  S.221: Solo has no "session" effect.  A Solo session takes its settings from the shared segment sd-solo -start filled and never reads sd.conf (SD Core's
 *               W.11 F9, which makes a session read it, is not in Solo: PAL-40), so config.table says restart for those parameters and the page no longer says a change reaches
@@ -363,6 +366,10 @@ read.backup:
 
 read.report:
    repl = '' ; rtop = 1
+   held.msg = msg                                               ;* 17 Nov 26 (S.62, Q9): !settings_os runs openssl and grep, which can take a few seconds;
+   msg = sysmsg(14150)                                          ;* the status line says so first, as tool.remote's does (the owner's rule of 12 Nov 26)
+   call $tk_frame(ctx, keys, panes<view>, msg)
+   msg = held.msg
    call !settings_os(os.lines, rerr)
    if rerr # '' then
       repl = 'the report could not be made'
@@ -828,6 +835,8 @@ change.param:
       msg = cmsg
       return
    end
+   msg = sysmsg(14172)                                          ;* Making the change (a few seconds)...  17 Nov 26 (S.62 P-4630, the owner's Q9)
+   call $tk_frame(ctx, keys, panes<view>, msg)
    call $tk_run(allow, sent, out, stat, err)
    gosub read.all
    gosub draw.all

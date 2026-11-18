@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1785: <sys/stat.h> is reached through sd.h, as in SD Core (layout only).
  * 17 Nov 26 dm  S.62 NETDIRS (the owner's decision of 17 Nov, carried from SD Core in Solo's terms): os_path_ok_for_account() asks path_in_netdirs()
  *               last - a path resolved as the gate resolves it, inside a directory sd.conf's NETDIRS lists, is admitted to a session the OS switch
  *               holds to its account.  Entries are realpath'd once per process and ignored (named at sd-solo -start, netdirs_report()) when not
@@ -77,7 +78,6 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <sys/stat.h>
 #include <sys/wait.h>
 
 /* Modified by Composer AI - 2026/06/10.

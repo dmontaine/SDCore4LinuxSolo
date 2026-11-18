@@ -23,5 +23,6 @@ from source during the install.
 | `sd64/agent-pack/` | the SD BASIC guide and knowledge pack for an AI agent; the installer copies `guide/` and `pack/` into the installation |
 | `sd64/examples/` | example programs, including embedded Python |
 | `sd64/terminfo.src/` | terminal definitions |
+| `sd64/bin/`, `sd64/gplobj/` | build output, not tracked |
 
 See `sd64/sdsys/changelog` for the changes in each version.

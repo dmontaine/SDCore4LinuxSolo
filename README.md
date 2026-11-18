@@ -24,10 +24,8 @@ installation, the API request that lets the server install its own ssh key
 (request 49 then, request 72 from LS2.0-0) and first-use pinning of the server's TLS certificate by the client
 library; both are described in [docs/SOLO_API.md](docs/SOLO_API.md). LS1.1-3 gives Solo its
 own ssh listener on port 4251 (your Linux account name and password, or a key if you add one; run by you with no root, nothing changed in the
-machine's own sshd, so Solo and the multi-user SD Core can both be reached by ssh). The documentation is in the
-separate repository
-[SDCore4LinuxSoloDocs](https://github.com/dmontaine/SDCore4LinuxSoloDocs);
-[docs/SOLO_API.md](docs/SOLO_API.md) describes the API. **What has not been run,
+machine's own sshd, so Solo and the multi-user SD Core can both be reached by ssh). The documentation is
+listed under *Documentation* below. **What has not been run,
 and is the owner's to run** (`sudo` paths, `loginctl enable-linger`, the firewall
 rule for an open ssh or API port, an install from the published branch) is listed in
 Getting Started, page 19, *Features the developers could not test*.
@@ -82,6 +80,12 @@ choice (off, this computer only, or reachable from the network), with or without
 global password; a computer that a server manages needs both open to the network.
 An install file (`sd-solo-setup.conf.sample`) can answer these questions for an
 install nobody sits at.
+
+## Documentation
+
+The installation guide and the SD BASIC and TCL references are in the separate
+[SDCore4LinuxSoloDocs](https://github.com/dmontaine/SDCore4LinuxSoloDocs)
+repository; [docs/SOLO_API.md](docs/SOLO_API.md) describes the API.
 
 ## Source
 

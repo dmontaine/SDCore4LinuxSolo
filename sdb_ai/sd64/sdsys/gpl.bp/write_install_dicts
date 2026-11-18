@@ -33,8 +33,9 @@ CRT
 *   bootstrap pass 3).  KERNEL() cannot be used here - this program is not
 *   $internal, and the compiler took KERNEL for an array (the first build of
 *   this change died at pass 3 with "Expected array variable KERNEL").
+* 17 Nov 26 dm - S.62 (P-5128): the stop is written in lower case and indented as in the other three products.
 IF NOT(SYSTEM(1050)) THEN
-   STOP 'Command requires administrator privileges'
+      stop 'Command requires administrator privileges'
 END
 
 OPENPATH DATA_PATH TO DP.FILEVAR ELSE

@@ -18,6 +18,8 @@
  * 
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1777 to P-1781: <stdlib.h> included, myval_in_args declared after myval_buffer and SD_FILE_PRIVATE / SD_USER_HOME
+ *               before SD_KEYRING in the switch, as in SD Core (layout only).
  * 14 Nov 26 dm  S.234 kernel review: the release of the value buffer, carried from SD Core's L2 review (d8dbde84, 28 Oct): it is freed unless
  *               SDMEArgArray[0] points at it (myval_in_args).  The test was IsArgMV != 0, which left the one byte of an EMPTY argument allocated for
  *               good on every SDEXT('', @FALSE, key) - SD_USER_HOME's call for the home itself, carried here 9 Nov without this hunk.
@@ -69,6 +71,7 @@
 
 #include <errno.h>
 #include <pwd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -140,9 +143,9 @@ void op_sdext() {
 
   char myErrMsg[SD_ERR_MSG_LEN + 1];    /* hardcoded max string length is set to 512 char need to do something more "durable" */
   int32_t myval_len;
-  int myval_in_args = 0;                   /* 1 when SDMEArgArray[0] IS myval_buffer, which the release loop below then frees */
   int32_t mybuf_sz;
   char* myval_buffer;                      /* buffer for past value string  */
+  int myval_in_args = 0;                   /* 1 when SDMEArgArray[0] IS myval_buffer, which the release loop below then frees */
   STRING_CHUNK* str;
   int argIdx;
   int argCnt;
@@ -407,6 +410,48 @@ void op_sdext() {
       break;
     }
 
+    /* 17 Oct 26 dm - S.65 slice 2b.  SD_FILE_PRIVATE: is this path the kind of
+       object a credential may be trusted in (see file_private_check)?  Two
+       arguments, path and the word FILE or DIR.  The answer is the text "1" or
+       "0" and nothing else; every failure - a wrong argument count, a word that
+       is neither, a path that cannot be examined - answers "0", so a caller
+       that tests for "1" refuses.  Only a wrong argument count also sets
+       process.status (SD_EXT_ARG_CNT), as the neighbours do. */
+    case SD_FILE_PRIVATE: {
+      char answer[2];
+
+      answer[0] = '0';
+      answer[1] = '\0';
+      if (argCnt != 2) {
+        process.status = SD_EXT_ARG_CNT;
+      } else if (strcmp(SDMEArgArray[1], "FILE") == 0) {
+        if (file_private_check(SDMEArgArray[0], 0))
+          answer[0] = '1';
+      } else if (strcmp(SDMEArgArray[1], "DIR") == 0) {
+        if (file_private_check(SDMEArgArray[0], 1))
+          answer[0] = '1';
+      }
+      k_put_c_string(answer, e_stack);
+      e_stack++;
+      break;
+    }
+
+    /* 28 Oct 26 dm - S.88 (carried 9 Nov 26, Solo carry 22).  SD_USER_HOME: one argument, a path RELATIVE to the home ('' for the home
+       itself).  The answer is the absolute path of that directory when user_home_dir() trusts it, and the null string on every failure (a
+       caller that tests for '' refuses).  More than one argument also sets process.status (SD_EXT_ARG_CNT), as the neighbours do. */
+    case SD_USER_HOME: {
+      char home_out[PATH_MAX + 1];
+
+      home_out[0] = '\0';
+      if (argCnt != 1)
+        process.status = SD_EXT_ARG_CNT;
+      else if (!user_home_dir(SDMEArgArray[0], home_out, sizeof(home_out)))
+        home_out[0] = '\0';
+      k_put_c_string(home_out, e_stack);
+      e_stack++;
+      break;
+    }
+
     /* 18 Oct 26 dm - encryption layer 3.  The key ring of the XE conversion (sd_keyring.c).  The first argument is the operation:
          set    name, base64 key -> the key id, 8 hex digits       (STATUS() and the null string on a bad name or key, or a full ring)
          clear  name or *        -> how many keys went
@@ -456,48 +501,6 @@ void op_sdext() {
       } else {
         sdme_err_rsp(SD_EXT_KEY_ERR);
       }
-      break;
-    }
-
-    /* 17 Oct 26 dm - S.65 slice 2b.  SD_FILE_PRIVATE: is this path the kind of
-       object a credential may be trusted in (see file_private_check)?  Two
-       arguments, path and the word FILE or DIR.  The answer is the text "1" or
-       "0" and nothing else; every failure - a wrong argument count, a word that
-       is neither, a path that cannot be examined - answers "0", so a caller
-       that tests for "1" refuses.  Only a wrong argument count also sets
-       process.status (SD_EXT_ARG_CNT), as the neighbours do. */
-    case SD_FILE_PRIVATE: {
-      char answer[2];
-
-      answer[0] = '0';
-      answer[1] = '\0';
-      if (argCnt != 2) {
-        process.status = SD_EXT_ARG_CNT;
-      } else if (strcmp(SDMEArgArray[1], "FILE") == 0) {
-        if (file_private_check(SDMEArgArray[0], 0))
-          answer[0] = '1';
-      } else if (strcmp(SDMEArgArray[1], "DIR") == 0) {
-        if (file_private_check(SDMEArgArray[0], 1))
-          answer[0] = '1';
-      }
-      k_put_c_string(answer, e_stack);
-      e_stack++;
-      break;
-    }
-
-    /* 28 Oct 26 dm - S.88 (carried 9 Nov 26, Solo carry 22).  SD_USER_HOME: one argument, a path RELATIVE to the home ('' for the home
-       itself).  The answer is the absolute path of that directory when user_home_dir() trusts it, and the null string on every failure (a
-       caller that tests for '' refuses).  More than one argument also sets process.status (SD_EXT_ARG_CNT), as the neighbours do. */
-    case SD_USER_HOME: {
-      char home_out[PATH_MAX + 1];
-
-      home_out[0] = '\0';
-      if (argCnt != 1)
-        process.status = SD_EXT_ARG_CNT;
-      else if (!user_home_dir(SDMEArgArray[0], home_out, sizeof(home_out)))
-        home_out[0] = '\0';
-      k_put_c_string(home_out, e_stack);
-      e_stack++;
       break;
     }
 

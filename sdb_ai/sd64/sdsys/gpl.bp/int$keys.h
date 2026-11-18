@@ -18,6 +18,7 @@
   	  * 
   	  * 
 	  * START-HISTORY:
+	  * 17 Nov 26 dm S.62 P-5124, P-5991 (the owner's decision on P-1013, P-1014): K$REAL.USER (90) removed - no program asked it; 90 is retired, never reused.
 	  * 17 Nov 26 dm S.62 P-1322: K$ASSUME.USER (61) removed (no caller in Solo, owner 17 Nov 26); the number is not reused.
 	  * 2 Nov 26 dm  DEFAULT.DEPTH 43 (was 42), with gplsrc/tio.h DEFAULT_DEPTH (owner: "Change to 43").
 	  * 27 Oct 26 dm S.87 batch 13: $define for OS$OPEN, as # no longer starts a directive.
@@ -176,14 +177,10 @@
 *   server's side (find, serve, refuse).  The arguments and answers are at k_xfer() in gplsrc/sd_sftp.c.  Must match gplsrc/keys.h.
       $define K$XFER           173      ;* File transfer over the ssh login: the slot and the server (S.242)
 * 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER (its row 310); not implemented here and not reused.
-* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
-*   NOT the same as K$USERNAME, which answers whoever the process is running
-*   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no
-*   source can name the person; the caller must refuse rather than guess.
 * 10 Sep 26 dm - Parity audit: 57-59 are the Windows port's K$AUDIT, K$WINPATH
 *   and K$WINPID, so these three move to 90-92, clear of the port's 0-64.  Must
 *   match gplsrc/keys.h.
-      $define K$REAL.USER       90       ;* Real person behind the session
+* 90 was K$REAL.USER (PRE_RELEASE 20) - removed 17 Nov 26 (S.62 P-1013, P-1014, P-5124); retired, do not reuse.  Must match gplsrc/keys.h.
 * 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
 *   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
 *   own Linux permissions, and the kernel no longer carries those keys.

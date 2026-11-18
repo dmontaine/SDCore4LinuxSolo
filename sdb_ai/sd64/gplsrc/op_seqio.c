@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1782, P-1783: op_openseq()'s declarations of blocking_user and record_locked in SD Core's order (layout only).
  * 11 Nov 26 dm  Carried from SD Core (S.88 stage E2, A1 and A3; 30 Oct and 2 Nov 26; commits 36fe9456, a63c70f1, 5162a5d1): OPENSEQ ... CREATING of a name that
  *               does not exist is exclusive (O_EXCL; ER_EXISTS 6032 when a file or a dangling link is there by the time it is made; SHARED keeps
  *               open-or-create) and is made AFTER the SD lock on the name is taken; both OPENSEQ forms look at the raw name for a symbolic link before
@@ -455,12 +456,12 @@ Private void openseq(bool map_name) {
   OSFILE fu = INVALID_FILE_HANDLE;
   u_int16_t op_flags;
   bool read_only = FALSE;
-  int16_t blocking_user;
-  bool record_locked = FALSE; /* 14 Sep 26 - lock_record() succeeded */
   bool edit_blocked = FALSE;  /* 24 Oct 26, Solo carry 19: a path in a VOC, which the session may not change */
   bool leaf_is_link = FALSE; /* 30 Oct 26 S.88 E2: the name given is itself a symbolic link (fullpath() follows it below) */
   struct stat leaf_stat_buf;
   bool create_after_lock = FALSE; /* 02 Nov 26 S.88 A3: CREATING of a name that is not there: the file is made once the SD lock is held */
+  int16_t blocking_user;
+  bool record_locked = FALSE; /* 14 Sep 26 - lock_record() succeeded */
   int status;
   u_int16_t flags = 0;
   char* p;

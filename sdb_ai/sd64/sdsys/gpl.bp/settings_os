@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (round 2, fix cycle 2): [api] prints the hash of the certificate's public key ("public key sha256: ..."), as SD Core for Linux's does.
 * 17 Nov 26 dm  S.62 (L4 S1): [mode] says the global password record could not be read when $cred opens but the read of $global fails for another reason than a missing record (ER$RNF with OS error 2).
 * 17 Nov 26 dm  S.62 (P-4440): [mode] says the credential register could not be read when $cred cannot be opened, not "not managed".
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
@@ -89,6 +90,13 @@ $include err.h
       cmd = "openssl x509 -noout -subject -startdate -enddate -fingerprint -sha256 -in '":tls:"' 2>&1"
       gosub run.cmd
       sec<-1> = out
+*     17 Nov 26 dm - S.62 (carried from SD Core for Linux, its S.65 slice 2a): the hash of the certificate's PUBLIC KEY, the figure another SD
+*       server pins (set.server ... connect shows it); the fingerprint above changes when the certificate is renewed, this does not.  Only the
+*       public key is read (x509 -pubkey), and the line is written only when the answer is a 64-digit hex hash.
+      cmd = "openssl x509 -noout -pubkey -in '":tls:"' 2>/dev/null | openssl pkey -pubin -outform DER 2>/dev/null | openssl dgst -sha256 -r 2>/dev/null"
+      gosub run.cmd
+      key.hash = field(trim(out<1>), ' ', 1)
+      if len(key.hash) = 64 and convert('0123456789abcdef', '', key.hash) = '' then sec<-1> = 'public key sha256: ':key.hash
    end
    hdr = '[api]' ; gosub add.section
 

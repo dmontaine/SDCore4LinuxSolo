@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm S.62 P-1788, P-1789, P-1787, P-1790: SOCKET.INFO's SKT$INFO.TLS.SPKI case before SKT$INFO.TLS.CBIND, and "header.h" before
+ *           "keys.h", in SD Core's order (layout only; each case keeps its own comment).
  * 07 Nov 26 dm S.125: the redeclaration of k_error() with __attribute__((noreturn)) is gone.  k_error() RETURNS for a
  *           message beginning '!' (the three SOCKET_DEBUG connect messages of op_openskt), and at -O2 the compiler took the
  *           attribute at its word: it left out everything after those calls, so a refused connect printed both messages
@@ -98,8 +100,8 @@
    return; see the history above and gplbld/test-noreturn-units.py. */
 
 #include "sd.h"
-#include "keys.h"
 #include "header.h" /* HDR_INTERNAL: the VOC gate of SKT$INFO.TRACE (24 Oct 26, Solo carry 19) */
+#include "keys.h"
 #include "sdnet.h"
 #include "sd_tls.h"
 
@@ -1045,6 +1047,21 @@ void op_sktinfo() {
       result_descr.data.value = (n != 0);
       break;
 
+    /* 20 Oct 26 SD Core Solo for Linux (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the hash of the server's public key, 64 lower case
+       hex digits, "" without TLS or without a key. */
+    case SKT_INFO_TLS_SPKI: {
+      unsigned char spki[32];
+      char hex[65];
+      int i;
+
+      hex[0] = '\0';
+      if ((sockvar->tls != NULL) && sd_tls_client_peer_spki_sha256((SD_TLS_CLIENT*)sockvar->tls, spki)) {
+        for (i = 0; i < 32; i++)
+          sprintf(hex + (2 * i), "%02x", spki[i]);
+      }
+      k_put_c_string(hex, &result_descr);
+    } break;
+
     /* 15 Sep 26 dm - S.19: the SCRAM c= value for a socket opened with
        SKT$TLS - base64("p=tls-exporter,," + this end's binding) - and ""
        for any other socket.  !sdclient's login carries it. */
@@ -1061,21 +1078,6 @@ void op_sktinfo() {
         k_put_c_string(none, &result_descr);
       }
       break;
-
-    /* 20 Oct 26 SD Core Solo for Linux (SDNet carry 9; SD Core's S.65 slice 2, 17 Oct 26): the hash of the server's public key, 64 lower case
-       hex digits, "" without TLS or without a key. */
-    case SKT_INFO_TLS_SPKI: {
-      unsigned char spki[32];
-      char hex[65];
-      int i;
-
-      hex[0] = '\0';
-      if ((sockvar->tls != NULL) && sd_tls_client_peer_spki_sha256((SD_TLS_CLIENT*)sockvar->tls, spki)) {
-        for (i = 0; i < 32; i++)
-          sprintf(hex + (2 * i), "%02x", spki[i]);
-      }
-      k_put_c_string(hex, &result_descr);
-    } break;
 
     case SKT_INFO_FAMILY:
       switch (sockvar->family) {

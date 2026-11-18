@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-1279, carried from SD Core for Linux 10767826: $INTERNAL is accepted only in internal mode AND with the administrator flag (kernel(K$ADMINISTRATOR, -1)).
 * 14 Nov 26 dm  "X is assigned a value but never used" is given only for a value an assignment statement gave (SYM.PLAIN, set
 *               while is.assignment looks up its target), not for the target a statement needs (READU's record when the lock
 *               is the point, LOCATE ... SETTING as a test, CAPTURING, INPUT); x->... and x{...} = ... count as a use of x.
@@ -3174,7 +3175,12 @@ proc.directive:
 
       ************************ INTERNAL *************************
 
-      case u.token.string = "INTERNAL" & kernel(K$INTERNAL, -1)
+* 17 Nov 26 dm - S.62 P-1279 (carried from SD Core for Linux 10767826): building an internal program is an administrative act,
+*   so it needs the administrator and not merely internal mode (both Windows products since 13 Aug 26).  Internal programs are
+*   the only ones that may set the administrator flag (op_kernel.c).  Every internal compile in Solo holds it: bbproc sets it for
+*   the bootstrap (sd-solo -i), and CPROC gives it to every internal session (sd-solo -internal: SECOND.COMPILE, the installer's
+*   and solo-stage.sh's steps, the owner's own session through the one-shot $internal marker).
+      case u.token.string = "INTERNAL" & kernel(K$INTERNAL, -1) & kernel(K$ADMINISTRATOR, -1)
          header.flags = bitor(header.flags, hdr.internal)
          internal = @true
 

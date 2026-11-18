@@ -353,3 +353,23 @@ messages/14990
 messages/14991
 messages/14992
 messages/14994
+#
+# LS2.0-0, 17 Nov 26 (S.62, round 1 and the cycle-2 carry of SD Core for Linux 10767826): orphans, printed by nothing, deleted as in SD Core
+# (the owner: "DELETE the ones in Linux's own blocks"); 10032 and 10033 in round 2, both Windows products having deleted theirs.  Their numbers
+# are never reused (test-msgreserved-units.py RETIRED).
+messages/10032
+messages/10033
+messages/11137
+messages/11144
+messages/11186
+messages/11187
+messages/11198
+messages/11652
+messages/11670
+messages/11671
+messages/11753
+messages/11754
+messages/11761
+messages/11985
+messages/11986
+messages/11987

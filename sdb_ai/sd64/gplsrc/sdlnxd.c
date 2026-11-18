@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1796: the log_message() declaration before the TICK_SECONDS banner, in SD Core's order (layout only; Core's audit writer, which sits
+ *               between them there, has no place in Solo).
  * 14 Nov 26 dm  The error log's write is tested (Solo carry S.232, Core 64561d81; Solo has no audit socket, so Core's other change has no place here).
  * 25 Oct 26 dm  The daemon's restart (carried): sd-solo-lnxd.service runs this program and restarts it if it dies (Restart=on-failure), so a daemon that finds another one
  *               already named in the segment (and running this same executable) ends with status 0 - there is one daemon at a time.
@@ -88,11 +90,11 @@ void check_lost_users(void);
 
 void signal_handler(int signum);
 
+void log_message(char* msg);
+
 /* ====================================================================== */
 
 #define TICK_SECONDS 10
-
-void log_message(char* msg);
 
 /* Does the segment name another live process that is running this program?  The pid alone is not enough: a daemon that died leaves its pid in the segment, and the number
    may be reused by anything, so the other process's executable must be this one's. */

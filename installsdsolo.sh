@@ -880,12 +880,26 @@ install_packages() {
 # installed and the installation failed ... a gpm installation failure doesn't kill the install").  SD runs without it:
 # there is then no mouse on a bare console.  The installer neither enables nor starts gpm.service; the package does
 # what the distribution's package does.
+# 17 Nov 26 (S.62, carried from SD Core's S.260): gpm is NOT ASKED FOR where there is no console mouse device
+# (/dev/input/mice): a container (SD Core measured an LXC host, 17 Nov: "Could not open /dev/input/mice", the package's
+# postinst fails, dpkg keeps it half-configured and every later apt-get on the machine stops on it) or a machine with no
+# console mouse, where gpm could do nothing anyway.  Where it is asked for and fails, it is PURGED (dpkg --purge
+# --force-remove-reinstreq when apt-get cannot), and the install says the command to finish if dpkg still holds it.
+# SD_CONSOLE_MOUSE names another device, for the free check (gplbld/test-install-gpm.sh).
+# GPM-BEGIN
 install_gpm() {
-  if ! sudo apt-get -y install gpm; then
-    sudo apt-get -y remove gpm > /dev/null 2>&1 || true
-    warn "gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo apt-get install gpm"
+  local console_mouse=${SD_CONSOLE_MOUSE:-/dev/input/mice}
+  if [ ! -e "$console_mouse" ]; then
+    say "This machine has no console mouse device ($console_mouse): gpm is not installed (SD runs without it; there is no mouse on a bare console)."
+  elif ! sudo apt-get -y install gpm; then
+    sudo apt-get -y purge gpm > /dev/null 2>&1 || sudo dpkg --purge --force-remove-reinstreq gpm > /dev/null 2>&1 || true
+    warn "WARNING: gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo apt-get install gpm"
+    if dpkg -s gpm > /dev/null 2>&1; then
+      warn "WARNING: dpkg still holds gpm half-installed, and other apt-get commands will fail until it is gone:  sudo dpkg --purge --force-remove-reinstreq gpm"
+    fi
   fi
 }
+# GPM-END
 say
 if [ "$skip_pkgs" -eq 1 ]; then
   say "Skipping package installation (--skip-packages); checking the tools instead."

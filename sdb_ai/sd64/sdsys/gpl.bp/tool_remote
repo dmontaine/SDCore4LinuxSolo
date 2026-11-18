@@ -5,6 +5,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-4630 (Q9), carried from SD Core for Linux 10767826: confirm.and.run says 14172 (Making the change (a few seconds)...) on the status line before the command runs.
+* 17 Nov 26 dm  S.62 (P-4669, Q9, the owner's rule of 12 Nov 26, carried from SD Core for Linux): read.all says 14150 (Reading the settings (a few seconds)...) on
+*               the status line before the reports run, so the screen does not look frozen; the page's own message comes back after.
 * 11 Nov 26 dm  SOLO'S SHAPE (S.117; the owner, 11 Nov 2026: "Yes, that shape").  Four views, keys 1 to 4: doors, servers, connected, TLS.  The routes view and the sdsys
 *               login view are not offered (Solo has one account and no sdsys): their keys, menu entries and AI offers are gone, REMOTE.SDSYS is not on the list of
 *               commands and the accounts' routes are not read.  THEIR CODE BELOW (read.accounts, route.line, do.sdsys, the cases of views 2 and 6) IS LEFT IN PLACE
@@ -171,6 +174,12 @@ $include tk.h
 
 * Everything the five views show, read again: the doors' reports, the SDNet servers, the sessions, the accounts' routes and the TLS lines
 read.all:
+*  17 Nov 26 (S.62, Q9; the owner's rule of 12 Nov 26, a line before any wait over about 2 s, carried from SD Core for Linux): the reports run remote.api,
+*  remote.ssh and openssl, which can take a few seconds, so the status line says so first, and the page's own message comes back after.
+   held.msg = msg
+   msg = sysmsg(14150)                                          ;* Reading the settings (a few seconds)...
+   call $tk_frame(ctx, keys, panes<view>, msg)
+   msg = held.msg
    sel.t = ''
    if nrows > 0 and ci >= 1 and ci <= nrows then sel.t = rowtxt<ci>
    cmd = 'remote.api'
@@ -617,6 +626,8 @@ plain.word:
 confirm.and.run:
    call $tk_confirm(sent, el, typed, res, cmsg)
    if res = 'run' then
+      msg = sysmsg(14172)                                       ;* Making the change (a few seconds)...  17 Nov 26 (S.62 P-4630, the owner's Q9)
+      call $tk_frame(ctx, keys, panes<view>, msg)
       call $tk_run(allow, sent, out, stat, err)
       gosub read.all
       gosub draw.all

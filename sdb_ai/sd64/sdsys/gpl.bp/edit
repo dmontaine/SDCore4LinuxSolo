@@ -15,6 +15,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-3348, carried from SD Core for Linux 10767826: open.files opens the file once, as typed; the lower- and upper-case retries are gone (the VOC is case blind).
 * 17 Nov 26 dm  S.62 (P-1906, P-1907): editor.opts, always empty since the nano --rcfile branch went (9 Nov 26), is gone; the command line is SD Core's.
 * 11 Nov 26 dm  SD Core for Linux Solo (owner: "Yes, Debian and Ubuntu only"; SD Core's S.105): find.pkg.mgr asks
 *               for apt-get only; the dnf, pacman and zypper branches went with the distributions they served.
@@ -606,26 +607,18 @@ return
 * ---------------------------------------------------------------------------
 * open.files  -  the record's file, and $HOLD for the working copy.
 *
-* 10 Sep 26 dm - LINUX: AS TYPED, THEN LOWER CASE, THEN UPPER CASE - the order
-* SL M sets for the lower-case conversion.  On a case-sensitive filesystem
-* "edit bp test" otherwise finds nothing when only BP exists.  The name that
-* opened replaces in.file.name, so the compile and catalogue offers use it.
+* 17 Nov 26 dm - S.62 P-3348 (carried from SD Core for Linux 10767826): ONE
+* OPEN, AS TYPED, as SD Core for Windows has it.  The lower-case and upper-case
+* retries (10 Sep 26, written before the VOC was made case blind) can no longer
+* find anything the first open does not: the VOC is a NOCASE file (S.62 PAL-1
+* D2; upgrade_nocase converts a kept account's), so OPEN finds an entry in
+* whatever case the name is typed.
 * ---------------------------------------------------------------------------
 open.files:
    open.ok = @false
-   open.name = in.file.name
-   open dict.text, open.name to input.file then open.ok = @true
-   if not(open.ok) and downcase(in.file.name) # in.file.name then
-      open.name = downcase(in.file.name)
-      open dict.text, open.name to input.file then open.ok = @true
-   end
-   if not(open.ok) and upcase(in.file.name) # in.file.name then
-      open.name = upcase(in.file.name)
-      open dict.text, open.name to input.file then open.ok = @true
-   end
+   open dict.text, in.file.name to input.file then open.ok = @true
 
    if open.ok then
-      in.file.name = open.name
       open temp.file.name to temp.file then
          files.opened = @true
       end else

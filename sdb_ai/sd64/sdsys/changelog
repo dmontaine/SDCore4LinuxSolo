@@ -1,6 +1,108 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SD-SOLO --VERSION NAMES ITS OWN COMMAND.
+
+             What        - sd-solo --version prints "SD Core Solo for Linux (sd-solo) Version ...".
+             Why         - it printed "(sd)", which is the command of the multi-user SD Core; Solo's command is
+                           sd-solo.  SD Core Solo for Windows already prints "(sd-solo)".
+             Does NOT    - Change the version number or what the option does.
+
+17 Nov 26  A RESTORE WAITING FOR THE NEXT START SAYS SO BEFORE IT IS PUT IN PLACE.
+
+             What        - when sd-solo -start finds a RESTORE.ACCOUNT waiting, it prints "A restore is pending -
+                           putting it in place before SD starts." before it moves the account.
+             Why         - moving a whole account can take a while, and the start was silent until it ended; a line
+                           before a wait is the rule for SD's commands, and SD Core Solo for Windows prints the same
+                           line.
+             Does NOT    - Change how the restore is applied, rolled back or logged (sdrestore.log).
+
+17 Nov 26  THE INSTALLER DOES NOT ASK FOR GPM WHERE THERE IS NO CONSOLE MOUSE.
+
+             What        - installsdsolo.sh installs gpm (the console mouse daemon) only when the machine has a console
+                           mouse device (/dev/input/mice), and says in one line why it skipped it otherwise.  When the
+                           gpm package cannot be installed it is purged (with dpkg's own purge when apt-get cannot) and
+                           the install names the command to finish the job if dpkg still holds the package.
+             Why         - in a container, or on a machine with no console mouse, gpm's own install script fails and
+                           leaves the package half-installed, and every later apt-get on the machine then stops on it.
+                           SD Core for Linux's installer does the same.
+             Does NOT    - Enable or start gpm, or change anything on a machine where gpm installs normally.
+
+17 Nov 26  THE CONTRIBUTORS LIST NAMES THE SD CORE PROJECT.
+
+             What        - the contributors list (contrib) has the "SD Core for Linux" and "AI Agents - Models"
+                           sections that SD Core for Linux shows.
+             Why         - the credits are to be the same in all four SD Core versions.
+             Does NOT    - Change anything else in the list.
+
+17 Nov 26  TOOL.CONFIG AND TOOL.REMOTE SAY WHEN THEY ARE READING THE SETTINGS.
+
+             What        - before the configuration page reads the operating system's part of the settings report, and
+                           before the remote servers page reads its doors and the TLS identity, the status line says
+                           "Reading the settings (a few seconds)..."; the page's own message comes back afterwards.
+             Why         - those reads run outside SD and can take a few seconds, and the screen looked frozen while
+                           they did.  SD Core for Linux shows the same line (the owner's rule: a line before any wait
+                           of more than about two seconds).
+             Does NOT    - Change what either page reads, shows or changes.
+
+17 Nov 26  SETTINGS.REPORT SHOWS THE HASH OF THE API CERTIFICATE'S PUBLIC KEY.
+
+             What        - the [api] section of settings.report (and the TLS view of tool.remote, which reads it) adds a
+                           line "public key sha256: <64 hex digits>", worked out from the public key of the API
+                           certificate in the Solo folder.
+             Why         - this is the figure another SD server pins when it connects (set.server ... connect shows it),
+                           and unlike the certificate's fingerprint it does not change when the certificate is renewed.
+                           SD Core for Linux prints the same line.
+             Does NOT    - Read or show the private key, or change the certificate.  No line is written when the hash
+                           cannot be worked out.
+
+17 Nov 26  THE HOME SCREEN HAS A SCHEDULED JOBS TILE.
+
+             What        - the administrator's People and access group on the home screen has a Scheduled jobs tile,
+                           which opens tool.jobs.
+             Why         - tool.jobs was there but the home screen offered no tile for it, as SD Core's does.
+             Does NOT    - Change tool.jobs or what a scheduled job may run.
+
+17 Nov 26  FOUR VERBS HAVE A DESCRIPTION IN THE VOC.
+
+             What        - backup.account, restore.account and settings.report (the account's VOC) and tool.jobs
+                           (the system's own VOC) carry a one-line description, shown by LISTV and the IDE's tree.
+             Why         - their VOC records said only "V"; SD Core's records have descriptions.
+             Does NOT    - Change what the verbs do.
+
+17 Nov 26  SD-SOLO -INTERNAL NAMES NO ACCOUNT BUT SDSYS.
+
+             What        - sd-solo -internal with -a naming any account other than SDSYS (for example -asduser) stops at
+                           once with "sd: -internal may only be used with the SDSYS account".  With no account named the
+                           internal session goes to SDSYS as before.
+             Why         - an internal session in the user account has no business it could legitimately conduct.  SD
+                           Core for Linux refuses it the same way, and both Windows products have since August.
+             Does NOT    - Change the internal door itself (the one-shot $internal marker), the installer's steps, which
+                           name no account, or an ordinary sign-on with -asduser.
+
+17 Nov 26  TOOL.CONFIG AND TOOL.REMOTE SAY WHEN THEY ARE MAKING A CHANGE.
+
+             What        - after Run is chosen in the confirm box, the status line of the configuration page and of the
+                           remote servers page says "Making the change (a few seconds)..." until the command has run.
+             Why         - the command runs outside the page and can take a few seconds; the screen looked frozen while it
+                           did.  SD Core for Linux shows the same line (the owner's rule: a line before any wait of more
+                           than about two seconds).
+             Does NOT    - Change what either page runs or what it reports afterwards.
+
+17 Nov 26  THE CASE-INSENSITIVE CONVERSION NAMES THE FILE IT COULD NOT CONVERT.
+
+             What        - when the upgrade's conversion of a file to case-insensitive record ids cannot make its scan file
+                           or its work file, the report adds "File: <path>" naming the file that was left as it is.
+             Why         - the report named only the work file that failed, so the file still to convert by hand had to be
+                           worked out.  SD Core for Linux and SD Core for Windows name it the same way.
+             Does NOT    - Change which files are converted or left.
+
+17 Nov 26  CONFIG CONTRIB LISTS THE SAME CONTRIBUTORS IN ALL FOUR VERSIONS.
+
+             What        - the contributors list adds the AI agents that worked on the four versions.
+             Why         - the four versions of SD Core now show one list.
+             Does NOT    - Change anything else.
+
 17 Nov 26  SETTINGS.REPORT SAYS WHEN THE GLOBAL PASSWORD RECORD COULD NOT BE READ.
 
              What        - the [mode] section of settings.report says "unknown (the global password record could not be

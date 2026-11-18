@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-5123): the no-counts test is written as SD Core writes it (a block); no change of behaviour.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 02 Oct 26 dm Written for S.50 / LSOLO 20.  The name and signature are shared
 *              by all four SD Core products (mail 2026-10-01T1030); this body
@@ -173,7 +174,9 @@ extract.archive:
          counts<-1> = field(line, ' ', 3):@vm:field(line, ' ', 4):@vm:field(line, ' ', 5):@vm:field(line, ' ', 2)
       end
    next j
-   if counts = '' then err = 11022:@vm:zip.path
+   if counts = '' then
+      err = 11022:@vm:zip.path
+   end
    return
 
 * ======================================================================
