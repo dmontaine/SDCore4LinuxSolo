@@ -320,7 +320,7 @@ clause of `execute` and `os.execute` — take the output
 `create.file` *name* {`directory`} {`on error` …}
 
 - a statement of SD BASIC
-- docs: `User/markdown/07a-sd-basic-locking-and-asking-about-a-file.md` line 174
+- docs: `User/markdown/07a-sd-basic-locking-and-asking-about-a-file.md` line 173
 
 ### basic:stmt:creating
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:11686#58a91974 src2=docs:tools/syntax-shapes.txt:276#17000a0a
@@ -1117,7 +1117,7 @@ clause of `input` and `input @` — show nothing of what is typed
 `osdelete` *path* — a path outside the account's own directory needs the account's `os` switch
 
 - a statement of SD BASIC
-- docs: `User/markdown/07a-sd-basic-locking-and-asking-about-a-file.md` line 182
+- docs: `User/markdown/07a-sd-basic-locking-and-asking-about-a-file.md` line 181
 
 ### basic:stmt:osread
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:471#561a5e43 src2=docs:tools/syntax-shapes.txt:355#807c8c6d
@@ -1725,7 +1725,7 @@ clause of `execute` — take the list the command left
 `set.trigger` *file.var*, *mode*, *program* {, *modes*}
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/07a-sd-basic-locking-and-asking-about-a-file.md` line 178
+- docs: `User/markdown/07a-sd-basic-locking-and-asking-about-a-file.md` line 177
 
 ### basic:stmt:set.unassigned
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:501#b233e95e src2=docs:tools/syntax-shapes.txt:213#477d6f21
