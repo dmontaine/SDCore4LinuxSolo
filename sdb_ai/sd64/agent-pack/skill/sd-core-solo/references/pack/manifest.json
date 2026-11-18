@@ -96,7 +96,7 @@
   },
   "tcl.keyword": {
    "chunks": 214,
-   "sha256": "b41e4c4eab2de5a34c7dda8522af488ea3271ce53ec78871d8ba09411b3cc103"
+   "sha256": "9030dc8b523217ae3d862042e521ed4a22e5af88b00200a1cc197178640e4b28"
   },
   "tcl.verb": {
    "chunks": 212,
@@ -181,7 +181,7 @@
   },
   "reference/tcl-keywords.md": {
    "chunks": 214,
-   "sha256": "f35464d6a2a1a6bbb580075a41ec539079a6e44683ca8f82c8e3d711d928f4d5",
+   "sha256": "390edd8e18d860d49f22e80c16afb7f3c821c469b19c53cc56ec165903fb06a9",
    "words": 10200
   },
   "reference/tcl-verbs.md": {
