@@ -465,6 +465,11 @@
       *   SET.JOBS.ACCESS ON / OFF; SET.JOB and RUN.JOB read it at every use, so OFF stops every job at its next run.  SD Core for Linux keeps
       *   field 23 free for it (its own jobs are the administrator's, through the root helper).
       $define ACC$JOBS         23    ;* SD's scheduled jobs (set.job, run.job) may be made and run (yes/no; blank = no)
+      * 18 Nov 26 dm - FIELD 24, SOLO'S OWN (S.247; owner, 18 Nov 2026: "restrict the stored password"): whether the kept copy of the account
+      *   password ($cred/$stored) signs in ANY one-shot command, or only SD's scheduled jobs and MCP calls (run.job <name>, mcp.call <id>).
+      *   yes/no; BLANK MEANS NO (delivered restricted).  The administrator switches it with SET.STORED.ACCESS ON / OFF; LOGIN reads it at every
+      *   one-shot sign-in.  SD Core for Linux keeps field 24 free for it (Core has no stored password).
+      $define ACC$STORED.ANY   24    ;* the kept password signs in any one-shot, not only run.job (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

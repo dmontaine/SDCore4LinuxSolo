@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  THE KEPT PASSWORD SIGNS IN ONLY SCHEDULED JOBS AND MCP CALLS, UNLESS THE ADMINISTRATOR SAYS OTHERWISE.
+
+             What        - the kept copy of the account password ($cred/$stored) now signs in only SD's own
+                           scheduled jobs (run.job) and the MCP door's calls (mcp.call).  Any other command given on
+                           the sd-solo command line, from cron or a script, needs the password on its input and says
+                           so: "The kept password signs in only SD's scheduled jobs and MCP calls".  The refused use is
+                           written to the audit trail.  The administrator can let the kept copy sign in any such
+                           command again with SET.STORED.ACCESS ON, and restrict it with SET.STORED.ACCESS OFF;
+                           SET.STORED.ACCESS with no word says which.
+             Why         - a copy of the password that any command can use is a wide door.  Delivered narrow, the
+                           administrator decides whether to widen it.  SD's scheduled jobs and the MCP door each
+                           have their own switch, off as delivered, so they keep working when they are opened.
+             Does NOT    - Keep the copy from your own programs: it is a file your Linux user can read, as before.
+                           This decides only what SD accepts it for.  An interactive sign-in, and a command with the
+                           password piped in, work exactly as before.
+
 18 Nov 26  EVERY AUDIT RECORD IS ALSO WRITTEN TO THE SYSTEM JOURNAL.
 
              What        - each record SD writes to the audit trail (the audit file in the Solo folder) is also sent to

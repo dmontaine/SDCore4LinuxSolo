@@ -372,7 +372,7 @@ Insufficient memory to reallocate array chunk
 %1 already had that access; nothing changed
 ```
 
-cited by: `setjobsacc`, `setnetacc`, `setosacc`, `setxferacc`
+cited by: `setjobsacc`, `setnetacc`, `setosacc`, `setstoredacc`, `setxferacc`
 
 ### msg:10081
 > kind=message tier=reference since=- src=sdsys/messages/10081:1#cb0ce2a0
@@ -492,7 +492,7 @@ You cannot suspend your own account or the one you are standing in
 Unable to change the state of %1; its state in the register is unchanged
 ```
 
-cited by: `setjobsacc`, `setnetacc`, `setosacc`, `setxferacc`
+cited by: `setjobsacc`, `setnetacc`, `setosacc`, `setstoredacc`, `setxferacc`
 
 ### msg:10117
 > kind=message tier=reference since=- src=sdsys/messages/10117:1#ca57bb67
@@ -10546,6 +10546,33 @@ cited by: `tool_config`, `tool_remote`
 WEOFSEQ on non-sequential file
 ```
 
+### msg:14186
+> kind=message tier=reference since=- src=sdsys/messages/14186:1#baeabfa1
+
+```
+The kept password signs in only SD's scheduled jobs and MCP calls (run.job, mcp.call): give the account password on the input, or turn this on with set.stored.access on
+```
+
+cited by: `login`
+
+### msg:14187
+> kind=message tier=reference since=- src=sdsys/messages/14187:1#97aedbc6
+
+```
+Syntax: set.stored.access   or   set.stored.access on|off
+```
+
+cited by: `setstoredacc`
+
+### msg:14188
+> kind=message tier=reference since=- src=sdsys/messages/14188:1#70381b17
+
+```
+The kept password signs in any one-shot command, not only scheduled jobs and MCP calls: %1
+```
+
+cited by: `setstoredacc`
+
 ### msg:1419
 > kind=message tier=reference since=- src=sdsys/messages/1419:1#9a69ea26
 
@@ -11905,7 +11932,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 26 more
+cited by: `audit_read`, `backupa`, `cleanac`, `config`, `cproc`, `deleteserver`, `docsinst`, `inhibit` and 27 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

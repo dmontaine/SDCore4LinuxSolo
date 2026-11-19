@@ -56,13 +56,38 @@ case "$l" in
   *) leg "1 WHO says sduser" "a line '<n> sduser'" 1 "$l" ;;
 esac
 
-# ---- 2. the kept password: a one-shot with NOTHING on its input still runs.
+# ---- 2. the kept password signs in only scheduled jobs and MCP calls as delivered (18 Nov 26, S.247; owner: "restrict the stored password").
+#         A plain one-shot with NOTHING on its input is refused and says so (14186); after set.stored.access on it runs; off again refuses.
+#         sess (below) is defined later, so the administrator's two sessions here are written out.
+admin_sess() {   # the account password, ADMIN with its password, the line given, OFF
+  printf '%s\n' "$GOOD" ADMIN "$ADMINPW" "$1" OFF | timeout 120 "$SD" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'
+}
+KEPT_ONLY="The kept password signs in only SD's scheduled jobs and MCP calls"
+out="$(echo "" | timeout 60 "$SD" WHO 2>&1 | strip)"
+if printf '%s\n' "$out" | grep -qF "$KEPT_ONLY" && ! printf '%s\n' "$out" | grep -qE '^[0-9]+ sduser$'; then
+  leg "2 as delivered a plain one-shot does NOT sign in on the kept password" "14186 and no WHO line" 0 "refused with 14186"
+else
+  leg "2 as delivered a plain one-shot does NOT sign in on the kept password" "14186 and no WHO line" 1 "$(last "$out")"
+fi
+if grep -qF "via=stored refused reason=not a scheduled job" "$H/audit" 2>/dev/null; then
+  leg "2b the refused use is audited" "'via=stored refused reason=not a scheduled job'" 0 "found"
+else
+  leg "2b the refused use is audited" "'via=stored refused reason=not a scheduled job'" 1 "not in $H/audit"
+fi
+st="$(admin_sess 'set.stored.access on')"
 out="$(echo "" | timeout 60 "$SD" WHO 2>&1)"
 l="$(last "$out")"
 case "$l" in
-  [0-9]*" sduser") leg "2 one-shot uses the kept password" "'<n> sduser' with an empty input" 0 "$l" ;;
-  *) leg "2 one-shot uses the kept password" "'<n> sduser' with an empty input" 1 "$l" ;;
+  [0-9]*" sduser") leg "2c after set.stored.access on, a one-shot uses the kept password" "'<n> sduser' with an empty input" 0 "$l" ;;
+  *) leg "2c after set.stored.access on, a one-shot uses the kept password" "'<n> sduser' with an empty input" 1 "$l / switch said: $(printf '%s\n' "$st" | grep -F 'any one-shot' | tail -1)" ;;
 esac
+st="$(admin_sess 'set.stored.access off')"
+out="$(echo "" | timeout 60 "$SD" WHO 2>&1 | strip)"
+if printf '%s\n' "$st" | grep -qF "not only scheduled jobs and MCP calls: no" && printf '%s\n' "$out" | grep -qF "$KEPT_ONLY"; then
+  leg "2d set.stored.access off restricts it again" "the switch says no, the one-shot is refused" 0 "restricted"
+else
+  leg "2d set.stored.access off restricts it again" "the switch says no, the one-shot is refused" 1 "$(last "$out")"
+fi
 
 # ---- 3. a wrong password on an interactive session is refused, and says so.
 out="$(printf 'not-the-password\n' | timeout 60 "$SD" 2>&1 | strip)"
