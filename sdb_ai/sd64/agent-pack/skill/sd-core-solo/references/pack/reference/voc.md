@@ -306,9 +306,9 @@ a command line does: `$private.voc` and `$voc.parser`, described on the next
 pages.
 
 **The license and the contributor list are not VOC records at all**, despite
-looking like the obvious candidates. `config gpl` and `config contrib` shell
-out to `less` against two plain files in the system directory, `licence` and
-`contrib`, in `~/SDCoreSolo`.
+looking like the obvious candidates. `config gpl` and `config contrib` display
+two plain files in the system directory, `licence` and `contrib`, in
+`~/SDCoreSolo`, and need no shell.
 
 
 ### voc:types

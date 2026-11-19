@@ -294,15 +294,18 @@ NEWPW='New-Pass-3!'
 # ---- 17. SET.PASSWORD (account): the current password is asked first; a wrong
 # one changes nothing; the right one changes it, the old stops working, the new
 # works, the kept copy for one-shot commands follows; then it is put back.
-# INTERACTIVE sessions check the password typed; a ONE-SHOT ("sd WHO") tries the
-# kept copy first and never looks at its input when that verifies, so it cannot
-# tell an old password from the new one - it is used only for the kept-copy check.
+# INTERACTIVE sessions check the password typed; a ONE-SHOT tries the kept copy
+# first and never looks at its input when that verifies, so it cannot tell an old
+# password from the new one - it is used only for the kept-copy check.  Since
+# S.247's restriction (18 Nov 26) the kept copy signs in only run.job / mcp.call
+# one-shots, so the check is "run.job 0-verify-check": signed in on the kept copy,
+# run.job refuses the name (it starts with a digit) before anything can run.
 o_wrong="$(sess_as "$GOOD" SET.PASSWORD 'not-the-current' "$NEWPW" "$NEWPW")"
 w_old="$(sess_as "$GOOD" WHO | grep -cE '^[0-9]+ sduser$')"
 o_ok="$(sess_as "$GOOD" SET.PASSWORD "$GOOD" "$NEWPW" "$NEWPW")"
 n_old="$(printf '%s\nOFF\n' "$GOOD" | timeout 60 "$SD" 2>&1 | strip | grep -cx 'Wrong password')"
 n_new="$(sess_as "$NEWPW" WHO | grep -cE '^[0-9]+ sduser$')"
-n_kept="$(echo "" | timeout 60 "$SD" WHO 2>&1 | strip | grep -cE '^[0-9]+ sduser$')"
+n_kept="$(echo "" | timeout 60 "$SD" RUN.JOB 0-verify-check 2>&1 | strip | grep -cE '^0-verify-check is not a job name: ')"
 o_back="$(sess_as "$NEWPW" SET.PASSWORD "$NEWPW" "$GOOD" "$GOOD")"
 b_ok="$(sess_as "$GOOD" WHO | grep -cE '^[0-9]+ sduser$')"
 if [ "$b_ok" -ne 1 ]; then
@@ -442,9 +445,14 @@ printf '%s\n' "   display 'T4 control ok'" "end" > "$BPD/verify_t4c"
 [ -s "$BPD/verify_t4a" ] && [ -s "$BPD/verify_t4b" ] && [ -s "$BPD/verify_t4c" ] || refuse "leg 26 could not write its probe programs"
 o="$(sess 'BASIC BP verify_t4a' 'BASIC BP verify_t4b' 'BASIC BP verify_t4c' 'RUN BP verify_t4a' 'RUN BP verify_t4b' 'RUN BP verify_t4c')"
 rm -f "$BPD/verify_t4a" "$BPD/verify_t4b" "$BPD/verify_t4c" "$H/user_accounts/sduser/bp.out/verify_t4a" "$H/user_accounts/sduser/bp.out/verify_t4b" "$H/user_accounts/sduser/bp.out/verify_t4c"
-k_ok=1    # the compiler prints "<line>: Matrix KERNEL is not referenced in a DIM statement"
-printf '%s\n' "$o" | grep -qx 'Compiling BP verify_t4a' && printf '%s\n' "$o" | grep -q 'Matrix KERNEL is not referenced in a DIM statement' && k_ok=0
-if [ "$k_ok" -eq 0 ] && printf '%s\n' "$o" | grep -q 'Unrecognised compiler directive' \
+k_ok=1    # an older compiler refused it ("Matrix KERNEL is not referenced in a DIM statement"); today's (measured 19 Nov 26 in a
+          # sandbox) takes KERNEL for an unassigned variable ("WARNING: KERNEL is not assigned a value") and the run stops with
+          # "Expected array variable KERNEL": either way the kernel is never reached, and "T4 forged" below must not appear.
+if printf '%s\n' "$o" | grep -qx 'Compiling BP verify_t4a'; then
+  printf '%s\n' "$o" | grep -q 'Matrix KERNEL is not referenced in a DIM statement' && k_ok=0
+  printf '%s\n' "$o" | grep -q 'KERNEL is not assigned a value' && printf '%s\n' "$o" | grep -q 'Expected array variable KERNEL' && k_ok=0
+fi
+if [ "$k_ok" -eq 0 ] && printf '%s\n' "$o" | grep -q -E 'Unrecogni[sz]ed compiler directive' \
    && printf '%s\n' "$o" | grep -qx 'T4 control ok' \
    && ! printf '%s\n' "$o" | grep -q -e 'T4 forged' -e 'T4 internal'; then
   leg "26 a user program cannot reach KERNEL or mark itself \$internal" "KERNEL and \$internal refused by the compiler, nothing forged ran, the control ran" 0 "as expected"

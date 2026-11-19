@@ -1479,9 +1479,15 @@ fw_open() {   # fw_open PORT WHAT
 # ---------------------------------------------------------------- self-check (ruling 13 included)
 say
 say "Checking the install."
+want='^[0-9]+ sduser$'
 if [ "$upgrade" -eq 1 ] || [ "$kept_pw" -eq 1 ]; then
   # No password is known here (an upgrade, or a reload that kept the passwords); a one-shot command uses the copy SD keeps for it.
-  chk="$(echo "" | timeout 60 "$HOME_DIR/bin/sd-solo" WHO 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  # 19 Nov 26 dm  S.274: since S.247's restriction (18 Nov) the kept password signs in only "run.job <name>" and "mcp.call" one-shots, so
+  #               the old one-shot WHO was refused and every upgrade failed here.  "run.job 0-install-check" signs in on the kept password
+  #               and run.job then refuses the name (a job name starts with a letter) before it reads any switch or definition, so
+  #               nothing can run whatever the administrator has turned on.  Its sentence is printed only inside an sduser session.
+  chk="$(echo "" | timeout 60 "$HOME_DIR/bin/sd-solo" RUN.JOB 0-install-check 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' || true)"
+  want='^0-install-check is not a job name: '
 elif [ "$first_login" -eq 1 ]; then
   # There is no account password yet; the global password (which this installer
   # has) opens the same account, and that is what the check can prove.
@@ -1489,7 +1495,7 @@ elif [ "$first_login" -eq 1 ]; then
 else
   chk="$(printf '%s\nWHO\nOFF\n' "$ACC_PW" | timeout 60 "$HOME_DIR/bin/sd-solo" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
 fi
-printf '%s\n' "$chk" | grep -qE '^[0-9]+ sduser$' || { printf '%s\n' "$chk" | tail -5; fail "a session as sduser did not work"; }
+printf '%s\n' "$chk" | grep -qE "$want" || { printf '%s\n' "$chk" | tail -5; fail "a session as sduser did not work"; }
 say "  a session as sduser works"
 rm -f "$HOME_DIR/\$internal"
 # stdin is /dev/null: "timeout" runs its command in a BACKGROUND process group, and an sd

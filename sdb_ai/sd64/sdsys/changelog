@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  CONFIG GPL AND CONFIG CONTRIB WORK AGAIN WITHOUT THE SHELL.
+
+             What        - The sign-on banner tells you to type CONFIG GPL for the licence and CONFIG CONTRIB for the
+                           contributors.  Both show the text inside SD again, paged like any other output.
+             Why         - The two pages ran the operating system's "less" through SH, which is off unless the
+                           administrator turns it on, so they answered "not permitted to use the operating system
+                           shell".
+             Does NOT    - Change who may use the rest of CONFIG: listing and setting the settings still need ADMIN.
+
 19 Nov 26  THE API WORKS ON UBUNTU 24.04.
 
              What        - Every connection to Solo's API on Ubuntu 24.04 would have been refused with "TLS relay

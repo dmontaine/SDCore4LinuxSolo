@@ -12163,7 +12163,7 @@ cited by: `pterm`
 Cannot load %1 - %2 not found
 ```
 
-cited by: `_voc_cat`
+cited by: `_voc_cat`, `config`
 
 ### msg:2050
 > kind=message tier=reference since=- src=sdsys/messages/2050:1#2646b57d
