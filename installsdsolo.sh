@@ -1032,6 +1032,12 @@ rm -f "$WORK/acc.pw" "$WORK/adm.pw" "$WORK/glb.pw"
 os_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: OS access: //p' | tail -1)"
 [ -n "$os_state" ] || fail "the stage log has no 'solo-stage: OS access:' line (SET.OS.ACCESS did not report)"
 viewer_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: PDF reader: //p' | tail -1)"
+# 19 Nov 26 dm - S.274: a reload's "solo-stage: jobs:" line (the kept job definitions given their timers again, or NOT) was only in stage.log, which this
+#            script deletes, so the person never saw it.  It is said here, success or failure; a stage with no kept $jobs prints none and nothing is said.
+# JOBS-SAY-BEGIN
+jobs_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: jobs: //p' | tail -1)"
+[ -z "$jobs_state" ] || say "Scheduled jobs: $jobs_state"
+# JOBS-SAY-END
 if [ "$kept_pw" -eq 1 ]; then
   grep -qx 'solo-stage: passwords: reloaded' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
     || fail "the stage log has no 'solo-stage: passwords: reloaded' (the kept passwords in $reload_dir were NOT put back)"

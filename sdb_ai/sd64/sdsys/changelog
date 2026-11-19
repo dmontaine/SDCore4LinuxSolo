@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  A REINSTALL THAT KEEPS YOUR DATA SAYS WHETHER YOUR SCHEDULED JOBS ARE RUNNING AGAIN.
+
+             What        - When you install again with --reload-data, the installer now prints a line
+                           "Scheduled jobs: ..." saying how many of your kept jobs were given their timers again,
+                           or that they were NOT, with the reason.
+             Why         - The step was done, but its report went only into a working log that the installer
+                           removes when it ends, so a failure was never seen: the jobs would simply not run.
+             Does NOT    - Change what the reload does with the jobs, and prints nothing when you had no jobs.
+
 19 Nov 26  CONFIG GPL AND CONFIG CONTRIB WORK AGAIN WITHOUT THE SHELL.
 
              What        - The sign-on banner tells you to type CONFIG GPL for the licence and CONFIG CONTRIB for the
