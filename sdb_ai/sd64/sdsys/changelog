@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  THE CLIENT LIBRARY IS THE ONE WRITTEN NEW FOR SD CORE, AND COMES WITH THE RELEASE PACKAGE.
+
+             What        - The C client library that external programs use to reach Solo through the API
+                           (sdclilib.so, libsdcli.so) is a clean-room library written for SD Core under the Blue Oak
+                           Model License 1.0.0, the same one for every SD Core product, so a program of any licence
+                           may link it.  It is delivered as binaries in the release package's clients folder, and
+                           the installer puts the build for this system's OpenSSL into ~/SDCoreSolo/bin.  The C
+                           header in syscom had six functions declared with int where the library takes 16-bit
+                           values; they are corrected.
+             Why         - The old library was GPL, so a commercial program that linked it was bound by the GPL.
+             Does NOT    - Change SD's BASIC client, the language bindings, or the API.  Two things a program may
+                           notice: SDConnect with no port tries SD Core's 4247, so always give Solo's 4249; and
+                           SDConnectLocal is still not available on Solo, but it now fails with the library's own
+                           message (and, on a computer that also has SD Core, reaches SD Core).  An install from a
+                           copy of the source has no client library: copy it from a package's clients folder.
+
 19 Nov 26  A TRIGGER ON THE ACCOUNT'S VOC NO LONGER STOPS THE SIGN-ON.
 
              What        - With a trigger on the account's VOC (SET.TRIGGER), the account can be signed on to

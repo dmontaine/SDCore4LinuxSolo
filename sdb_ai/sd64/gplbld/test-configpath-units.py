@@ -55,9 +55,11 @@ OLD_NAME = "SCARLET_CONFIG"
 
 # gplsrc files swept for OLD_NAME in code.  Kept as a list rather than a glob
 # so a file that disappears is a failure, not a smaller sweep.
-SWEPT = ["inipath.c", "sdclilib.c", "sdfix.c", "sd.c", "sdtic.c", "config.c"]
+# 19 Nov 26 S.262 (carried from SD Core): sdclilib.c, the GPL client's copy of the two values, went with that library; the clean-room
+# client that replaces it reads the same SD_CONFIG, and its source is not in this tree.
+SWEPT = ["inipath.c", "sdfix.c", "sd.c", "sdtic.c", "config.c"]
 
-EXPECTED_CHECKS = 2 + 4 + 2 + 1 + len(SWEPT)
+EXPECTED_CHECKS = 2 + 4 + 1 + len(SWEPT)
 
 checks = 0
 fails = 0
@@ -112,7 +114,6 @@ def run_checks(src):
     from these strings, so --selftest can hand over a mutated one."""
     sddefs = src["gplsrc/sddefs.h"]
     inipath = strip_c_comments(src["gplsrc/inipath.c"])
-    sdcli = strip_c_comments(src["gplsrc/sdclilib.c"])
     sdfix = strip_c_comments(src["gplsrc/sdfix.c"])
 
     env = c_define_string(sddefs, "SD_CONFIG_ENV")
@@ -144,12 +145,6 @@ def run_checks(src):
     unbounded = "absent" if not re.search(r"strcpy\s*\(\s*inipath\s*,", inipath) else "present"
     expect("gplsrc/inipath.c", "strcpy into the caller's buffer", unbounded, "absent")
 
-    # The client library's own copy of the same two values.
-    m = re.search(r'getenv\s*\(\s*"([^"]*)"\s*\)', sdcli)
-    expect("gplsrc/sdclilib.c", "its getenv literal", m.group(1) if m else None, WANT_ENV)
-    m = re.search(r'"(/etc/[^"]*\.conf)"', sdcli)
-    expect("gplsrc/sdclilib.c", "its default literal", m.group(1) if m else None, WANT_DEFAULT)
-
     # sdfix's buffer, the one caller that used to be short.
     m = re.search(r"read_sdconfig\s*\(\s*\)\s*\{.*?char\s+path\s*\[([^\]]*)\]", sdfix, re.S)
     expect("gplsrc/sdfix.c", "read_sdconfig()'s path buffer",
@@ -163,7 +158,7 @@ def run_checks(src):
 
 def load():
     src = {}
-    for rel in ["gplsrc/sddefs.h", "gplsrc/inipath.c", "gplsrc/sdclilib.c", "gplsrc/sdfix.c"]:
+    for rel in ["gplsrc/sddefs.h", "gplsrc/inipath.c", "gplsrc/sdfix.c"]:
         src[rel] = read(rel)
     for rel in SWEPT:
         key = "gplsrc/" + rel
@@ -193,10 +188,6 @@ MUTANTS = [
      "getenv(SD_CONFIG_ENV)", 'getenv("SD_CONFIG")'),
     ("the copy goes back to strcpy", "gplsrc/inipath.c",
      "snprintf(inipath, MAX_PATHNAME_LEN + 1, \"%s\", p);", "strcpy(inipath, p);"),
-    ("the client drifts from sddefs.h", "gplsrc/sdclilib.c",
-     'getenv("SD_CONFIG")', 'getenv("SCARLET_CONFIG")'),
-    ("the client's default drifts", "gplsrc/sdclilib.c",
-     '"/etc/sd.conf"', '"/etc/sd.ini"'),
     # Anchored on the DECLARATION that follows read_sdconfig()'s own comment:
     # sdfix.c has other `char path[MAX_PATHNAME_LEN + 1]` declarations earlier
     # in the file, and a bare anchor mutated one of those instead - which the

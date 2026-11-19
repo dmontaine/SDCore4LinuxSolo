@@ -939,6 +939,33 @@ say "Building (this takes a minute)."
 ( cd "$SRC" && make -B >"$WORK/make.log" 2>&1 ) || { tail -20 "$WORK/make.log"; fail "make"; }
 [ -x "$SRC/bin/sd-solo" ] || fail "the build reported success but bin/sd-solo is missing"
 say "Build complete."
+# 19 Nov 26 dm - S.262 (SD Core's CLIENTS block, carried): THE CLIENT LIBRARY.  The source builds none any more: the one SD ships is the clean-room
+#            library (S.250), binaries only, in the release package's clients folder beside this installer (clients/Linux64 for OpenSSL 3,
+#            clients/Linux64-openssl4 for OpenSSL 4).  The build that matches the OpenSSL bin/sd-solo links is put in the built tree's bin under the
+#            names it has there, so it travels with the tree into the install.  A file that is a link, or no clients folder (an install from a clone),
+#            installs none and says so; the install goes on either way.  test-install-solo-clients.sh runs this block.
+# CLIENTS-BEGIN
+clients_installed=0
+if [ -n "$installer_dir" ] && [ -d "$installer_dir/clients" ]; then
+  clients_ssl=$(ldd "$SRC/bin/sd-solo" 2>/dev/null | sed -n 's/.*libssl\.so\.\([0-9][0-9]*\).*/\1/p' | head -1 || true)
+  if [ "$clients_ssl" = "4" ]; then clients_src="$installer_dir/clients/Linux64-openssl4"; else clients_src="$installer_dir/clients/Linux64"; fi
+  for clients_f in sdclilib.so libsdcli.so; do
+    [ -f "$clients_src/$clients_f" ] && [ ! -L "$clients_src/$clients_f" ] || continue
+    if install -m 755 "$clients_src/$clients_f" "$SRC/bin/$clients_f"; then
+      clients_installed=$((clients_installed+1))
+    else
+      warn "WARNING: the client library $clients_f was not installed."
+    fi
+  done
+  if [ "$clients_installed" -gt 0 ]; then
+    say "Installed the client library ($clients_installed files, OpenSSL ${clients_ssl:-3})."
+  else
+    say "No client library for this system's OpenSSL in $clients_src, so none was installed."
+  fi
+else
+  say "No client library was installed (not run from a release package)."
+fi
+# CLIENTS-END
 
 # ---------------------------------------------------------------- stage and bootstrap
 say

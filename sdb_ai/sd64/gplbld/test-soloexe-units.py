@@ -288,7 +288,7 @@ class Suite:
         S.check("S1 sddefs.h defines SD_SERVER_NAME as \"sd-solo\"", 'one #define',
                 len(re.findall(r'^#define\s+SD_SERVER_NAME\s+"sd-solo"\s*$', src["sddefs.h"], re.M)) == 1,
                 "found" if 'SD_SERVER_NAME' in src["sddefs.h"] else "absent")
-        for f in ("op_kernel.c", "sysseg.c", "sdlnxd.c", "sdclilib.c"):
+        for f in ("op_kernel.c", "sysseg.c", "sdlnxd.c"):   # 19 Nov 26 S.262: sdclilib.c went with the GPL client library
             code = re.sub(r'/\*.*?\*/', '', src[f], flags=re.S)
             code = re.sub(r'//[^\n]*', '', code)
             literal = re.findall(r'"[^"\n]*/bin/sd(?![-A-Za-z0-9_])[^"\n]*"', code)
@@ -317,7 +317,7 @@ class Suite:
 
 
 def load_sources():
-    src = {n: read(os.path.join(SD64, "gplsrc", n)) for n in ("sddefs.h", "op_kernel.c", "sysseg.c", "sdlnxd.c", "sdclilib.c")}
+    src = {n: read(os.path.join(SD64, "gplsrc", n)) for n in ("sddefs.h", "op_kernel.c", "sysseg.c", "sdlnxd.c")}
     src["Makefile"] = read(os.path.join(SD64, "Makefile"))
     scripts = {"installsdsolo.sh": read(INSTALLER), "deletesdsolo.sh": read(DELETER)}
     g = os.path.join(SD64, "gplbld")

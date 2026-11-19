@@ -7,8 +7,8 @@
 # No sudo.  HOME_DIR is a Solo tree built by solo-stage.sh (managed or not).  Like
 # verify-solo-sshkey.sh it installs the tree's USER units on a high port and removes them
 # again, so it REFUSES when an sd-solo.service unit is already installed for this user.
-# It uses the freshly built client library (bin/sdclilib.so under sd64, printed with its
-# date) through api-probe.py, and a scratch pin store (SD_KNOWN_SERVERS); the real
+# It uses the clean-room client library (SD_CLIENT_LIB, else the tree's bin/sdclilib.so, printed
+# with its date) through api-probe.py, and a scratch pin store (SD_KNOWN_SERVERS); the real
 # ~/.sdcore is never touched.
 #
 # THE INDEPENDENT MEASUREMENT: the pinned value is compared with the certificate's SHA-256
@@ -30,9 +30,13 @@ GOOD="$(head -1 "$PWF")"
 [ -x "$H/bin/sd-solo" ] || refuse "$H/bin/sd-solo is not there"
 [ -f "$H/.sdcoresolo" ] || refuse "$H has no .sdcoresolo marker - not a Solo tree"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB="$here/../bin/sdclilib.so"
+# 19 Nov 26 S.262: the tree builds no client library; the clean-room one is SD_CLIENT_LIB, else the installed tree's bin/sdclilib.so (an
+#   install from a release package has it), else the private SDClientLib build.
+LIB="${SD_CLIENT_LIB:-}"
+[ -n "$LIB" ] || { [ -f "$H/bin/sdclilib.so" ] && LIB="$H/bin/sdclilib.so"; }
+[ -n "$LIB" ] || LIB="/home/don/Projects/SDClientLib/build/sdclilib.so"
 SVC="$here/solo-service.sh"; PROBE="$here/api-probe.py"
-[ -f "$LIB" ] || refuse "$LIB is not built (run make in sd64)"
+[ -f "$LIB" ] || refuse "no client library at $LIB (set SD_CLIENT_LIB to the clean-room sdclilib.so)"
 [ -f "$SVC" ] && [ -f "$PROBE" ] || refuse "solo-service.sh or api-probe.py is missing"
 for t in python3 openssl sha256sum systemctl; do command -v "$t" >/dev/null || refuse "$t is not installed"; done
 PORT=14245
