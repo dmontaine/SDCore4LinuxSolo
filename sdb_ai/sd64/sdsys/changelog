@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  A PAGE'S SHORTCUT KEYS WORK WHILE ONE OF ITS MENUS IS OPEN; sftp IS RECOGNISED BEHIND OpenSSH 9.6.
+
+             What        - With a drop-down menu open on any full-screen page (the home screen, the IDE, the
+                           tool pages), a key that a menu entry shows - Ctrl-K, Ctrl-T, Ctrl-O, Ctrl-Q, F5, Alt-T -
+                           does what that entry does, whichever entry the cursor is on and whichever menu the
+                           entry is in.  The home screen's Keys tile now shows [K] as its icon.  And receive /
+                           send work behind OpenSSH 9.6 (Ubuntu 24.04), which hands SD the transfer request with a
+                           trailing blank.
+             Why         - A tester found that the shortcuts worked only with the cursor on their own entry: an
+                           open menu threw away every key it had no use for.  The Keys tile's icon read ^K, which
+                           looked like its shortcut; Ctrl-K is the list of a page's keys, and the tile, a keyboard
+                           test, is started with Enter.  On Ubuntu 24.04 SD Core did not recognise an sftp login,
+                           and the sftp program said "Received message too long"; Solo takes the same rule.
+             Does NOT    - Change what any key does with no menu open, or start a dimmed entry.  The transfer
+                           request is still the subsystem's path and nothing else: blanks after it carry nothing.
+
 19 Nov 26  THE KEPT PASSWORD SIGNS IN ONLY SCHEDULED JOBS AND MCP CALLS, UNLESS THE ADMINISTRATOR SAYS OTHERWISE.
 
              What        - the kept copy of the account password ($cred/$stored) now signs in only SD's own

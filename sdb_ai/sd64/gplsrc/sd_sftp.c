@@ -22,6 +22,8 @@
  * 15 Nov 26 dm  SD Core Solo for Linux: carried from SD Core for Linux (b9e63f17).  Solo's own sshd (gplbld/solo-ssh.sh) gives the request
  *               to its ForceCommand <tree>/bin/sd-solo, so xfer_detect() compares SSH_ORIGINAL_COMMAND with <the running binary's directory>/
  *               sd-sftp (sftp_subsystem_path()), not with SD Core's fixed path.  Nothing else in this file differs.
+ * 19 Nov 26 dm  S.242 (Core fe151086): sx_is_subsystem() - the path followed only by blanks is the Subsystem request too (OpenSSH 9.6
+ *               passes the path with a trailing space); here it takes the path sftp_subsystem_path() made.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -236,6 +238,21 @@ Private int sftp_subsystem_path(char* path, size_t size) {
   return 1;
 }
 
+/* 19 Nov 26 dm - S.242 (Core fe151086): the Subsystem path, followed by nothing or by spaces and tabs only.  OpenSSH 9.6 (Ubuntu 24.04)
+   runs a Subsystem as the path and its empty argument list joined by a space, and that is the SSH_ORIGINAL_COMMAND the forced command
+   sees; OpenSSH 10 sends the path alone.  Blanks carry no argument, so the rule is still "this path and nothing else".             */
+Private int sx_is_subsystem(const char* cmd, const char* subsys) {
+  size_t n = strlen(subsys);
+
+  if ((n == 0) || (strncmp(cmd, subsys, n) != 0))
+    return 0;
+  for (cmd += n; *cmd != '\0'; cmd++) {
+    if ((*cmd != ' ') && (*cmd != '\t'))
+      return 0;
+  }
+  return 1;
+}
+
 void xfer_detect(int argc) {
   const char* cmd = getenv("SSH_ORIGINAL_COMMAND");
   const char* conn = getenv("SSH_CONNECTION");
@@ -245,7 +262,7 @@ void xfer_detect(int argc) {
 
   if ((argc != 1) || (cmd == NULL) || (conn == NULL) || isatty(0))
     return;
-  if (!sftp_subsystem_path(subsys, sizeof(subsys)) || (strcmp(cmd, subsys) != 0))
+  if (!sftp_subsystem_path(subsys, sizeof(subsys)) || !sx_is_subsystem(cmd, subsys))
     return;
 
   xfer_fd_in = fcntl(0, F_DUPFD_CLOEXEC, 10);
