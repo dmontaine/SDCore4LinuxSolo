@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  A TRIGGER ON THE ACCOUNT'S VOC NO LONGER STOPS THE SIGN-ON.
+
+             What        - With a trigger on the account's VOC (SET.TRIGGER), the account can be signed on to
+                           and the trigger runs, whether its program is in the global catalogue or catalogued only
+                           in the account.
+             Why         - The sign-on stopped with "Requires file variable" in $login: opening the VOC loads its
+                           trigger at once, and the search of the account's own catalogue read the VOC before the
+                           open had finished.  Found and fixed in SD Core first.
+             Does NOT    - Skip a trigger.  One that was not found while its file was opened is loaded the first
+                           time it is needed; one that still cannot be found refuses the read or write, as before.
+
 19 Nov 26  A PAGE'S SHORTCUT KEYS WORK WHILE ONE OF ITS MENUS IS OPEN; sftp IS RECOGNISED BEHIND OpenSSH 9.6.
 
              What        - With a drop-down menu open on any full-screen page (the home screen, the IDE, the
