@@ -182,7 +182,7 @@ class FakeModel:
         except (ValueError, KeyError, IndexError, TypeError):
             return self.fail(anth, 400, "bad request")
         marks = [w for w in ("plain", "err429always", "err429", "err500", "err401", "err400key", "err400", "badjson", "shape", "refuse", "ctrl", "big", "slow", "redirect",
-                             "trunc", "echo") if "[[%s]]" % w in prompt]
+                             "trunc", "truncempty", "trunchalf", "echo") if "[[%s]]" % w in prompt]
         jmark = [w for w in JSON_REPLIES if "[[%s]]" % w in prompt]          # 23 Oct 26, AI line: replies in the form the toolkit's AI line asks for
         mark = marks[0] if marks else (jmark[0] if jmark else "plain")
         n = self.count[mark] = self.count.get(mark, 0) + 1
@@ -211,6 +211,11 @@ class FakeModel:
             text = "x" * 300000
         if mark == "trunc":
             stop = "length"
+        # 19 Nov 26 (SD Core's, carried; Windows RELEASE_1.1 354): no text at all, and half a JSON object, both stopped at the token limit
+        if mark == "truncempty":
+            text, stop = "", "length"
+        if mark == "trunchalf":
+            text, stop = '{"say": "The file types SD supports are hashed, directory and', "length"
         if mark == "echo":
             text = body.decode("utf-8")
         if mark in JSON_REPLIES:
