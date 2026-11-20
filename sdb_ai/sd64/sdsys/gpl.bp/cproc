@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 20 Nov 26 dm Windows 364: int.update.accounts no longer says 5200 before $LOGIN; LOGIN says it after the mode 4 refusal test.
 * 17 Nov 26 dm S.62 (CARRY-dot-s, SD Core's P-4649, P-4642): .S saves a NEW sentence under a lower-case id; an existing record keeps its id.
 * 17 Nov 26 dm S.62 (P-4646, P-4644): the denied-verb check compares the program field (field 3) of the two VOC records folded to lower
 *           case, as SD Core Solo for Windows does, so a verb whose record names its program in another case is denied alike.
@@ -3248,8 +3249,7 @@ int.update.accounts:
          return
    end case
 
-   display sysmsg(5200) ;* Copying records from NEWVOC to VOC...
-   i = '$LOGIN'
+   i = '$LOGIN'                ;* 20 Nov 26 - $LOGIN says 5200 once its refusal test has passed (Windows 364)
    call @i(j,upd.mode)
    i = ''
    display 

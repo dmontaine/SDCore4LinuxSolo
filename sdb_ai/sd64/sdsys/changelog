@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+20 Nov 26  UPDATE.ACCOUNTS ALL, REFUSED, SAYS ONLY THAT IT WAS REFUSED.
+
+             What        - When update.accounts all is refused, it now prints only "Cannot update every registered
+                           account from here, so NOTHING has been updated", and nothing is updated.
+             Why         - It first printed "Copying records from NEWVOC to VOC..." and updated the session's own
+                           VOC, then said NOTHING had been updated - two lines that contradicted each other, and
+                           the second was not true.
+             Does NOT    - Change the update itself when it is allowed.
+
+20 Nov 26  THE NEW-JOB FORM OF TOOL.JOBS SHOWS ITS LABELS AND DEFAULT WHOLE.
+
+             What        - The form's labels are "Schedule" and "Command", the schedule's default ("default: daily
+                           02:30") is shown whole beside it, and the forms a schedule may take are said under the
+                           entries when the form opens.
+             Why         - The long labels were cut ("Schedule: every 15 minutes," and "Command (the SD command
+                           the") and the default to "default: dail...", so the forms were seen only in the refusal
+                           after a wrong one.
+             Does NOT    - Change which schedules or commands are accepted.
+
 19 Nov 26  A REINSTALL THAT KEEPS YOUR DATA SAYS WHETHER YOUR SCHEDULED JOBS ARE RUNNING AGAIN.
 
              What        - When you install again with --reload-data, the installer now prints a line

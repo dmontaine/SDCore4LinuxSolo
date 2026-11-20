@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 20 Nov 26 dm  Windows 365: the N / C form's labels are "Schedule" and "Command" (both were cut at 28 cells) and the schedule entry 20 cells, so "default: daily
+*               02:30" fits beside it; the schedule's forms are said under the entries when the form opens (SCHED.FORMS).
 * 17 Nov 26 dm  S.62 (P-1952): the hand-over folder is made only when it is not there and must then pass SD_FILE_PRIVATE (a real directory, this user's alone);
 *               a link or a shared folder is refused and nothing is written (the old mkdir -p and chmod followed a link), as the Windows port refuses it.
 * 17 Nov 26 dm  New (S.247; owner, 15 Nov 2026: "since scheduled jobs is in core and useful in solo it should be in this release", and of the plan, "your plan is fine",
@@ -51,6 +53,7 @@ $include tk.h
    allow = 'set.job'                                             ;* the one command this page may run
    MAXCMD = 500
    DAYS = 'mon' : @fm : 'tue' : @fm : 'wed' : @fm : 'thu' : @fm : 'fri' : @fm : 'sat' : @fm : 'sun'
+   SCHED.FORMS = 'Schedule: every 5|10|15|20|30 minutes, hourly, daily hh:mm, weekly mon..sun hh:mm or monthly 1..28 hh:mm (hh:mm as 09:30).'
 
    call $tk_open('tool.jobs', '', ctx, err)
    if err # '' then
@@ -484,8 +487,10 @@ job.change:
 
 * The schedule, the command and the password fields (S.244: the entries open empty, the value in force beside them, an empty entry keeping it; the password masked)
 job.fields:
-   spec<-1> = 'sched' : @vm : 'Schedule: every 15 minutes, hourly, daily 02:30, weekly sun 03:00, monthly 1 04:00' : @vm : 24 : @vm : 24 : @vm : '' : @vm : 1 : @vm : '' : @vm : (if fmode = 'add' then 'default' else 'now')
-   spec<-1> = 'cmd' : @vm : 'Command (the SD command the job runs, as you would type it)' : @vm : 100 : @vm : MAXCMD : @vm : '' : @vm : (if fmode = 'add' then '' else 1)
+* 20 Nov 26 (Windows 365, SD Core's change of the same day): one-word labels and a 20-cell schedule entry - the form cuts a label at 28 cells and the shown value
+*   at the cells the entry leaves.  The forms of a schedule are said under the entries when the form opens (job.form).
+   spec<-1> = 'sched' : @vm : 'Schedule' : @vm : 20 : @vm : 24 : @vm : '' : @vm : 1 : @vm : '' : @vm : (if fmode = 'add' then 'default' else 'now')
+   spec<-1> = 'cmd' : @vm : 'Command' : @vm : 100 : @vm : MAXCMD : @vm : '' : @vm : (if fmode = 'add' then '' else 1)
    spec<-1> = 'pw' : @vm : 'Account password' : @vm : 34 : @vm : 64 : @vm : 1
    return
 
@@ -498,6 +503,8 @@ job.form:
       msg = 'the form does not fit this window'
       return
    end
+   ftext = SCHED.FORMS : ' ' : sysmsg(14114)
+   call $tk_form('say', ctx, ftext, '', '')    ;* the schedule's forms, under the entries until a refusal replaces them
    loop
       call $tk_form('run', ctx, fans, fv, fid)
       if fans # 'ok' then
