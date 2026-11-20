@@ -36,8 +36,8 @@
 #   SHA256SUMS                          one line for EVERY file under source/ and no other: the installer's PACKAGE-SOURCE block refuses a package whose
 #                                       list and tree differ in either direction
 #   sd-core-solo-for-linux-lsVERSION-changes.{pdf,html,md}   the Changes document, lower case (the installer's CHANGES-DOC block copies only that pattern)
-#   pdf/                                the per-chapter PDFs of the two books, as user-NN-... and gettingstarted-NN-... (docs.install takes lower case, 80
-#                                       characters)
+#   pdf/                                the per-chapter PDFs of the two books and the TUIGuide, as user-NN-..., gettingstarted-NN-... and tuiguide-NN-...
+#                                       (docs.install takes lower case, 80 characters)
 #   README.txt, documentation/, clients/Linux64/, clients/Linux64-openssl4/, clients/Windows64/, clients/Windows32/, clients/bindings/   only when given
 #
 # THEN it unpacks the zip into a scratch folder and checks it as the installer will: SHA256SUMS, the tree against the list, SDCORE-RELEASE against REF,
@@ -165,7 +165,8 @@ done
 
 # the per-chapter PDFs, with the book in the name
 npdf=0
-for book in "User:user" "GettingStarted:gettingstarted"; do
+# 19 Nov 26 dm - the TUIGuide ships as a further set, tuiguide-NN (SD Core's; the owner: "Yes, ship it").
+for book in "User:user" "GettingStarted:gettingstarted" "TUIGuide:tuiguide"; do
     dir=${book%%:*}; pre=${book##*:}
     ls "$DOCS/$dir/pdf/"*.pdf >/dev/null 2>&1 || fail "no PDFs in $DOCS/$dir/pdf (rebuild them)"
     if [ -n "$(find "$DOCS/$dir/markdown" -name '*.md' -newer "$(ls -t "$DOCS/$dir/pdf/"*.pdf | head -1)" 2>/dev/null | head -1)" ]; then
