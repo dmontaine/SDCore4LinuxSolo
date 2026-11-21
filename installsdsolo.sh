@@ -866,15 +866,51 @@ umask 077
 #   refused every other distribution before the banner and the first sudo, so the packages are apt-get's alone.
 install_packages() {
   local ssh_pkg=0; [ "$ssh_wanted" -eq 1 ] && ssh_pkg=1
+  # 21 Nov 26 (S.281, owner via Windows SOLO 84): decided BEFORE the package goes in, because afterwards sshd exists and port 22 is open.
+  local p22_ours=0; if [ "$ssh_pkg" -eq 1 ]; then p22_ours="$(port22_ours_to_close)"; fi
   say "Debian or Ubuntu based: apt-get"
   # "openssl" (the command) as well as the headers: a minimal system may ship without it.
   local pk="git build-essential micro lynx libsodium-dev libssl-dev openssl python3-dev"
   [ "$ssh_pkg" -eq 1 ] && pk="$pk openssh-server"
   # shellcheck disable=SC2086
   sudo apt-get -y install $pk || fail "apt-get"
+  [ "$p22_ours" -ne 1 ] || close_package_sshd   # (no `if` here: test-install-distro.sh B9 allows no branch in this function)
   sudo apt-get -y --ignore-missing install libcrypt-dev || true
   install_gpm
 }
+# 21 Nov 26 (S.281; owner, 20-21 Nov, relayed by the Windows agent as SOLO 84): "Since we use non-standard ports in solo, we can assume that if they are
+# open we have done it.  Port 22 should not be opened by a solo install as we dont use it" and "however if 22 is already open at the time of the install
+# we do not manage it".  So: when THIS install brings the ssh server package (no sshd program here yet) and nothing listened on port 22 before, the
+# package's service is stopped and disabled right after it is installed (Debian and Ubuntu start it; Solo's own sshd, on 4251, is a separate process).
+# Anything else - an sshd already installed, port 22 already open, no `ss` to tell - is left exactly as found, and the uninstall never touches port 22.
+# SD_SS names another `ss` for the free check (gplbld/test-install-port22.sh).
+# PORT22-BEGIN
+port22_listening() {   # port22_listening: 0 when something listens on TCP 22, 1 when nothing does, 2 when `ss` cannot say
+  local ss_cmd=${SD_SS:-ss} out
+  command -v "$ss_cmd" > /dev/null 2>&1 || return 2
+  out="$("$ss_cmd" -ltn 2> /dev/null)" || return 2
+  if printf '%s\n' "$out" | awk '$4 ~ /:22$/ { f = 1 } END { exit !f }'; then return 0; fi
+  return 1
+}
+port22_ours_to_close() {   # prints 1 when this install brings the ssh server package and port 22 is closed now, else 0
+  local rc=0
+  if [ -n "${SD_SSHD_BIN:-}" ]; then   # the free check names the sshd program it wants seen
+    if [ -x "$SD_SSHD_BIN" ]; then echo 0; return 0; fi
+  elif command -v sshd > /dev/null 2>&1 || [ -x /usr/sbin/sshd ]; then echo 0; return 0; fi
+  port22_listening || rc=$?
+  if [ "$rc" -eq 1 ]; then echo 1; else echo 0; fi
+}
+close_package_sshd() {   # stops and disables the package's ssh service (and its socket, where the distribution uses one)
+  local rc=0
+  sudo systemctl disable --now ssh.socket ssh.service sshd.service > /dev/null 2>&1 || true
+  port22_listening || rc=$?
+  if [ "$rc" -eq 1 ]; then
+    say "Port 22 is closed: the ssh server package was installed by this install, so its service was stopped and disabled (Solo's own ssh is on 4251)."
+  else
+    warn "WARNING: port 22 may still be open after the package's ssh service was disabled; check:  sudo ss -ltnp 'sport = :22'"
+  fi
+}
+# PORT22-END
 # 11 Nov 26 (S.117; SD Core's installer, S.94): gpm, the console mouse daemon, so that the full-screen pages have a mouse
 # on a bare Linux console (SD talks to /dev/gpmctl itself).  It has a call of its own after the required packages, and
 # ITS FAILURE IS A WARNING, NOT THE END OF THE INSTALL (SD Core's owner, 7 Nov 2026: in a container "gpm couldn't be

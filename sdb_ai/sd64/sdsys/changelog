@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+21 Nov 26  THE INSTALLER NO LONGER LEAVES THE SSH SERVER PACKAGE'S PORT 22 OPEN.
+
+             What        - When the installer itself installs the ssh server package (the computer had no sshd) and nothing
+                           was listening on port 22, it stops and disables the package's ssh service right after, and says
+                           so.  An sshd that was already there, or a port 22 that was already open, is left exactly as it
+                           was.  The uninstaller still does nothing about port 22.
+             Why         - Debian and Ubuntu start the ssh server the moment the package is installed, so a Solo install
+                           opened port 22, which Solo does not use.  The owner: "Port 22 should not be opened by a solo
+                           install as we dont use it", and "if 22 is already open at the time of the install we do not
+                           manage it".
+             Does NOT    - Touch Solo's own ssh on port 4251, or anything on a computer that already ran an ssh server.
+
 20 Nov 26  TOOL.JOBS' HELP LINES FIT THE BOX.
 
              What        - The three help lines at the foot of tool.jobs are shorter, so none is cut at the edge of the
