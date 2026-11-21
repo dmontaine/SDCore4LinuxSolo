@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  INSTALL OVER AN INSTALLED SOLO, AND A KEEP REINSTALL THAT CHANGES NOTHING YOU SET.
+
+             What        - installsdsolo.sh run over an installed Solo now upgrades it in place, with no --upgrade
+                           (which still works and means the same).  It used to refuse.
+                         - deletesdsolo.sh --keep-data notes the API and ssh doors as they are (off, local or open) and
+                           keeps the PDF reader allow-list, the documents in pdf/ and a managed computer's denied
+                           commands; a reinstall that reloads the data puts all of them back and asks nothing about
+                           the doors.  The kept documents are added beside the release's, never over them.
+                         - An uninstall that deletes the data now removes the firewall rules for Solo's own ports,
+                           4249 and 4251, which it only reported before; with --keep-data they stay.
+             Why         - The owner: "settings do not get changes after delete and install if the user chooses keep
+                           data", "if we opened it we manage it", and that the Windows installers install over an
+                           existing installation with no delete.
+             Does NOT    - Touch port 22, 4243, or a rule that is not for Solo's own ports.  An --api, --ssh or
+                           --deny-verbs given to the reinstall still wins over what was kept.
+
 21 Nov 26  THE INSTALLER NO LONGER LEAVES THE SSH SERVER PACKAGE'S PORT 22 OPEN.
 
              What        - When the installer itself installs the ssh server package (the computer had no sshd) and nothing

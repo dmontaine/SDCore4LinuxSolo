@@ -102,6 +102,11 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
   row "P9 an accounts that is a LINK goes; its target is untouched" \
     "$([ "$rc" = 0 ] && [ "$after" = "\$cred sd.conf user_accounts " ] && [ "$(cat "$T/else9/sduser" 2>/dev/null)" = keep9 ] && echo 0 || echo 1)" "rc=$rc after='$after'"
 
+  # 22 Nov 26 (S.287): the PDF reader allow-list, pdf/ and solo.policy stay with the data.
+  d="$T/p10"; mk_install "$d"; mkdir -p "$d/pdf" "$d/solo.policy"; echo "a.pdf" > "$d/pdf/a.pdf"; echo "deny" > "$d/solo.policy/x"; echo "pdf /usr/bin/evince" > "$d/viewers"
+  rc="$(run_prune "$d")"; after="$(top "$d")"
+  row "P10 viewers (a file), pdf and solo.policy (directories) stay with what is in them (S.287)" \
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred pdf sd.conf solo.policy user_accounts viewers " ] && [ "$(cat "$d/pdf/a.pdf")" = a.pdf ] && [ "$(cat "$d/solo.policy/x")" = deny ] && echo 0 || echo 1)" "rc=$rc after='$after'"
   row "P5 nothing outside the folder is touched" "$([ "$rc" = 0 ] && [ "$(cat "$T/outside-sentinel" 2>/dev/null)" = sentinel ] && [ -d "$T/elsewhere" ] && echo 0 || echo 1)" "rc=$rc"
 
   # ---- I. is_kept_tree ----------------------------------------------------------------------------------------------
@@ -145,6 +150,10 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
   out="$(kept "$d")"; row "I12 a folder that also holds a REAL accounts directory (the register) is a kept tree" "$([ "$out" = YES ] && echo 0 || echo 1)" "got $out"
   d="$T/k12"; mk_kept "$d"; ln -s "$T/elsewhere" "$d/accounts"
   out="$(kept "$d")"; row "I13 an accounts that is a LINK makes it a stranger's folder" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
+  d="$T/k13"; mk_kept "$d"; mkdir -p "$d/pdf" "$d/solo.policy"; echo "pdf /usr/bin/evince" > "$d/viewers"
+  out="$(kept "$d")"; row "I14 a folder that also holds viewers, pdf and solo.policy is a kept tree (S.287)" "$([ "$out" = YES ] && echo 0 || echo 1)" "got $out"
+  d="$T/k14"; mk_kept "$d"; ln -s "$T/elsewhere" "$d/pdf"
+  out="$(kept "$d")"; row "I15 a pdf that is a LINK makes it a stranger's folder" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
   row "I9 the allowance asks the owner as well as the type (somebody else's directory named newvoc.mods is a stranger's)" \
     "$(awk '/^# BEGIN is_kept_tree$/,/^# END is_kept_tree$/' "$inst" | grep -qF 'newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;' && echo 0 || echo 1)"
 
@@ -252,13 +261,13 @@ selftest() {
       echo "  [FAIL] selftest: $name is NOT caught"; failed=$((failed+1))
     fi
   done <<'EOF'
-keep_prune never keeps anything|r|s/keep=(! -name newvoc.mods)/keep=()/
-keep_prune keeps a link too|r|s/ \&\& \[ ! -L "\$d\/newvoc.mods" \]//
-keep_prune keeps a plain file too|r|s/if \[ -d "\$d\/newvoc.mods" \] \&\& /if /
-keep_prune keeps the wrong name|r|s/keep=(! -name newvoc.mods)/keep=(! -name newvoc.mod)/
+keep_prune never keeps anything|r|s/then keep+=(! -name "\$n"); fi/then true; fi/
+keep_prune keeps a link too|r|s/    if \[ -d "\$d\/\$n" \] \&\& \[ ! -L "\$d\/\$n" \]; then keep+=/    if [ -e "$d\/$n" ]; then keep+=/
+keep_prune keeps a plain file too|r|s/    if \[ -d "\$d\/\$n" \] \&\& \[ ! -L "\$d\/\$n" \]; then keep+=/    if [ -e "$d\/$n" ] \&\& [ ! -L "$d\/$n" ]; then keep+=/
+keep_prune keeps the wrong name|r|s/for n in newvoc.mods voc_removed.saved/for n in newvoc.mod voc_removed.saved/
 the remover goes back to the inline find|r|s/keep_prune "\$H" ||/find "$H" -mindepth 1 -maxdepth 1 ! -name user_accounts ! -name sd.conf -exec rm -rf {} + ||/
 the remover stays silent about what it kept|r|s/your local VOC modifications are in/your files are in/
-is_kept_tree has no line for newvoc.mods|i|/^      newvoc.mods) /d
+is_kept_tree has no line for newvoc.mods|i|/^      newvoc.mods|voc_removed.saved) /d
 is_kept_tree accepts a link|i|s/{ \[ -d "\$e" \] \&\& \[ ! -L "\$e" \] \&\& /{ [ -d "$e" ] \&\& /
 is_kept_tree accepts a stranger's directory|i|s/ \&\& \[ "\$(stat -c %u "\$e")" = "\$(id -u)" \]; } || return 1 ;;/; } || return 1 ;;/
 is_kept_tree accepts anything|i|s/^      \*) return 1 ;;$/      *) ;;/

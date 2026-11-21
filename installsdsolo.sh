@@ -299,7 +299,10 @@ is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves
       # 17 Nov 26 (S.247): the scheduled jobs' definitions ($jobs) are kept data on the same terms.
       # 20 Nov 26 (S.278): the account register (solo-stage.sh carries its administrator switches), on the same terms.
       '$cred'|'$jobs'|accounts|sd-tls|sshd|ai|netlogins) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
-      audit|audit.*|start.default) { [ -f "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      audit|audit.*|start.default|doors.saved) { [ -f "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      # 22 Nov 26 (S.287): the PDF reader allow-list, the documents in pdf/ and a managed computer's denied commands, on the same terms.
+      solo.policy|pdf) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      viewers) { [ -f "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       *) return 1 ;;
     esac
   done
@@ -307,13 +310,16 @@ is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves
   return 0
 }
 # END is_kept_tree
+# 22 Nov 26 (S.282; owner, 21 Nov 2026: "the windows installers just install over and existing installation updating what needs to be updated there is
+#            no delete required", then "yes please implement parity with windows on how install works"): an install over an installed Solo IS the upgrade, as
+#            on Windows Solo (SoloWasInstalled), with no flag.  It used to refuse and name --upgrade.  --upgrade still works and means the same; the options an
+#            upgrade does not take are refused below in the same words either way.  test-install-soloover.sh runs this block.
+# INSTALL-OVER-BEGIN
 if [ -f "$HOME_DIR/.sdcoresolo" ] && [ "$upgrade" -eq 0 ]; then
-  refuse "SD Core Solo for Linux is already installed in $HOME_DIR.
-  To bring it up to the current release, keeping your account, data and passwords:
-      bash $0 --upgrade --home $HOME_DIR
-  To remove it instead (your data can be kept):
-      bash $HOME_DIR/tools/deletesdsolo.sh"
+  upgrade=1
+  say "SD Core Solo for Linux is already installed in $HOME_DIR: upgrading it in place, keeping your account, data, passwords and settings."
 fi
+# INSTALL-OVER-END
 if [ "$upgrade" -eq 1 ]; then
   [ -f "$HOME_DIR/.sdcoresolo" ] || refuse "there is no SD Core Solo for Linux in $HOME_DIR to upgrade (no .sdcoresolo marker)"
   [ -f "$HOME_DIR/.sdcore-install" ] || refuse "$HOME_DIR has no .sdcore-install record - it was not installed by installsdsolo.sh; upgrade it by hand or reinstall"
@@ -652,6 +658,20 @@ if [ "$kept_tree" -eq 1 ]; then
   fi
   say
 fi
+# 22 Nov 26 (S.282; owner, 21 Nov 2026: "settings do not get changes after delete and install if the user chooses keep data"): a reload takes the API and
+#            ssh doors as deletesdsolo.sh noted them (doors.saved: api= and ssh=, each off, local or open), so ACCESS-ASK below asks nothing about them.
+#            An --api or --ssh given (or a control file's) still wins; a reload declined, or no note, asks as before.  test-install-solodoors.sh runs it.
+# DOORS-KEPT-BEGIN
+kept_door() {   # kept_door FILE KEY -> off | local | open, or nothing
+  grep -E "^$2=(off|local|open)\$" "$1" 2>/dev/null | tail -1 | cut -d= -f2 || true
+}
+if [ "$kept_tree" -eq 1 ] && [ "$reload_ans" = "yes" ] && [ -f "$HOME_DIR/doors.saved" ] && [ ! -L "$HOME_DIR/doors.saved" ]; then
+  kd="$(kept_door "$HOME_DIR/doors.saved" api)"
+  if [ -z "$api" ] && [ -n "$kd" ]; then api="$kd"; say "The API is $kd, as it was before: not asked."; fi
+  kd="$(kept_door "$HOME_DIR/doors.saved" ssh)"
+  if [ -z "$ssh" ] && [ -n "$kd" ]; then ssh="$kd"; say "ssh is $kd, as it was before: not asked."; fi
+fi
+# DOORS-KEPT-END
 
 # 20 Oct 26, the OS switch: the shell and OS access question (see ask_os_access above); OFF unless the answer says otherwise.
 ask_os_access

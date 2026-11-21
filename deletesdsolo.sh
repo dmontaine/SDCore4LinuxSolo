@@ -65,9 +65,15 @@ keep_prune() {
   for n in newvoc.mods voc_removed.saved '$cred' '$jobs' accounts sd-tls sshd ai netlogins; do
     if [ -d "$d/$n" ] && [ ! -L "$d/$n" ]; then keep+=(! -name "$n"); fi
   done
-  for n in "$d"/audit "$d"/audit.* "$d"/start.default; do
+  for n in "$d"/audit "$d"/audit.* "$d"/start.default "$d"/doors.saved; do   # 22 Nov 26 (S.282): doors.saved, the API and ssh doors as they were
     if [ -f "$n" ] && [ ! -L "$n" ]; then keep+=(! -name "${n##*/}"); fi
   done
+  # 22 Nov 26 (S.287, the outcome audit with Windows: SOLO P5 lost them on both products): the administrator's PDF reader allow-list (viewers), the
+  # documents DOCS.INSTALL put in pdf/, and a managed computer's denied commands (solo.policy), on the same terms (a real file or directory).
+  for n in solo.policy pdf; do
+    if [ -d "$d/$n" ] && [ ! -L "$d/$n" ]; then keep+=(! -name "$n"); fi
+  done
+  if [ -f "$d/viewers" ] && [ ! -L "$d/viewers" ]; then keep+=(! -name viewers); fi
   find "$d" -mindepth 1 -maxdepth 1 ! -name user_accounts ! -name sd.conf ${keep[@]+"${keep[@]}"} -exec rm -rf {} +
 }
 # END keep_prune
@@ -242,6 +248,36 @@ remove_units_step() {   # remove_units_step TREE UNITDIR: 0 when no unit file of
 # ---- 1. the service and the daemon
 user_manager_env "/run/user/$(id -u)"
 UNITDIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+# 22 Nov 26 (S.282; owner, 21 Nov 2026: "settings do not get changes after delete and install if the user chooses keep data"; Windows SOLO 85 was the
+#            same defect): the API and ssh doors are the socket units removed just below, so with --keep-data they are noted first, as they ARE (read from
+#            each unit's ListenStream line, as solo-service.sh's unit_mode reads them), in doors.saved beside the data; a reinstall that reloads the data
+#            takes them as its answers and asks nothing.  SD Core keeps its API door the same way (api-access.saved).  A door this cannot read is not noted
+#            (the reinstall then asks, as before) and is said.  test-install-solodoors.sh runs this block.
+# DOORS-NOTE-BEGIN
+door_mode() {   # door_mode UNITFILE -> off | local | open | unknown
+  [ -f "$1" ] || { echo off; return 0; }
+  case "$(sed -n 's/^ListenStream=//p' "$1" | head -1)" in
+    127.0.0.1:*) echo local ;;
+    0.0.0.0:*)   echo open ;;
+    *)           echo unknown ;;
+  esac
+}
+note_doors() {   # note_doors UNITDIR TREE
+  local a s
+  a="$(door_mode "$1/sd-solo-api.socket")"; s="$(door_mode "$1/sd-solo-ssh.socket")"
+  if [ "$a" = unknown ] || [ "$s" = unknown ]; then
+    warn "the API or ssh door could not be read (API $a, ssh $s), so it is not noted: a reinstall will ask about them"
+    return 0
+  fi
+  rm -f "$2/doors.saved"
+  if printf 'api=%s\nssh=%s\n' "$a" "$s" > "$2/doors.saved" && chmod 600 "$2/doors.saved"; then
+    say "kept: the API is $a and ssh is $s; a reinstall that reloads your data keeps them so"
+  else
+    warn "the API and ssh doors could not be noted: a reinstall will ask about them"
+  fi
+}
+# DOORS-NOTE-END
+if [ "${data:-}" = "keep" ]; then note_doors "$UNITDIR" "$H"; fi   # ${data:-}: test-deleteunits-solo-units.py runs this part with no data set
 remove_units_step "$H" "$UNITDIR" \
   || fail "the systemd user units could not be removed (still there: $(unit_files_left "$UNITDIR" | tr '\n' ' ')); THE INSTALLATION DIRECTORY AND YOUR DATA WERE NOT TOUCHED (SD itself may have been stopped). Run this from a shell that can reach your systemd user manager (a login session, or with XDG_RUNTIME_DIR set), or remove those files yourself and run this again"
 for n in sd-solo sd; do   # the new name, then an old install's
@@ -314,30 +350,50 @@ if [ "$kept" -eq 0 ]; then
   say "removed $H"
 fi
 
-# 02 Oct 26 - the API port is 4249, fixed (owner, 2 Oct 2026).  Its rule is reported, not
-# removed (the installer added it with your sudo); 4243 is OpenQM's and ScarletDME's port, so a
-# rule for it is only mentioned: it may belong to another database.
-if command -v ufw >/dev/null 2>&1; then
-  ufw_rules="$(sudo -n ufw status 2>/dev/null)"
-  if printf '%s\n' "$ufw_rules" | grep -qE '^4249/tcp .*ALLOW'; then
-    warn "ufw still allows TCP 4249, this product's API port; if the installer added it, remove it with 'sudo ufw delete allow 4249/tcp'"
-  fi
-  if printf '%s\n' "$ufw_rules" | grep -qE '^4251/tcp .*ALLOW'; then
-    warn "ufw still allows TCP 4251, this product's ssh port; if the installer added it, remove it with 'sudo ufw delete allow 4251/tcp'"
-  fi
-  if printf '%s\n' "$ufw_rules" | grep -qE '^4243/tcp .*ALLOW'; then
-    warn "ufw allows TCP 4243: that is OpenQM's and ScarletDME's port, not this product's, so it was left alone"
-  fi
-fi
-# LSOLO 32 (4 Oct 2026): the installer adds firewalld rules too now; reported the same way, not removed.
-# (systemd, not "firewall-cmd --state", which polkit refuses an ordinary user - Fedora 44.)
-if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
-  for p in 4249 4251; do
-    # the exact entry: Fedora Workstation's own 1025-65535/tcp would answer --query-port too
-    if sudo -n firewall-cmd --permanent --list-ports 2>/dev/null | tr ' ' '\n' | grep -qx -- "$p/tcp"; then
-      warn "firewalld still allows TCP $p, this product's $( [ "$p" = 4249 ] && echo API || echo ssh ) port; if the installer added it, remove it with 'sudo firewall-cmd --permanent --remove-port=$p/tcp && sudo firewall-cmd --reload'"
+# 22 Nov 26 (S.283; the owner, 21 Nov 2026, relayed by the Windows agent: "if we opened it we manage it ... if they have saved accounts and data that that
+#            includes leaving the port as it is as they are probably going to reinstall, if they choose delete data and config, then that should include
+#            closing any port that we opened", and "Since we use non-standard ports in solo, we can assume that if they are open we have done it").  Solo's own
+#            ports are 4249 (the API) and 4251 (ssh).  With --keep-data their firewall rules are LEFT, and said so; when the data is deleted they are REMOVED
+#            (ufw and firewalld), as Windows Solo's uninstaller removes its rules.  They used to be only reported.  4243 is OpenQM's and ScarletDME's port and
+#            is never touched.  Port 22 is not Solo's and is not looked at.  A rule sudo cannot remove without a password is named with the command.
+#            test-delete-solofirewall.sh runs this block.
+# SOLO-FIREWALL-BEGIN
+solo_firewall() {   # solo_firewall keep|delete
+  local mode="$1" ufw_rules p what
+  if command -v ufw >/dev/null 2>&1; then
+    ufw_rules="$(sudo -n ufw status 2>/dev/null || true)"
+    for p in 4249 4251; do
+      what="$( [ "$p" = 4249 ] && echo API || echo ssh )"
+      printf '%s\n' "$ufw_rules" | grep -qE "^$p/tcp .*ALLOW" || continue
+      if [ "$mode" = keep ]; then
+        say "ufw: the rule for TCP $p, this product's $what port, is kept with your data (an uninstall that deletes the data removes it)"
+      elif sudo -n ufw delete allow "$p/tcp" >/dev/null 2>&1; then
+        say "ufw: removed 'allow $p/tcp' ($what)"
+      else
+        warn "ufw still allows TCP $p, this product's $what port; remove it with 'sudo ufw delete allow $p/tcp'"
+      fi
+    done
+    if printf '%s\n' "$ufw_rules" | grep -qE '^4243/tcp .*ALLOW'; then
+      warn "ufw allows TCP 4243: that is OpenQM's and ScarletDME's port, not this product's, so it was left alone"
     fi
-  done
-fi
+  fi
+  # (systemd, not "firewall-cmd --state", which polkit refuses an ordinary user - Fedora 44.)
+  if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
+    for p in 4249 4251; do
+      what="$( [ "$p" = 4249 ] && echo API || echo ssh )"
+      # the exact entry: Fedora Workstation's own 1025-65535/tcp would answer --query-port too
+      sudo -n firewall-cmd --permanent --list-ports 2>/dev/null | tr ' ' '\n' | grep -qx -- "$p/tcp" || continue
+      if [ "$mode" = keep ]; then
+        say "firewalld: TCP $p, this product's $what port, is kept with your data (an uninstall that deletes the data removes it)"
+      elif sudo -n firewall-cmd -q --permanent --remove-port="$p/tcp" 2>/dev/null && sudo -n firewall-cmd -q --reload 2>/dev/null; then
+        say "firewalld: removed TCP $p ($what)"
+      else
+        warn "firewalld still allows TCP $p, this product's $what port; remove it with 'sudo firewall-cmd --permanent --remove-port=$p/tcp && sudo firewall-cmd --reload'"
+      fi
+    done
+  fi
+}
+# SOLO-FIREWALL-END
+if [ "$data" = "keep" ]; then solo_firewall keep; else solo_firewall delete; fi
 say
 say "SOLO DELETE COMPLETE $H"

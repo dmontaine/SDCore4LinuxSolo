@@ -589,6 +589,31 @@ if [ -n "$reloaddir" ]; then
     cp "$reloaddir/start.default" "$H/start.default" && chmod 600 "$H/start.default" || fail "copying the kept start.default into $H"
     echo "solo-stage: start.default: reloaded"
   fi
+  # 22 Nov 26 (S.287; the outcome audit with Windows, owner 21 Nov: "settings do not get changes after delete and install if the user chooses keep
+  #            data"): the PDF reader allow-list (viewers) replaces the new tree's; a managed computer's denied commands (solo.policy) replace the new
+  #            tree's unless this install was given --deny-verbs (the given list wins, as given passwords do); the documents DOCS.INSTALL put in pdf/ are
+  #            added beside the ones this release ships, never over them.  A real file or directory only.  test-install-keepmods.sh reads it as text.
+  if [ -f "$reloaddir/viewers" ] && [ ! -L "$reloaddir/viewers" ]; then
+    cp "$reloaddir/viewers" "$H/viewers" && chmod 600 "$H/viewers" || fail "copying the kept viewers into $H"
+    echo "solo-stage: viewers: reloaded"
+  fi
+  if [ -d "$reloaddir/solo.policy" ] && [ ! -L "$reloaddir/solo.policy" ]; then
+    if [ -n "$denyverbs" ]; then
+      echo "solo-stage: solo.policy: set by this install (--deny-verbs), the kept one not used"
+    else
+      rm -rf "${H:?}/solo.policy" && cp -a "$reloaddir/solo.policy" "$H/solo.policy" && chmod -R go-rwx "$H/solo.policy" || fail "copying the kept solo.policy into $H"
+      echo "solo-stage: solo.policy: reloaded"
+    fi
+  fi
+  if [ -d "$reloaddir/pdf" ] && [ ! -L "$reloaddir/pdf" ]; then
+    mkdir -p "$H/pdf"
+    for kept_item in "$reloaddir"/pdf/*; do
+      if [ -f "$kept_item" ] && [ ! -L "$kept_item" ] && [ ! -e "$H/pdf/${kept_item##*/}" ]; then
+        cp -p "$kept_item" "$H/pdf/" || fail "copying the kept ${kept_item##*/} into $H/pdf"
+      fi
+    done
+    echo "solo-stage: pdf: reloaded (the documents this release ships kept as shipped)"
+  fi
   if [ -f "$reloaddir/audit" ] && [ ! -L "$reloaddir/audit" ]; then
     { cat "$reloaddir/audit"; [ ! -f "$H/audit" ] || cat "$H/audit"; } > "$H/audit.joined" && mv "$H/audit.joined" "$H/audit" && chmod 600 "$H/audit" \
       || fail "joining the kept audit trail with this install's"
