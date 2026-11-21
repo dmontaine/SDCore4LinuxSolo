@@ -360,7 +360,9 @@ fi
 # SOLO-FIREWALL-BEGIN
 solo_firewall() {   # solo_firewall keep|delete
   local mode="$1" ufw_rules p what
-  if command -v ufw >/dev/null 2>&1; then
+  # 22 Nov 26: or /usr/sbin/ufw - an ordinary user's PATH on Debian has no /usr/sbin, so `command -v ufw` found nothing and this whole step was skipped
+  # (seen on the VM).  sudo finds ufw through its own secure_path.
+  if command -v ufw >/dev/null 2>&1 || [ -x /usr/sbin/ufw ]; then
     ufw_rules="$(sudo -n ufw status 2>/dev/null || true)"
     for p in 4249 4251; do
       what="$( [ "$p" = 4249 ] && echo API || echo ssh )"

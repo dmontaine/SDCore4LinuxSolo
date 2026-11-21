@@ -1449,7 +1449,7 @@ if [ "$upgrade" -eq 1 ]; then
         sed -i "s/^ListenStream=\(.*\):$old_port\$/ListenStream=\1:$api_port/" "$sock"
         grep -q "^ListenStream=.*:$api_port\$" "$sock" || fail "moving the API listener from port $old_port to $api_port in $sock"
         say "The API listener moves from port $old_port to $api_port (${old_listen%:*} kept)."
-        if [ "${old_listen%:*}" = "0.0.0.0" ] && command -v ufw >/dev/null 2>&1; then
+        if [ "${old_listen%:*}" = "0.0.0.0" ] && { command -v ufw >/dev/null 2>&1 || [ -x /usr/sbin/ufw ]; }; then
           if sudo -n ufw allow "$api_port/tcp" >/dev/null 2>&1; then
             say "ufw: added 'allow $api_port/tcp'."
           else
@@ -1528,7 +1528,8 @@ fi
 # rule goes to whichever of the two is RUNNING (ufw first, as before); with neither, the warning.
 fw_open() {   # fw_open PORT WHAT
   local port="$1" what="$2"
-  if command -v ufw >/dev/null 2>&1 && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
+  # 22 Nov 26: or /usr/sbin/ufw - on Debian an ordinary user's PATH has no /usr/sbin, so an active ufw was never found and the rule never added (the VM).
+  if { command -v ufw >/dev/null 2>&1 || [ -x /usr/sbin/ufw ]; } && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
     say "ufw is active: opening TCP $port for $what (sudo)."
     sudo ufw allow "$port/tcp" || warn "could not add the ufw rule; open port $port yourself"
   # "firewall-cmd --state" is refused by polkit for an ordinary user (measured on Fedora 44:
