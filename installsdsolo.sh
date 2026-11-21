@@ -399,6 +399,39 @@ detect_distro
 # The host is the one the installer clones from.  SDSOLO_REPO_URL (the test hook above) may name a
 # local path, which needs no network, so only an https URL is tested.
 if [ -z "$pkg_source" ] && [[ "$REPO_URL" =~ ^https://([^/:]+)/ ]]; then net_preflight "${BASH_REMATCH[1]}" 443; fi   # S.218: a release package carries the source, nothing is fetched
+# RESTORE-WARN-BEGIN
+# 22 Nov 26  S.292 (owner, 21 Nov 2026, Windows chat, relayed T0800: "if the admin says not to delete during a deletion then the system should be put
+#            back exactly as it was before the uninstall.  If that is impossible then the admin needs to be warned during the install the exact steps they
+#            must take to restore the system exactly as it was." and "If there are warnings they should not be buried in other text.  They need to be
+#            explicit, stand out so that they can not be missed."): every restore that did not happen is collected and printed ONCE, as a boxed bold red
+#            block with the exact command for each.  This block is the same text in installsdcore.sh and deletesdcore.sh (test-install-restorewarn.sh
+#            holds the two equal).  A record is WHAT and COMMAND joined by a tab.  When $SD_RESTORE_WARN_FILE is set each record is also appended there,
+#            which is how the install-over carries the uninstaller's records into its own closing block.
+restore_warns=()
+restore_warn() {   # restore_warn WHAT [COMMAND]: collect one record
+    restore_warns+=("$1"$'\t'"${2:-}")
+    if [ -n "${SD_RESTORE_WARN_FILE:-}" ]; then printf '%s\t%s\n' "$1" "${2:-}" >> "$SD_RESTORE_WARN_FILE" || true; fi
+}
+restore_warn_import() {   # restore_warn_import FILE: collect the records another script wrote there
+    local line
+    [ -f "$1" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        case "$line" in *$'\t'*) restore_warns+=("$line") ;; *) restore_warns+=("$line"$'\t') ;; esac
+    done < "$1"
+}
+restore_warn_block() {   # restore_warn_block HEADING: print every record as a boxed bold red block; print nothing when there are none
+    local n=0 rec rule='################################################################################'
+    [ "${#restore_warns[@]}" -gt 0 ] || return 0
+    printf '\n\033[1;31m%s\n# %s\n%s\n' "$rule" "$1" "$rule"
+    for rec in "${restore_warns[@]}"; do
+        n=$((n + 1))
+        printf '%s. %s\n' "$n" "${rec%%$'\t'*}"
+        if [ -n "${rec#*$'\t'}" ]; then printf '       Type:  %s\n' "${rec#*$'\t'}"; fi
+    done
+    printf '%s\033[0m\n\n' "$rule"
+}
+# RESTORE-WARN-END
 
 # ---------------------------------------------------------------- the password rule
 # SD's rule (owner, 19 Sep 2026): 8 or more characters with a lower-case letter, an
@@ -1106,6 +1139,16 @@ jobs_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log
 reg_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: register: //p' | tail -1)"
 [ -z "$reg_state" ] || say "Account switches: $reg_state"
 # REGISTER-SAY-END
+# 22 Nov 26  S.292: what a reload could not put back is also collected for the closing red block, each with the exact command.  Only the stage's own failure
+#            wording counts (a success line, or none, adds nothing).
+case "${jobs_state:-}" in
+  "the kept definitions were NOT given their timers"*)
+    restore_warn "The kept scheduled jobs were NOT given their timers again (${jobs_state#*: }).  Give them again, as the administrator at the SD prompt" "set.job restore" ;;
+esac
+case "${reg_state:-}" in
+  "NOT carried"*)
+    restore_warn "The administrator's account switches (SH, OS.EXECUTE and the others) were NOT carried from the kept register, so they are as delivered, all OFF.  Turn on each one you had on, as the administrator at the SD prompt (the others are on the page tool.gates)" "set.os.access sh on   and   set.os.access os on" ;;
+esac
 if [ "$kept_pw" -eq 1 ]; then
   grep -qx 'solo-stage: passwords: reloaded' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
     || fail "the stage log has no 'solo-stage: passwords: reloaded' (the kept passwords in $reload_dir were NOT put back)"
@@ -1537,13 +1580,13 @@ fw_open() {   # fw_open PORT WHAT
   # 22 Nov 26: or /usr/sbin/ufw - on Debian an ordinary user's PATH has no /usr/sbin, so an active ufw was never found and the rule never added (the VM).
   if { command -v ufw >/dev/null 2>&1 || [ -x /usr/sbin/ufw ]; } && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
     say "ufw is active: opening TCP $port for $what (sudo)."
-    sudo ufw allow "$port/tcp" || warn "could not add the ufw rule; open port $port yourself"
+    sudo ufw allow "$port/tcp" || restore_warn "The ufw rule for $what (TCP $port) could not be added, so other computers cannot reach it.  Add it" "sudo ufw allow $port/tcp"   # S.292
   # "firewall-cmd --state" is refused by polkit for an ordinary user (measured on Fedora 44:
   # "Authorization failed", so a running firewalld read as stopped); systemd answers anyone.
   elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
     say "firewalld is running: opening TCP $port for $what (sudo)."
     { sudo firewall-cmd -q --permanent --add-port="$port/tcp" && sudo firewall-cmd -q --reload; } \
-      || warn "could not add the firewalld rule; open port $port yourself (sudo firewall-cmd --permanent --add-port=$port/tcp && sudo firewall-cmd --reload)"
+      || restore_warn "The firewalld rule for $what (TCP $port) could not be added, so other computers cannot reach it.  Add it" "sudo firewall-cmd --permanent --add-port=$port/tcp && sudo firewall-cmd --reload"   # S.292
   else
     warn "$what is open on port $port; if a firewall runs on this computer, allow TCP $port"
   fi
@@ -1616,7 +1659,9 @@ if [ "$upgrade" -eq 1 ]; then
 else
   say "SD Core Solo for Linux is installed."
 fi
-say "  home          : $HOME_DIR      ($mode_name)"
+# 22 Nov 26  S.292: what the install could not put back, boxed and bold red right under the banner, each with its exact command (nothing prints when there is none).
+restore_warn_block "THE INSTALL COULD NOT PUT BACK EVERYTHING YOU KEPT.  DO THESE STEPS TO RESTORE IT EXACTLY AS IT WAS."
+say "  home         : $HOME_DIR      ($mode_name)"
 if [ -n "${reload_note:-}" ]; then
   say "  reloaded      : your saved data; configuration: $reload_note$([ "${mods_note:-}" != reloaded ] || echo "; your local VOC modifications (newvoc.mods)")"
   say "                  (your data as you left it is still in $kept_aside, a safety copy; delete it when you are satisfied)"

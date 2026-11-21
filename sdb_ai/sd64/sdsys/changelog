@@ -11,7 +11,15 @@ Next release - in progress
                            the doors.  The kept documents are added beside the release's, never over them.
                          - An uninstall that deletes the data now removes the firewall rules for Solo's own ports,
                            4249 and 4251, which it only reported before; with --keep-data they stay.
-             Why         - The owner: "settings do not get changes after delete and install if the user chooses keep
+                         - What a reinstall could not put back is said in one boxed, bold red block under "SD Core Solo
+                           for Linux is installed.", each item with the exact command to type: kept scheduled jobs not
+                           given their timers, account switches not carried from the kept register, a firewall rule
+                           that failed.  The uninstaller prints one at its end when it could not note the API and ssh
+                           doors.  Nothing is printed when everything was put back.
+                         - A kept sd.conf keeps its SCREENTHEME exactly as it was: an upgrade or a reload no longer adds
+                           SCREENTHEME=paper to a file that has no such line.  Only a new install starts in paper.
+             Why         - The owner: "Each user can change their theme, I would think they would get their existing theme
+                           back."  And: "settings do not get changes after delete and install if the user chooses keep
                            data", "if we opened it we manage it", and that the Windows installers install over an
                            existing installation with no delete.
              Does NOT    - Touch port 22, 4243, or a rule that is not for Solo's own ports.  An --api, --ssh or

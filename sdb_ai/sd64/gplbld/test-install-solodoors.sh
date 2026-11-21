@@ -61,7 +61,7 @@ grep -q '^note_doors()' "$T/note.sh" && grep -q '^kept_door()' "$T/kept.sh" || {
 has() { printf '%s\n' "$1" | grep -qF -- "$2"; }
 
 note() {   # note UNITDIR TREE -> said lines
-  bash -c 'set -uo pipefail; say() { printf "%s\n" "$*"; }; warn() { printf "WARN %s\n" "$*"; }; . "'"$T"'/note.sh"; note_doors "$1" "$2"' _ "$1" "$2" 2>&1
+  bash -c 'set -uo pipefail; say() { printf "%s\n" "$*"; }; warn() { printf "WARN %s\n" "$*"; }; restore_warn() { printf "WARN %s | %s\n" "$1" "${2:-}"; }; . "'"$T"'/note.sh"; note_doors "$1" "$2"' _ "$1" "$2" 2>&1
 }
 mkdir -p "$T/u1" "$T/t1" "$T/u2" "$T/t2" "$T/u3" "$T/t3"
 printf 'ListenStream=0.0.0.0:4249\n' > "$T/u1/sd-solo-api.socket"; printf 'ListenStream=127.0.0.1:4251\n' > "$T/u1/sd-solo-ssh.socket"

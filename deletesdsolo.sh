@@ -21,7 +21,7 @@
 # rotated copies), the API's TLS identity (sd-tls), the ssh server's host key and your keys (sshd), the AI
 # settings and keys (ai), the SDNet logins (netlogins), where sessions start (start.default), and, if you made
 # them, newvoc.mods and voc_removed.saved.  It removes everything else in <home> (programs, system files,
-# the deny list and GLOBAL.BP.OUT, which an SD Core server puts back); --delete-data removes <home> whole.  Asked when neither is given; with no terminal to ask on, the
+# and GLOBAL.BP.OUT, which an SD Core server puts back); --delete-data removes <home> whole.  Asked when neither is given; with no terminal to ask on, the
 # data is KEPT (nothing is deleted unasked, as in Windows Solo's silent uninstall).  06 Oct 2026 (LSOLO 39,
 # owner: "the uninstaller leaves the data in place" and "you and windows should handle removal
 # and reinstall the same way"): what is left is data and configuration, not an installation, and
@@ -41,6 +41,39 @@ RED='\033[0;31m'; YELLOW='\033[0;33m'; NC='\033[0m'
 say()  { printf '%s\n' "$*"; }
 warn() { printf '%b%s%b\n' "$YELLOW" "$*" "$NC"; }
 refuse() { printf '%bREFUSED: %s%b\n' "$RED" "$*" "$NC" >&2; exit 2; }
+# RESTORE-WARN-BEGIN
+# 22 Nov 26  S.292 (owner, 21 Nov 2026, Windows chat, relayed T0800: "if the admin says not to delete during a deletion then the system should be put
+#            back exactly as it was before the uninstall.  If that is impossible then the admin needs to be warned during the install the exact steps they
+#            must take to restore the system exactly as it was." and "If there are warnings they should not be buried in other text.  They need to be
+#            explicit, stand out so that they can not be missed."): every restore that did not happen is collected and printed ONCE, as a boxed bold red
+#            block with the exact command for each.  This block is the same text in installsdcore.sh and deletesdcore.sh (test-install-restorewarn.sh
+#            holds the two equal).  A record is WHAT and COMMAND joined by a tab.  When $SD_RESTORE_WARN_FILE is set each record is also appended there,
+#            which is how the install-over carries the uninstaller's records into its own closing block.
+restore_warns=()
+restore_warn() {   # restore_warn WHAT [COMMAND]: collect one record
+    restore_warns+=("$1"$'\t'"${2:-}")
+    if [ -n "${SD_RESTORE_WARN_FILE:-}" ]; then printf '%s\t%s\n' "$1" "${2:-}" >> "$SD_RESTORE_WARN_FILE" || true; fi
+}
+restore_warn_import() {   # restore_warn_import FILE: collect the records another script wrote there
+    local line
+    [ -f "$1" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        case "$line" in *$'\t'*) restore_warns+=("$line") ;; *) restore_warns+=("$line"$'\t') ;; esac
+    done < "$1"
+}
+restore_warn_block() {   # restore_warn_block HEADING: print every record as a boxed bold red block; print nothing when there are none
+    local n=0 rec rule='################################################################################'
+    [ "${#restore_warns[@]}" -gt 0 ] || return 0
+    printf '\n\033[1;31m%s\n# %s\n%s\n' "$rule" "$1" "$rule"
+    for rec in "${restore_warns[@]}"; do
+        n=$((n + 1))
+        printf '%s. %s\n' "$n" "${rec%%$'\t'*}"
+        if [ -n "${rec#*$'\t'}" ]; then printf '       Type:  %s\n' "${rec#*$'\t'}"; fi
+    done
+    printf '%s\033[0m\n\n' "$rule"
+}
+# RESTORE-WARN-END
 fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 
 # BEGIN keep_prune
@@ -266,14 +299,14 @@ note_doors() {   # note_doors UNITDIR TREE
   local a s
   a="$(door_mode "$1/sd-solo-api.socket")"; s="$(door_mode "$1/sd-solo-ssh.socket")"
   if [ "$a" = unknown ] || [ "$s" = unknown ]; then
-    warn "the API or ssh door could not be read (API $a, ssh $s), so it is not noted: a reinstall will ask about them"
+    restore_warn "the API or ssh door could not be read (API $a, ssh $s), so it is not noted and the next install will ASK about them.  After the next install set each as it was, as the administrator at the SD prompt" "remote.api open|local|off   and   remote.ssh open|local|off"
     return 0
   fi
   rm -f "$2/doors.saved"
   if printf 'api=%s\nssh=%s\n' "$a" "$s" > "$2/doors.saved" && chmod 600 "$2/doors.saved"; then
     say "kept: the API is $a and ssh is $s; a reinstall that reloads your data keeps them so"
   else
-    warn "the API and ssh doors could not be noted: a reinstall will ask about them"
+    restore_warn "the API ($a) and ssh ($s) doors could not be noted, so the next install will ASK about them.  After the next install set each as it was, as the administrator at the SD prompt" "remote.api $a   and   remote.ssh $s"
   fi
 }
 # DOORS-NOTE-END
@@ -318,7 +351,7 @@ if [ "$data" = "keep" ]; then
     # LSOLO 39: the data and sd.conf stay exactly where they are; the stamp says which release made them
     # and when they were left, so a new install can tell this folder from any other.  Nothing is moved, so
     # nothing can be lost in a move.  14 Nov 2026 (S.234 N9): what SD Core's keep cycle keeps stays too (keep_prune
-    # names it); the system files, the deny list and GLOBAL.BP.OUT go with the installation.
+    # names it); the system files and GLOBAL.BP.OUT go with the installation (the deny list, solo.policy, is kept: S.287).
     stamp="$(mktemp)" || fail "mktemp"
     { [ ! -f "$H/.sdcore-install" ] || cat "$H/.sdcore-install"; printf 'kept %s\n' "$(date -Is)"; } > "$stamp"
     # START-SAVE (SD Core's of 14 Nov 2026, owner: "an upgrade from 1.1-3 will always be prompt"): where sessions start is ALWAYS kept.  A tree whose
@@ -399,3 +432,5 @@ solo_firewall() {   # solo_firewall keep|delete
 if [ "$data" = "keep" ]; then solo_firewall keep; else solo_firewall delete; fi
 say
 say "SOLO DELETE COMPLETE $H"
+# 22 Nov 26  S.292: what the uninstall could not save for the next install, boxed and bold red at the very end, with the exact command for each.
+restore_warn_block "THE UNINSTALL COULD NOT SAVE EVERYTHING FOR THE NEXT INSTALL.  DO THESE STEPS AFTER THE NEXT INSTALL."
