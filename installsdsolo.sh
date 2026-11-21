@@ -1551,10 +1551,25 @@ fw_open() {   # fw_open PORT WHAT
 [ "$ssh" = "open" ] && fw_open "$ssh_port" "ssh"
 [ "$api" = "open" ] && fw_open "$api_port" "the API"
 
+# 21 Nov 26 (S.289, found on a VM): the last check types WHO and wanted its answer, so an administrator who named who in the control file's
+#   deny-verbs got a COMPLETE install that ended "FAILED at: a session as sduser did not work".  The refusal of a verb on that list is printed only inside
+#   a session that signed in and reached the command prompt, so where the check types a verb (a new install) it also passes the refusal line, EXACTLY (the
+#   whole line, so a longer line that merely contains it does not count), and says so.  The kept-password branch types no verb of the list and keeps its
+#   one sentence.  test-install-sessioncheck.sh runs this block.
+# SESSION-CHECK-BEGIN
+session_check_ok() {   # session_check_ok CHK WANT DENIED_OK -> prints "ran" or "denied" and returns 0 when CHK shows a working session, else returns 1
+  local chk="$1" want="$2" denied_ok="${3:-0}"
+  if printf '%s\n' "$chk" | grep -qE "$want"; then echo ran; return 0; fi
+  if [ "$denied_ok" -eq 1 ] && printf '%s\n' "$chk" | grep -qxF 'Command requires administrator privileges'; then echo denied; return 0; fi
+  return 1
+}
+# SESSION-CHECK-END
+
 # ---------------------------------------------------------------- self-check (ruling 13 included)
 say
 say "Checking the install."
 want='^[0-9]+ sduser$'
+denied_ok=0
 if [ "$upgrade" -eq 1 ] || [ "$kept_pw" -eq 1 ]; then
   # No password is known here (an upgrade, or a reload that kept the passwords); a one-shot command uses the copy SD keeps for it.
   # 19 Nov 26 dm  S.274: since S.247's restriction (18 Nov) the kept password signs in only "run.job <name>" and "mcp.call" one-shots, so
@@ -1567,11 +1582,17 @@ elif [ "$first_login" -eq 1 ]; then
   # There is no account password yet; the global password (which this installer
   # has) opens the same account, and that is what the check can prove.
   chk="$(printf '%s\nWHO\nOFF\n' "$GLB_PW" | timeout 60 "$HOME_DIR/bin/sd-solo" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  denied_ok=1
 else
   chk="$(printf '%s\nWHO\nOFF\n' "$ACC_PW" | timeout 60 "$HOME_DIR/bin/sd-solo" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
+  denied_ok=1
 fi
-printf '%s\n' "$chk" | grep -qE "$want" || { printf '%s\n' "$chk" | tail -5; fail "a session as sduser did not work"; }
-say "  a session as sduser works"
+verdict="$(session_check_ok "$chk" "$want" "$denied_ok")" || { printf '%s\n' "$chk" | tail -5; fail "a session as sduser did not work"; }
+if [ "$verdict" = denied ]; then
+  say "  a session as sduser works (WHO is on the list of denied verbs you gave, so it was refused: the sign-in is what this check proves)"
+else
+  say "  a session as sduser works"
+fi
 rm -f "$HOME_DIR/\$internal"
 # stdin is /dev/null: "timeout" runs its command in a BACKGROUND process group, and an sd
 # that meets the terminal there is stopped by SIGTTIN - which hung this check for ever
