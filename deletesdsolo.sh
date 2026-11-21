@@ -56,11 +56,13 @@ fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
 # a link of any of these names goes with the installation, as a link called newvoc.mods always has.
 # 17 Nov 2026 (S.247, scheduled jobs): the job definitions $jobs too, on the same terms.  Their timers are removed with the other units; a reload's
 # install gives every kept definition its timer again (solo-stage.sh, set.job restore).
+# 20 Nov 2026 (S.278, the owner, Windows chat: Keep should carry what the administrator turned on - "yes"): the account register `accounts` too, on the same
+# terms (a real directory), as SD Core's keep cycle keeps its whole register.  Only the administrator's switches are read back from it (solo-stage.sh, REGISTER-CARRY).
 # Returns find's status.  (An empty array is expanded with the + form: bash before 4.4 calls "${keep[@]}" unbound under set -u.)
 keep_prune() {
   local d="$1" n
   local -a keep=()
-  for n in newvoc.mods voc_removed.saved '$cred' '$jobs' sd-tls sshd ai netlogins; do
+  for n in newvoc.mods voc_removed.saved '$cred' '$jobs' accounts sd-tls sshd ai netlogins; do
     if [ -d "$d/$n" ] && [ ! -L "$d/$n" ]; then keep+=(! -name "$n"); fi
   done
   for n in "$d"/audit "$d"/audit.* "$d"/start.default; do

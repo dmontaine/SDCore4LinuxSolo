@@ -92,6 +92,16 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
 
   d="$T/p5"; mk_install "$d"; mkdir "$d/newvoc.mods"; echo sentinel > "$T/outside-sentinel"
   rc="$(run_prune "$d")"
+  # 20 Nov 26 (S.278): the account register stays, as a real directory, with what is in it; a link of that name goes.
+  d="$T/p8"; mk_install "$d"; mkdir -p "$d/accounts"; printf 'x\n' > "$d/accounts/sduser"
+  rc="$(run_prune "$d")"; after="$(top "$d")"
+  row "P8 a REAL accounts directory (the register) stays with its record (status 0)" \
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred accounts sd.conf user_accounts " ] && [ "$(cat "$d/accounts/sduser" 2>/dev/null)" = x ] && echo 0 || echo 1)" "rc=$rc after='$after'"
+  d="$T/p9"; mk_install "$d"; mkdir -p "$T/else9"; echo keep9 > "$T/else9/sduser"; ln -s "$T/else9" "$d/accounts"
+  rc="$(run_prune "$d")"; after="$(top "$d")"
+  row "P9 an accounts that is a LINK goes; its target is untouched" \
+    "$([ "$rc" = 0 ] && [ "$after" = "\$cred sd.conf user_accounts " ] && [ "$(cat "$T/else9/sduser" 2>/dev/null)" = keep9 ] && echo 0 || echo 1)" "rc=$rc after='$after'"
+
   row "P5 nothing outside the folder is touched" "$([ "$rc" = 0 ] && [ "$(cat "$T/outside-sentinel" 2>/dev/null)" = sentinel ] && [ -d "$T/elsewhere" ] && echo 0 || echo 1)" "rc=$rc"
 
   # ---- I. is_kept_tree ----------------------------------------------------------------------------------------------
@@ -131,6 +141,10 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
   out="$(kept "$d")"; row "I10 a folder that also holds \$cred, sd-tls, sshd, ai, netlogins, audit, audit.<date> and start.default is a kept tree" "$([ "$out" = YES ] && echo 0 || echo 1)" "got $out"
   d="$T/k10"; mk_kept "$d"; ln -s "$T/elsewhere" "$d/\$cred"
   out="$(kept "$d")"; row "I11 a \$cred that is a LINK makes it a stranger's folder" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
+  d="$T/k11"; mk_kept "$d"; mkdir -p "$d/accounts"; echo r > "$d/accounts/sduser"
+  out="$(kept "$d")"; row "I12 a folder that also holds a REAL accounts directory (the register) is a kept tree" "$([ "$out" = YES ] && echo 0 || echo 1)" "got $out"
+  d="$T/k12"; mk_kept "$d"; ln -s "$T/elsewhere" "$d/accounts"
+  out="$(kept "$d")"; row "I13 an accounts that is a LINK makes it a stranger's folder" "$([ "$out" = NO ] && echo 0 || echo 1)" "got $out"
   row "I9 the allowance asks the owner as well as the type (somebody else's directory named newvoc.mods is a stranger's)" \
     "$(awk '/^# BEGIN is_kept_tree$/,/^# END is_kept_tree$/' "$inst" | grep -qF 'newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;' && echo 0 || echo 1)"
 
@@ -157,6 +171,64 @@ check() {   # check REMOVER INSTALLER STAGE - every row against these three file
     "$(grep -qF 'if [ -d "$reloaddir/newvoc.mods" ] && [ ! -L "$reloaddir/newvoc.mods" ]; then' "$stage" && grep -qF 'rm -rf "$H/newvoc.mods"' "$stage" && grep -qF 'chmod -R go-rwx "$H/newvoc.mods"' "$stage" && echo 0 || echo 1)"
   row "S3 ...and it says so on a line of its own, 'solo-stage: newvoc.mods: reloaded', or 'none was saved'; the DONE line the installer parses is as it was" \
     "$(grep -qF 'echo "solo-stage: newvoc.mods: $reload_mods"' "$stage" && grep -qF 'reload_mods="none was saved"' "$stage" && grep -qF 'reload_mods="reloaded"' "$stage" && grep -qF 'echo "SOLO RELOAD DONE data=reloaded config=$reload_conf"' "$stage" && echo 0 || echo 1)"
+
+  # ---- R. carry_register (S.278): the kept record's administrator switches, read back into the new record, only ever to yes ----------------------------------
+  blk="$T/carry_register.sh"
+  sed -n '/^  # REGISTER-CARRY-BEGIN$/,/^  # REGISTER-CARRY-END$/p' "$stage" > "$blk"
+  if [ "$(wc -l < "$blk")" -lt 8 ]; then
+    row "the stage holds a '# REGISTER-CARRY-BEGIN' ... '# REGISTER-CARRY-END' block" 1 "found $(wc -l < "$blk") lines"
+    rm -rf "$T"; return
+  fi
+  row "the stage holds a '# REGISTER-CARRY-BEGIN' ... '# REGISTER-CARRY-END' block" 0
+  carry() {   # carry KEPT NEW -> prints the function's line; the new file is left changed
+    ( set -euo pipefail; . "$blk"; carry_register "$1" "$2" )
+  }
+  mkrec() {   # mkrec FILE trailing(1|0) f1 f2 ... : one field per line; an unset field is passed as ''
+    local f="$1" t="$2" i; shift 2; : > "$f"
+    for i in "$@"; do printf '%s\n' "$i" >> "$f"; done
+    [ "$t" = 1 ] || truncate -s -1 "$f"
+  }
+  fld() { sed -n "${2}p" "$1"; }   # fld FILE N
+  # 24 fields: path descr group (4) suspended (5) prior (6) sh os sdacc voc bp dict shr.read shr.write net start tiles pins rec mcp mcpw xfer jobs stored
+  local kf nf msg
+  kf="$T/kept.rec"; nf="$T/new.rec"
+  mkrec "$kf" 1 /h/k "kept descr" grp "" "" "" yes yes no yes yes no "" "" yes menu "t1 t2" yes yes no yes yes yes yes
+  mkrec "$nf" 1 /h/n "new descr" grp2 "" "" "" no no no no no no "" "" no "" "" no no no no no no no
+  msg="$(carry "$kf" "$nf" 2>&1)"
+  row "R1 each switch the kept record had on is on in the new one (7, 8, 10, 11, 15, 18, 19, 21-24) and the line counts them and the tiles: 12" \
+    "$([ "$(fld "$nf" 7)$(fld "$nf" 8)$(fld "$nf" 10)$(fld "$nf" 11)$(fld "$nf" 15)$(fld "$nf" 18)$(fld "$nf" 19)$(fld "$nf" 21)$(fld "$nf" 22)$(fld "$nf" 23)$(fld "$nf" 24)" = yesyesyesyesyesyesyesyesyesyesyes ] && [ "$(fld "$nf" 9)" = no ] && [ "$(fld "$nf" 12)" = no ] && [ "$(fld "$nf" 20)" = no ] && [ "$msg" = "solo-stage: register: 12 switch(es) carried from the kept record" ] && echo 0 || echo 1)" "msg='$msg' fields=$(tr '\n' '|' < "$nf")"
+  row "R2 what the new record owns is left: the path, description, group (1-3), the suspension, the start word and the shared account's two (13, 14, 16)" \
+    "$([ "$(fld "$nf" 1)" = /h/n ] && [ "$(fld "$nf" 2)" = "new descr" ] && [ "$(fld "$nf" 3)" = grp2 ] && [ -z "$(fld "$nf" 5)" ] && [ -z "$(fld "$nf" 13)" ] && [ -z "$(fld "$nf" 14)" ] && [ -z "$(fld "$nf" 16)" ] && echo 0 || echo 1)"
+  row "R3 the tiles that are off (17) are taken when the new record's is blank" "$([ "$(fld "$nf" 17)" = "t1 t2" ] && echo 0 || echo 1)" "got '$(fld "$nf" 17)'"
+  mkrec "$kf" 1 /h/k d g "" "" "" no no no no no no "" "" no "" "" no no no no no no no
+  mkrec "$nf" 1 /h/n d g "" "" "" yes no no no no no "" "" no "" "" no no no yes no no no
+  cp "$nf" "$T/new.before"; msg="$(carry "$kf" "$nf" 2>&1)"
+  row "R4 NOTHING IS TURNED OFF and nothing is opened that was not: a kept record with every switch off leaves a new one with two on exactly as it was (0 carried)" \
+    "$(cmp -s "$nf" "$T/new.before" && [ "$msg" = "solo-stage: register: 0 switch(es) carried from the kept record" ] && echo 0 || echo 1)" "msg='$msg'"
+  mkrec "$kf" 1 /h/k d g "" "" "" "" "" "" "" "" "" "" ""
+  mkrec "$nf" 1 /h/n d g "" "" no no no no no no "" "" no "" "" no no no no no no no
+  cp "$nf" "$T/new.before"; msg="$(carry "$kf" "$nf" 2>&1)"
+  row "R5 a SHORT kept record (nothing past field 15) and a blank field are 'off': nothing is carried, the new record is unchanged" \
+    "$(cmp -s "$nf" "$T/new.before" && echo 0 || echo 1)" "msg='$msg'"
+  mkrec "$kf" 1 /h/k d g "" "" "" YES "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "Yes"
+  mkrec "$nf" 0 /h/n d g
+  msg="$(carry "$kf" "$nf" 2>&1)"
+  row "R6 'YES' and 'Yes' count (the register is read case blind); a SHORT new record is extended to the field, and a record with no trailing newline is written with none" \
+    "$([ "$(fld "$nf" 7)" = yes ] && [ "$(fld "$nf" 23)" = yes ] && [ "$(tail -c1 "$nf" | od -An -c | tr -d ' ')" != '\n' ] && echo 0 || echo 1)" "msg='$msg' tail=$(tail -c1 "$nf" | od -An -c)"
+  rm -f "$T/nokept.rec"; mkrec "$nf" 1 /h/n d g "" "" no; cp "$nf" "$T/new.before"; msg="$(carry "$T/nokept.rec" "$nf" 2>&1)"
+  row "R7 NULL CASE: no kept record says 'none was saved' and the new one is untouched" "$(cmp -s "$nf" "$T/new.before" && [ "$msg" = "solo-stage: register: none was saved" ] && echo 0 || echo 1)" "msg='$msg'"
+  mkrec "$kf" 1 /h/k d g "" "" "" yes; ln -s "$kf" "$T/kept.link"; cp "$nf" "$T/new.before"; msg="$(carry "$T/kept.link" "$nf" 2>&1)"
+  row "R8 a kept record that is a LINK is not read" "$(cmp -s "$nf" "$T/new.before" && [ "$msg" = "solo-stage: register: none was saved" ] && echo 0 || echo 1)" "msg='$msg'"
+  rm -f "$T/nonew.rec"; msg="$(carry "$kf" "$T/nonew.rec" 2>&1)"
+  row "R9 a new install with no register record is said, not guessed (the switches stay as delivered) and nothing is created" "$([ ! -e "$T/nonew.rec" ] && printf '%s' "$msg" | grep -q 'NOT carried' && echo 0 || echo 1)" "msg='$msg'"
+  local c_rel c_end c_up
+  c_rel="$(grep -n '^  # RELOAD-KEPT-END$' "$stage" | head -1 | cut -d: -f1)"
+  c_end="$(grep -n 'carry_register "\$reloaddir/accounts/sduser" "\$H/accounts/sduser"' "$stage" | head -1 | cut -d: -f1)"
+  c_up="$(grep -n 'ua_out="\$(sdi UPDATE.ACCOUNTS ALL' "$stage" | cut -d: -f1 | awk -v a="${c_rel:-0}" '$1 > a { print; exit }')"
+  row "R10 the stage calls it on the kept and the new record AFTER the kept set is copied and BEFORE the VOC refresh and the account's start" \
+    "$([ -n "$c_rel" ] && [ -n "$c_end" ] && [ -n "$c_up" ] && [ "$c_rel" -lt "$c_end" ] && [ "$c_end" -lt "$c_up" ] && echo 0 || echo 1)" "kept-set end '$c_rel', call '$c_end', refresh '$c_up'"
+  row "R11 the generic copy loop does NOT take accounts (it would replace the new record whole)" \
+    "$(grep -q "for kept_item in '\$cred' '\$jobs' sd-tls sshd ai netlogins; do" "$stage" && echo 0 || echo 1)"
   rm -rf "$T"
 }
 
@@ -196,6 +268,11 @@ the stage no longer copies newvoc.mods|s|/cp -a "\$reloaddir\/newvoc.mods"/d
 the stage takes a link as well|s|s/ \&\& \[ ! -L "\$reloaddir\/newvoc.mods" \]; then/; then/
 the stage keeps the new tree's own newvoc.mods under the copy|s|/rm -rf "\$H\/newvoc.mods"/d
 the stage says nothing about it|s|/echo "solo-stage: newvoc.mods: \$reload_mods"/d
+keep_prune drops the register|r|s/'\$jobs' accounts sd-tls/'\$jobs' sd-tls/
+is_kept_tree refuses the register|i|s/|accounts|sd-tls|/|sd-tls|/
+carry_register turns switches OFF|s|s/if (tolower(k\[j\]) == "yes" \&\& tolower(f\[j\]) != "yes") { f\[j\] = "yes"/if (tolower(k[j]) != tolower(f[j])) { f[j] = k[j]/
+the generic reload loop takes the register whole|s|s/for kept_item in '\$cred' '\$jobs' sd-tls/for kept_item in '\$cred' '\$jobs' accounts sd-tls/
+the stage never calls carry_register|s|/^  carry_register "\$reloaddir/d
 EOF
   rm -rf "$tmp"
   echo "selftest: $ok of $n mutants caught"

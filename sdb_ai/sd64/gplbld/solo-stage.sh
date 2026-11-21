@@ -600,6 +600,41 @@ if [ -n "$reloaddir" ]; then
     fi
   done
   # RELOAD-KEPT-END
+  # 20 Nov 26 (S.278; the owner, Windows chat, asked whether Keep should restore what the administrator had turned on: "yes"; his rule of 13 Nov: an upgrade does not
+  #            shut what the administrator opened, delivered-closed governs a FRESH install).  The kept register record accounts/sduser carries the administrator's
+  #            switches; the new install made its own record (its path, group and the switches this install asked about), so only the SWITCHES are read back, and only
+  #            ever TO yes: a switch the kept record had on (fields 7-12 SH, OS.EXECUTE, SD.ACCOUNTS and the three edit gates; 15 NET; 18 PINS; 19 RECOVERY; 20-21 MCP;
+  #            22 XFER; 23 JOBS; 24 STORED.ANY) is turned on here, one this install turned on stays on, and nothing is turned off or opened that was not.  Field 17
+  #            (the tiles that are off) is taken when the new record's is blank.  Not carried: the path, description, group, suspension, the start word (start.default is
+  #            kept itself) and the shared account's two (13 and 14).  SD is stopped, so the record is written as a file; a record that cannot be read or written leaves
+  #            the install as delivered (closed) and says so.  test-install-keepmods.sh runs this function.
+  # REGISTER-CARRY-BEGIN
+  carry_register() {   # carry_register KEPT_RECORD NEW_RECORD: prints "solo-stage: register: ..."
+    local kept="$1" fresh="$2" out nl=0 n
+    if [ ! -f "$kept" ] || [ -L "$kept" ]; then echo "solo-stage: register: none was saved"; return 0; fi
+    if [ ! -f "$fresh" ] || [ -L "$fresh" ]; then echo "solo-stage: register: NOT carried (the new install has no register record), the switches are as delivered"; return 0; fi
+    [ "$(tail -c1 "$fresh" | od -An -c | tr -d ' ')" = '\n' ] && nl=1
+    out="$(mktemp "${fresh}.carry.XXXXXX")" || { echo "solo-stage: register: NOT carried (no scratch file), the switches are as delivered"; return 0; }
+    n="$(awk -v kept="$kept" -v nl="$nl" -v tmp="$out" '
+      BEGIN { nb = split("7 8 9 10 11 12 15 18 19 20 21 22 23 24", bl, " "); while ((getline l < kept) > 0) k[++nk] = l }
+      { f[NR] = $0 }
+      END {
+        top = NR; changed = 0
+        for (i = 1; i <= nb; i++) { j = bl[i] + 0
+          if (tolower(k[j]) == "yes" && tolower(f[j]) != "yes") { f[j] = "yes"; changed++; if (j > top) top = j } }
+        if (k[17] != "" && f[17] == "") { f[17] = k[17]; changed++; if (17 > top) top = 17 }
+        for (i = 1; i <= top; i++) printf "%s%s", f[i], (i < top || nl == 1) ? "\n" : "" > tmp
+        print changed }' "$fresh")" || n=""
+    if [ -n "$n" ] && cat "$out" > "$fresh"; then
+      echo "solo-stage: register: $n switch(es) carried from the kept record"
+    else
+      echo "solo-stage: register: NOT carried (the record could not be written), the switches are as delivered"
+    fi
+    rm -f "$out"
+    return 0
+  }
+  # REGISTER-CARRY-END
+  carry_register "$reloaddir/accounts/sduser" "$H/accounts/sduser"
   # 24 Oct 26 (PAL-36, the owner: "build the keep cycle"): the administrator's site-local VOC additions (newvoc.mods, QM4 gap 501) were kept beside the account
   # by deletesdsolo.sh; put them back BEFORE the VOC is refreshed below, because UPDATE.ACCOUNTS applies them.  Only a real directory is taken (the installer's
   # is_kept_tree refuses a link); the new tree has none of its own, and whatever is there is replaced whole.  The line the installer reads is printed either way.

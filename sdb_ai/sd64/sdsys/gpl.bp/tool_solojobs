@@ -310,9 +310,9 @@ draw.effect:
    return
 
 draw.help:
-   screen text 'Up and Down move, PgUp and PgDn a page.  N makes a job, C (or Enter) changes it, D deletes it, R runs it now.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
-   screen text 'Each change is shown as its command; you answer Run or Cancel.  N and C ask for your account password; a delete asks for the job' : "'s name." at h.x + 2,h.y + 2 width h.tw
-   screen text 'F5 reads the jobs again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
+   screen text 'Up, Down, PgUp, PgDn move.  N makes a job, C or Enter changes it, D deletes it, R runs it now.' at h.x + 2,h.y + 1 width h.tw
+   screen text 'Each change is shown as its command; you answer Run or Cancel.  N and C ask for your password.' at h.x + 2,h.y + 2 width h.tw
+   screen text 'A delete asks for the job' : "'s name.  F1 or ? explains the box.  F5 reads the jobs again.  Ctrl-Q leaves." at h.x + 2,h.y + 3 width h.tw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse

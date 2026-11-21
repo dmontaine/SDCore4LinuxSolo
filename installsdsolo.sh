@@ -297,7 +297,8 @@ is_kept_tree() {   # is_kept_tree DIR: what "deletesdsolo.sh --keep-data" leaves
       newvoc.mods|voc_removed.saved) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       # 14 Nov 26 (S.234 N9, owner: "N9 same as core"): what SD Core's keep cycle keeps, on the same terms - a real directory, or a regular file, owned by this user.
       # 17 Nov 26 (S.247): the scheduled jobs' definitions ($jobs) are kept data on the same terms.
-      '$cred'|'$jobs'|sd-tls|sshd|ai|netlogins) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
+      # 20 Nov 26 (S.278): the account register (solo-stage.sh carries its administrator switches), on the same terms.
+      '$cred'|'$jobs'|accounts|sd-tls|sshd|ai|netlogins) { [ -d "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       audit|audit.*|start.default) { [ -f "$e" ] && [ ! -L "$e" ] && [ "$(stat -c %u "$e")" = "$(id -u)" ]; } || return 1 ;;
       *) return 1 ;;
     esac
@@ -1038,6 +1039,11 @@ viewer_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.l
 jobs_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: jobs: //p' | tail -1)"
 [ -z "$jobs_state" ] || say "Scheduled jobs: $jobs_state"
 # JOBS-SAY-END
+# 20 Nov 26 (S.278): a reload's "solo-stage: register: " line (the administrator's switches carried from the kept register record, or none saved, or NOT) is said too.
+# REGISTER-SAY-BEGIN
+reg_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: register: //p' | tail -1)"
+[ -z "$reg_state" ] || say "Account switches: $reg_state"
+# REGISTER-SAY-END
 if [ "$kept_pw" -eq 1 ]; then
   grep -qx 'solo-stage: passwords: reloaded' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
     || fail "the stage log has no 'solo-stage: passwords: reloaded' (the kept passwords in $reload_dir were NOT put back)"

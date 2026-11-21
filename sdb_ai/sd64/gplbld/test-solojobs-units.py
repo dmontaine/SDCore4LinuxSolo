@@ -210,8 +210,8 @@ def checks(raw):
     rus = shell_block(raw["deleter"], "BEGIN remove_units", "END remove_units")
     ck("J11b", "the deleter runs it first in remove_units_step, its unit test sees timers, and keep_prune keeps $jobs; the installer's kept-tree test and the stage's reload take $jobs; the stage restores after a reload",
        re.search(r"remove_units_step\(\) \{[^\n]*\n[^\n]*\n\s*remove_job_units \"\$unitdir\"", rus) is not None and '"$d"/sd-solo*.timer' in rus
-       and "for n in newvoc.mods voc_removed.saved '$cred' '$jobs' sd-tls sshd ai netlogins; do" in raw["deleter"]
-       and "'$cred'|'$jobs'|sd-tls|sshd|ai|netlogins)" in raw["installer"] and "for kept_item in '$cred' '$jobs' sd-tls sshd ai netlogins; do" in raw["stage"]
+       and "for n in newvoc.mods voc_removed.saved '$cred' '$jobs' accounts sd-tls sshd ai netlogins; do" in raw["deleter"]
+       and "'$cred'|'$jobs'|accounts|sd-tls|sshd|ai|netlogins)" in raw["installer"] and "for kept_item in '$cred' '$jobs' sd-tls sshd ai netlogins; do" in raw["stage"]
        and "sdi SET.JOB RESTORE" in shell_block(raw["stage"], "JOBS-RESTORE-BEGIN", "JOBS-RESTORE-END")
        and raw["stage"].find("# JOBS-RESTORE-BEGIN") < raw["stage"].find('echo "SOLO RELOAD DONE'))
 
@@ -253,7 +253,7 @@ MUTANTS = [
     ("the page may run another command", "J10", sub("page", "allow = 'set.job'", "allow = 'set.job sh'")),
     ("the password is shown as typed", "J10", sub("page", "@vm : 'Account password' : @vm : 34 : @vm : 64 : @vm : 1", "@vm : 'Account password' : @vm : 34 : @vm : 64 : @vm : ''")),
     ("the deleter leaves the timers", "J11", sub("deleter", 'rm -f "$d"/sd-solo-job-*.timer "$d"/sd-solo-job-*.service', 'rm -f "$d"/sd-solo-job-*.service')),
-    ("the deleter does not keep $jobs", "J11b", sub("deleter", "'$cred' '$jobs' sd-tls", "'$cred' sd-tls")),
+    ("the deleter does not keep $jobs", "J11b", sub("deleter", "'$cred' '$jobs' accounts sd-tls", "'$cred' accounts sd-tls")),
     ("the stage does not restore", "J11b", sub("stage", "jr_out=\"$(sdi SET.JOB RESTORE 2>&1)\"", "jr_out=\"\"")),
     ("a cited message is missing", "J12", sub("job", "stop sysmsg(14945)", "stop sysmsg(14899)")),
 ]
