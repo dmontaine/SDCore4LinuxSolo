@@ -44,7 +44,10 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant ignores-sshd-there  's/^    if \[ -x "\$SD_SSHD_BIN" \]; then echo 0; return 0; fi/    true/'
   mutant unknown-is-closed   's/command -v "\$ss_cmd" > \/dev\/null 2>\&1 || return 2/command -v "$ss_cmd" > \/dev\/null 2>\&1 || return 1/'
   mutant substring-port      's/\$4 ~ \/:22\$\/ { f = 1 }/$4 ~ \/:22\/ { f = 1 }/'
-  mutant leaves-service-on   's/disable --now ssh.socket ssh.service sshd.service/status ssh.service/'
+  mutant leaves-service-on   's/disable --now "\$u"/status "$u"/'
+  # 21 Nov 26 (S.281): the installer's own fault - all three units in ONE call - and the socket second (the call for the service would start it again)
+  mutant one-call            's/sudo systemctl disable --now "\$u"/sudo systemctl disable --now ssh.socket ssh.service sshd.service/'
+  mutant service-before-socket 's/for u in ssh.socket ssh.service sshd.service; do/for u in ssh.service ssh.socket sshd.service; do/'
   mutant no-warning          's/WARNING: port 22 may still be open/port 22 is as it was/'
   mutant closes-before-apt   's/^  local p22_ours=0; if \[ "\$ssh_pkg" -eq 1 \]; then p22_ours="\$(port22_ours_to_close)"; fi/  local p22_ours=1/'
   mutant never-called        's/^  \[ "\$p22_ours" -ne 1 \] || close_package_sshd/  true/'
@@ -59,7 +62,8 @@ T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 awk '/^# PORT22-BEGIN$/,/^# PORT22-END$/' "$INSTALLER" > "$T/block.sh"
 echo "installer : $INSTALLER"
 grep -q '^port22_ours_to_close()' "$T/block.sh" || { echo "test-install-port22: CANNOT RUN - no port22_ours_to_close between # PORT22-BEGIN and # PORT22-END"; exit 2; }
-printf '#!/bin/sh\nprintf "%%s\\n" "$SS_OUT"\n' > "$T/ss"; chmod +x "$T/ss"
+# SS_LIVE (optional): a listener line `ss` adds until the unit ssh.socket has been stopped, which is how the Ubuntu rows see 22 close or stay open
+printf '#!/bin/sh\nprintf "%%s\\n" "$SS_OUT"\n[ -z "$SS_LIVE" ] || [ -e "$STATE.ssh.socket" ] || printf "%%s\\n" "$SS_LIVE"\n' > "$T/ss"; chmod +x "$T/ss"
 : > "$T/sshd"; chmod +x "$T/sshd"   # an sshd program that exists; "$T/no-sshd" does not
 
 HDR='State  Recv-Q Send-Q Local Address:Port Peer Address:Port'
@@ -72,13 +76,25 @@ L2222="LISTEN 0 128 0.0.0.0:2222 0.0.0.0:*"
 run_case() {
   local fn="$1" sshd="$2" ssbin="$3" ssout="$4" log="$T/log.$$.$RANDOM"
   : > "$log"
-  LOG="$log" SD_SSHD_BIN="$sshd" SD_SS="$ssbin" SS_OUT="$ssout" bash -c '
+  # UNITS_HERE (optional, from the caller): the units this machine has.  When set, the systemctl stub does what the real one was measured to do on
+  # Ubuntu 24.04 (21 Nov 26, S.281): a `disable --now` that names a unit which is not there prints "Failed to disable unit", returns 1 and STOPS NOTHING;
+  # one that names only units that are there stops them (the state file $STATE.<unit>, which the `ss` stub reads).  A stub that always succeeded passed the
+  # installer's one-call form, which left port 22 open on Ubuntu.
+  LOG="$log" SD_SSHD_BIN="$sshd" SD_SS="$ssbin" SS_OUT="$ssout" UNITS_HERE="${UNITS_HERE:-}" SS_LIVE="${SS_LIVE:-}" STATE="$log.state" bash -c '
     set -euo pipefail
     IFS=$'"'"'\n\t'"'"'
     say()  { printf "%s\n" "$*"; }
     warn() { printf "%s\n" "$*"; }
     sudo() { "$@"; }
-    systemctl() { { printf "systemctl"; printf " %s" "$@"; echo; } >> "$LOG"; }
+    systemctl() {
+      { printf "systemctl"; printf " %s" "$@"; echo; } >> "$LOG"
+      if [ -n "$UNITS_HERE" ] && [ "${1:-}" = disable ] && [ "${2:-}" = "--now" ]; then
+        local u missing=0
+        for u in "${@:3}"; do case " $UNITS_HERE " in *" $u "*) ;; *) missing=1 ;; esac; done
+        if [ "$missing" -eq 1 ]; then echo "Failed to disable unit: Unit file does not exist." >&2; return 1; fi
+        for u in "${@:3}"; do : > "$STATE.$u"; done
+      fi
+    }
     . "'"$T"'/block.sh"
     '"$fn"'
     echo "RC=$?"
@@ -100,10 +116,21 @@ row "R5 a listener on 2222 is not port 22: prints 1" "$(printf '%s\n' "$out" | h
 out="$(run_case port22_ours_to_close "$T/no-sshd" "$T/no-ss" "")"
 row "R6 NULL CASE: no \`ss\` to tell, so it cannot know 22 was closed: prints 0, left as found" "$(printf '%s\n' "$out" | head -1 | grep -qx 0 && echo 0 || echo 1)" "$out"
 out="$(run_case close_package_sshd "$T/no-sshd" "$T/ss" "$HDR"$'\n'"$L4251")"
-row "R7 closing: systemctl disable --now of ssh.socket, ssh.service and sshd.service, and 'Port 22 is closed' said when nothing listens after" \
-  "$(has "$out" "LOG: systemctl disable --now ssh.socket ssh.service sshd.service;" && has "$out" "Port 22 is closed" && echo 0 || echo 1)" "$out"
+row "R7 closing: ONE systemctl disable --now call PER UNIT, ssh.socket first, then ssh.service, then sshd.service, and 'Port 22 is closed' said when nothing listens after" \
+  "$(has "$out" "LOG: systemctl disable --now ssh.socket;systemctl disable --now ssh.service;systemctl disable --now sshd.service;" && has "$out" "Port 22 is closed" && echo 0 || echo 1)" "$out"
 out="$(run_case close_package_sshd "$T/no-sshd" "$T/ss" "$HDR"$'\n'"$L22")"
 row "R8 closing, but 22 is still listening afterwards: a WARNING, not 'closed'" "$(has "$out" "WARNING: port 22 may still be open" && ! has "$out" "Port 22 is closed" && echo 0 || echo 1)" "$out"
+# R9 UBUNTU (measured 21 Nov 26, Ubuntu 24.04, S.281): there is no sshd.service, so a call that names it fails whole and stops nothing.  22 listens until the
+# call for ssh.socket has run, so this row can only say 'closed' if the socket got a call of its own.  R9a is the same machine with the one-call form (the red).
+out="$(UNITS_HERE="ssh.socket ssh.service" SS_LIVE="$L22" run_case close_package_sshd "$T/no-sshd" "$T/ss" "$HDR"$'\n'"$L4251")"
+row "R9 UBUNTU model (no sshd.service; a call naming a missing unit stops nothing): port 22 IS closed afterwards - 'Port 22 is closed', no WARNING" \
+  "$(has "$out" "Port 22 is closed" && ! has "$out" "WARNING: port 22 may still be open" && echo 0 || echo 1)" "$out"
+out="$(UNITS_HERE="ssh.socket ssh.service sshd.service" SS_LIVE="$L22" run_case close_package_sshd "$T/no-sshd" "$T/ss" "$HDR"$'\n'"$L4251")"
+row "R9b DEBIAN model (sshd.service is an alias that exists): port 22 IS closed afterwards" \
+  "$(has "$out" "Port 22 is closed" && ! has "$out" "WARNING: port 22 may still be open" && echo 0 || echo 1)" "$out"
+out="$(UNITS_HERE="ssh.socket ssh.service" SS_LIVE="$L22" run_case 'sudo systemctl disable --now ssh.socket ssh.service sshd.service > /dev/null 2>&1 || true; rc=0; port22_listening || rc=$?; echo "STILL22RC=$rc"' "$T/no-sshd" "$T/ss" "$HDR"$'\n'"$L4251")"
+row "R9c CONTROL, the red the installer had: the OLD one-call form on the same Ubuntu model leaves 22 LISTENING (STILL22RC=0), so R9's 'closed' is the stub's answer to the per-unit calls and not a stub that always says closed" \
+  "$(has "$out" "STILL22RC=0" && echo 0 || echo 1)" "$out"
 
 # ---- order in install_packages, and the uninstaller's silence (text) -------------------------------------------------
 ip="$(awk '/^install_packages\(\) \{/,/^}/' "$INSTALLER")"

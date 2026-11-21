@@ -920,9 +920,15 @@ port22_ours_to_close() {   # prints 1 when this install brings the ssh server pa
   port22_listening || rc=$?
   if [ "$rc" -eq 1 ]; then echo 1; else echo 0; fi
 }
-close_package_sshd() {   # stops and disables the package's ssh service (and its socket, where the distribution uses one)
-  local rc=0
-  sudo systemctl disable --now ssh.socket ssh.service sshd.service > /dev/null 2>&1 || true
+close_package_sshd() {   # stops and disables the package's ssh socket and service, ONE UNIT PER CALL
+  local rc=0 u
+  # 21 Nov 26 (S.281, measured on Ubuntu 24.04): ONE call naming all three units stopped at "Failed to disable unit: Unit file sshd.service does not
+  #   exist" (Debian has an sshd.service alias, Ubuntu has none), and the failed call never reached its stop: ssh.socket stayed enabled and active and
+  #   port 22 stayed open, with the warning below the only sign.  Each unit gets its own call, the socket first so it cannot start the service again;
+  #   a unit that is not there fails by itself and is ignored.
+  for u in ssh.socket ssh.service sshd.service; do
+    sudo systemctl disable --now "$u" > /dev/null 2>&1 || true
+  done
   port22_listening || rc=$?
   if [ "$rc" -eq 1 ]; then
     say "Port 22 is closed: the ssh server package was installed by this install, so its service was stopped and disabled (Solo's own ssh is on 4251)."
