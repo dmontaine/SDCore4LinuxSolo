@@ -172,8 +172,8 @@ def checks(raw):
     ck("GS11", "the key table has exactly: help, change, refresh, quit, and the Esc row that opens the menu bar (the bar runs nothing, a choice is one of those keys) - and 'change' (Enter) is added only for the administrator; there is no key that turns everything on, no queue and no 'tighten'",
        acts == sorted(["help", "change", "refresh", "quit", "menu"]) and "if adm then call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)" in pg and "case nm = 'enter' or nm = ' '" in pg
        and not re.search(r"case nm = '(?:a|t|r|u)'", pg) and " all" not in re.sub(r"[^\n]*(?:rows? ?|gates? ?)all[^\n]*", "", pg).split("on.key:")[-1].split("redraw:")[0], " ".join(acts))
-    ck("GS12", "after a command the state is read again and the whole page is drawn again, and what the status line shows is the verb's own last line",
-       re.search(r"call \$tk_run\(allow, sent, out, st, err\)[\s\S]*?for oi = dcount\(out, @fm\) to 1 step -1[\s\S]*?msg = \(if said # '' then said\[1, 130\] else 'ran, status ' : st\)[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", ch) is not None)
+    ck("GS12", "after a command the state is read again and the whole page is drawn again, and what the status line shows is the verb's own last message, whole (S.300)",
+       re.search(r"call \$tk_run\(allow, sent, out, st, err\)[\s\S]*?call \$tk_capt\('last', out, '', said\)[\s\S]*?msg = \(if said # '' then said\[1, 130\] else 'ran, status ' : st\)[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", ch) is not None)
     ck("GS13", "the page has a [?] and F1, ? and a click show tool.gates.page, whose record exists with a title, a documentation page and a body of at least two paragraphs",
        pg.count("'tool.gates.page'") == 2 and "call $tk_help('mark', gat.x + gat.w - 5, gat.y + 1, 0, 0)" in pg and "call $tk_help('hit', mev, gat.x + gat.w - 5, gat.y + 1, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
        and raw["help"].split("\n")[1].strip() == "gettingstarted-06b-operating-system-access" and len([l for l in raw["help"].split("\n")[2:] if l.strip()]) >= 2)

@@ -30,6 +30,7 @@
 * 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
 * 16 Nov 26 dm  Carried from SD Core (853870e6), S.244, the owner's page rules: A and S choose open, local or off from a list that starts on off (Solo's
 *              doors keep their three words); N's entries open empty, its defaults beside them, and Files is a choice; the box wants the word open, in either case.
+* 22 Nov 26 dm  Carried from SD Core (68856fc1), S.300: the status line shows the verb's last message whole ($tk_capt), not only the last of its lines.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -626,10 +627,7 @@ confirm.and.run:
          msg = err
       end else
          msg = sent[1, 60] : ' ran (status ' : stat : ')'
-         lastl = ''
-         for k = 1 to dcount(out, @fm)
-            if trim(out<k>) # '' then lastl = trim(out<k>)
-         next k
+         call $tk_capt('last', out, '', lastl)         ;* S.300: the whole last message
          if lastl # '' then msg = msg : ': ' : lastl
       end
    end else

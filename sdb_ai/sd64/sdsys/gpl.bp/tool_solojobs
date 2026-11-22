@@ -13,6 +13,7 @@
 *               no batch gate (LSOLO 6) and one account, so there is no Account commands view.  What differs from the template is forced by Solo: the jobs are the
 *               person's own (set.job), a job's command is any SD command they type, and making or changing one needs the account password, typed in the form.
 *               A program of its own name (Core's tool_jobs cites Core's messages), listed for the parity audit.
+* 22 Nov 26 dm  Carried from SD Core (68856fc1), S.300: the status line shows the verb's last message whole ($tk_capt), not only the last of its lines.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -435,10 +436,7 @@ run.sent:
       return
    end
    out = change(change(out, char(13) : char(10), @fm), char(13), '')
-   said = ''
-   for oi = dcount(out, @fm) to 1 step -1
-      if said = '' and trim(out<oi>) # '' then said = trim(out<oi>)
-   next oi
+   call $tk_capt('last', out, '', said)                ;* S.300: the whole last message
    msg = (if said # '' then said[1, 130] else 'ran, status ' : st)
    okind = (if st = 0 then 'ok' else 'refuse')
    call $tk_out('add', ctx, okind, sent : '  ' : trim(change(out, @fm, ' ')), '')
