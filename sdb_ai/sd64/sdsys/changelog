@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  THE 32-BIT WINDOWS CLIENT IS NOT IN THE RELEASE.
+
+             What        - The release package no longer carries clients/Windows32 (qmclilib.dll and qmclient.dll); the
+                           package builder refuses them. The 64-bit Windows and Linux clients are unchanged.
+             Why         - The owner: "pull the 32 bit dlls from the release. We will keep them in case someone wants
+                           them, but the old programs written for qm will not work out of the box with sd because of
+                           the changes we have made."
+             Does NOT    - Destroy the 32-bit files, which are kept outside the release. A 32-bit application must be
+                           built again as a 64-bit one.
+
 22 Nov 26  NO TYPE-AHEAD IN A PASSWORD PROMPT, AND NO WARNING ABOUT FILES WITH NOTHING TO CONVERT (carried from SD Core for Linux).
 
              What        - Every hidden prompt (INPUT ... HIDDEN, and an entry with no echo) throws away what was typed

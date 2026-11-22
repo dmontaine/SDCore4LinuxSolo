@@ -9,7 +9,7 @@
 #            release tags LS<version>.  gplbld/test-mkrelease-clients.sh runs the client options.
 #
 #   bash sdb_ai/sd64/gplbld/mkrelease.sh LS2.0-0 [--ref REF] [--docs-ref REF] [--readme FILE] [--clients DIR] [--clients-openssl4 DIR] [--clients-windows DIR]
-#            [--clients-windows32 DIR] [--clients-bindings DIR] [--books DIR] [--force] [--allow-dev] [--label LABEL]
+#            [--clients-bindings DIR] [--books DIR] [--force] [--allow-dev] [--label LABEL]
 #
 #   VERSION        the release, as named in the Changes document: LS2.0-0
 #   --ref REF      main or an LS* tag of THIS repository (default: main).  Only what is committed
@@ -19,7 +19,7 @@
 #   --clients DIR  a folder copied to clients/Linux64 (libsdcli.so and sdclilib.so built against OpenSSL 3: built files, not in the repository)
 #   --clients-openssl4 DIR  a folder copied to clients/Linux64-openssl4 (the same two files built against OpenSSL 4, for Ubuntu 26.10)
 #   --clients-windows DIR  a folder copied to clients/Windows64 (the Windows client library and its import library, built on the Windows machine)
-#   --clients-windows32 DIR  a folder copied to clients/Windows32 (the 32-bit Windows client library, its import libraries and sd-connect.exe)
+#                  There is no 32-bit set (S.302, owner: "pull the 32 bit dlls from the release"): a folder with qmclilib or qmclient is refused, in any option.
 #   --clients-bindings DIR  a folder copied to clients/bindings (sdclilib.h and the language bindings, the same files for every platform)
 #                  Each clients folder must exist and hold at least one file, and no folder; none is listed in SHA256SUMS.
 #   --books DIR   the book PDFs SD-Core-for-Linux-Solo-VERSION-*.pdf of this version, copied to documentation/ (built by tools/mkbook.py and mkbookpdf.py)
@@ -38,7 +38,7 @@
 #   sd-core-solo-for-linux-lsVERSION-changes.{pdf,html,md}   the Changes document, lower case (the installer's CHANGES-DOC block copies only that pattern)
 #   pdf/                                the per-chapter PDFs of the two books and the TUIGuide, as user-NN-..., gettingstarted-NN-... and tuiguide-NN-...
 #                                       (docs.install takes lower case, 80 characters)
-#   README.txt, documentation/, clients/Linux64/, clients/Linux64-openssl4/, clients/Windows64/, clients/Windows32/, clients/bindings/   only when given
+#   README.txt, documentation/, clients/Linux64/, clients/Linux64-openssl4/, clients/Windows64/, clients/bindings/   only when given
 #
 # THEN it unpacks the zip into a scratch folder and checks it as the installer will: SHA256SUMS, the tree against the list, SDCORE-RELEASE against REF,
 # bash -n on both scripts.  Exit 0 made and checked, 1 a check failed (the zip is removed), 2 it could not start.
@@ -63,6 +63,7 @@ check_clients() {   # check_clients OPTION DIR - a clients folder exists and hol
     [ -d "$2" ] || die "no clients folder $2 ($1 DIR)"
     [ -n "$(find -L "$2" -mindepth 1 -maxdepth 1 -type f ! -name '.*' | head -1)" ] || die "the clients folder $2 is empty ($1 DIR: a package must not claim clients and carry none)"
     [ -z "$(find -L "$2" -mindepth 1 -maxdepth 1 ! -type f ! -name '.*' | head -1)" ] || die "the clients folder $2 holds something that is not a file ($1 DIR: its files are copied, not its folders)"
+    [ -z "$(find -L "$2" -mindepth 1 -maxdepth 1 \( -iname '*qmclilib*' -o -iname '*qmclient*' \) | head -1)" ] || die "the clients folder $2 holds the 32-bit Windows client ($1 DIR: it is not in the release, S.302)"
 }
 copy_clients() {    # copy_clients DIR NAME - the folder's files to clients/NAME of the package
     [ -z "$1" ] && return 0
@@ -70,7 +71,7 @@ copy_clients() {    # copy_clients DIR NAME - the folder's files to clients/NAME
     cp -p "$1"/* "$stage/clients/$2/"
 }
 
-version=""; ref=""; docs_ref=""; readme=""; clients=""; clients_ssl4=""; clients_win=""; clients_win32=""; clients_bind=""; books=""; force=0; allow_dev=0; label=""
+version=""; ref=""; docs_ref=""; readme=""; clients=""; clients_ssl4=""; clients_win=""; clients_bind=""; books=""; force=0; allow_dev=0; label=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref)      [ $# -ge 2 ] || die "--ref needs a value"; ref="$2"; shift 2 ;;
@@ -79,7 +80,7 @@ while [ $# -gt 0 ]; do
         --clients)  [ $# -ge 2 ] || die "--clients needs a value"; clients="$2"; shift 2 ;;
         --clients-openssl4) [ $# -ge 2 ] || die "--clients-openssl4 needs a value"; clients_ssl4="$2"; shift 2 ;;
         --clients-windows) [ $# -ge 2 ] || die "--clients-windows needs a value"; clients_win="$2"; shift 2 ;;
-        --clients-windows32) [ $# -ge 2 ] || die "--clients-windows32 needs a value"; clients_win32="$2"; shift 2 ;;
+        --clients-windows32) die "--clients-windows32 is gone: the 32-bit Windows client is not in the release (S.302)" ;;
         --clients-bindings) [ $# -ge 2 ] || die "--clients-bindings needs a value"; clients_bind="$2"; shift 2 ;;
         --books)   [ $# -ge 2 ] || die "--books needs a value"; books="$2"; shift 2 ;;
         --force)    force=1; shift ;;
@@ -115,7 +116,6 @@ docs_commit=$(git -C "$DOCS" rev-parse --verify -q "${docs_ref}^{commit}") || di
 check_clients --clients "$clients"
 check_clients --clients-openssl4 "$clients_ssl4"
 check_clients --clients-windows "$clients_win"
-check_clients --clients-windows32 "$clients_win32"
 check_clients --clients-bindings "$clients_bind"
 [ -z "$books" ] || ls "$books"/SD-Core-for-Linux-Solo-"$version"-*.pdf >/dev/null 2>&1 || die "no SD-Core-for-Linux-Solo-$version-*.pdf in $books (--books DIR: the book PDFs of THIS version)"
 
@@ -192,7 +192,6 @@ done
 copy_clients "$clients" Linux64
 copy_clients "$clients_ssl4" Linux64-openssl4
 copy_clients "$clients_win" Windows64
-copy_clients "$clients_win32" Windows32
 copy_clients "$clients_bind" bindings
 if [ -n "$books" ]; then      # the books of this version only, each a PDF
     mkdir -p "$stage/documentation"
@@ -232,7 +231,6 @@ echo "  source files $nsrc, per-chapter PDFs $npdf, commit $commit, branch $ref"
 [ -n "$clients" ] || echo "  NOT INCLUDED: clients/Linux64 (--clients DIR; libsdcli.so and sdclilib.so are built files, not in the repository)"
 [ -n "$clients_ssl4" ] || echo "  NOT INCLUDED: clients/Linux64-openssl4 (--clients-openssl4 DIR; the same two files built against OpenSSL 4, for Ubuntu 26.10)"
 [ -n "$clients_win" ] || echo "  NOT INCLUDED: clients/Windows64 (--clients-windows DIR; the Windows client library and its import library come from the Windows machine)"
-[ -n "$clients_win32" ] || echo "  NOT INCLUDED: clients/Windows32 (--clients-windows32 DIR; the 32-bit Windows client library comes from the Windows machine)"
 [ -n "$clients_bind" ] || echo "  NOT INCLUDED: clients/bindings (--clients-bindings DIR; sdclilib.h and the language bindings)"
 echo "  sha256 for the README:"
 echo "    installsdsolo.sh  $(sha256sum < "$stage/installsdsolo.sh" | cut -d' ' -f1)"
