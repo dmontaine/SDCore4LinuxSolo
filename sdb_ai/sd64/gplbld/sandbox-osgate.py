@@ -900,6 +900,7 @@ def part_lanes():
 
     # LD: the denied-verb check folds field 3 - a VOC record naming $QPROC is denied like LIST's $qproc.  (COUNT is not usable: the
     #     shipped VOC record 'count' is the keyword COUNT, field 1 begins with K.)
+    #     22 Nov 26 (S.290): the fixture writes LIST in capitals on purpose - it is now the list of an OLDER install, which CPROC folds as it reads.
     pol = os.path.join(SYS, "solo.policy")
     put(os.path.join(SYS, "bp", "zzdvfix"), "\n".join([
         "$internal",

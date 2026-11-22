@@ -336,10 +336,10 @@ CTL
     g="$(printf '%s\nWHO\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd-solo" 2>&1 | strip)"
     d="$(printf '%s\nDATE\nOFF\n' "$(head -1 "$W/glb.pw")" | timeout 60 "$H2/bin/sd-solo" 2>&1 | strip)"
     if printf '%s\n' "$g" | grep -qE '^[0-9]+ sduser$' && printf '%s\n' "$d" | grep -qE '[0-9]{4} +[0-9]+:[0-9]{2}(am|pm)' \
-       && [ "$(grep -cx DATE "$H2/solo.policy/denied.verbs" 2>/dev/null)" -eq 1 ]; then
-      leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; solo.policy lists DATE" 0 "as expected"
+       && [ "$(grep -cx date "$H2/solo.policy/denied.verbs" 2>/dev/null)" -eq 1 ]; then   # 22 Nov 26 (S.290): the list is stored in lower case
+      leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; solo.policy lists date" 0 "as expected"
     else
-      leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; DATE on the list" 1 "$(printf '%s\n' "$g" | tail -2 | tr '\n' '|')"
+      leg "F5b the global password opens it; the file's deny list is in place" "WHO answers sduser; date on the list" 1 "$(printf '%s\n' "$g" | tail -2 | tr '\n' '|') stored=$(tr '\n' ',' < "$H2/solo.policy/denied.verbs" 2>/dev/null)"
     fi
     dout2="$(bash "$H2/tools/deletesdsolo.sh" --delete-data --yes 2>&1 | strip)"
     if printf '%s\n' "$dout2" | grep -qx "SOLO DELETE COMPLETE $H2" && [ ! -e "$H2" ] && ! systemctl --user is-active sd-solo.service >/dev/null 2>&1; then

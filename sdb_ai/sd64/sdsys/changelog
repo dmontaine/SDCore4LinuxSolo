@@ -1,6 +1,33 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  TOOL.CONFIG OFFERS TO RESTART SD AFTER A CHANGE.
+
+             What        - After E changes a parameter and the file then differs from what SD is running with, a box
+                           titled "Restart SD?" says why, that a restart stops and starts SD and signs out everyone,
+                           this session too, and offers Restart or Not now. Not now is what Enter chooses. Restart
+                           closes the page, clears the screen, says SD is restarting and asks your own systemd to
+                           restart sd-solo.service. The audit trail gets "sd restart app=tool.config status=asked",
+                           or status=refused.
+                           A session that is ended by a stop or a restart no longer has "Received termination
+                           signal" written over its screen; the error log still gets the line.
+                           tool.bulk shows the whole message of its own select and of the undo file's creation,
+                           not only the first line of it.
+             Why         - In Solo every change to sd.conf waits for the next start, and until now only the status
+                           line said so. SD Core and SD Core for Windows have the same box.
+             Does NOT    - Restart anything from the verb set.config, when Not now is chosen, or when the value is
+                           the one SD is already running with. It refuses when sd-solo.service is not active (SD
+                           started by hand with sd-solo -start).
+
+22 Nov 26  THE LIST OF DENIED COMMANDS IS STORED IN LOWER CASE.
+
+             What        - A managed computer's list of denied commands (solo.policy, record denied.verbs) holds each
+                           name in lower case, as deny.verbs has always printed it: deny-verbs=who stores "who".
+             Why         - It stored WHO, the one place left where SD wrote a command name in capitals.
+             Does NOT    - Change what is denied or how a command is typed: who, WHO and Who are refused alike, as
+                           before. A list an older install stored in capitals is read as it was and is written in
+                           lower case the next time deny.verbs changes it.
+
 22 Nov 26  A PAGE'S KEYS WORK WHILE THE CURSOR IS IN THE AI LINE.
 
              What        - With the cursor in the AI line, a key the line does not use - Ctrl-Q, Ctrl-T, F1, F5, F10,
