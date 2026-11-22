@@ -420,16 +420,29 @@ restore_warn_import() {   # restore_warn_import FILE: collect the records anothe
         case "$line" in *$'\t'*) restore_warns+=("$line") ;; *) restore_warns+=("$line"$'\t') ;; esac
     done < "$1"
 }
-restore_warn_block() {   # restore_warn_block HEADING: print every record as a boxed bold red block; print nothing when there are none
-    local n=0 rec rule='################################################################################'
+# 22 Nov 26  S.299 (owner: "use the same wording and format that windows is using"): the layout and words are SD Core for Windows' (its sd.iss
+#            KeptMsg, the owner's approved layout).  WHAT is the item's heading in capitals and COMMAND is ONE line a person types at the colon
+#            prompt, which that verb accepts from that person; the records of one heading are one item, its commands in the order collected.
+restore_warn_block() {   # restore_warn_block HOW: print every item in bold red, HOW under its heading; print nothing when there are none
+    local n=0 rec other title shown seen=$'\n'
     [ "${#restore_warns[@]}" -gt 0 ] || return 0
-    printf '\n\033[1;31m%s\n# %s\n%s\n' "$rule" "$1" "$rule"
+    printf '\n\033[1;31mWARNING: SOME SETTINGS NEED TO BE FIXED.\n\n'
     for rec in "${restore_warns[@]}"; do
+        title="${rec%%$'\t'*}"
+        case "$seen" in *$'\n'"$title"$'\n'*) continue ;; esac
+        seen+="$title"$'\n'
         n=$((n + 1))
-        printf '%s. %s\n' "$n" "${rec%%$'\t'*}"
-        if [ -n "${rec#*$'\t'}" ]; then printf '       Type:  %s\n' "${rec#*$'\t'}"; fi
+        printf '%s. %s\n%s\nAt the colon prompt type:\n' "$n" "$title" "$1"
+        shown=$'\n'
+        for other in "${restore_warns[@]}"; do
+            [ "${other%%$'\t'*}" = "$title" ] || continue
+            case "$shown" in *$'\n'"$other"$'\n'*) continue ;; esac   # collected twice (both scripts of an install-over): typed once
+            shown+="$other"$'\n'
+            printf '     %s\n' "${other#*$'\t'}"
+        done
+        printf '\n'
     done
-    printf '%s\033[0m\n\n' "$rule"
+    printf '\033[0m'
 }
 # RESTORE-WARN-END
 
@@ -1139,16 +1152,77 @@ jobs_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log
 reg_state="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log" | sed -n 's/^solo-stage: register: //p' | tail -1)"
 [ -z "$reg_state" ] || say "Account switches: $reg_state"
 # REGISTER-SAY-END
-# 22 Nov 26  S.292: what a reload could not put back is also collected for the closing red block, each with the exact command.  Only the stage's own failure
-#            wording counts (a success line, or none, adds nothing).
-case "${jobs_state:-}" in
-  "the kept definitions were NOT given their timers"*)
-    restore_warn "The kept scheduled jobs were NOT given their timers again (${jobs_state#*: }).  Give them again, as the administrator at the SD prompt" "set.job restore" ;;
-esac
+# SOLO-STEPS-BEGIN
+# 22 Nov 26  S.292, S.299: what a reload could not put back, as lines a person can type.  set.job restore is refused to every person (it is the
+#            installer's internal word), so a job is made again with set.job change, whose definition was kept, and which needs the jobs switch on;
+#            each switch has a verb of its own, typed after admin.  Only the stage's own failure wording counts (a success line, or none, adds nothing).
+reg_field() {   # reg_field RECORD N: field N in lower case, or nothing
+  [ -f "$1" ] && [ ! -L "$1" ] || return 0
+  sed -n "$2p" "$1" | tr '[:upper:]' '[:lower:]'
+}
+switch_steps() {   # switch_steps KEPT_RECORD: the switches that were on, one line to type for each
+  local kept="$1" entry tile title="ACCOUNT SWITCHES ARE OFF."
+  local -a steps=()
+  if [ ! -f "$kept" ] || [ -L "$kept" ]; then
+    restore_warn "$title" "admin"
+    restore_warn "$title" "tool.gates"
+    return 0
+  fi
+  for entry in "7:set.os.access sh on" "8:set.os.access os on" "15:set.net.access on" "18:set.pins on" "19:set.recovery on" \
+               "20:set.mcp on" "21:set.mcp write on" "22:set.xfer.access on" "23:set.jobs.access on" "24:set.stored.access on"; do
+    if [ "$(reg_field "$kept" "${entry%%:*}")" = yes ]; then steps+=("${entry#*:}"); fi
+  done
+  for tile in $(reg_field "$kept" 17 | tr -c 'a-z0-9._\n-' ' '); do
+    steps+=("set.tile sduser $tile off")
+  done
+  [ "${#steps[@]}" -gt 0 ] || return 0
+  restore_warn "$title" "admin"
+  for entry in "${steps[@]}"; do restore_warn "$title" "$entry"; done
+}
+solo_job_step() {   # solo_job_step JOBS_DIR NAME: one line to type at the colon prompt
+  local LC_ALL=C
+  local t='([01][0-9]|2[0-3]):[0-5][0-9]' name_re='^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$' text_re='^[!-~]([ -~]*[!-~])?$' sched_re sched="" cmd=""
+  sched_re="^(every (5|10|15|20|30) minutes|hourly|daily $t|weekly (mon|tue|wed|thu|fri|sat|sun) $t|monthly ([1-9]|1[0-9]|2[0-8]) $t)\$"
+  if ! [[ "$2" =~ $name_re ]]; then
+    printf '%s\n' "(a definition whose name is not plain: delete it from $1)"
+    return 0
+  fi
+  if [ -f "$1/$2" ] && [ ! -L "$1/$2" ]; then
+    sched="$(sed -n 1p "$1/$2")"; cmd="$(sed -n 3p "$1/$2")"
+  fi
+  if [[ "$sched" =~ $sched_re ]] && [[ "$cmd" =~ $text_re ]] && [ "${#cmd}" -le 500 ]; then
+    printf 'set.job change %s %s %s\n' "$2" "$sched" "$cmd"
+  else
+    printf 'set.job change %s <schedule> <command>\n' "$2"
+  fi
+}
+job_steps() {   # job_steps STAGE_LOG HOME KEPT_RECORD
+  local title="SCHEDULED JOBS COULD NOT BE SCHEDULED AGAIN." names name switched=0
+  names="$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$1" | sed -n 's/^solo-stage: job-not-restored: //p')"
+  if [ -z "$names" ]; then
+    # the stage could not even read the definitions: the page lists them
+    restore_warn "$title" "admin"
+    restore_warn "$title" "tool.jobs"
+    return 0
+  fi
+  if [ "$(reg_field "$2/accounts/sduser" 23)" != yes ]; then
+    switched=1
+    restore_warn "$title" "admin"
+    restore_warn "$title" "set.jobs.access on"
+  fi
+  while IFS= read -r name; do
+    restore_warn "$title" "$(solo_job_step "$2/\$jobs" "$name")"
+  done <<< "$names"
+  # the switch goes back as it was: set.job change needs it on, the administrator may have had it off
+  if [ "$switched" -eq 1 ] && [ "$(reg_field "$3" 23)" != yes ]; then restore_warn "$title" "set.jobs.access off"; fi
+}
 case "${reg_state:-}" in
-  "NOT carried"*)
-    restore_warn "The administrator's account switches (SH, OS.EXECUTE and the others) were NOT carried from the kept register, so they are as delivered, all OFF.  Turn on each one you had on, as the administrator at the SD prompt (the others are on the page tool.gates)" "set.os.access sh on   and   set.os.access os on" ;;
+  "NOT carried"*) switch_steps "${reload_dir:-}/accounts/sduser" ;;
 esac
+case "${jobs_state:-}" in
+  "the kept definitions were NOT given their timers"*) job_steps "$WORK/stage.log" "$HOME_DIR" "${reload_dir:-}/accounts/sduser" ;;
+esac
+# SOLO-STEPS-END
 if [ "$kept_pw" -eq 1 ]; then
   grep -qx 'solo-stage: passwords: reloaded' <(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$WORK/stage.log") \
     || fail "the stage log has no 'solo-stage: passwords: reloaded' (the kept passwords in $reload_dir were NOT put back)"
@@ -1580,16 +1654,23 @@ fw_open() {   # fw_open PORT WHAT
   # 22 Nov 26: or /usr/sbin/ufw - on Debian an ordinary user's PATH has no /usr/sbin, so an active ufw was never found and the rule never added (the VM).
   if { command -v ufw >/dev/null 2>&1 || [ -x /usr/sbin/ufw ]; } && sudo -n ufw status 2>/dev/null | grep -q 'Status: active'; then
     say "ufw is active: opening TCP $port for $what (sudo)."
-    sudo ufw allow "$port/tcp" || restore_warn "The ufw rule for $what (TCP $port) could not be added, so other computers cannot reach it.  Add it" "sudo ufw allow $port/tcp"   # S.292
+    sudo ufw allow "$port/tcp" || fw_failed "$what" "sudo ufw allow $port/tcp"   # S.292, S.299
   # "firewall-cmd --state" is refused by polkit for an ordinary user (measured on Fedora 44:
   # "Authorization failed", so a running firewalld read as stopped); systemd answers anyone.
   elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
     say "firewalld is running: opening TCP $port for $what (sudo)."
     { sudo firewall-cmd -q --permanent --add-port="$port/tcp" && sudo firewall-cmd -q --reload; } \
-      || restore_warn "The firewalld rule for $what (TCP $port) could not be added, so other computers cannot reach it.  Add it" "sudo firewall-cmd --permanent --add-port=$port/tcp && sudo firewall-cmd --reload"   # S.292
+      || fw_failed "$what" "sudo firewall-cmd --permanent --add-port=$port/tcp && sudo firewall-cmd --reload"   # S.292, S.299
   else
     warn "$what is open on port $port; if a firewall runs on this computer, allow TCP $port"
   fi
+}
+# 22 Nov 26  S.299: SD Core for Windows' firewall warning.  Solo's remote.api never runs sudo, so here the line to type is the terminal's.
+fw_warns=()
+fw_failed() {   # fw_failed WHAT SHELL_COMMAND
+  local name="THE SD CORE SOLO API" verb="remote.api"
+  if [ "$1" = ssh ]; then name="SD CORE SOLO OVER SSH"; verb="remote.ssh"; fi
+  fw_warns+=("WARNING: NO FIREWALL RULE LETS OTHER COMPUTERS REACH $name. To allow it, in a terminal as an administrator:"$'\n\n'"    $2"$'\n\n'"or \"$verb local\" for this computer only.")
 }
 [ "$ssh" = "open" ] && fw_open "$ssh_port" "ssh"
 [ "$api" = "open" ] && fw_open "$api_port" "the API"
@@ -1659,8 +1740,9 @@ if [ "$upgrade" -eq 1 ]; then
 else
   say "SD Core Solo for Linux is installed."
 fi
-# 22 Nov 26  S.292: what the install could not put back, boxed and bold red right under the banner, each with its exact command (nothing prints when there is none).
-restore_warn_block "THE INSTALL COULD NOT PUT BACK EVERYTHING YOU KEPT.  DO THESE STEPS TO RESTORE IT EXACTLY AS IT WAS."
+# 22 Nov 26  S.292, S.299: what the install could not put back, in bold red right under the banner, each with the line to type (nothing prints when there is none).
+restore_warn_block "To correct, start SD Core Solo."
+if [ "${#fw_warns[@]}" -gt 0 ]; then printf '\n\033[1;31m%s\033[0m\n\n' "${fw_warns[@]}"; fi
 say "  home         : $HOME_DIR      ($mode_name)"
 if [ -n "${reload_note:-}" ]; then
   say "  reloaded      : your saved data; configuration: $reload_note$([ "${mods_note:-}" != reloaded ] || echo "; your local VOC modifications (newvoc.mods)")"

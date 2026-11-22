@@ -694,10 +694,27 @@ if [ -n "$reloaddir" ]; then
   if [ -d "$H/\$jobs" ] && [ ! -L "$H/\$jobs" ]; then
     jr_out="$(sdi SET.JOB RESTORE 2>&1)" || true
     jr_plain="$(printf '%s\n' "$jr_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')"
-    if printf '%s\n' "$jr_plain" | grep -qE '^[0-9]+ job\(s\) given their timers again from the kept definitions$'; then
+    # 22 Nov 26  S.299: set.job restore prints its count line even when jobs failed ("0 job(s) given their timers again"), and that line was read
+    #            as success, so the red box never saw a failed timer.  Success is now every kept definition counted; each one that was not given its
+    #            timer is named on a line of its own, for the installer to print the step that makes it again.
+    jr_n="$(printf '%s\n' "$jr_plain" | sed -n -E 's/^([0-9]+) job\(s\) given their timers again from the kept definitions$/\1/p' | head -1)"
+    jr_total=0
+    for jr_f in "$H/\$jobs"/*; do
+      if [ -f "$jr_f" ]; then jr_total=$((jr_total + 1)); fi
+    done
+    if [ -n "$jr_n" ] && [ "$jr_n" -eq "$jr_total" ]; then
       echo "solo-stage: jobs: $(printf '%s\n' "$jr_plain" | grep -E '^[0-9]+ job\(s\) given' | head -1)"
     else
       echo "solo-stage: jobs: the kept definitions were NOT given their timers: $(printf '%s\n' "$jr_plain" | tail -3 | tr '\n' ' ' | cut -c1-200)"
+      for jr_f in "$H/\$jobs"/*; do
+        [ -f "$jr_f" ] || continue
+        jr_name="${jr_f##*/}"
+        # with a count line only the jobs it complained of ("NAME: ...") and the names it skips as not plain failed; with none, all did
+        if [ -n "$jr_n" ] && [[ "$jr_name" =~ ^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$ ]] && ! printf '%s\n' "$jr_plain" | grep -q "^$jr_name: "; then
+          continue
+        fi
+        echo "solo-stage: job-not-restored: $jr_name"
+      done
     fi
   fi
   # JOBS-RESTORE-END

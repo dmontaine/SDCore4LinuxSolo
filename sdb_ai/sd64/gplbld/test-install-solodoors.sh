@@ -72,7 +72,7 @@ out="$(note "$T/u2" "$T/t2")"
 row "N2 no socket units at all: both doors are off, and noted so" "$([ "$(tr '\n' ',' < "$T/t2/doors.saved" 2>/dev/null)" = "api=off,ssh=off," ] && echo 0 || echo 1)" "$out"
 printf 'ListenStream=%%t/x.sock\n' > "$T/u3/sd-solo-api.socket"
 out="$(note "$T/u3" "$T/t3")"
-row "N3 NULL CASE: a door it cannot read is not guessed: no note is written, and it says a reinstall will ask" "$([ ! -e "$T/t3/doors.saved" ] && has "$out" "WARN the API or ssh door could not be read" && echo 0 || echo 1)" "$out"
+row "N3 NULL CASE: a door it cannot read is not guessed: no note is written, and the red box gets a line for each door, a placeholder for that one (S.299)" "$([ ! -e "$T/t3/doors.saved" ] && has "$out" "WARN THE API AND SSH SETTINGS WERE NOT NOTED. | remote.api <open|local|off>" && has "$out" "| remote.ssh off" && echo 0 || echo 1)" "$out"
 
 kept() {   # kept KEPT_TREE RELOAD_ANS API SSH NOTE_TEXT -> said lines, then API=... SSH=...
   local h="$T/h.$RANDOM"; mkdir -p "$h"; [ -z "$5" ] || printf '%s' "$5" > "$h/doors.saved"

@@ -62,16 +62,29 @@ restore_warn_import() {   # restore_warn_import FILE: collect the records anothe
         case "$line" in *$'\t'*) restore_warns+=("$line") ;; *) restore_warns+=("$line"$'\t') ;; esac
     done < "$1"
 }
-restore_warn_block() {   # restore_warn_block HEADING: print every record as a boxed bold red block; print nothing when there are none
-    local n=0 rec rule='################################################################################'
+# 22 Nov 26  S.299 (owner: "use the same wording and format that windows is using"): the layout and words are SD Core for Windows' (its sd.iss
+#            KeptMsg, the owner's approved layout).  WHAT is the item's heading in capitals and COMMAND is ONE line a person types at the colon
+#            prompt, which that verb accepts from that person; the records of one heading are one item, its commands in the order collected.
+restore_warn_block() {   # restore_warn_block HOW: print every item in bold red, HOW under its heading; print nothing when there are none
+    local n=0 rec other title shown seen=$'\n'
     [ "${#restore_warns[@]}" -gt 0 ] || return 0
-    printf '\n\033[1;31m%s\n# %s\n%s\n' "$rule" "$1" "$rule"
+    printf '\n\033[1;31mWARNING: SOME SETTINGS NEED TO BE FIXED.\n\n'
     for rec in "${restore_warns[@]}"; do
+        title="${rec%%$'\t'*}"
+        case "$seen" in *$'\n'"$title"$'\n'*) continue ;; esac
+        seen+="$title"$'\n'
         n=$((n + 1))
-        printf '%s. %s\n' "$n" "${rec%%$'\t'*}"
-        if [ -n "${rec#*$'\t'}" ]; then printf '       Type:  %s\n' "${rec#*$'\t'}"; fi
+        printf '%s. %s\n%s\nAt the colon prompt type:\n' "$n" "$title" "$1"
+        shown=$'\n'
+        for other in "${restore_warns[@]}"; do
+            [ "${other%%$'\t'*}" = "$title" ] || continue
+            case "$shown" in *$'\n'"$other"$'\n'*) continue ;; esac   # collected twice (both scripts of an install-over): typed once
+            shown+="$other"$'\n'
+            printf '     %s\n' "${other#*$'\t'}"
+        done
+        printf '\n'
     done
-    printf '%s\033[0m\n\n' "$rule"
+    printf '\033[0m'
 }
 # RESTORE-WARN-END
 fail()   { printf '%bFAILED at: %s%b\n' "$RED" "$*" "$NC" >&2; exit 1; }
@@ -296,17 +309,24 @@ door_mode() {   # door_mode UNITFILE -> off | local | open | unknown
   esac
 }
 note_doors() {   # note_doors UNITDIR TREE
-  local a s
+  local a s title="THE API AND SSH SETTINGS WERE NOT NOTED."
   a="$(door_mode "$1/sd-solo-api.socket")"; s="$(door_mode "$1/sd-solo-ssh.socket")"
   if [ "$a" = unknown ] || [ "$s" = unknown ]; then
-    restore_warn "the API or ssh door could not be read (API $a, ssh $s), so it is not noted and the next install will ASK about them.  After the next install set each as it was, as the administrator at the SD prompt" "remote.api open|local|off   and   remote.ssh open|local|off"
+    # S.299: one line to type for each door, the exact one for a door that was read, <open|local|off> to fill in for one that was not
+    if [ "$a" = unknown ]; then a="<open|local|off>"; fi
+    if [ "$s" = unknown ]; then s="<open|local|off>"; fi
+    restore_warn "$title" "admin"
+    restore_warn "$title" "remote.api $a"
+    restore_warn "$title" "remote.ssh $s"
     return 0
   fi
   rm -f "$2/doors.saved"
   if printf 'api=%s\nssh=%s\n' "$a" "$s" > "$2/doors.saved" && chmod 600 "$2/doors.saved"; then
     say "kept: the API is $a and ssh is $s; a reinstall that reloads your data keeps them so"
   else
-    restore_warn "the API ($a) and ssh ($s) doors could not be noted, so the next install will ASK about them.  After the next install set each as it was, as the administrator at the SD prompt" "remote.api $a   and   remote.ssh $s"
+    restore_warn "$title" "admin"
+    restore_warn "$title" "remote.api $a"
+    restore_warn "$title" "remote.ssh $s"
   fi
 }
 # DOORS-NOTE-END
@@ -432,5 +452,5 @@ solo_firewall() {   # solo_firewall keep|delete
 if [ "$data" = "keep" ]; then solo_firewall keep; else solo_firewall delete; fi
 say
 say "SOLO DELETE COMPLETE $H"
-# 22 Nov 26  S.292: what the uninstall could not save for the next install, boxed and bold red at the very end, with the exact command for each.
-restore_warn_block "THE UNINSTALL COULD NOT SAVE EVERYTHING FOR THE NEXT INSTALL.  DO THESE STEPS AFTER THE NEXT INSTALL."
+# 22 Nov 26  S.292, S.299: what the uninstall could not save for the next install, in bold red at the very end, with the lines to type.
+restore_warn_block "To correct, after the next install start SD Core Solo."
