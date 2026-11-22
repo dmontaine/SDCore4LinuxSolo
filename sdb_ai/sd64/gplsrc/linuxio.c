@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 22 Nov 26 dm  S.297 carry (SD Core 2ca433b7): discard_typeahead(): CLEARINPUT leaves a piped input alone (keyready() is TRUE for ever on a pipe).
  * 17 Nov 26 dm  S.62 CARRY-linuxio (SD Core's P-4606): the TLS-directory refusal says what api_tls_dir() does (the directory beside sd.conf), not "no usable SDSYS=".
  * 14 Nov 26 dm  The build's warnings: socket_byte() gives a NUL on an ended read (it returned an unset byte), the key written
  *               to a child's pipe is tested, and the Unix-socket path is copied with its terminator always set.
@@ -568,6 +569,21 @@ bool write_console(char *p, int bytes) {
   }
 
   return TRUE;
+}
+
+/* ======================================================================
+   discard_typeahead()  -  throw away what was typed before it was asked for
+
+   22 Nov 26 dm  Windows row 372 (mail T1330): CLEARINPUT was `while (keyready()) keyin(0)`, and keyready() answers TRUE for ever when the input
+   is a PIPE (the stream is "ready" until it ends), so on a pipe it never finished and ate the stream.  A pipe holds the answers a script is
+   giving, not type-ahead, so it is left alone.  Used by CLEARINPUT, and through it by gpl.bp/_input before it reads a password.             */
+
+void discard_typeahead() {
+  if (piped_input)
+    return;
+
+  while (keyready())
+    keyin(0);
 }
 
 /* ======================================================================

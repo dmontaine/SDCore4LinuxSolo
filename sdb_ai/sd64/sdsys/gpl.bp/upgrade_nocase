@@ -322,6 +322,19 @@ convert.one:
    seen.real<-1> = one.real
    if not(ospath(one.real : @ds : '%0', OS$EXISTS)) then return   ;* a directory file, or nothing there
    if one.real[1, len(sds.real) + 1] = sds.real : @ds or one.real[1, len(@sdsys) + 1] = @sdsys : @ds then
+* 22 Nov 26 - S.296, carried from SD Core 2ca433b7 (Windows row 377): a file that is ALREADY case insensitive has nothing left to convert, and
+*   SDSYS's own files are, from creation.  Naming them made the closing warning appear on every Keep reinstall.  The flag is read through a
+*   READ ONLY open, which changes nothing, so LINUX 4 stands; an open that fails leaves the file counted and named, as before.
+      is.nc = 0
+      openpath one.path readonly to chk.fu on error
+         is.nc = 0
+      end then
+         is.nc = bitand(fileinfo(chk.fu, FL$FLAGS), FL$FLAGS.NOCASE)
+         close chk.fu
+      end else
+         is.nc = 0
+      end
+      if is.nc then return
       locate one.real in sds.files<1> setting sds.at else
          sds.count += 1
          if dcount(sds.files, @fm) < twin.list.cap then sds.files<-1> = one.real

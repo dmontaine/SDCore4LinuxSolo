@@ -88,7 +88,7 @@
   },
   "sys.param": {
    "chunks": 58,
-   "sha256": "9ab26709e9b43a577b77f6fd2acc6a356fa433229e404308893eecc07bc2c037"
+   "sha256": "da11a88c687fbd593e98311a5d9fc1a87a0e44e49ad5c0e87f7d4c8c9a1fe1a2"
   },
   "sys.releases": {
    "chunks": 1,
@@ -176,7 +176,7 @@
   },
   "reference/system.md": {
    "chunks": 59,
-   "sha256": "5a51049af2a297279e4516ad0314e2394a0799a747667c641c032fae3e2ad351",
+   "sha256": "058dfc3a15e6fa3e21f9a40a51237560bfbe94535c7c76cf99e71c449b460a23",
    "words": 1127
   },
   "reference/tcl-keywords.md": {

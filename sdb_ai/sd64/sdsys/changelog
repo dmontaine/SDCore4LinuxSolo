@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  NO TYPE-AHEAD IN A PASSWORD PROMPT, AND NO WARNING ABOUT FILES WITH NOTHING TO CONVERT (carried from SD Core for Linux).
+
+             What        - Every hidden prompt (INPUT ... HIDDEN, and an entry with no echo) throws away what was typed
+                           ahead before it asks, when the answer comes from the keyboard.  CLEARINPUT no longer loops
+                           for ever, eating the stream, when the input is a pipe: on a pipe it does nothing.
+                         - The case-folding walk of an upgrade or a reload no longer counts or names a file under the
+                           system directory that is already case insensitive.  One that is not, and one it cannot open
+                           to look, are still named.
+             Why         - Keys typed before a password prompt appeared became the start of the password.  The system's
+                           own files are case insensitive from the day they are made, so every reload named them as left
+                           unconverted.
+             Does NOT    - Touch answers a script pipes in or stacks with DATA, or change any file under the system
+                           directory; a key typed in the instant between the clearing and the prompt is still taken.
+
 22 Nov 26  INSTALL OVER AN INSTALLED SOLO, AND A KEEP REINSTALL THAT CHANGES NOTHING YOU SET.
 
              What        - installsdsolo.sh run over an installed Solo now upgrades it in place, with no --upgrade

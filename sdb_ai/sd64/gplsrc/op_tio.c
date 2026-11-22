@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 22 Nov 26 dm  S.297 carry (SD Core 2ca433b7): op_clrinput() asks discard_typeahead(), which leaves a piped input alone (it never ended on a pipe).
  * 14 Nov 26 dm  como_string(): the COMO write is tested (a failure loses only the copy; said why nothing more is done).
  * 22 Oct 26 SD Core Solo for Linux (Solo carry 13): tio_init() starts the display at DEFAULT_WIDTH by DEFAULT_DEPTH + 1 (140 by 43), Core's 18 Oct 26 change.
  * 20 Oct 26 SD Core for Linux Solo (Solo carry 4, owner's permission "solo lock flag ok"; a DEVIATION from the Core template): the "before login" argument of
@@ -562,8 +563,7 @@ void op_breakct() {
    op_clrinput()  -  CLRINPUT opcode  -  Clear terminal input queue       */
 
 void op_clrinput() {
-  while (keyready())
-    keyin(0);
+  discard_typeahead();   /* 22 Nov 26: a piped input is not type-ahead and never ends; see linuxio.c */
 }
 
 /* ======================================================================
