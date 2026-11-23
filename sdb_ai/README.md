@@ -1,7 +1,7 @@
 # SD Core Solo for Linux — source tree
 
 The source of SD Core Solo for Linux, the single-user edition of SD Core for
-Linux, the multivalue String Database. SD Core for Linux is the version the
+Linux, a multivalue database. SD Core for Linux is the version the
 other SD Core versions follow; this edition has its features except those that
 exist to serve more than one person. The repository's top-level `README.md`
 describes the product and how to install it.

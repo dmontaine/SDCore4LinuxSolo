@@ -61,7 +61,7 @@ grep -q '^session_check_ok()' "$T/block.sh" || { echo "test-install-sessioncheck
 WANT_NEW='^[0-9]+ sduser$'
 WANT_KEPT='^0-install-check is not a job name: '
 REFUSAL='Command requires administrator privileges'
-BANNER=$'SD Core Solo for Linux, the Essential Multivalue String Database, version LS2.0-0\n************'
+BANNER=$'SD Core Solo for Linux, version LS2.0-0\n************'
 OK_WHO="$BANNER"$'\n:WHO:WHO\n4 sduser\n:OFF:OFF'
 DENIED="$BANNER"$'\n:WHO:WHO\n'"$REFUSAL"$'\n:OFF:OFF'
 BAD_LOGIN=$'*************\nWrong password\nConnection terminated'   # measured on a real Solo, 21 Nov 2026: a wrong password, then WHO typed

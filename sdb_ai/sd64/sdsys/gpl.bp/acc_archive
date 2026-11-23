@@ -1,6 +1,6 @@
 * ACC_ARCHIVE
 * The archive step of BACKUP.ACCOUNT / RESTORE.ACCOUNT, SD Core Solo for Linux.
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 17 Nov 26 dm  S.62 (P-5123): the no-counts test is written as SD Core writes it (a block); no change of behaviour.

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 23 Nov 26 dm  The sign-on banner says "SD Core Solo for Linux, version LS2.0-0" ("String Database" is shown nowhere; owner 22 Nov).
 * 20 Nov 26 dm  Windows 364: update.accounts all refused (10172) before any VOC is touched; 5200 is said here, after that test, not by cproc.
 * 18 Nov 26 dm  S.247 (owner: "restrict the stored password"): $stored signs in only run.job / mcp.call one-shots unless set.stored.access on.
 * 17 Nov 26 dm  S.258: the two !CRED_VERIFY calls name '$global' in lower case, as stored (CRED_VERIFY folds its key; no change at run time).
@@ -362,7 +363,8 @@ deffun pw_complex(pw) calling '!pw_complex'
 *   Windows' banner names its own.
 * 14 Nov 26 dm - The owner, 14 Nov 26: "SD Core Solo for Linux" (and "SD Core for Linux", "SD Core for Windows", "SD Core Solo for Windows"
 *   in the other three); the name was "SD Core Solo for Linux".
-      display "SD Core Solo for Linux, the Essential Multivalue String Database, version " : SD.REV.STAMP
+* 23 Nov 26 dm - The owner, 22 Nov: '"String Database" should appear nowhere a user could see it': the banner is the name and the version.
+      display "SD Core Solo for Linux, version " : SD.REV.STAMP
       * --------------------
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
       display

@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 23 Nov 26 dm  --version says "SD Core Solo for Linux Version LS2.0-0" and the syslog start-up line "SD Core Solo for Linux command
+ *               line:" (the owner, 22-23 Nov: '"String Database" should appear nowhere a user could see it', then: no "64 Bit", as no
+ *               32-bit version exists, and no "(sd)").
  * 17 Nov 26 dm  S.62 P-1227, P-1229, carried from SD Core for Linux 10767826: -CLEANUP and -U name check_admin() (a no-op in Solo: no root,
  *               no sdsys user; Core asks for one of them); -INTERNAL refuses an account other than SDSYS (as both Windows products do).
  * 17 Nov 26 dm  S.62 P-4611: --version says "(sd-solo)", the command's name, where it said "(sd)", SD Core's command (as Windows Solo prints it).
@@ -169,7 +172,7 @@ int main(int argc, char *argv[]) {
   #define msgsz 256
   char msg[msgsz];
   openlog ("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
-  syslog (LOG_INFO, "String Database (sd) command line:");
+  syslog (LOG_INFO, "SD Core Solo for Linux command line:");
   strcpy(msg,"sd ");
   for (arg = 1; (arg < argc); arg++) {
     if ((strlen(msg)+ strlen(argv[arg]) + 2) < msgsz){
@@ -569,7 +572,7 @@ Private bool comlin(int argc, char *argv[]) {
 /* 30 Sep 26 SD Core Solo for Linux (LSOLO 2) - the product's name, as Solo for
    Windows prints it.  17 Nov 26 dm - S.62 P-4611: the name in brackets is the
    command, sd-solo, as Windows Solo prints "(sd-solo)".                      */
-            printf("SD Core Solo for Linux (sd-solo) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
+            printf("SD Core Solo for Linux Version %s\n", SD_REV_STAMP);   /* 23 Nov 26 (owner): the product's name and version only */
 /* 09 Sep 26 dm - PRE_RELEASE 21.  A developer build must be identifiable
    without running anything privileged, because the ONE thing it changes is a
    privilege check.  Anything that reports a version - a bug report, a

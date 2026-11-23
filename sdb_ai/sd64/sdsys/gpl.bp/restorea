@@ -1,6 +1,6 @@
 * RESTOREA
 * RESTORE.ACCOUNT verb (S.50).
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 14 Nov 26 dm  Compiler warning: removed the unused assignments to lat.bstamp (LATEST chooses by lat.best alone).

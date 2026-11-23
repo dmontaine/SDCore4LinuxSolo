@@ -644,11 +644,11 @@ def main():
     try:
         say("\n--- A. SDRevision, SDConnectLocal ------------------------------------------------------------------------------")
         # 23 Nov 26 (S.262 carried, the light verify S.309): the client is the CLEAN-ROOM library, one binary for every product, so its own
-        #   revision is the library's (SD Core's stamp), not Solo's; and Solo's old "SDConnectLocal is not available" wording was in the GPL
+        #   revision is the library's own 2.0-0, not Solo's; and Solo's old "SDConnectLocal is not available" wording was in the GPL
         #   library's Solo copy.  What still holds and is tested: before a connection the revision is the client's alone, and SDConnectLocal fails.
         r0 = call("SDRevision")
-        row("A1: before a connection SDRevision is the client's revision alone (the clean-room library's own stamp, one value, no value mark)",
-            bool(r0) and VM not in r0 and re.match(rb"^L[0-9]+\.[0-9]+-[0-9]+$", r0) is not None, s(r0))
+        row("A1: before a connection SDRevision is the client's revision alone: the library's own 2.0-0 (the owner, 23 Nov 26)",
+            r0 == b"2.0-0", s(r0))
         lr = lib.SDConnectLocal(b"sduser")
         row("A1b: SDConnectLocal does not connect in Solo (LSOLO 15): it fails, and the library says why", lr == 0 and len(err()) > 0, "%r, %s" % (lr, s(err())))
         ok = connect()

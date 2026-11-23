@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+23 Nov 26  THE SIGN-ON BANNER IS THE PRODUCT'S NAME AND VERSION.
+
+             What        - The banner says "SD Core Solo for Linux, version LS2.0-0" and sd-solo --version "SD Core
+                           Solo for Linux Version LS2.0-0". Messages 5009 and 5163 and the start-up line in the system
+                           log name the product too, where they used an older name.
+             Why         - the owner (22 Nov 2026): a user should see the product's name and no other.
+             Does NOT    - Change any command, file or behaviour.
+
 22 Nov 26  TOOL.CONFIG OFFERS TO RESTART SD AFTER A CHANGE.
 
              What        - After E changes a parameter and the file then differs from what SD is running with, a box
@@ -286,7 +294,8 @@ Next release - in progress
 
 17 Nov 26  SD-SOLO --VERSION NAMES ITS OWN COMMAND.
 
-             What        - sd-solo --version prints "SD Core Solo for Linux (sd-solo) Version ...".
+             What        - sd-solo --version prints "SD Core Solo for Linux Version ..." (since 23 Nov 26; it had said
+                           "(sd-solo)" and then the build's "64 Bit").
              Why         - it printed "(sd)", which is the command of the multi-user SD Core; Solo's command is
                            sd-solo.  SD Core Solo for Windows already prints "(sd-solo)".
              Does NOT    - Change the version number or what the option does.
@@ -884,8 +893,8 @@ Next release - in progress
 
 14 Nov 26  THE SIGN-ON BANNER SAYS "SD CORE SOLO FOR LINUX", AND THE HOME SCREEN SAYS WHAT IS RUNNING.
 
-             What        - the line printed at sign-on read "SD Core for Linux Solo, the Essential Multivalue String Database,
-                           version LS2.0-0"; it now reads "SD Core Solo for Linux, ...".  The home screen showed only who is
+             What        - the line printed at sign-on named "SD Core for Linux Solo"; it now names "SD Core Solo for
+                           Linux".  The home screen showed only who is
                            signed on and the date; the date line now ends with the product and its version, for example
                            "Friday 13 Nov 2026  -  21:30  -  SD Core Solo for Linux LS2.0-0".
              Why         - the owner (14 Nov 2026): the four products name themselves the same way (SD Core for Linux, SD Core
@@ -5740,7 +5749,7 @@ SD: what changed, why it mattered, and what it does not do.
 
            The sign-on line now reads
 
-               SD Core, the Essential Multivalue String Database, version L1.0-0
+               SD Core, version L1.0-0
 
            and "sd --version" answers L1.0-0 to match.  It used to say 1.0-2,
            which is not this project's number at all - it is the release of the
@@ -6920,7 +6929,7 @@ Version 0.6.3
 
    
 
-         Update MESSAGES file, change references from SCARLETDME  to String Database (sd)
+         Update MESSAGES file, change references from SCARLETDME to SD
 
 
          Remove hold over users in $LOGINS
@@ -6991,7 +7000,7 @@ Prior to 1/19/2024
 
 ------------------
 
-SD, the String Database is based on code originally released under the
+SD is based on code originally released under the
 
 GPL license in 2007 as a GPL release of the OpenQM database. Later
 
