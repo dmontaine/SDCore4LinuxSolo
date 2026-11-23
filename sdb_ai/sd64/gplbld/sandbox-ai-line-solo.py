@@ -16,6 +16,7 @@
 #               (L4a F6 from the first tile, L4d Tab from Sign out goes round the tiles and NOT to the line, L4e Shift-F6, new L4e2 F6 in the line gives the focus back).
 #               L5a / L5b: the preview shows the person's request and not SD's own text (S.175: the fixed instruction and the page's actions are sent, counted in the
 #               size, and not shown).  L11: the fake's fenced reply names the IDE (fakemodel.py, as Core's: the Record editor tile `ced` went with S.88 g-P1).
+# 23 Nov 26 dm  S.305 carried to the suite (Core's of 22 Nov): the AI row is row 38, a rule below it; the AI-off hint stays on row 39 (hint_row); the click is on 38.
 # END-HISTORY
 #
 # WHAT RUNS.  The real helper (gplbld/sd-ai, served by ai-runner.py: Solo's, which runs as the user and has no gate group) and the fake provider (gplbld/fakemodel.py, TLS with a
@@ -114,7 +115,13 @@ def requests():
 
 
 def line_row(h):
-    """The AI row: the row above the status line (row 39 at 140 by 43; the hint row of the home screen when the AI is off)."""
+    """The AI row: two above the status line (row 38 at 140 by 43; S.305: a rule is between them)."""
+    return h.line(38)
+
+
+def hint_row(h):
+    """The hint's row when the AI is OFF: the row above the status line (row 39), where it was before S.305.  With no AI line there is no rule
+    and nothing moved (Core's sandbox-ai-line.py, 22 Nov 26)."""
     return h.line(39)
 
 
@@ -200,7 +207,7 @@ def sec_off():
     for rid, label, kw in (("L0a", "no provider", dict(provider=False)), ("L0b", "a provider and no model (Custom, which has no default model)", dict(custom=True)), ("L0c", "no key", dict(key=False))):
         configure(**kw)
         h = home()
-        arow(rid, "%s: no AI row, the old hint is on the row above the status line" % label, "AI>" not in line_row(h) and "arrows move" in line_row(h) and h.home(), repr(line_row(h)[:80]))
+        arow(rid, "%s: no AI row, the old hint is on the row above the status line" % label, "AI>" not in line_row(h) + hint_row(h) and "arrows move" in hint_row(h) and h.home(), repr(hint_row(h)[:80]))
         h.key("btab", idle=0.6)
         arow(rid + "t", "...and Back-tab from the first tile goes to the last tile (Sign out), not to a line that is not there", "Sign out" in h.focus(), repr(h.focus()))
         h.key("ctrl-q", idle=1.5)
@@ -213,13 +220,13 @@ def sec_off():
     configure(gate=False)
     h = home()
     arow("L0d", "everything set and the gate OFF (as delivered; Core: the account is not in the helper's group): no AI row, the hint is there",
-         "AI>" not in line_row(h) and "arrows move" in line_row(h), repr(line_row(h)[:80]))
+         "AI>" not in line_row(h) + hint_row(h) and "arrows move" in hint_row(h), repr(hint_row(h)[:80]))
     h.key("ctrl-q", idle=1.5)
     h.end()
     configure()
     ai.stop_runner()
     h = home()
-    arow("L0e", "the helper is not running: no AI row, the hint is there, the screen is whole", "AI>" not in line_row(h) and "arrows move" in line_row(h) and h.home(), repr(line_row(h)[:80]))
+    arow("L0e", "the helper is not running: no AI row, the hint is there, the screen is whole", "AI>" not in line_row(h) + hint_row(h) and "arrows move" in hint_row(h) and h.home(), repr(hint_row(h)[:80]))
     h.key("ctrl-q", idle=1.5)
     h.end()
     ai.start_runner()                          # (set.ai below needs the helper)
@@ -254,7 +261,7 @@ def sec_ring():
     h.key("f6", idle=0.8)
     arow("L4e2", "F6 in the line gives the focus back to the tile it came from (the first), and is not typed into the line", h.focus() == first and "abc" in line_row(h)
          and "abc\x1b" not in line_row(h), repr((h.focus(), first, line_row(h)[:60])))
-    h.click(40, 39, idle=1.0)                  # (no Esc first: on the top page Esc opens the menu bar, and the click would only close it - Core's note)
+    h.click(40, 38, idle=1.0)                # (no Esc first: on the top page Esc opens the menu bar, and the click would only close it - Core's note)
     arow("L4f", "a click on the AI row gives it the focus", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
     h.key("ctrl-q", idle=1.5)
     h.end()

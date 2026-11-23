@@ -28,6 +28,7 @@
 #                 measured state of a reported conflict, not a decision.
 #               - NOT CARRIED, so not here: part N (MASTER.LOGIN in an API session, sheet 170), part O (the BASIC class !sdclient, sheet 571)
 #                 and the QMC_MUTANT runs.
+# 23 Nov 26 dm  A1, A1b, A2 follow S.262: the client is the clean-room library (its own revision stamp; no Solo wording for SDConnectLocal).
 # END-HISTORY
 #
 # THE INSTRUMENT.  The sandbox's own bin/sdclilib.so is loaded with ctypes, so the C client, the wire protocol and apisrvr are all the ones
@@ -642,11 +643,14 @@ def main():
 
     try:
         say("\n--- A. SDRevision, SDConnectLocal ------------------------------------------------------------------------------")
+        # 23 Nov 26 (S.262 carried, the light verify S.309): the client is the CLEAN-ROOM library, one binary for every product, so its own
+        #   revision is the library's (SD Core's stamp), not Solo's; and Solo's old "SDConnectLocal is not available" wording was in the GPL
+        #   library's Solo copy.  What still holds and is tested: before a connection the revision is the client's alone, and SDConnectLocal fails.
         r0 = call("SDRevision")
-        row("A1: before a connection SDRevision is the client's revision alone (SD_REV_STAMP of revstamp.h)", r0 == rev, s(r0) + " vs " + s(rev))
+        row("A1: before a connection SDRevision is the client's revision alone (the clean-room library's own stamp, one value, no value mark)",
+            bool(r0) and VM not in r0 and re.match(rb"^L[0-9]+\.[0-9]+-[0-9]+$", r0) is not None, s(r0))
         lr = lib.SDConnectLocal(b"sduser")
-        row("A1b: SDConnectLocal is still disabled in Solo (LSOLO 15): it fails and says to connect with SDConnect and the account password",
-            lr == 0 and b"SDConnectLocal is not available" in err(), "%r, %s" % (lr, s(err())))
+        row("A1b: SDConnectLocal does not connect in Solo (LSOLO 15): it fails, and the library says why", lr == 0 and len(err()) > 0, "%r, %s" % (lr, s(err())))
         ok = connect()
         row("A0: SDConnect signs on to the sandbox's server (TLS, SCRAM with the account password) and enters sduser", ok == 1,
             "connect %r, error %s" % (ok, s(err())))
@@ -654,7 +658,7 @@ def main():
             bail("no API session; nothing below can run")
         r1 = call("SDRevision")
         row("A2: connected it is client, a value mark, server - the server part is this build's revision: request 49 is SD Core's "
-            "QMRevision on Solo too since 11 Nov 26 (the ssh key moved to 72)", r1 == rev + VM + rev, s(r1))
+            "QMRevision on Solo too since 11 Nov 26 (the ssh key moved to 72); the client part is A1's", r1 == r0 + VM + rev, s(r1))
         sy = call("SDSystem", 1012)
         row("A3: SDSystem(1012) is the server revision, this build's", sy == rev, s(sy))
 

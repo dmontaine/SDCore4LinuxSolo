@@ -302,7 +302,7 @@ def checks(srcs, messages_dir):
     ost = at(fo, "stat(fullpathname, &stat_buf)")
     ck("O4 OPENSEQ asks for a file (not a port, not a $internal program) BEFORE it stats or opens it, and the answer makes the open read only and refuses CREATING",
        0 < ob < ost and re.search(r"if \(!\(flags & SQ_PORT\) && !\(process\.program\.flags & HDR_INTERNAL\)\)\s*edit_blocked = ", fo)
-       and "(op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked" in fo and "(op_flags & 0x400) && edit_blocked" in fo
+       and "(op_flags & P_READONLY) || faccessat(AT_FDCWD, fullpathname, W_OK, AT_EACCESS) || edit_blocked" in fo and "(op_flags & 0x400) && edit_blocked" in fo
        and "read_only || edit_blocked" in fo, "ask %s, stat %s" % (ob, ost))
     fdq = func_body(sq2, "void op_delseq() {")
     dg1 = at(fdq, "if (!os_path_open_ok(file_name)) {")

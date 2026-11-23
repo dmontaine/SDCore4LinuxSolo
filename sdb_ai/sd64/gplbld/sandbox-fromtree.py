@@ -23,6 +23,8 @@
 #               died on its first patch.  This one builds a key-patched COPY of Solo's tree and hands it to the
 #               existing solo-stage.sh, the code that stages the real installer's tree.  Solo-owned: it shares nothing
 #               with the full product's file but the command line above.
+# 23 Nov 26 dm  layout() copies the clean-room client library into bin (S.262's harness half, as in Core's): qmclient-solo and
+#               crypt's U rows found no sdclilib.so in the light verify (S.309).
 # END-HISTORY
 #
 # WHAT IT CHANGES, IN THE COPY ONLY (each patch must match exactly once, or it refuses, and prints the lines):
@@ -540,6 +542,13 @@ def layout(box):
     if os.path.lexists(link):
         os.remove(link)
     os.symlink("sd-solo", link)
+    # 23 Nov 26 dm - S.262 carried to the harness (Core's sandbox-fromtree.py, 19 Nov): the tree no longer builds a client library.  The suites that drive the
+    #   API server through it (sandbox-qmclient-solo, sandbox-crypt's U rows) load the clean-room one, copied here into the sandbox's bin under both names:
+    #   SD_CLIENT_LIB names the .so, else the private SDClientLib build.  It is not on GitHub, so a clone may have none; the copy is then left out.
+    cl = os.environ.get("SD_CLIENT_LIB") or "/home/don/Projects/SDClientLib/build/sdclilib.so"
+    if os.path.isfile(cl):
+        for nm in ("sdclilib.so", "libsdcli.so"):
+            shutil.copy2(cl, os.path.join(box.sys, "bin", nm))
     if os.path.lexists(box.conf):
         os.remove(box.conf)
     os.symlink(os.path.join("sys", "sd.conf"), box.conf)
