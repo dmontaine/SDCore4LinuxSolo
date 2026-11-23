@@ -1789,7 +1789,7 @@ clause of `find`, `findstr`, `locate`, `remove`, `selectleft`, `selectright`
 `openseq` *path*`,` *id* `shared to` *file.var* `then` … `else` …
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `GettingStarted/markdown/01b-differences-from-sd-core-l2-0-0.md` line 51
+- docs: `GettingStarted/markdown/01b-differences-from-sd-core-lc2-0-0.md` line 51
 
 ### basic:stmt:silent
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:8550#8b8e3202 src2=docs:tools/syntax-shapes.txt:216#82ea83cb
