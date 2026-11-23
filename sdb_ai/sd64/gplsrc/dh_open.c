@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 22 Nov 26 dm  Carried from SD Core, S.308: whether a subfile is opened for update is asked of the EFFECTIVE user (faccessat AT_EACCESS),
+ *               the one the open is made as; access() answered for the real user.
  * 11 Nov 26 dm  Carried from SD Core (25 Oct 26, commit 3d3890e3): an index subfile may carry the DH_INDEX2 magic, and the magic (not the stored flag)
  *               decides whether its right justified keys are in the total order (AK_V2).
  * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of the file table entry of a directory file (DHF_NOCASE set on a case-blind file system) is gone.
@@ -36,6 +38,9 @@
 #include "sd.h"
 #include "dh_int.h"
 #include "header.h"
+
+#include <fcntl.h>      /* 22 Nov 26 - S.308: AT_FDCWD, AT_EACCESS for faccessat() */
+#include <unistd.h>
 
 /* ====================================================================== */
 
@@ -120,7 +125,7 @@ DH_FILE* dh_open(char path[]) {
      k_error("Overflowed directory/filename path length in dh_open()!");
      goto exit_dh_open;
   }
-  if (access(pathname, 2))
+  if (faccessat(AT_FDCWD, pathname, W_OK, AT_EACCESS))     /* S.308: the user the open is made as, not the real one */
     read_only = TRUE;
 
   fu = dio_open(pathname, (read_only) ? DIO_READ : DIO_UPDATE);
@@ -180,7 +185,7 @@ DH_FILE* dh_open(char path[]) {
      k_error("Overflowed directory/filename path length in dh_open()!");
      goto exit_dh_open;
   }
-  if (access(pathname, 2))
+  if (faccessat(AT_FDCWD, pathname, W_OK, AT_EACCESS))     /* S.308: as above */
     read_only = TRUE;
 
   ofu = dio_open(pathname, (read_only) ? DIO_READ : DIO_UPDATE);

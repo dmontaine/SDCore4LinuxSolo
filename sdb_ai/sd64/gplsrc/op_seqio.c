@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 22 Nov 26 dm  Carried from SD Core, S.308: OPENSEQ's read-write choice and DELETESEQ's write check ask the EFFECTIVE user (faccessat
+ *               AT_EACCESS), the one the open or the remove is made as.
  * 17 Nov 26 dm  S.62 P-1782, P-1783: op_openseq()'s declarations of blocking_user and record_locked in SD Core's order (layout only).
  * 11 Nov 26 dm  Carried from SD Core (S.88 stage E2, A1 and A3; 30 Oct and 2 Nov 26; commits 36fe9456, a63c70f1, 5162a5d1): OPENSEQ ... CREATING of a name that
  *               does not exist is exclusive (O_EXCL; ER_EXISTS 6032 when a file or a dangling link is there by the time it is made; SHARED keeps
@@ -77,6 +79,8 @@
 #include "dh_int.h"
 #include "header.h" /* HDR_INTERNAL: the VOC gate of the OS-path routes (24 Oct 26, Solo carry 19) */
 #include <poll.h>
+#include <fcntl.h>      /* 22 Nov 26 - S.308: AT_FDCWD, AT_EACCESS for faccessat() */
+#include <unistd.h>
 
 /* Modified by Composer AI - 2026/06/10.
    k_error() and k_deadlock() never return, but the analyzer cannot see
@@ -271,7 +275,7 @@ void op_delseq() {
 
   /* Check if we have write access */
 
-  if (access(file_name, 2)) {
+  if (faccessat(AT_FDCWD, file_name, W_OK, AT_EACCESS)) {     /* S.308: the effective user, who makes the remove() */
     process.status = ER_RDONLY;
     goto exit_op_delseq;
   }
@@ -679,7 +683,7 @@ Private void openseq(bool map_name) {
 
       /* Check if we have write access */
 
-      if ((op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked) {
+      if ((op_flags & P_READONLY) || faccessat(AT_FDCWD, fullpathname, W_OK, AT_EACCESS) || edit_blocked) {     /* S.308: the effective user */
         read_only = TRUE;
       }
 
