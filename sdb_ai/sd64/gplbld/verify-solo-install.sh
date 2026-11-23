@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo-install.sh - does installsdsolo.sh / deletesdsolo.sh do what they say?
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-install.sh [--full]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-install.sh [--full]
 #
 # No sudo.  Without --full it runs the REFUSAL legs only: each is a way the installer
 # must stop BEFORE it downloads or changes anything (a weak password, a port below

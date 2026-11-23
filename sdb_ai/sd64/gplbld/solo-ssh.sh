@@ -1,15 +1,15 @@
 #!/bin/bash
 # solo-ssh.sh - Solo's own ssh: its sshd, its host key and its key file.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh setup      HOME_DIR
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-add    HOME_DIR PUBKEY_FILE [--authorized-keys FILE]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-remove HOME_DIR PUBKEY_FILE [--authorized-keys FILE]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-list   HOME_DIR [--authorized-keys FILE]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh migrate    HOME_DIR [--old-authorized-keys FILE] [--authorized-keys FILE]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh match      HOME_DIR [--remove]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh pam        HOME_DIR [--install|--remove]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh locked     HOME_DIR
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh unlock     HOME_DIR [ADDRESS]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh setup      HOME_DIR
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-add    HOME_DIR PUBKEY_FILE [--authorized-keys FILE]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-remove HOME_DIR PUBKEY_FILE [--authorized-keys FILE]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh key-list   HOME_DIR [--authorized-keys FILE]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh migrate    HOME_DIR [--old-authorized-keys FILE] [--authorized-keys FILE]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh match      HOME_DIR [--remove]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh pam        HOME_DIR [--install|--remove]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh locked     HOME_DIR
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-ssh.sh unlock     HOME_DIR [ADDRESS]
 #
 # LSOLO 29 (owner, 2 Oct 2026): SOLO'S ssh LISTENS ON ITS OWN PORT, 4251, FIXED, and is
 # run by the Solo owner with no root.  Routing is by port, so nothing in the machine's

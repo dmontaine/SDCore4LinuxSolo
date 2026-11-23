@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-apiaccount-units.py - Solo's API server: request 3 by registered name only, and OPENSEQ by pathname held to the VOC rule.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-apiaccount-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-apiaccount-units.py
   python3 .../test-apiaccount-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.

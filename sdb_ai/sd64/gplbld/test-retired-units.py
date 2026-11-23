@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # test-retired-units.py - is solo-stage.sh's list of RETIRED files right?  (LSOLO 30, 3 Oct 2026)
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-retired-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-retired-units.py [--selftest]
 #
 # An upgrade overlays sdsys/ onto the old tree and only adds and replaces, so a file a release
 # stops shipping stays in an upgraded tree unless solo-stage.sh deletes it.  Three things can go

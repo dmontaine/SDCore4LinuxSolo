@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-help-units.py - the context help and the [?] button (S.75, plan .claude/plan-fullscreen-toolkit.md section 14.5), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-help-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-help-units.py
   python3 .../test-help-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  (SOLO'S COPY of SD Core's check of the same name, Solo carry 14, 23 Oct 2026:
@@ -26,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 HELP = os.path.join(SDSYS, "helptext")
-DOCS = "/home/don/Projects/SDCore4LinuxSoloDocs"                # Solo's documentation checkout: an absolute path, as test-pack-units.py has it
+DOCS = "/home/don/SDCoreProject/SDCore4LinuxSoloDocs"                # Solo's documentation checkout: an absolute path, as test-pack-units.py has it
 PROGS = ("tk_help", "loadhelp", "tool_menus", "tool_viewers", "tk_wrap", "tk_confirm")
 PAGE_APPS = ("files", "voc", "dict", "query", "bulk", "catalog", "test", "audit", "backups", "config", "remote")   # the carried pages that ask for one record, tool.<app>.page
 MSGS = tuple(str(n) for n in [11830, 11831, 11832, 11835, 11838, 11839, 11840, 11841])       # 11833, 11834, 11836, 11837 and 11842 are free (11836 and 11837 are Core's, for the shared account)

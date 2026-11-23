@@ -2,7 +2,7 @@
 #
 # test-usspelling-units.py - what SD prints is in US spelling (S.186; the owner, 9 Nov 2026: "Everything SD prints").  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-usspelling-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-usspelling-units.py [--selftest]
 #
 # START-HISTORY:
 # 11 Nov 26 dm  SOLO: Core's check (S.186, S.192) carried unchanged but for the two installer names, installsdsolo.sh and deletesdsolo.sh (S.216); it reads Solo's own tree.

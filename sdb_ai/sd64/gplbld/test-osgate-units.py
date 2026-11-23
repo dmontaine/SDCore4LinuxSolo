@@ -2,7 +2,7 @@
 """test-osgate-units.py - the Solo OS-access switch (SH and OS), as invariants read off the source.  Solo's copy of the shape of
 SD Core's test-gates-units.py (S.63), written FIRST, before any of the switch existed, and run red.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-osgate-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-osgate-units.py
   python3 .../test-osgate-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 20 Oct 26.

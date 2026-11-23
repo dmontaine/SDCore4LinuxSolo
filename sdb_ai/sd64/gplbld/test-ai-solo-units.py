@@ -2,7 +2,7 @@
 """test-ai-solo-units.py - the AI helper, its gate, SET.AI, the ai verb, the kernel transport and the page of SD Core Solo for Linux (carry 15 of S.69 step 2, 23 Oct 2026), as
 invariants read off the source.  Solo's counterpart of Core's test-ai-units.py (whose checks about a Linux group, sd-elevate and the OS user sdai have no Solo equivalent and are not here).
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ai-solo-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ai-solo-units.py
   python3 .../test-ai-solo-units.py --selftest [--from=N]
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.

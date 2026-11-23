@@ -3,7 +3,7 @@
 # sandbox-netindex-solo.py - what a REAL Solo server answers to the index QUERY requests: 35 and 36 (INDICES), 26 and 39 (SELECTINDEX of a value), 38 (SELECTINDEX, the indexed values), 42 to 45
 #                            (SETLEFT, SETRIGHT, SELECTLEFT, SELECTRIGHT), asked by an ACCOUNT-PASSWORD session.  No install, no sudo.
 #
-#   SDSOLOBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-netindex-solo.py <dir> [--build]
+#   SDSOLOBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-netindex-solo.py <dir> [--build]
 #
 # START-HISTORY:
 # 11 Nov 26 dm  Written for the Solo carry of SD Core's S.73 item 3 D1 (7fd83ad3): SD Core's sandbox-netindex.py on Solo's server.  The client side of D1 (the $netfile handler's NF$INDEXQ and the

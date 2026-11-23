@@ -4,8 +4,8 @@
 # SD Core found it with a sandbox (W11 of sandbox-auditwriter.py) and refused the rotation in audit_rotate_file(); Solo keeps its rotation inline.  FREE CHECK, text only
 # (comments removed), no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditrot-solo-units.py
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditrot-solo-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditrot-solo-units.py
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditrot-solo-units.py --selftest      (mutants)
 #
 #   A1  audit_rotate() is found and still rotates at AUDIT_ROTATE_BYTES (1 MB) onto "<trail>.YYYYMMDD-HHMMSS"
 #   A2  it asks lstat(rotated) and treats "exists" and "any error other than ENOENT" as a refusal that leaves through the function's one exit

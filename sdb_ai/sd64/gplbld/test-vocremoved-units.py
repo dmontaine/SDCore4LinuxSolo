@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-vocremoved-units.py - the VOC deletion list (S.87), as invariants.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-vocremoved-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-vocremoved-units.py
   python3 .../test-vocremoved-units.py --selftest
 
 SD CORE FOR LINUX SOLO (Solo carry 22, 9 Nov 26): SD Core's check, with Solo's release tag (LS1.1-3) and Solo's scripts in rows S1-S3: deletesdsolo.sh's

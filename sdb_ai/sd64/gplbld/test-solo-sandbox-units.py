@@ -29,7 +29,7 @@ WHAT IT CHECKS (a row id each; the mutants below name the rows they must turn re
   D1  none of this directory's sandbox-*.py names the full product's /usr/local/sdsys or /home/sd (the three dead
       scripts did, and could not run).
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-solo-sandbox-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-solo-sandbox-units.py
   python3 .../test-solo-sandbox-units.py --selftest      (mutants of the tool: each must turn its rows red)
 
 No sudo.  Exit 0 all rows passed, 1 a row failed, 2 the run established nothing.
@@ -48,7 +48,7 @@ import types
 HERE = os.path.dirname(os.path.realpath(__file__))
 SD64 = os.path.dirname(HERE)
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
-CORE_GPLBLD = "/home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld"
+CORE_GPLBLD = "/home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld"
 
 # Written here on purpose: the tool's own constants are what is being checked.
 LIVE_SOLO = (0x53434C11, 0x53434C12)

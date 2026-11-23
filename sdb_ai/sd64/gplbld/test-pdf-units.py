@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-pdf-units.py - the pdf verb and the programs allowed to bypass OS.EXECUTE (S.75, plan .claude/plan-fullscreen-toolkit.md section 14.6 and 14.7), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-pdf-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-pdf-units.py
   python3 .../test-pdf-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  (SOLO'S COPY of SD Core's check of the same name, Solo carry 14, 23 Oct 2026.

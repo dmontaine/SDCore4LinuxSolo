@@ -3,7 +3,7 @@
 # sandbox-ai-apps-solo.py - the AI in the IDE, SED, CED and the debugger (AI line stages 2 and 3), driven on a pseudo-terminal on a private SD Core Solo for Linux
 #                           (SOLO CARRY 17 of S.69, 24 Oct 2026; Core commit 0f0e6d9 and the stage 3 commit after it; the debugger rows with the debugger's own carry, 24 Oct 2026).  No install, no sudo.
 #
-#   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-apps-solo.py <dir> [--build] [--mutant=NAME]
+#   SDSOLOBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-apps-solo.py <dir> [--build] [--mutant=NAME]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it
 # could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of a program and exit 0 means the rows that had to fail failed and no others (MUTANTS below).

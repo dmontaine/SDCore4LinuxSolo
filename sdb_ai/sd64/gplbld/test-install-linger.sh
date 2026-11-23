@@ -4,7 +4,7 @@
 # remotely even if the user is not logged in at the console", then "Yes, on by default".)  No install, no sudo, no sd.
 # Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-linger.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-linger.sh [--selftest]
 #
 # THE BLOCK.  installsdsolo.sh keeps linger_decide between "# BEGIN linger" and "# END linger".  This cuts the block out and runs it
 # under the installer's own `set -euo pipefail` and IFS, with `say` a function, `refuse` exiting 2, and `ask_yn` a stub that answers

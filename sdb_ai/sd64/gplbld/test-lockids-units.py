@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """test-lockids-units.py - another session's lock ids reach a program and a terminal escaped (S.88 phase 2, S1 kernel half; 28 Oct 26).
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lockids-units.py
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lockids-units.py --selftest
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lockids-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lockids-units.py --selftest
 
 SOLO (11 Nov 26, S.216 gap 13): carried unchanged from SD Core's file of 28 Oct 26 but for these two paths; it reads this tree's gplsrc and sdsys.
 

@@ -4,7 +4,7 @@
 #                      reply belongs to the request that got it, through a REAL logged-in API session on Solo's own sandbox.
 #                      No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-apifile.py <dir> [--build] [--mutant=apisrvr-net-never|apisrvr-net-always]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-apifile.py <dir> [--build] [--mutant=apisrvr-net-never|apisrvr-net-always]
 #   (--mutant=NAME takes one rule out of the sandbox's own copy of APISRVR and runs section N only; sandbox-sdnet.py holds the machinery and what each mutant changes)
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (Solo's own).  With --build it is built first from THIS tree (it must be empty or absent).

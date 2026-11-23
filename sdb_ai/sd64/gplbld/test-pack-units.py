@@ -4,7 +4,7 @@
 #                      S.69 rows 1 and 1b, the AI plan (.claude/ai-integration-evaluation.md, sections 5A.2 and 5A.7).
 #                      SD Core for Linux SOLO's copy (LSOLO 55).
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-pack-units.py [--selftest] [--docs DIR]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-pack-units.py [--selftest] [--docs DIR]
 #
 # No sudo, no install, no sd, no sandbox, no model.  Exit 0 every check held, 1 one did not, 2 the question cannot be
 # answered (the docs checkout is missing).  A pack that cannot be compared is never a pass.
@@ -57,7 +57,7 @@ REPO = os.path.dirname(os.path.dirname(SD64))                      # the reposit
 PACK_DIR = os.path.join(SD64, "agent-pack")
 GENERATOR = os.path.join(PACK_DIR, "mkpack.py")
 PACK = os.path.join(PACK_DIR, "pack")
-DOCS_DEFAULT = "/home/don/Projects/SDCore4LinuxSoloDocs"          # SOLO: Core's is /home/don/Projects/SDCore4LinuxDocs
+DOCS_DEFAULT = "/home/don/SDCoreProject/SDCore4LinuxSoloDocs"          # SOLO: Core's is /home/don/SDCoreProject/SDCore4LinuxDocs
 REGEN = "python3 %s --write" % GENERATOR
 SKILL = "sd-core-solo"                                             # SOLO: the skill's folder and name (Core: sd-core)
 

@@ -2,7 +2,7 @@
 # verify-solo-firstlogin.sh - the account password chosen at the console on first login
 # (LSOLO 14; Windows Solo SOLO 18, owner 27 Sep 2026).
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-firstlogin.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-firstlogin.sh
 #
 # No sudo.  Run as an ordinary user after "make" in sdb_ai/sd64.  It stages its own
 # MANAGED scratch tree with NO account password (test passwords it writes itself,

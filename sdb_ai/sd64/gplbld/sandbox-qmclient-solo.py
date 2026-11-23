@@ -6,7 +6,7 @@
 #                            SDIConv(s), SDOConv(s), the sequential files, SDWriteSeqKey / SDWriteuSeqKey, the multi-character SDDcount,
 #                            thread safety, SDExecute's reply copy, vb.call's return).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-qmclient-solo.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-qmclient-solo.py <dir> [--build]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Set
 # SDSOLOBOX_KEYSET so as not to meet another sandbox's keys.  Exit 0 every row passed, 1 a row failed, 2 it could not run.

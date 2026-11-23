@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo-upgrade.sh - does "solo-stage.sh --upgrade" keep what it must and replace what it must?
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-upgrade.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-upgrade.sh
 #
 # No sudo.  Run as an ordinary user, after "make" in sdb_ai/sd64.  It stages a
 # MANAGED scratch tree with solo-stage.sh (test passwords it writes itself, 0600,

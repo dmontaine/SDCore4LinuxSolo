@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # test-sshpam-units.py - Solo's own PAM service under SELinux (LSOLO 31, 3 Oct 2026)
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sshpam-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sshpam-units.py [--selftest]
 #
 # On Fedora 44 (SELinux enforcing) Solo's sshd, which is not root, failed the session step of
 # /etc/pam.d/sshd ("session required pam_selinux.so open") after the password was accepted.

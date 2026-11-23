@@ -5,8 +5,8 @@
 #                    fixture accounts, sandbox-gates.py and the sdfiles route); written FIRST, before the code existed, and run red on
 #                    8d0a720.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet.py <dir> [--build] [--sections=a,b] [--mutant=NAME]
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet.py --check-mutants        (free: no sandbox)
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet.py <dir> [--build] [--sections=a,b] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet.py --check-mutants        (free: no sandbox)
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (needs a `make`d bin/sd-solo).  With --build it is built first from THIS tree (it
 # must be empty or absent).  SDSOLOBOX_KEYSET=n picks the keys.  Exit 0 every row passed, 1 one failed, 2 it could not run.  Stop the

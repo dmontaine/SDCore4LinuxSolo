@@ -2,8 +2,8 @@
 #
 # test-stage-sourcegone.sh - solo-stage.sh leaves no source in the installed tree (S.234 N1, SD Core's S.198; this check S.144, 17 Nov 2026).
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-stage-sourcegone.sh
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-stage-sourcegone.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-stage-sourcegone.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-stage-sourcegone.sh --selftest
 #   STAGE=<a copy of solo-stage.sh> bash .../test-stage-sourcegone.sh      (what --selftest uses)
 #
 # FREE CHECK: no install, no sd, no sudo (Solo never uses it).  Exit 0 every row passed, 1 a row failed, 2 it could not run (a missing block is exit

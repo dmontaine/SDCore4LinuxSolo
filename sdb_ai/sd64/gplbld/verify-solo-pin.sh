@@ -2,7 +2,7 @@
 # verify-solo-pin.sh - the client library pins the server's TLS certificate on first
 # use (LSOLO 19, agreed with Solo for Windows 30 Sep 2026).
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-pin.sh HOME_DIR ACCOUNT_PW_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-pin.sh HOME_DIR ACCOUNT_PW_FILE
 #
 # No sudo.  HOME_DIR is a Solo tree built by solo-stage.sh (managed or not).  Like
 # verify-solo-sshkey.sh it installs the tree's USER units on a high port and removes them
@@ -34,7 +34,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #   install from a release package has it), else the private SDClientLib build.
 LIB="${SD_CLIENT_LIB:-}"
 [ -n "$LIB" ] || { [ -f "$H/bin/sdclilib.so" ] && LIB="$H/bin/sdclilib.so"; }
-[ -n "$LIB" ] || LIB="/home/don/Projects/SDClientLib/build/sdclilib.so"
+[ -n "$LIB" ] || LIB="/home/don/SDCoreProject/SDClientLib/build/sdclilib.so"
 SVC="$here/solo-service.sh"; PROBE="$here/api-probe.py"
 [ -f "$LIB" ] || refuse "no client library at $LIB (set SD_CLIENT_LIB to the clean-room sdclilib.so)"
 [ -f "$SVC" ] && [ -f "$PROBE" ] || refuse "solo-service.sh or api-probe.py is missing"

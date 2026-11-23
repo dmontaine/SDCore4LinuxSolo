@@ -2,7 +2,7 @@
 """test-sdnet-units.py - the Solo SDNet CLIENT (SD Core's S.65 and S.72 carried on 20 Oct 2026) as invariants read off the source: the gate, the definitions, the stored logins, the handler and
 the kernel's remote-file type.  Written after the carry, to be run with --selftest.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sdnet-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sdnet-units.py
   python3 .../test-sdnet-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.

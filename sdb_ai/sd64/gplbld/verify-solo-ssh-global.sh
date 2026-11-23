@@ -4,7 +4,7 @@
 # as sduser with the global password over ssh - owner, 30 Sep 2026; the question the
 # Windows Solo agent was told was unmeasured on Linux.)
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-ssh-global.sh HOME_DIR ACCOUNT_PW_FILE GLOBAL_PW_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-ssh-global.sh HOME_DIR ACCOUNT_PW_FILE GLOBAL_PW_FILE
 #
 # No sudo.  HOME_DIR is a MANAGED tree (solo-stage.sh with --global-password-file) whose
 # daemon is running.  A PRIVATE sshd runs as the person running this: own host key, own

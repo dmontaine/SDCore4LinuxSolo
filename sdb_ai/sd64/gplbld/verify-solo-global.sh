@@ -2,7 +2,7 @@
 # verify-solo-global.sh - the MANAGED-mode server controls of SD Core Solo for Linux
 # (LSOLO 12; rulings 33, 34 and 36 of Solo for Windows, its verify-solo legs 16 and 17).
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-global.sh HOME_DIR ACCOUNT_PW_FILE ADMIN_PW_FILE GLOBAL_PW_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-global.sh HOME_DIR ACCOUNT_PW_FILE ADMIN_PW_FILE GLOBAL_PW_FILE
 #
 # No sudo.  Run as the person who owns the tree.  HOME_DIR is a tree that solo-stage.sh
 # built with all three password files (managed mode) and whose daemon is running.  Do NOT

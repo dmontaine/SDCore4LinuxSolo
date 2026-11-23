@@ -2,7 +2,7 @@
 # test-install-osaccess.sh - the installer's question "turn on the shell and OS access?" (the Solo OS switch, owner 20 Oct 2026:
 # "ask during install").  No install, no sudo, no sd.  Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-osaccess.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-osaccess.sh [--selftest]
 #
 # THE BLOCK AND ITS PLACE.  installsdsolo.sh keeps os_access_word, os_yn and ask_os_access between "# BEGIN os_access" and
 # "# END os_access".  This cuts the block out and runs it under the installer's own `set -euo pipefail` and IFS (a block tested without

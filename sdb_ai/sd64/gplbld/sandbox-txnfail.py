@@ -4,7 +4,7 @@
 #                      exercise (A1, A3, A5, A6), run in a private Solo sandbox,
 #                      each against a mutant build that reverts it.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-txnfail.py --dir <empty scratch dir>
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-txnfail.py --dir <empty scratch dir>
 #   python3 .../sandbox-txnfail.py --dir <dir> --keep      leave the sandbox started
 #   python3 .../sandbox-txnfail.py --dir <dir> --clean     remove <dir> at the end (default: leave it, say how big)
 #

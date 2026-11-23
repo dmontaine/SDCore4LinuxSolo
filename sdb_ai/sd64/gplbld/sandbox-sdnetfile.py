@@ -7,7 +7,7 @@
 #                        read / write, the records the fake server holds after each statement (the DISK of this suite), the refusals, and the administrator's exemption.
 #                        No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnetfile.py <dir> [--build] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnetfile.py <dir> [--build] [--mutant=NAME]
 #   (--mutant=NAME takes one rule out of the sandbox's own copy of $netfile, the class !sdclient or the kernel, and says whether the rows that failed are exactly the rows listed for it in
 #   MUTANT_KILLS below; what each mutant changes is in sandbox-sdnet.py, MUTANTS.  A kernel mutant is a copy of the sandbox's tree made again, and the sandbox is stopped and started with it.)
 #

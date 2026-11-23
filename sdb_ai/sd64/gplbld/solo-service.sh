@@ -1,12 +1,12 @@
 #!/bin/bash
 # solo-service.sh - run SD Core Solo for Linux as the user's own systemd service.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh install HOME_DIR [--api off|local|open] [--ssh off|local|open]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh ssh HOME_DIR off|local|open [--print]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh api HOME_DIR off|local|open [--print]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh daemon HOME_DIR [--print]
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh remove
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh status
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh install HOME_DIR [--api off|local|open] [--ssh off|local|open]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh ssh HOME_DIR off|local|open [--print]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh api HOME_DIR off|local|open [--print]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh daemon HOME_DIR [--print]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh remove
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-service.sh status
 #
 # "api" (11 Nov 2026, S.117: the owner's "Yes, that shape" for Solo's Remote servers page) changes the API listener AFTER the install, as "ssh" does for ssh: it
 # writes or removes ONLY the two API units and leaves the daemon and ssh alone.  Until then the API's mode could be changed only by running install again.  The

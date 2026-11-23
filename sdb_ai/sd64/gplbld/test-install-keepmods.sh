@@ -5,7 +5,7 @@
 # folder, and solo-stage.sh puts it back before the VOC is refreshed.  No install, no sudo, no sd.  Exit 0 every row held, 1 one did not, 2 it
 # could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-keepmods.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-keepmods.sh [--selftest]
 #
 # WHAT IT RUNS.  keep_prune (deletesdsolo.sh, cut out between "# BEGIN keep_prune" and "# END keep_prune") under the remover's own
 # `set -uo pipefail`, and is_kept_tree (installsdsolo.sh, between "# BEGIN is_kept_tree" and "# END is_kept_tree") under the installer's own

@@ -6,7 +6,7 @@
 # explicit, stand out so that they can not be missed."; 22 Nov 2026: "use the same wording and format that windows is using").  No sudo, no install, no systemd.
 # Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-restorewarn.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-restorewarn.sh [--selftest]
 #
 # S.299 IS THE DEFECT THIS CHECK MISSED: it matched that a command was printed, and set.job restore is refused to every person, two commands were joined on one
 # line, and a failed timer never reached the box at all (the stage read "0 job(s) given their timers again" as success).  So the installer's, the stage's and the
@@ -21,7 +21,7 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 INSTALLER="${INSTALLER:-$ROOT/installsdsolo.sh}"
 REMOVER="${REMOVER:-$ROOT/deletesdsolo.sh}"
 STAGE="${STAGE:-$HERE/solo-stage.sh}"
-CORE_INSTALLER="${CORE_INSTALLER:-/home/don/Projects/SDCore4Linux/installsdcore.sh}"
+CORE_INSTALLER="${CORE_INSTALLER:-/home/don/SDCoreProject/SDCore4Linux/installsdcore.sh}"
 SYS="$HERE/../sdsys"
 passed=0; failed=0
 row() {   # row "name" ok(0|1) ["detail"]

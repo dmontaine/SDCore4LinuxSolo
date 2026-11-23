@@ -2,8 +2,8 @@
 """test-ipcsafe-units.py - the readers and the writers of the $IPC records S<n>, F<n> and H<n> show another session's text by ONE rule
 (S.88 phase 2, the approved item "escape in the reader and the writers"; 28 Oct 26).
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ipcsafe-units.py
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ipcsafe-units.py --selftest
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ipcsafe-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-ipcsafe-units.py --selftest
 
 (Carried to SD Core Solo for Linux unchanged, 12 Nov 26, S.216 gap 13: the check found Solo's pstat, hsm and profiler printing raw.)
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo-ssh.sh - does ssh on Solo's own port land straight in SD Core Solo for Linux?
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-ssh.sh HOME_DIR ACCOUNT_PASSWORD_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-ssh.sh HOME_DIR ACCOUNT_PASSWORD_FILE
 #
 # No sudo.  HOME_DIR is a Solo tree built by solo-stage.sh (daemon running) with
 # --account-password-file ACCOUNT_PASSWORD_FILE.  LSOLO 29 (owner, 2 Oct 2026): Solo runs its OWN

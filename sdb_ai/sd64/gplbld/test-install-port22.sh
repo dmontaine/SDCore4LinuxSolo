@@ -5,7 +5,7 @@
 # disabled right after it is installed; an sshd already installed, port 22 already open, or no `ss` to tell leaves everything as found; the
 # uninstall never touches port 22.  No install, no sudo, no apt-get, no systemctl.  Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-port22.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-port22.sh [--selftest]
 #
 # THE BLOCK.  installsdsolo.sh keeps the functions between "# PORT22-BEGIN" and "# PORT22-END".  This cuts them out and runs them under the
 # installer's own `set -euo pipefail` and IFS, with `sudo` a function, `systemctl` a stub that logs its arguments, `ss` a stub (SD_SS) that

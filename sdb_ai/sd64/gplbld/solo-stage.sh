@@ -1,12 +1,12 @@
 #!/bin/bash
 # solo-stage.sh - lay out an SD Core Solo for Linux tree and run the bootstrap.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-stage.sh HOME_DIR
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/solo-stage.sh HOME_DIR
 #
 # No sudo, no root, no operating-system user: everything is done as the person
 # running it, into HOME_DIR, which must not exist or must be empty.  Run it from
 # anywhere; it finds the source tree from its own location.  Build first:
-#   cd /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64 && make
+#   cd /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64 && make
 #
 # THIS IS THE STAGING HALF OF THE SOLO INSTALLER (LSOLO 9), written first so the
 # BASIC system programs can be compiled and run before the installer exists.  It

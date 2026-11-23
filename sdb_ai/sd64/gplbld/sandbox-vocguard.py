@@ -2,8 +2,8 @@
 #
 # sandbox-vocguard.py - the $internal verbs that write a file the USER named must ask !voc_guard.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-vocguard.py <dir> [--build] [--only=dellist,cd,...]
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-vocguard.py --text
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-vocguard.py <dir> [--build] [--only=dellist,cd,...]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-vocguard.py --text
 #
 # --only names verbs (dellist getlist sortlst savelst copylst-to copylst-del format cd reformat settrig fixdir generate como mapcat
 # createf writelist): the runtime rows of those alone, which is how a mutant (one program's guard taken out of the sandbox's own copy) is run

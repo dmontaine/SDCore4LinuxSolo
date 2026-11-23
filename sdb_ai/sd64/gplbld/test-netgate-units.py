@@ -2,7 +2,7 @@
 """test-netgate-units.py - the Solo NET gate and the rule for API request 29 (the SDNet open), as invariants read off the source.  Solo's copy of the
 shape of SD Core's fix fccf976 (18 Oct 26), written FIRST, before any of it existed, and run red.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netgate-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netgate-units.py
   python3 .../test-netgate-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 20 Oct 26.

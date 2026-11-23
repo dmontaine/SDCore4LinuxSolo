@@ -4,7 +4,7 @@
 # parity with windows on how install works").  It used to refuse and name --upgrade.  No install, no sudo, no sd.  Exit 0 every row held, 1 one did not, 2 it
 # could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-soloover.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-soloover.sh [--selftest]
 #
 # THE BLOCK.  installsdsolo.sh keeps it between "# INSTALL-OVER-BEGIN" and "# INSTALL-OVER-END".  This cuts it out and runs it under the installer's own
 # `set -euo pipefail` and IFS on scratch folders, and prints what `upgrade` became.  That the block comes BEFORE the upgrade checks (so an install over gets

@@ -3,7 +3,7 @@
 #                              is, accept its owner's own Linux password?  (LSOLO 29, owner 2 Oct 2026:
 #                              ssh into Solo should take account name and password, not a key.)
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/probe-solo-ssh-password.sh [--control-only]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/probe-solo-ssh-password.sh [--control-only]
 #
 # NO sudo, nothing installed, nothing of Solo's touched.  It runs a PRIVATE sshd (own host key,
 # 127.0.0.1, a high port) as you, with the settings Solo's would have: UsePAM yes, password

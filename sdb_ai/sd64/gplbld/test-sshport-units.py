@@ -3,7 +3,7 @@
 gplbld/solo-service.sh's ssh units, the installer's upgrade-scope rule, and a REAL key
 login through the sshd_config that solo-ssh.sh writes.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sshport-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sshport-units.py
   python3 .../test-sshport-units.py --selftest     each mutant must go red
 
 No sudo, no install, no sd, and nothing of the user's is touched: every row works in a scratch

@@ -40,7 +40,7 @@ DEFAULT_TREE = os.path.dirname(HERE)
 # SOLO (20 Oct 26, Solo carry 4): this file is SD Core's mkpack.py of Core 573d2d3 with the differences below, each marked "SOLO:" where it is made.
 # agent-pack/README.md lists every place the Solo pack differs from Core's and why.  Core's generator was written to take --tree and --docs so that
 # Solo could run it; what it could not do on Solo's tree and docs is what these few names answer.
-DEFAULT_DOCS = "/home/don/Projects/SDCore4LinuxSoloDocs"      # SOLO: Core's is /home/don/Projects/SDCore4LinuxDocs
+DEFAULT_DOCS = "/home/don/SDCoreProject/SDCore4LinuxSoloDocs"      # SOLO: Core's is /home/don/SDCoreProject/SDCore4LinuxDocs
 DEFAULT_PRODUCT = "SD Core Solo for Linux"                      # SOLO: Core's is "SD Core for Linux"
 ADMIN_DOCS = "GettingStarted"                                  # SOLO: the administrator's pages of Solo's docs (Core: Administrator)
 HAS_ACCOUNT_WORDS = False                                      # SOLO: no createa / modifya, no gate words, no groups: no chunk for any of them

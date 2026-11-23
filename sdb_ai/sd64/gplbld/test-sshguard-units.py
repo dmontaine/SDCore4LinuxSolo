@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-sshguard-units.py - gplbld/solo-sshguard.py, the per-address lockout in front of Solo's sshd (LSOLO 29).
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sshguard-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-sshguard-units.py
   python3 .../test-sshguard-units.py --selftest     each mutant must go red
 
 No sudo, no install, no sd.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  Written 2 Oct 26.

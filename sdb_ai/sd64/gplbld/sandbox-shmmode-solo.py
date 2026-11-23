@@ -3,7 +3,7 @@
 # sandbox-shmmode-solo.py - W.11 F1 carried to Solo (25 Oct 2026): a running Solo makes its shared memory segment and its semaphores owner-only (0600), and its
 # daemon sdlnxd runs "sd-solo -cleanup" from the directory it was STARTED in, not from a path read out of the segment.  No install, no sudo.
 #
-#   SDSOLOBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-shmmode-solo.py <dir> [--build]
+#   SDSOLOBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-shmmode-solo.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed,
 # 1 a row failed, 2 it could not run (including: the sandbox's segment is not there, or the lost-process setup did not happen - the null cases).

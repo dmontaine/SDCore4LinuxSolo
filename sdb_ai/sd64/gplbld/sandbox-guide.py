@@ -3,7 +3,7 @@
 # sandbox-guide.py - the SD BASIC dialect guide (agent-pack/guide/sd-basic-guide.md) COMPILED AND RUN on a private SD Core for Linux
 #                    Solo.  S.69 row 1, carried to Solo (LSOLO 55).  No install, no sudo, no model.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-guide.py <dir> [--build] [--guide FILE] [--match REGEX]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-guide.py <dir> [--build] [--guide FILE] [--match REGEX]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (needs a `make`d bin/sd-solo).  With --build it is built first from THIS tree (it
 # must be empty or absent).  Exit 0 every block held, 1 one did not, 2 it could not run.  SDSOLOBOX_KEYSET=n picks the pair of shared

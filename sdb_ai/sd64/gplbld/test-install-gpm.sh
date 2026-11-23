@@ -5,7 +5,7 @@
 # apt-get cannot) and goes on, and names the command when dpkg still holds it.  No install, no sudo, no apt-get.
 # Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-gpm.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-gpm.sh [--selftest]
 #
 # THE BLOCK.  installsdsolo.sh keeps install_gpm between "# GPM-BEGIN" and "# GPM-END".  This cuts it out and runs it under
 # the installer's own `set -euo pipefail` and IFS, with `sudo` a function, `apt-get` and `dpkg` stubs that log their

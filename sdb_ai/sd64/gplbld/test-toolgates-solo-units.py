@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-toolgates-solo-units.py - the gates page, TOOL.GATES (`gpl.bp/tool_gates`), as invariants read off the source (Solo carry 20b of Core's S.75 A2).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-toolgates-solo-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-toolgates-solo-units.py [--selftest]
 
 Core has two pages under this name (the administrator's matrix of every registered account against every gate, test-toolgates-units.py, and the holder's read-only view, test-toolmygates-units.py);
 Solo has one account and no modify.account, so it has ONE page with six rows (sh, os, net, ai, since 15 Nov 26 xfer, file transfer, and since 17 Nov 26 jobs, S.247) and two modes: it shows what the

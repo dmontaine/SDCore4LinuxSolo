@@ -3,8 +3,8 @@
 # test-install-agentpack.sh - installsdsolo.sh's blocks that put the AI guide and knowledge pack in <home>/agent-pack (S.216 gap 26; SD Core's
 #                             installsdcore.sh has the same two blocks, S.69 rows 1 and 1b), run the way the installer runs them.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-agentpack.sh
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-agentpack.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-agentpack.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-agentpack.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-agentpack.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (Solo's installer uses none), no install, no sd.  Everything happens in a scratch directory.  Exit 0 every row passed,

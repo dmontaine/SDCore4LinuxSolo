@@ -1,7 +1,7 @@
 #!/bin/bash
 # regress-solo.sh - Solo's existing sandbox suites, one after another on ONE built Solo sandbox, a verdict line for each.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/regress-solo.sh <dir> [logdir]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/regress-solo.sh <dir> [logdir]
 #
 # <dir> is a sandbox made by this tree's gplbld/sandbox-fromtree.py (all), e.g.
 #   SDSOLOBOX_KEYSET=0 python3 gplbld/sandbox-fromtree.py <dir> all

@@ -2,7 +2,7 @@
 # test-install-viewer.sh - the installer's question "allow a PDF reader to show the documentation?" (Solo carry 14, S.75, 23 Oct 2026; SD Core's installer has the same
 # question).  No install, no sudo, no sd.  Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-viewer.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-viewer.sh [--selftest]
 #
 # THE BLOCK AND ITS PLACE.  installsdsolo.sh keeps find_pdf_reader and ask_viewer between "# BEGIN viewer_ask" and "# END viewer_ask".  This cuts the block out and runs it
 # under the installer's own `set -euo pipefail` and IFS (a block tested without them once stopped two real installs: test-install-pass3.sh), with `say` a function, `os_yn`

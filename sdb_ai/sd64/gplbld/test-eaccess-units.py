@@ -2,7 +2,7 @@
 # test-eaccess-units.py - the kernel decides whether a file may be written for the EFFECTIVE user, the one the open is made as (S.308, found by
 # S.296's VM witness of 22 Nov 2026), read off gplsrc as text.  Free: no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-eaccess-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-eaccess-units.py [--selftest]
 #
 # Carried from SD Core, 22 Nov 2026, unchanged but for this path.  In Solo the identity is never switched (no root session), so the rule
 # changes nothing a Solo session does today; it keeps the two kernels the same.

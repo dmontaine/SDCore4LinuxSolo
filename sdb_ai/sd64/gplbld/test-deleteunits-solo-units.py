@@ -5,8 +5,8 @@
 # "# END remove_units" and the call that follows "# ---- 1." out of deletesdsolo.sh and RUNS them under bash in a scratch directory (HOME and the unit directory in it) with a stub
 # solo-service.sh and a stub systemctl first on PATH.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-deleteunits-solo-units.py
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-deleteunits-solo-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-deleteunits-solo-units.py
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-deleteunits-solo-units.py --selftest      (mutants)
 #
 #   T1  solo-service.sh remove succeeds: nothing more is done, the script goes on to the tree
 #   T2  it REFUSES (exit 2) and the units are there: the unit files AND the links that enable them are removed by hand, only Solo's names (sd-solo*), and the script goes on

@@ -7,7 +7,7 @@
 # SD Core for Linux Solo's copy (S.218, 12 Nov 26; owner: "Yes, the same five"): Solo's names - installsdsolo.sh, the SoloDocs repository, an LS version,
 # the zip SDCoreSolo-...; otherwise SD Core's rows unchanged.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-mkrelease-clients.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-mkrelease-clients.sh
 #
 # FREE CHECK: no sudo, no install, no sd.  It RUNS the working tree's gplbld/mkrelease.sh itself, with STAGING_DIR and ZIPS_DIR pointed at a scratch directory
 # (mktemp -d, so TMPDIR chooses the place); the real Project_Staging and Project_Zips are never named.  Nothing is fetched, tagged or committed.

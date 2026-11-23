@@ -28,7 +28,7 @@
 # is read here and passed only through the environment and the ssh session's input.  It is never
 # printed; the output is checked for it and the run FAILS, with the lines masked, if it appears.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-live-upgrade.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-live-upgrade.sh
 #
 # ***NO sudo.***  Run it as the user who owns the Solo tree (the owner, in his own terminal).
 # Optional: HOME_DIR as the first argument (default ~/SDCoreSolo), SD_WITNESS_KEY for a private

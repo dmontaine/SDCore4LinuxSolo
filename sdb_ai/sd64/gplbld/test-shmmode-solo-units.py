@@ -3,8 +3,8 @@
 # what it runs from the segment.  FREE CHECK, text only (comments removed), no install, no sudo, no sd.  The full product's twin is its own
 # test-shmmode-units.py, which reads 0660 and the group sdusers; Solo has one user and no such group, so the mode here is 0600.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-shmmode-solo-units.py
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-shmmode-solo-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-shmmode-solo-units.py
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-shmmode-solo-units.py --selftest      (mutants)
 #
 #   S1  sysseg.c create_shared_segment(): IPC_CREAT | 0600, never 0666 or 0660
 #   S2  sdsem.c get_semaphores(): IPC_CREAT | IPC_EXCL | 0600, never 0666 or 0660

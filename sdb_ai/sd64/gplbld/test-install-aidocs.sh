@@ -3,8 +3,8 @@
 # test-install-aidocs.sh - installsdsolo.sh's block that puts the documentation under <home>/docs for the AI line (S.216 gap 27; SD Core's installsdcore.sh has the same block,
 #                          S.100), run the way the installer runs it.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-aidocs.sh
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-aidocs.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-aidocs.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-aidocs.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-aidocs.sh      (what --selftest uses)
 #
 # FREE CHECK: no network (git is a function here), no install, no sd.  Exit 0 every row passed, 1 a row failed, 2 it could not run.

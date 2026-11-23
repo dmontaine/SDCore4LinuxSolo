@@ -3,8 +3,8 @@
 # rename the solo exe to sd-solo"), and what that touches.  Replaces test-launcher-units.py,
 # whose launcher no longer exists.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-soloexe-units.py
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-soloexe-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-soloexe-units.py
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-soloexe-units.py --selftest
 #
 # No sudo, no install, no sd.  It CUTS shipped code out of installsdsolo.sh and deletesdsolo.sh
 # by their marker lines and runs it with bash in a scratch HOME:

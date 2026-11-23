@@ -3,7 +3,7 @@
 # sandbox-req29.py - API request 29 (open an 'account;file' file, the SDNet request of apisrvr's vb.open.sdnet) and the Solo NET gate, through a REAL logged-in
 #                    API session on Solo's own sandbox.  No install, no sudo.  Solo's copy of the idea of SD Core's sandbox-req29.py (sections A to E, 18 Oct 26).
 #
-#   SDSOLOBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-req29.py <dir> [--build]
+#   SDSOLOBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-req29.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (Solo's own).  With --build it is built first from THIS tree (it must be empty or absent).
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.

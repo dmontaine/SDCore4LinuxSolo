@@ -5,7 +5,7 @@
 #                          sandbox-net.py sections connect, netcred and netlogin (S.65 slices 2a and 2b), in Solo's one-account lane, WITHOUT the stand-ins SD Core needs for its
 #                          root helper (Solo has none: the store is made by $netcred itself).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet-login.py <dir> [--build] [--sections=connect,netcred,netlogin] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-sdnet-login.py <dir> [--build] [--sections=connect,netcred,netlogin] [--mutant=NAME]
 #   (--mutant=NAME takes one rule out of the sandbox's own copy of $netcred or set.netlogin and says whether the rows that failed are exactly the rows listed for it in MUTANT_KILLS below;
 #   what each mutant changes is in sandbox-sdnet.py, MUTANTS)
 #

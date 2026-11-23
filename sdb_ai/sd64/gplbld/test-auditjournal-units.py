@@ -3,8 +3,8 @@
 # stamps the sender's real uid and pid, and which the Solo user cannot rewrite (the audit file is that user's own).  FREE CHECK, text only (comments
 # removed), no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditjournal-units.py
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditjournal-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditjournal-units.py
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-auditjournal-units.py --selftest      (mutants)
 #
 # START-HISTORY
 # 18 Nov 26 dm  S.62 (P-6770 to P-6773), carried from SD Core for Linux (its test-auditjournal-units.py of 24 Oct 26).  Solo's audit_message() writes the

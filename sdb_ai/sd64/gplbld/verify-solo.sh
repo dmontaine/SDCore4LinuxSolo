@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo.sh - does an SD Core Solo for Linux tree behave as ruled?
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo.sh HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo.sh HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE
 #
 # No sudo.  Run as the person who owns the tree.  HOME_DIR is a tree that
 # solo-stage.sh built with --account-password-file and --admin-password-file

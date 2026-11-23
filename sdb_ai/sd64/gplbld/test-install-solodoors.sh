@@ -5,7 +5,7 @@
 # data takes the note as its answers, so ACCESS-ASK asks nothing about them.  No install, no systemd, no sudo.  Exit 0 every row held, 1 one did not, 2 it could
 # not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-solodoors.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-solodoors.sh [--selftest]
 #
 # THE BLOCKS.  deletesdsolo.sh's DOORS-NOTE (door_mode, note_doors) is run on scratch unit files and a scratch tree; installsdsolo.sh's DOORS-KEPT is run under the
 # installer's own `set -euo pipefail` and IFS with the variables it reads.  The order (the note BEFORE the units go; the kept doors AFTER the control file and

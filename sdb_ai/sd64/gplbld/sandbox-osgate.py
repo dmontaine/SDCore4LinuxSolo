@@ -4,7 +4,7 @@
 #                     account, sduser, that refuse, run, and leave a sentinel on the disk as evidence.  Solo's copy of the idea of
 #                     SD Core's sandbox-gates.py (S.63); written FIRST, before the switch existed, and run red on a423ed5.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-osgate.py <dir> [--build] [--only=gate,netdirs,lanes]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-osgate.py <dir> [--build] [--only=gate,netdirs,lanes]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (needs a `make`d bin/sd-solo).  With --build it is built first from THIS tree
 # (it must be empty or absent).  SDSOLOBOX_KEYSET=n picks the keys.  Exit 0 every row passed, 1 one failed, 2 it could not run.  Stop

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-netpreflight-units.py - installsdsolo.sh's net_preflight, run and ordered.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netpreflight-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netpreflight-units.py
   python3 .../test-netpreflight-units.py --selftest
 
 No sudo, no install, no sd, no internet.  Exit 0 all checks passed, 1 a check

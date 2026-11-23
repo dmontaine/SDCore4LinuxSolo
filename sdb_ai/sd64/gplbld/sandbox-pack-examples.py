@@ -3,7 +3,7 @@
 # sandbox-pack-examples.py - the generated knowledge pack (agent-pack/pack) against a RUNNING SD CORE SOLO.  S.69 row 1b, Solo's copy
 #                            (LSOLO 55).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-pack-examples.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-pack-examples.py <dir> [--build]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (needs a `make`d bin/sd-solo).  With --build it is built first from THIS tree
 # (it must be empty or absent).  SDSOLOBOX_KEYSET=n picks the keys.  Exit 0 every row passed, 1 one failed, 2 it could not run.  Stop

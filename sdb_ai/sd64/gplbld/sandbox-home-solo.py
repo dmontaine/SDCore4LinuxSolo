@@ -3,7 +3,7 @@
 # sandbox-home-solo.py - the home screen, the start setting, tiles off, the account's own programs, the context help, pdf and the readers it may start (SOLO CARRY 14, 23 Oct 2026),
 #                        RUN on a private SD Core Solo for Linux, on a pseudo-terminal.  No install, no sudo.
 #
-#   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-home-solo.py <dir> [--build]
+#   SDSOLOBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-home-solo.py <dir> [--build]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed,
 # 2 it could not run.  Solo's counterpart of Core's sandbox-home.py and sandbox-docs.py, which hold the rows this one is adapted from.

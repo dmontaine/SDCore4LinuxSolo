@@ -3,8 +3,8 @@
 # test-install-solo-clients.sh - the Solo installer's block that puts the clean-room client library from the release package into the built tree's bin
 # (S.262, 19 Nov 2026, carried from SD Core's test-install-clients.sh: the source builds no client library any more).
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-solo-clients.sh
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-solo-clients.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-solo-clients.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-solo-clients.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-solo-clients.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo, no install, no sd.  Everything happens in a scratch directory.  Exit 0 every row passed, 1 a row failed, 2 it could not run.

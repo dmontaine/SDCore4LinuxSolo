@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo-service.sh - does solo-service.sh do what it says?
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-service.sh HOME_DIR ACCOUNT_PASSWORD_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-service.sh HOME_DIR ACCOUNT_PASSWORD_FILE
 #
 # No sudo.  HOME_DIR is a Solo tree built by solo-stage.sh with
 # --account-password-file ACCOUNT_PASSWORD_FILE.  It installs the user units

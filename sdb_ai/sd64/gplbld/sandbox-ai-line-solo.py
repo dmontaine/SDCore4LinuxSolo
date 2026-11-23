@@ -3,7 +3,7 @@
 # sandbox-ai-line-solo.py - the toolkit's AI line ($tk_ai) on the HOME SCREEN, driven on a pseudo-terminal on a private SD Core Solo for Linux
 #                           (SOLO CARRY 16 of S.69, AI line stage 1, 23 Oct 2026; Core commit d6c031e).  No install, no sudo.
 #
-#   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-line-solo.py <dir> [--build] [--mutant=NAME]
+#   SDSOLOBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-ai-line-solo.py <dir> [--build] [--mutant=NAME]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; give it a name that is not the same length as
 # another sandbox's directory if the two can exist together).  Exit 0 every row passed, 1 a row failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S

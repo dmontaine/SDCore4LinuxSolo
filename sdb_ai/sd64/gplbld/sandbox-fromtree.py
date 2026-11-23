@@ -2,7 +2,7 @@
 #
 # sandbox-fromtree.py - a private SD Core Solo for Linux built from THIS TREE, no install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-fromtree.py <dir> all
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-fromtree.py <dir> all
 #   python3 .../sandbox-fromtree.py <dir> start | stop
 #   python3 .../sandbox-fromtree.py <dir> sess <cwd> "<command>" ["<command>" ...]
 #   (also: build, stage - the two halves of "all", for debugging)
@@ -545,7 +545,7 @@ def layout(box):
     # 23 Nov 26 dm - S.262 carried to the harness (Core's sandbox-fromtree.py, 19 Nov): the tree no longer builds a client library.  The suites that drive the
     #   API server through it (sandbox-qmclient-solo, sandbox-crypt's U rows) load the clean-room one, copied here into the sandbox's bin under both names:
     #   SD_CLIENT_LIB names the .so, else the private SDClientLib build.  It is not on GitHub, so a clone may have none; the copy is then left out.
-    cl = os.environ.get("SD_CLIENT_LIB") or "/home/don/Projects/SDClientLib/build/sdclilib.so"
+    cl = os.environ.get("SD_CLIENT_LIB") or "/home/don/SDCoreProject/SDClientLib/build/sdclilib.so"
     if os.path.isfile(cl):
         for nm in ("sdclilib.so", "libsdcli.so"):
             shutil.copy2(cl, os.path.join(box.sys, "bin", nm))

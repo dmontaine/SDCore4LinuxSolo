@@ -5,8 +5,8 @@
 # question asked during the install?", then "the home/prompt question", and "for existing users where all installs go to the prompt by default ... that will be
 # retained on upgrade").
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-start.sh
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-start.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-start.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-start.sh --selftest
 #
 # FREE CHECK: no sudo (Solo's installer uses none here), no install, no running sd.  Everything happens in a scratch directory.  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run (a block or the installer's set line missing).

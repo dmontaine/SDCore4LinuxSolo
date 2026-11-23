@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo-sshkey.sh - API request 72 (49 until 11 Nov 26): the master installs its ssh key (LSOLO 19).
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-sshkey.sh HOME_DIR ACCOUNT_PW_FILE GLOBAL_PW_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-sshkey.sh HOME_DIR ACCOUNT_PW_FILE GLOBAL_PW_FILE
 #
 # No sudo.  HOME_DIR is a MANAGED tree (solo-stage.sh with --global-password-file; its
 # stage daemon may be running).  This script installs the tree's USER units, runs the

@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo-interactive.sh - the installer's own questions, answered at a (pseudo-)terminal.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-interactive.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-interactive.sh
 #
 # No sudo.  Run as an ordinary user with a clean git tree (the installer builds the
 # COMMITTED head of this repository, as verify-solo-install.sh does).  It drives

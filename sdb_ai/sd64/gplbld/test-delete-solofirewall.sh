@@ -4,7 +4,7 @@
 # 4249 and 4251: with keep their rules stay (said), with delete they are removed (ufw and firewalld); 4243 and port 22 are never touched.  No sudo, no ufw, no
 # firewalld.  Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-delete-solofirewall.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-delete-solofirewall.sh [--selftest]
 #
 # THE BLOCK.  deletesdsolo.sh keeps it between "# SOLO-FIREWALL-BEGIN" and "# SOLO-FIREWALL-END".  This runs it under `set -uo pipefail` (the remover's options)
 # with `sudo` a function, `ufw`, `firewall-cmd` and `systemctl` stubs that log their arguments and answer from the case, and judges the LOG of what was asked and

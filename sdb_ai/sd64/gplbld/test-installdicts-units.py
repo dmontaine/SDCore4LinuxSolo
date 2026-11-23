@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-installdicts-units.py - WRITE_INSTALL_DICTS runs only for a session holding the administrator flag.
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-installdicts-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-installdicts-units.py
   python3 .../test-installdicts-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.

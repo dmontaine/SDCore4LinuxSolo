@@ -4,7 +4,7 @@
 #                       starts it, against the sandbox's REAL sd-solo and its REAL account, and the disk, the register and the audit trail are the evidence.
 #                       No install, no sudo.
 #
-#   SDSOLOBOX_KEYSET=n python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-mcp-solo.py <dir> [--build]
+#   SDSOLOBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-mcp-solo.py <dir> [--build]
 #
 # <dir> is a sandbox made by Solo's sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row
 # passed, 1 one failed, 2 it could not run.  The harness (the plain and administrator sessions, the register) is sandbox-osgate.py's, loaded as a module.

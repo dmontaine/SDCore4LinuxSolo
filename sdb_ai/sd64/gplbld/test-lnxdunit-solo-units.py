@@ -5,8 +5,8 @@
 # "daemon --print", "daemon", "remove" and "install" - in a scratch directory with a stub systemctl and loginctl first on PATH, HOME and XDG_CONFIG_HOME in the scratch:
 # the user's own systemd manager and the units of the Solo that runs on this computer are never touched (memory: user-unit-names-are-per-user).
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lnxdunit-solo-units.py
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lnxdunit-solo-units.py --selftest [--from=N]      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lnxdunit-solo-units.py
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-lnxdunit-solo-units.py --selftest [--from=N]      (mutants)
 #
 #   U  the two units "solo-service.sh daemon TREE --print" shows: sd-solo-lnxd.service is Type=simple, the daemon with no arguments, Restart=on-failure (NEVER always:
 #      "sd-solo -stop" ends the daemon with SIGTERM and it exits 0), a pause, a start limit, UMask=0077, After= and BindsTo= sd-solo.service, no [Install] section;

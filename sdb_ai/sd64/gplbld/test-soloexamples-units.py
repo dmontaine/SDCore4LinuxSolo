@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """test-soloexamples-units.py - examples.bp in Solo's one account (S.261, 17 Nov 2026) as invariants read off the source.  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-soloexamples-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-soloexamples-units.py [--selftest]
 
 The owner, 17 Nov 2026: "there should be a examples.bp file available to all users that contains those programs and a set of training programs typical for
 a Computer Science 101 course"; for Solo: "just include examples.bp in the single account, no need to load or remove".  SD Core's way (the verbs LOAD.EXAMPLES
 and REMOVE.EXAMPLES, LOGTO into each account) is not Solo's: Solo has one account, no LOGTO and no verb for this.  What it holds:
-  E1  the 28 shipped programs are the ones SD Core ships, byte for byte (the Core tree /home/don/Projects/SDCore4Linux; exit 2 when it is missing)
+  E1  the 28 shipped programs are the ones SD Core ships, byte for byte (the Core tree /home/don/SDCoreProject/SDCore4Linux; exit 2 when it is missing)
   E2  gpl.bp/solo_examples is the installer's alone (K$INTERNAL before it opens anything), reads the account sduser from the register, has no LOGTO, writes
       its two temporary VOC entries BEFORE the first compile and deletes them AFTER the last, keeps programs it does not ship, judges every compile on the
       compiler's success line, and ends on the line the stage anchors on
@@ -24,7 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.normpath(os.path.join(HERE, ".."))
 SDSYS = os.path.join(SD64, "sdsys")
 EX = os.path.join(SDSYS, "examples")
-CORE_EX = "/home/don/Projects/SDCore4Linux/sdb_ai/sd64/sdsys/examples"
+CORE_EX = "/home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/sdsys/examples"
 
 
 def rd(p):

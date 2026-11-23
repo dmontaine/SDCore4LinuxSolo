@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-solo-sdnet.sh - does a STAGED SOLO reach a real SD server through SDNet?  (SDNet carry 9, 20 Oct 2026)
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-sdnet.sh HOME_DIR ACCOUNT_PW_FILE ADMIN_PW_FILE SERVER_HOST SERVER_PORT REMOTE_ACCOUNT REMOTE_USER REMOTE_PW_FILE REMOTE_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-sdnet.sh HOME_DIR ACCOUNT_PW_FILE ADMIN_PW_FILE SERVER_HOST SERVER_PORT REMOTE_ACCOUNT REMOTE_USER REMOTE_PW_FILE REMOTE_FILE
 #
 # WRITTEN, NOT RUN (owner, 20 Oct 2026: VM witness testing is one big session after every component is built).  Syntax-checked only.
 #

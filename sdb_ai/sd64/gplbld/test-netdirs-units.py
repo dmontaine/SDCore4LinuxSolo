@@ -4,8 +4,8 @@
 # into account the differences between operating systems and core vs solo purpose").  FREE CHECK: no install, no sudo, no sd; the C and the
 # table are read as text, comments removed where a rule is about code.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netdirs-units.py
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netdirs-units.py --selftest      (mutants of op_sh.c, config.c, config.h, sysseg.c, the table)
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netdirs-units.py
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-netdirs-units.py --selftest      (mutants of op_sh.c, config.c, config.h, sysseg.c, the table)
 #
 # WHERE SOLO DIFFERS FROM CORE'S CHECK OF THE SAME NAME
 #   Solo has not got Core's W.11 F9: every sd.conf parameter is read at sd-solo -start into the segment's PCFG template (mode 0600, the one user's)

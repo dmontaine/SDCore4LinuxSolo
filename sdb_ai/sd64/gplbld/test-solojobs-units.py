@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-solojobs-units.py - Solo's scheduled jobs (S.247, 17 Nov 2026): SET.JOB, RUN.JOB, SET.JOBS.ACCESS, the TOOL.JOBS page and the scripts' parts, as invariants.
 
-    python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-solojobs-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-solojobs-units.py [--selftest]
 
 FREE: no install, no sudo, no sd, and NEVER the real systemd user manager (the deleter's step is run with systemctl a stub, on a scratch directory).
 Exit 0 every check passed, 1 a check failed, 2 it could not run.

@@ -5,7 +5,7 @@
 # SIGTERM with status 0 (so that Restart=on-failure does NOT bring it back after a stop); and there is one daemon at a time - a second one ends with status 0, and one that
 # starts after its predecessor was killed takes over.  No install, no sudo, no systemd.
 #
-#   SDSOLOBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-lnxd-solo.py <dir> [--build]
+#   SDSOLOBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-lnxd-solo.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it
 # could not run (including: the sandbox's segment did not come up, the null case).

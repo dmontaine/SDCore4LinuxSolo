@@ -15,11 +15,11 @@ S.69 rows 1 and 1b of the AI plan, carried to Solo (LSOLO 55, 20 Oct 2026). Docu
 Regenerate after a change to a verb, a message, a bcomp table, a docs section the pack quotes, the shipped dictionaries, the guide or the stamp:
 
 ```
-python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/agent-pack/mkpack.py --write
-python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-pack-units.py
+python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/agent-pack/mkpack.py --write
+python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-pack-units.py
 ```
 
-The generator takes the tree and the docs checkout as arguments (`--tree DIR --docs DIR --out DIR --skill DIR --product NAME`). It reads Solo's docs repository by absolute path (`/home/don/Projects/SDCore4LinuxSoloDocs`) and exits 2, saying so, when the checkout is missing. Line numbers in `src=path:line#hash` are locators that may lag after an edit elsewhere in the same file; the hash of the cited line is the identity and is what the check holds.
+The generator takes the tree and the docs checkout as arguments (`--tree DIR --docs DIR --out DIR --skill DIR --product NAME`). It reads Solo's docs repository by absolute path (`/home/don/SDCoreProject/SDCore4LinuxSoloDocs`) and exits 2, saying so, when the checkout is missing. Line numbers in `src=path:line#hash` are locators that may lag after an edit elsewhere in the same file; the hash of the cited line is the identity and is what the check holds.
 
 ## Where this differs from SD Core's agent pack, and why
 

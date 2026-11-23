@@ -5,8 +5,8 @@
 #   "Allow API access from other computers? opens TCP port N (y/N)"  - y opens the API to the network, anything else leaves it OFF
 #   "Allow ssh access from other computers? opens TCP port N (y/N)"  - y opens ssh to the network, anything else keeps the default (this computer)
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-access.sh
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-access.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-access.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-access.sh --selftest
 #   INSTALLER=<copy of the installer> bash .../test-install-access.sh                     (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo, no sshd.  The block is cut out of the installer, its "< /dev/tty" is taken out so the answer comes on stdin, the sshd

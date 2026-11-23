@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-toolsessions-solo-units.py - the sessions and locks page, TOOL.SESSIONS (`gpl.bp/tool_sessions`), as invariants read off the source (Solo carry 20 of Core's S.75 A4).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-toolsessions-solo-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-toolsessions-solo-units.py [--selftest]
 
 Core's test-toolsessions-units.py, adapted: Solo puts its administrator verbs in newvoc AND voc_template (SS1), the help record names Solo's page 06a1-task-locks-and-forcing-a-lock-open (SS12), and the
 page must not tell the administrator to "sign in as SDSYS" - Solo has no such sign-in, ADMIN is typed after sign-on, so only the session that set inhibit.login and its phantoms get past

@@ -1,7 +1,7 @@
 #!/bin/bash
 # witness-fresh-install.sh - READ-ONLY: what a fresh installsdsolo.sh left behind (LSOLO 30).
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-fresh-install.sh [--home DIR] [--since 'YYYY-MM-DD HH:MM:SS']
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-fresh-install.sh [--home DIR] [--since 'YYYY-MM-DD HH:MM:SS']
 #
 # NO sudo.  Nothing is changed and no password is read.  Run it as the user who owns the tree,
 # after the install and (with --since) after one real ssh sign-in:
@@ -31,7 +31,7 @@ done
 [ "$(id -u)" -ne 0 ] || refuse "do not run this as root"
 case "$H" in /*) ;; *) refuse "--home must be an absolute path (got $H)" ;; esac
 [ -f "$H/.sdcore-install" ] || refuse "$H/.sdcore-install is not there - nothing is installed at $H"
-REPO=/home/don/Projects/SDCore4LinuxSolo
+REPO=/home/don/SDCoreProject/SDCore4LinuxSolo
 ME="$(id -un)"
 pass=0; fail=0
 leg() { if [ "$3" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1 | $2 | $4"; else fail=$((fail+1)); echo "  [FAIL] $1 | expected: $2 | saw: $4"; fi; }

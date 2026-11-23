@@ -6,7 +6,7 @@
 # says so; the kept-password branch types no verb of the list and keeps its one sentence.  No install, no sudo, no sd.  Exit 0 every row held,
 # 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-sessioncheck.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-sessioncheck.sh [--selftest]
 #
 # THE BLOCK.  installsdsolo.sh keeps session_check_ok between "# SESSION-CHECK-BEGIN" and "# SESSION-CHECK-END".  This cuts it out and runs it under the
 # installer's own `set -euo pipefail` and IFS on what a session printed.  The inputs are what sd-solo printed on a real Solo on 21 Nov 2026 (the banner,

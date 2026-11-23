@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-req29path-units.py - API request 29 asks the OS switch of an F-pointer that leads out of the account, as invariants read off apisrvr (SD Core Solo for Linux).
 
-  python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-req29path-units.py
+  python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-req29path-units.py
   python3 .../test-req29path-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Carried from SD Core's file of the same name (S.73 item 1, SD Core 4f38ad4) on 21 Oct 26.

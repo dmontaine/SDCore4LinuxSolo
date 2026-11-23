@@ -2,7 +2,7 @@
 # test-tkrestart-units.py - the restart box of SD Core Solo for Linux (S.301, carried from SD Core; SD Core for Windows' row 382), read off
 # the source as text.
 #
-#   python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-tkrestart-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-tkrestart-units.py [--selftest]
 #
 # Differs from SD Core's check of the same name where Solo does: Solo is the user's own systemd unit (sd-solo.service), so there is no root
 # helper and no sudoers rule to hold (Core's R1 to R4); the restart is one fixed command to the user's systemd, held here as S1 and S2.

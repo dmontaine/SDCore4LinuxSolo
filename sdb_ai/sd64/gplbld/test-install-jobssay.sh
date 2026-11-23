@@ -3,8 +3,8 @@
 # test-install-jobssay.sh - installsdsolo.sh's JOBS-SAY block (19 Nov 2026, S.274): a reload install says the stage's "solo-stage: jobs:" line, which was only in
 # $WORK/stage.log (deleted when the installer ends), so the person never learned whether the kept scheduled jobs got their timers back.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-jobssay.sh
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-jobssay.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-jobssay.sh
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/test-install-jobssay.sh --selftest
 #
 # FREE CHECK: no sudo, no install, no running sd.  Exit 0 every row passed, 1 a row failed, 2 it could not run (the block or the installer's set line missing).
 #

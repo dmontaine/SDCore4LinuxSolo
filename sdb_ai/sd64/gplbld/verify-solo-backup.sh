@@ -2,7 +2,7 @@
 # verify-solo-backup.sh - LSOLO 20 (S.50): BACKUP.ACCOUNT, RESTORE.ACCOUNT and
 # SETTINGS.REPORT on SD Core Solo for Linux, including the start-up swap.
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-backup.sh HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/verify-solo-backup.sh HOME_DIR ACCOUNT_PASSWORD_FILE ADMIN_PASSWORD_FILE
 #
 # On a tree solo-stage.sh built with --account-password-file and
 # --admin-password-file (standalone), with SD running.  No sudo.  THE TREE'S

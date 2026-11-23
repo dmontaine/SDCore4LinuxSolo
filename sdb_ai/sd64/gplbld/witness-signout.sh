@@ -1,9 +1,9 @@
 #!/bin/bash
 # witness-signout.sh - does SD Core Solo for Linux survive the user's LAST sign-out?  (LSOLO 7, open since 30 Sep)
 #
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-signout.sh mark  [--home DIR]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-signout.sh mark  [--home DIR]
 #   ... sign out of EVERY session (the desktop included), wait a minute, sign in again ...
-#   bash /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-signout.sh check [--home DIR]
+#   bash /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/witness-signout.sh check [--home DIR]
 #
 # NO sudo.  Read-only apart from one small mark file, ~/.sd-solo-signout-mark.  "mark" records the
 # daemon's process id and start time, the service's start time and the boot id.  "check" must find the

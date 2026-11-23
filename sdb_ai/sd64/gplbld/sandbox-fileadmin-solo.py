@@ -3,7 +3,7 @@
 # sandbox-fileadmin-solo.py - API requests 70 (fileadmin: a verb run on the server for the session), 71 (fcontrol), 68 and 69 (write ... creating.seqkey) against a REAL Solo server,
 #                             and SOLO'S GATE for them: a session signed in with the GLOBAL password, nothing else.  No install, no sudo.
 #
-#   SDSOLOBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-fileadmin-solo.py <dir> [--build]
+#   SDSOLOBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld/sandbox-fileadmin-solo.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (Solo's own).  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed,
 # 2 it could not run.
